@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: echogallery-db
+    ports:
+      - "5432:5432"
+    environment:
+      # 透過 ${變數:-預設值} 語法，確保本地與生產環境變數的動態注入能力
+      POSTGRES_USER: ${POSTGRES_USER:-echo_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-echo_password}
+      POSTGRES_DB: ${POSTGRES_DB:-echogallery}
+    volumes:
+      #  改成 ./pgdata，代表在目前目錄（D 槽專案下）自動建立一個 pgdata 資料夾來放資料
+      - ./pgdata:/var/lib/postgresql/data
+  # backend:
+  #   build:
+  #     context: ./echo-gallery-backend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8080:8080"
+  #   # environment:
+  #     # 這裡把變數傳進去，Spring Boot 才能讀到
+  #   env_file:
+  #     - .env  # 這樣 backend 容器就能直接讀取到所有變數
+  #   depends_on:
+  #     - postgres
+# ⚠️ 注意：原本最底部的 volumes: 和 pgdata: 要整個刪除，因為現在改用實體路徑了
+# volumes:
+#   pgdata:

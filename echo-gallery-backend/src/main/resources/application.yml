@@ -1,0 +1,20 @@
+jwt:
+  secret: ${JWT_SECRET} # 這裡會自動去讀環境變數中的 JWT_SECRET
+spring:
+  application:
+    name: echo-gallery-backend
+  # PostgreSQL 連線設定
+  datasource:
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/echogallery}
+    username: ${DB_USERNAME:${POSTGRES_USER}}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+
+  # JPA / Hibernate 開發級日誌與自動建表組態
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
