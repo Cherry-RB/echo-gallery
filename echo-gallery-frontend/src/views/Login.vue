@@ -1,53 +1,99 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { authApi } from '../utils/api/auth'
 import { useAsync } from '../utils/api/useAsync'
+import { Lock, Message } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const form = reactive({ email: '', password: '' })
 
-// 1. 綁定表單輸入值
-const email = ref('')
-const password = ref('')
+const errors = reactive({ email: '', password: '' });
+// 統一驗證函式
+const validateForm = () => {
+  let isValid = true;
 
-// 2. 引入 useAsync 封裝（因為 login 只需要 loading 和執行函式，data 與 error 可以不用解構出來）
+  // 1. Email 驗證
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!form.email) {
+    errors.email = 'Email 必填';
+    isValid = false;
+  } else if (!emailRegex.test(form.email)) {
+    errors.email = 'Email 格式錯誤';
+    isValid = false;
+  } else {
+    errors.email = '';
+  }
+
+  // 2. Password 驗證
+  if (form.password.trim().length < 6) {
+    errors.password = '密碼至少需要 6 個字元';
+    isValid = false;
+  } else {
+    errors.password = '';
+  }
+
+  return isValid;
+};
+
 const { loading, execute: handleLogin } = useAsync(authApi.login)
 
 const onSubmit = async () => {
-  if (!email.value || !password.value) return alert('請填寫完整欄位')
-
+  validateForm()
+  // 即使按鈕 disabled，這裡也可以加一層保護
+  if (!isFormValid.value){
+    ElMessage.error('請填寫完整欄位');
+    return
+  };
   try {
-    // 3. 呼叫 execute，參數型態會被 TypeScript 嚴格把關 🛡️
-    const res = await handleLogin({
-      email: email.value,
-      password: password.value
-    })
-
-    // 4. 登入成功後的副作用處理
-    if (res && res.token) {
+    const res = await handleLogin(form)
+    if (res?.token) {
       localStorage.setItem('token', res.token)
       localStorage.setItem('username', res.username)
-      alert('登入成功！')
-      router.push('/dashboard')
+      router.push('/')
     }
-  } catch (err) {
-    // 錯誤通常已經被 Axios 攔截器全域處理（或在此處處理特定的商業邏輯錯誤）
-    console.error('登入遭遇錯誤:', err)
+  } catch (err: any) {
+    console.error('API 呼叫失敗:', err);
   }
 }
+
+// 計算屬性直接依賴 errors 物件
+const isFormValid = computed(() => {
+  return form.email.trim() !== '' &&
+         form.password.trim().length >= 6 &&
+         errors.email === '' &&
+         errors.password === '';
+});
 </script>
 
 <template>
-  <div class="login-container">
-    <input v-model="email" type="email" placeholder="請輸入 Email" :disabled="loading" />
-    <input v-model="password" type="password" placeholder="請輸入密碼" :disabled="loading" />
+  <div class="auth-page">
+    <el-card class="auth-card">
+      <template #header>
+        <h2 class="auth-title">EchoGallery 登入</h2>
+      </template>
 
-    <button @click="onSubmit" :disabled="loading">
-      {{ loading ? '登入中...' : '確認登入' }}
-    </button>
+      <el-form label-position="top" :model="form" @submit.prevent="onSubmit">
+        <el-form-item label="Email" :error="errors.email">
+          <el-input v-model="form.email" :prefix-icon="Message" placeholder="請輸入 Email" @blur="validateForm"/>
+        </el-form-item>
+        <el-form-item label="密碼" :error="errors.password">
+          <el-input v-model="form.password" :prefix-icon="Lock" type="password" placeholder="請輸入密碼" show-password @blur="validateForm"/>
+        </el-form-item>
 
-    <div class="auth-link">
-      <router-link to="/register">還沒有帳號？立即註冊</router-link>
-    </div>
+        <el-button type="primary" :loading="loading" class="auth-btn"  :disabled="!isFormValid" native-type="submit">
+          確認登入
+        </el-button>
+
+        <div class="auth-link">
+          <router-link to="/register">還沒有帳號？立即註冊</router-link>
+        </div>
+      </el-form>
+    </el-card>
   </div>
 </template>
+
+<style scoped>
+@import '../assets/auth.css'; /* 引入共用樣式 */
+</style>

@@ -18,8 +18,6 @@ import com.echogallery.tag.TagRepository;
 import com.echogallery.user.User;
 import com.echogallery.user.UserRepository;
 import com.echogallery.util.SecurityUtil;
-
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -52,7 +50,7 @@ public class CardService {
                 .map(this::convertToSummaryResponse)
                 .toList();
     }
-    
+
     @Transactional
     public CardDetailResponse getCardDetailById(Long id){
         // 1. 從安全上下文抓取目前發出請求的用戶 ID（對應你前端攔截器帶入的 Token 身份）
@@ -182,7 +180,7 @@ public class CardService {
         return response;
     }
 
-    private Set<Tag> associateTags(User user, String[] requestTags){ 
+    private Set<Tag> associateTags(User user, String[] requestTags){
 
         if(requestTags==null){
             return new java.util.HashSet<>(); // ✨ 永遠回傳空集合，絕對不回傳 null
@@ -288,22 +286,22 @@ public class CardService {
 
         // 4. 根據 request.getStarStatus() 判斷是「點亮星星(true)」還是「熄滅星星(false)」
         if (Boolean.TRUE.equals(request.getStarStatus())) {
-            
+
             // 🔒 樂觀更新防禦防線：檢查當前時間是否已經過了冷卻截止時間
             if (card.getLikeAvailableAt() != null && now.isBefore(card.getLikeAvailableAt())) {
                 // 如果冷卻時間還沒到，直接拋出 400 Bad Request，防止前端繞過介面直接敲 API
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "星星冷卻中，目前無法點亮");
             }
-            
+
             card.setLikeCount(card.getLikeCount() + 1);
             card.setLastLikedAt(now);
             card.setLikeAvailableAt(now.plusDays(7)); // ✨ 核心：設定 7 天後才能再次點亮
-            
+
         } else {
             // 熄滅星星（取消點讚）邏輯
             // 防禦性設計：確保星星數最低為 0，不會扣到變成負數
             card.setLikeCount(Math.max(0, card.getLikeCount() - 1));
-            
+
             // 取消點讚後，清除冷卻時間，讓使用者可以隨時重新點亮
             card.setLikeAvailableAt(null);
         }
@@ -364,7 +362,7 @@ public class CardService {
         if(daysToPlus <= 0){
             daysToPlus = (card.getIntervalDays() != null) ? card.getIntervalDays() : 10;
         }
-        
+
         // 5. 更新下次回流時間，不碰 lastInteractionAt
         card.setNextShowAt(ZonedDateTime.now().plusDays(daysToPlus));
 

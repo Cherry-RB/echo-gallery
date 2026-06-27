@@ -1,58 +1,113 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { authApi } from '../utils/api/auth' // 💡 假設你的 authApi 裡有寫 register
+import { authApi } from '../utils/api/auth'
 import { useAsync } from '../utils/api/useAsync'
+import { Lock, Message, User } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const form = reactive({ username: '', email: '', password: '' })
+const { loading, execute: handleRegister } = useAsync(authApi.register);
 
-// 1. 註冊需要三個欄位（比登入多一個 username）
-const username = ref('')
-const email = ref('')
-const password = ref('')
+const errors = reactive({ username: '', email: '', password: '' });
+// 1. 基礎格式驗證 (前端規則)
+const validateForm = () => {
+  let isValid = true;
 
-// 2. 引入 useAsync 封裝，這次綁定 register 門禁
-const { loading, execute: handleRegister } = useAsync(authApi.register)
+  // 1. Username 驗證
+  if (form.username.trim().length < 2) {
+    errors.username = '名稱至少需要 2 個字元';
+    isValid = false;
+  } else {
+    errors.username = '';
+  }
+
+  // 2. Email 驗證
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!form.email) {
+    errors.email = 'Email 必填';
+    isValid = false;
+  } else if (!emailRegex.test(form.email)) {
+    errors.email = 'Email 格式錯誤';
+    isValid = false;
+  } else {
+    errors.email = '';
+  }
+
+  // 3. Password 驗證
+  if (form.password.trim().length < 6) {
+    errors.password = '密碼至少需要 6 個字元';
+    isValid = false;
+  } else {
+    errors.password = '';
+  }
+
+  return isValid;
+};
+
 
 const onSubmit = async () => {
-  if (!username.value || !email.value || !password.value) return alert('請填寫完整欄位')
-
+  validateForm();
+  // 即使按鈕 disabled，這裡也可以加一層保護
+  if (!isFormValid.value){
+    ElMessage.error('請填寫完整欄位');
+    return
+  };
+  // if (!form.username || !form.email || !form.password) return alert('請填寫完整欄位')
   try {
-    // 3. 呼叫後端註冊 API
-    const res = await handleRegister({
-      username: username.value,
-      email: email.value,
-      password: password.value
-    })
-
-    // 4. 因為你的後端 AuthService.register 寫得很好，註冊成功會直接發 token
-    // 這裡可以直接幫使用者完成「自動登入」的副作用！
-    if (res && res.token) {
+    const res = await handleRegister(form)
+    if (res?.token) {
       localStorage.setItem('token', res.token)
       localStorage.setItem('username', res.username)
-      alert('註冊成功，已為您自動登入！')
       router.push('/dashboard')
     }
-  } catch (err) {
-    console.error('註冊遭遇錯誤:', err)
+  } catch (err: any) {
+    console.error('API 呼叫失敗:', err);
   }
 }
+
+
+// 2. 判斷表單是否允許送出
+const isFormValid = computed(() => {
+  return form.username.trim() !== '' &&
+         form.email.trim() !== '' &&
+         form.password.trim().length >= 6 &&
+         errors.username === '' &&
+         errors.email === '' &&
+         errors.password === '';
+});
 </script>
 
 <template>
-  <div class="register-container">
-    <h2>註冊新帳號</h2>
-    <input v-model="username" type="text" placeholder="請輸入使用者名稱" :disabled="loading" />
-    
-    <input v-model="email" type="email" placeholder="請輸入 Email" :disabled="loading" />
-    <input v-model="password" type="password" placeholder="請輸入密碼" :disabled="loading" />
+  <div class="auth-page"> <el-card class="auth-card">
+      <template #header>
+        <h2 class="auth-title">註冊新帳號</h2>
+      </template>
 
-    <button @click="onSubmit" :disabled="loading">
-      {{ loading ? '註冊中...' : '確認註冊' }}
-    </button>
+      <el-form label-position="top" @submit.prevent="onSubmit" :model="form">
+        <el-form-item label="使用者名稱" :error="errors.username">
+          <el-input v-model="form.username" :prefix-icon="User" placeholder="請輸入使用者名稱" @blur="validateForm"/>
+        </el-form-item>
+        <el-form-item label="Email" :error="errors.email">
+          <el-input v-model="form.email" :prefix-icon="Message" placeholder="請輸入 Email" @blur="validateForm"/>
+        </el-form-item>
+        <el-form-item label="密碼" :error="errors.password">
+          <el-input v-model="form.password" :prefix-icon="Lock" type="password" placeholder="請輸入密碼" show-password @blur="validateForm"/>
+        </el-form-item>
 
-    <div class="auth-link">
-      <router-link to="/login">已有帳號？前往登入</router-link>
-    </div>
+        <el-button type="primary" :loading="loading" class="auth-btn"  :disabled="!isFormValid" native-type="submit">
+          確認註冊
+        </el-button>
+
+        <div class="auth-link">
+          <router-link to="/login">已有帳號？前往登入</router-link>
+        </div>
+      </el-form>
+    </el-card>
   </div>
 </template>
+
+<style scoped>
+@import '../assets/auth.css'; /* 引入共用樣式 */
+</style>

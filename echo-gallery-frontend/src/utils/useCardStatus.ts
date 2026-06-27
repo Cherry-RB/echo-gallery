@@ -21,7 +21,7 @@ interface InfiniteCardData {
 // 核心組合式函式 (Composable)：管理所有卡片狀態的互動
 // =====================================================
 export const useCardStatus = () => {
-    
+
     // 取得 TanStack Query 的全局快取管理器（像是一個前端的臨時資料庫快取中心）
     const queryClient = useQueryClient();
 
@@ -38,13 +38,13 @@ export const useCardStatus = () => {
         // 3. 進階：找出所有以 ['cards'] 開頭的快取（例如包含篩選條件的 ['cards', { status: 'active' }]）
         const queryCache = queryClient.getQueryCache();
         const matchingQueries = queryCache.findAll({ queryKey: ['cards'] });
-        
+
         // 紀錄所有符合的快取現狀，用於錯誤還原
         const previousListsSnapshot = matchingQueries.map(query => ({
             queryKey: query.queryKey,
             data: query.state.data
         }));
-        
+
         return { previousListsSnapshot, previousCardDetail };
     };
     // =====================================================
@@ -56,16 +56,16 @@ export const useCardStatus = () => {
             // 如果目前根本還沒有快取資料（例如還沒開過首頁），就什麼都不做直接返回
             if (!old) return old;
             // 處理使用 useInfiniteQuery 的二維陣列結構 { pages: [ [card, card], [...] ] }
-            // 結構是二維陣列：{ pages: [ [card1, card2], [card3, card4] ] } 
+            // 結構是二維陣列：{ pages: [ [card1, card2], [card3, card4] ] }
             if (old.pages && Array.isArray(old.pages)) {
                 return {
                     ...old, // 保留原本分頁的其他資訊（例如 pageParams）
                     // 迴圈遍歷每一個分頁（第一層陣列）
-                    pages: old.pages.map((page: CardDTO[]) => 
+                    pages: old.pages.map((page: CardDTO[]) =>
                         // 迴圈遍歷該分頁裡的每一張卡片（第二層陣列）
                         page.map((card: CardDTO) =>
                             // 檢查這張卡片的 ID 是否就是我們要操作的那張卡片？
-                            String(card.id) === String(id) 
+                            String(card.id) === String(id)
                             ? { ...card, ...patchFields } // 用解構語法，把舊卡片的所有欄位，疊加覆蓋上我們新傳進來的修改欄位
                             : card // 沒找到的卡片，原封不動傳回去
                         )
@@ -104,7 +104,7 @@ export const useCardStatus = () => {
         if (context?.previousCardDetail){
             queryClient.setQueryData(['card', id], context.previousCardDetail);
         }
-        
+
         // 解析後端報錯的客製化訊息（例如："星星冷卻中"、"權限不足"），如果沒有就給預設字串
         const errorMsg = err.response?.data?.message || "操作失敗，請稍後再試";
         // 跳出 Element Plus 的紅色驚嘆號提示
@@ -115,14 +115,14 @@ export const useCardStatus = () => {
     // =====================================================
     const starMutation = useMutation({
         // 發送給後端 Axios 的網路請求
-        mutationFn: ({ id, starStatus }: { id: string | number; starStatus: boolean }) => 
+        mutationFn: ({ id, starStatus }: { id: string | number; starStatus: boolean }) =>
             cardApi.toggleCardStar(id, { starStatus }),
-        
+
         // 點擊瞬間立刻執行：樂觀更新核心
         onMutate: async ({ id, starStatus }) => {
             // 把目前的快取拍照備份，並取得備份物件
             const snapshot = await prepareSnapshot(id);
-            
+
             // 計算預期數值 (下一次可以再點的 7 天冷卻時間)
             const now = new Date();
             const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -170,15 +170,15 @@ export const useCardStatus = () => {
         // 【打後端】
         mutationFn: ({ id, archivedStatus }: { id: string | number; archivedStatus: boolean }) =>
             cardApi.toggleArchive(id, { archivedStatus }),
-        
+
         // 【點擊瞬間立刻執行】
         onMutate: async ({ id, archivedStatus }) => {
             // 備份快照
             const snapshot = await prepareSnapshot(id);
-            
+
             // 樂觀更新：立刻讓前端卡片進入封存狀態 (觸發 CSS 變灰)
             updateLocalCache(id, { isArchived: archivedStatus });
-            
+
             return snapshot;
         },
         // 【後端成功後執行】
@@ -198,11 +198,11 @@ export const useCardStatus = () => {
         // 【打後端】
         mutationFn: ({ id, nextIntervalDays }: { id: string | number; nextIntervalDays: number }) =>
             cardApi.snoozeCard(id, { nextIntervalDays }),
-        
+
         // 【點擊瞬間立刻執行】
         onMutate: async ({ id }) => {
             const snapshot = await prepareSnapshot(id);
-            
+
             // 從前端大陣列中將其剔除，瀑布流會立刻重新排版，卡片原地消失
             // 使用 setQueriesData 確保所有開頭為 ['cards'] 的列表都同步剔除該卡片
             queryClient.setQueriesData<InfiniteData<CardDTO[]>>({ queryKey: ['cards'] }, (oldData: any) => {
@@ -215,7 +215,7 @@ export const useCardStatus = () => {
                     })
                 };
             });
-            
+
             return snapshot;
         },
         // 【後端成功後執行】
@@ -236,7 +236,7 @@ export const useCardStatus = () => {
         // 【打後端】
         mutationFn: ({ id }: { id: string | number; intervalDays?: number }) =>
             cardApi.readCard(id),
-        
+
         // 【點擊瞬間立刻執行】
         onMutate: async ({ id }) => {
             const snapshot = await prepareSnapshot(id);
@@ -246,7 +246,7 @@ export const useCardStatus = () => {
                 if (!oldData || !oldData.pages) return oldData;
                 return {
                     ...oldData,
-                    pages: oldData.pages.map((page: any[]) => 
+                    pages: oldData.pages.map((page: any[]) =>
                         page.filter(card => String(card.id) !== String(id))
                     )
                 };
@@ -259,7 +259,7 @@ export const useCardStatus = () => {
             queryClient.setQueryData(['card', variables.id], updatedCard);
         },
         // 【後端失敗時執行】
-        onError: (err, variables, context) => 
+        onError: (err, variables, context) =>
             handleMutationError(err, variables.id, context)
     });
 
@@ -272,7 +272,7 @@ export const useCardStatus = () => {
         handleToggleArchive: archiveMutation.mutate,
         handleSnoozeCard: snoozeMutation.mutate,
         handleReadCard: readMutation.mutate,
-        
+
         // 如果你有需要按鈕讀條(Loading) 狀態也可以順便拿出去
         isStarPending: starMutation.isPending,
         isArchivePending: archiveMutation.isPending,
@@ -280,93 +280,3 @@ export const useCardStatus = () => {
         isReadPending: readMutation.isPending,
     };
 };
-
-
-    // const { mutate: handleToggleStar } = useMutation({
-    // // 1. 實際發送 API
-    // mutationFn: ({ id, starStatus }: { id: string | number; starStatus: boolean }) => 
-    //     cardApi.toggleCardStar(id, { starStatus }),
-
-    // // 2. 點擊瞬間立刻執行 (樂觀更新：讓星星秒亮/秒暗)
-    // onMutate: async ({ id, starStatus }) => {
-    //     // 取消正在進行的 refetch，避免舊資料蓋過我們的樂觀更新
-    //     await queryClient.cancelQueries({ queryKey: ['cards'] });
-    //     await queryClient.cancelQueries({ queryKey: ['card', id] }); // 同步取消詳情頁快取
-
-    //     // 備份當前的快取狀態 (Snapshot)，若出錯可以用來還原
-    //     const previousCards = queryClient.getQueryData(['cards']);
-    //     const previousCardDetail = queryClient.getQueryData(['card', id]);
-
-    //     // 計算預期的最新數值 (維持你的 Bilibili 7天冷卻邏輯)
-    //     const now = new Date();
-    //     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    //     const nextLikeAvailableAt = starStatus ? sevenDaysLater : null;
-    //     const likeDelta = starStatus ? 1 : -1;
-
-    //     // 更新「瀑布流列表」的快取 (前端先假裝成功）(需處理使用 useInfiniteQuery 的 pages 二維陣列結構)
-    //     queryClient.setQueryData(['cards'], (old: any) => {
-    //     if (!old) return old;
-    //     return {
-    //         ...old,
-    //         pages: old.pages.map((page: any) => {
-    //         return page.map((card: any) => {
-    //             if (String(card.id) === String(id)) {
-    //             return {
-    //                 ...card,
-    //                 likeAvailableAt: nextLikeAvailableAt,
-    //                 likeCount: Math.max(0, card.likeCount + likeDelta)
-    //             };
-    //             }
-    //             return card;
-    //         });
-    //         })
-    //     };
-    //     });
-
-    //     // 返回備份內容
-    //     return { previousCards, previousCardDetail };
-    // },
-
-    // // 3. API 成功後，精準覆蓋，絕不刷新 100 頁！
-    // onSuccess: (updatedCard, variables) => {
-    //     queryClient.setQueryData(['cards'], (old: any) => {
-    //     if (!old) return old;
-    //     return {
-    //         ...old,
-    //         pages: old.pages.map((page: any) => {
-    //         return page.map((card: any) => {
-    //             // 🎯 找到了！只用後端回傳的「最新真實 DTO」替換這單獨一張卡片
-    //             // 包含後端排序好的 tags 順序、精準的冷卻時間，其他 99 頁原封不動！
-    //             if (String(card.id) === String(variables.id)) {
-    //             return updatedCard; 
-    //             }
-    //             return card;
-    //         });
-    //         })
-    //     };
-    //     });
-    //     // 同步精準更新單張卡片的詳情快取（確保點進去也是最新資料）
-    //     queryClient.setQueryData(['card', variables.id], updatedCard);
-    // },
-
-    // // 4. 當後端錯誤或失效時，自動回復原本樣子 (例如星星冷卻中 400 Bad Request)
-    // onError: (err: any, variables, context) => {
-    //     // 還原成點擊前的快取模樣（星星彈回原狀）
-    //     if (context?.previousCards) {
-    //     queryClient.setQueryData(['cards'], context.previousCards);
-    //     }
-    //     if (context?.previousCardDetail) {
-    //     queryClient.setQueryData(['card', variables.id], context.previousCardDetail);
-    //     }
-    //     // 抓取後端噴出來的 "星星冷卻中，目前無法點亮"
-    //     const errorMsg = err.response?.data?.message || "操作失敗，請稍後再試";
-        
-    //     // 列表頁也跳出精緻的紅色驚嘆號！
-    //     ElMessage.error(errorMsg);
-    // },
-    // // 🧹 功成身退：把原本的強制 invalidate 刪除
-    // onSettled: () => {
-    //     // 這裡留空！不再叫瀏覽器去發送大範圍的列表重新撈取請求。
-    // }
-    // });
-// }

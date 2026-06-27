@@ -1,0 +1,23 @@
+.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* 佔滿整個螢幕高度 */
+  background-color: #f5f7fa;
+}
+.auth-card {
+  width: 400px;
+}
+.auth-link {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+.auth-title {
+  margin: 0;
+  text-align: center;
+}
+.auth-btn {
+  width: 100%;
+  margin-top: 10px;
+}

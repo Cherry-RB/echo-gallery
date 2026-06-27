@@ -13,20 +13,20 @@ const hotTags = ref([
 ])
 
 // 2. 系統核心數據統計資料
-const totalCards = ref(528)          
-const todayReviewCount = ref(24)       
-const highWatchLaterCount = ref(7)     
+const totalCards = ref(528)
+const todayReviewCount = ref(24)
+const highWatchLaterCount = ref(7)
 </script>
 
 <template>
   <div class="stats-wrapper">
-    
+
     <section class="sidebar-section">
       <h3 class="section-title">
         <el-icon><DataAnalysis /></el-icon>
         <span>EchoGallery 統計</span>
       </h3>
-      
+
       <div class="stats-grid">
         <div class="stat-box highlight-box">
           <span class="stat-value">{{ todayReviewCount }}</span>
@@ -38,7 +38,7 @@ const highWatchLaterCount = ref(7)
         </div>
         <div class="stat-box">
           <span class="stat-value">{{ highWatchLaterCount }}</span>
-          <span class="stat-label">稍後觀看 > 100</span>
+          <span class="stat-label">稍後觀看 > 10</span>
         </div>
       </div>
     </section>

@@ -7,7 +7,6 @@ import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
 import { cardApi } from '../utils/api/card';
 import { useAsync } from '../utils/api/useAsync';
-import { ElMessage } from 'element-plus';
 import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';
 
@@ -38,7 +37,7 @@ const { data: fetchedCard, isLoading: loading } = useQuery({
   queryKey: ['card', props.id],
   queryFn: () => cardApi.getCard(props.id),
   // 💡 只有在「非創建模式」且有 id 時才發送請求
-  enabled: computed(() => !isCreateMode.value && !!props.id) 
+  enabled: computed(() => !isCreateMode.value && !!props.id)
 });
 
 // =====================================================
@@ -162,11 +161,11 @@ const toggleStar = async () => {
 // =====================================================
 const toggleArchive = () => {
   if (isEditMode.value) return; // 編輯模式下交給下拉選單，非編輯模式點擊按鈕直接觸發
-  
+
   // 反轉當前狀態發送
-  handleToggleArchive({ 
-    id: props.id, 
-    archivedStatus: !cardData.value.isArchived 
+  handleToggleArchive({
+    id: props.id,
+    archivedStatus: !cardData.value.isArchived
   });
 }
 
@@ -197,10 +196,10 @@ const openSourceUrl = () => {
         <template #content>
           <span class="header-title">卡片詳情</span>
         </template>
-        
+
         <template #extra>
           <div style="display: flex; align-items: center; gap: 12px;">
-            
+
             <!-- 儲存/取消更新按鈕 -->
             <template v-if="isEditMode">
               <el-button @click="handleCancel">取消</el-button>
@@ -223,7 +222,7 @@ const openSourceUrl = () => {
     </div>
 
     <div class="main-layout">
-      
+
       <div class="left-content">
         <el-card class="detail-card">
           <template #header>
@@ -240,30 +239,30 @@ const openSourceUrl = () => {
                   <el-radio-button label="note">筆記</el-radio-button>
                   <el-radio-button label="link">連結</el-radio-button>
                 </el-radio-group>
-                
+
                 <h1 v-if="!isEditMode" class="main-title">{{ cardData.title }}</h1>
-                <el-input 
-                  v-else 
-                  v-model="cardData.title" 
-                  placeholder="請輸入卡片標題" 
+                <el-input
+                  v-else
+                  v-model="cardData.title"
+                  placeholder="請輸入卡片標題"
                   size="large"
                   style="flex: 1;"
                 />
               </div>
-              
+
               <div class="tags-row" v-if="(cardData.tags && cardData.tags.length) || isEditMode">
-                <el-tag 
-                  v-for="tag in cardData.tags" 
-                  :key="tag" 
-                  type="info" 
-                  size="small" 
+                <el-tag
+                  v-for="tag in cardData.tags"
+                  :key="tag"
+                  type="info"
+                  size="small"
                   effect="plain"
                   :closable="isEditMode"
                   @close="handleCloseTag(tag)"
                 >
                   #{{ tag }}
                 </el-tag>
-                
+
                 <el-input
                   v-if="inputVisible"
                   ref="saveTagInput"
@@ -286,9 +285,9 @@ const openSourceUrl = () => {
             </template>
             <template v-else>
               <div class="cover-edit-area">
-                <el-input 
-                  v-model="cardData.coverImageUrl" 
-                  placeholder="請輸入封面圖片 URL (留空則不顯示封面)" 
+                <el-input
+                  v-model="cardData.coverImageUrl"
+                  placeholder="請輸入封面圖片 URL (留空則不顯示封面)"
                   clearable
                 />
                 <div v-if="cardData.coverImageUrl" class="cover-preview-mini">
@@ -303,36 +302,36 @@ const openSourceUrl = () => {
             <div class="info-paragraph" v-if="cardData.reason || isEditMode">
               <h3 class="paragraph-title reason"><span class="title-marker reason"></span>收藏理由</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.reason }}</p>
-              <el-input 
-                v-else 
-                v-model="cardData.reason" 
-                type="textarea" 
-                :rows="3" 
-                placeholder="請輸入這張卡片的收藏理由..." 
+              <el-input
+                v-else
+                v-model="cardData.reason"
+                type="textarea"
+                :rows="3"
+                placeholder="請輸入這張卡片的收藏理由..."
               />
             </div>
 
             <div class="info-paragraph" v-if="cardData.summary || isEditMode">
               <h3 class="paragraph-title summary"><span class="title-marker summary"></span>內容摘要</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.summary }}</p>
-              <el-input 
-                v-else 
-                v-model="cardData.summary" 
-                type="textarea" 
-                :rows="3" 
-                placeholder="請輸入內容摘要..." 
+              <el-input
+                v-else
+                v-model="cardData.summary"
+                type="textarea"
+                :rows="3"
+                placeholder="請輸入內容摘要..."
               />
             </div>
 
             <div class="info-paragraph" v-if="cardData.type === 'note' || cardData.showContentPreview || isEditMode">
               <h3 class="paragraph-title content"><span class="title-marker content"></span>詳細內容</h3>
               <p v-if="!isEditMode" class="paragraph-text main-content">{{ cardData.content }}</p>
-              <el-input 
-                v-else 
-                v-model="cardData.content" 
-                type="textarea" 
-                :rows="6" 
-                placeholder="請輸入詳細內容..." 
+              <el-input
+                v-else
+                v-model="cardData.content"
+                type="textarea"
+                :rows="6"
+                placeholder="請輸入詳細內容..."
               />
             </div>
           </div>
@@ -348,7 +347,7 @@ const openSourceUrl = () => {
               <span v-else>來源連結</span>
             </div>
           </div>
-          
+
           <template v-if="!isEditMode">
             <el-button class="goto-btn" :disabled="!cardData.url" @click="openSourceUrl()">
               前往來源連結
@@ -370,12 +369,12 @@ const openSourceUrl = () => {
               <span v-if="!isEditMode">
                 {{ cardData.intervalDays ? `${cardData.intervalDays} 天一次` : '未設定' }}
               </span>
-              <el-input-number 
-                v-else 
-                v-model="cardData.intervalDays" 
-                :min="1" 
-                :max="365" 
-                size="small" 
+              <el-input-number
+                v-else
+                v-model="cardData.intervalDays"
+                :min="1"
+                :max="365"
+                size="small"
                 controls-position="right"
                 style="width: 100%;"
               />
@@ -392,7 +391,7 @@ const openSourceUrl = () => {
             <el-icon><CollectionTag /></el-icon>
             <span>卡片狀態</span>
           </div>
-          
+
           <div class="status-grid">
             <div class="grid-item">
               <span class="grid-label">累積點閱</span>
@@ -401,9 +400,9 @@ const openSourceUrl = () => {
             <div class="grid-item">
               <span class="grid-label">喜愛程度</span>
               <div class="star-interaction" :style="{ cursor: isEditMode ? 'not-allowed' : 'pointer' }" @click="toggleStar">
-                <el-icon 
-                  :size="16" 
-                  style="color: #f7ba2a;" 
+                <el-icon
+                  :size="16"
+                  style="color: #f7ba2a;"
                   :class="{ 'active-star': !getLikeAvailableStatus(cardData.likeAvailableAt) && !isEditMode }">
                   <Star v-if="getLikeAvailableStatus(cardData.likeAvailableAt)" />
                   <StarFilled v-else />
@@ -423,10 +422,10 @@ const openSourceUrl = () => {
                 <el-tag :type="cardData.isArchived ? 'info' : 'success'" size="small" effect="light">
                   {{ cardData.isArchived ? '已封存' : '使用中' }}
                 </el-tag>
-                <el-button 
-                  type="primary" 
-                  link 
-                  size="small" 
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
                   @click="toggleArchive"
                 >
                   {{ cardData.isArchived ? '還原使用' : '快速封存' }}

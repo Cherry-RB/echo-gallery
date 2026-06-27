@@ -8,6 +8,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
+import com.echogallery.exception.ErrorResponse;
+
 import java.io.IOException;
 
 @Component
@@ -16,19 +18,18 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public void handle(HttpServletRequest request, 
-                       HttpServletResponse response, 
+    public void handle(HttpServletRequest request,
+                       HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException, ServletException {
-        
+
         // 1. 設定 HTTP 回應標頭
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 403
 
         // 2. 建立標準錯誤物件
         ErrorResponse errorResponse = new ErrorResponse(
-                HttpServletResponse.SC_FORBIDDEN,
                 "存取遭拒：您的帳號權限不足，無法存取此資源",
-                System.currentTimeMillis()
+                HttpServletResponse.SC_FORBIDDEN
         );
 
         // 3. 寫回前端
