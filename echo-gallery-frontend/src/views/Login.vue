@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { authApi } from '../utils/api/auth'
 import { useAsync } from '../utils/api/useAsync'
 import { Lock, Message } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useAuthStore } from '../stores/authStore'
 
 const router = useRouter()
 const form = reactive({ email: '', password: '' })
@@ -37,20 +37,18 @@ const validateForm = () => {
   return isValid;
 };
 
-const { loading, execute: handleLogin } = useAsync(authApi.login)
+const authStore = useAuthStore();
+const { loading, execute: handleLogin } = useAsync(authStore.login)
 
 const onSubmit = async () => {
-  validateForm()
-  // 即使按鈕 disabled，這裡也可以加一層保護
-  if (!isFormValid.value){
+  if (!validateForm()){
     ElMessage.error('請填寫完整欄位');
     return
-  };
+  }
   try {
     const res = await handleLogin(form)
     if (res?.token) {
-      localStorage.setItem('token', res.token)
-      localStorage.setItem('username', res.username)
+      ElMessage.success("登入成功");
       router.push('/')
     }
   } catch (err: any) {
@@ -60,7 +58,9 @@ const onSubmit = async () => {
 
 // 計算屬性直接依賴 errors 物件
 const isFormValid = computed(() => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return form.email.trim() !== '' &&
+         emailRegex.test(form.email) &&
          form.password.trim().length >= 6 &&
          errors.email === '' &&
          errors.password === '';

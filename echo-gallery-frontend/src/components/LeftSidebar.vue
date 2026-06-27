@@ -1,27 +1,31 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 // 🌟 引入原有與新加入的 Element Plus 官方圖示
-import { 
-  Calendar, 
-  Refresh, 
-  Star, 
-  Loading, 
-  Box, 
-  Clock, 
+import {
+  Calendar,
+  Refresh,
+  Star,
+  Loading,
+  Box,
+  Clock,
   Search,
   Plus,
   Setting,
   User,
   RemoveFilled
 } from '@element-plus/icons-vue'
+import { useAuthStore } from '../stores/authStore';
+import { storeToRefs } from 'pinia';
 
-const route = useRoute()
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 
-// 👤 從右側遷移過來的用戶狀態與基本資料
-const isLoggedIn = ref(true)
+const { isAuthenticated, username } = storeToRefs(authStore)
+
 const userProfile = ref({
-  name: 'EchoUser',
+  name: username,
   avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
   title: '全端開發工程師'
 })
@@ -56,9 +60,9 @@ const activeMenu = computed(() => route.path)
       router
       class="sidebar-menu-el"
     >
-      <el-menu-item 
-        v-for="item in menuItems" 
-        :key="item.path" 
+      <el-menu-item
+        v-for="item in menuItems"
+        :key="item.path"
         :index="item.path"
       >
         <el-icon class="menu-icon" size="20">
@@ -71,21 +75,21 @@ const activeMenu = computed(() => route.path)
     </el-menu>
 
     <div class="brand-action-group">
-      <div v-if="isLoggedIn" class="user-profile-card">
+      <div v-if="isAuthenticated" class="user-profile-card">
         <el-avatar :size="40" :src="userProfile.avatar" />
         <div class="user-meta">
-          <span class="username">{{ userProfile.name }}</span>
+          <span class="username">{{ username }}</span>
           <span class="user-title">{{ userProfile.title }}</span>
         </div>
-        
+
         <el-dropdown trigger="click" placement="bottom-end">
           <el-button link :icon="Setting" class="action-icon-btn" />
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item :icon="User">個人資料</el-dropdown-item>
               <el-dropdown-item :icon="Setting">偏好設定</el-dropdown-item>
-              <el-dropdown-item divided :icon="RemoveFilled" @click="isLoggedIn = false">
-                安全登出
+              <el-dropdown-item divided :icon="RemoveFilled" @click="router.push('/logout')">
+                登出
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -93,7 +97,7 @@ const activeMenu = computed(() => route.path)
       </div>
 
       <div v-else class="login-prompt-box">
-        <el-button type="primary" plain class="w-full" @click="isLoggedIn = true">
+        <el-button type="primary" plain class="w-full" @click="router.push('/login')">
           登入系統
         </el-button>
       </div>

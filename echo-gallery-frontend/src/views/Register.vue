@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { authApi } from '../utils/api/auth'
 import { useAsync } from '../utils/api/useAsync'
 import { Lock, Message, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { useAuthStore } from '../stores/authStore'
 
 const router = useRouter()
 const form = reactive({ username: '', email: '', password: '' })
-const { loading, execute: handleRegister } = useAsync(authApi.register);
+const authStore = useAuthStore();
+const { loading, execute: handleRegister } = useAsync(authStore.register);
 
 const errors = reactive({ username: '', email: '', password: '' });
 // 1. 基礎格式驗證 (前端規則)
@@ -46,21 +47,17 @@ const validateForm = () => {
   return isValid;
 };
 
-
 const onSubmit = async () => {
-  validateForm();
-  // 即使按鈕 disabled，這裡也可以加一層保護
-  if (!isFormValid.value){
+  if (!validateForm()){
     ElMessage.error('請填寫完整欄位');
     return
-  };
+  }
   // if (!form.username || !form.email || !form.password) return alert('請填寫完整欄位')
   try {
     const res = await handleRegister(form)
     if (res?.token) {
-      localStorage.setItem('token', res.token)
-      localStorage.setItem('username', res.username)
-      router.push('/dashboard')
+      ElMessage.success("註冊成功");
+      router.push('/')
     }
   } catch (err: any) {
     console.error('API 呼叫失敗:', err);
@@ -70,8 +67,10 @@ const onSubmit = async () => {
 
 // 2. 判斷表單是否允許送出
 const isFormValid = computed(() => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return form.username.trim() !== '' &&
          form.email.trim() !== '' &&
+         emailRegex.test(form.email) &&
          form.password.trim().length >= 6 &&
          errors.username === '' &&
          errors.email === '' &&

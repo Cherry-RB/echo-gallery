@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/vue-query';
-import { cardApi } from './api/card';
+import { cardApi } from './api/cardApi';
 import { ElMessage } from 'element-plus';
 
 // 簡單定義卡片與無限捲動快取的基礎型別，提升程式碼強健度

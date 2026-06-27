@@ -72,8 +72,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        // 檢查請求路徑是否以 /api/auth/ 開頭
+        // 檢查請求路徑是否為登入/註冊路徑
         // 如果是，直接回傳 true，代表「這個路徑不需要執行這個過濾器」
-        return request.getServletPath().startsWith("/api/auth/");
+        String path = request.getServletPath();
+        return path.equals("/api/auth/login") || path.equals("/api/auth/register");
     }
 }

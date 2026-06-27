@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import LeftSidebar from '../components/LeftSidebar.vue'
 import RightSidebar from '../components/RightSidebar.vue'
 
 const isLeftDrawerOpen = ref(false)
 const isRightDrawerOpen = ref(false)
+
+const route = useRoute()
+
+// 當偵測到頁面路由切換時，才自動關閉手機版抽屜
+watch(() => route.path, () => {
+  isLeftDrawerOpen.value = false
+  isRightDrawerOpen.value = false
+})
 </script>
 
 <template>
@@ -30,7 +39,7 @@ const isRightDrawerOpen = ref(false)
       destroy-on-close
       class="custom-mobile-drawer"
     >
-      <LeftSidebar @click="isLeftDrawerOpen = false" />
+      <LeftSidebar />
     </el-drawer>
 
     <main class="content-viewport">
@@ -50,7 +59,7 @@ const isRightDrawerOpen = ref(false)
       class="custom-mobile-drawer"
     >
       <div class="mobile-drawer-content">
-        <RightSidebar @click="isRightDrawerOpen = false" />
+        <RightSidebar />
       </div>
     </el-drawer>
   </div>

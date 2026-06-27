@@ -1,38 +1,23 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { authApi } from '../utils/api/auth'
-import { ref } from 'vue';
+import { useAuthStore } from '../stores/authStore'
+import { ElMessage } from 'element-plus'
 
-const router = useRouter();
-// 在 script 裡讀取 localStorage，並存成響應式變數
-const currentUsername = ref(localStorage.getItem('username') || '訪客')
+const authStore = useAuthStore()
+const router = useRouter()
 
-const handleLogout = async () => {
+onMounted(async () => {
   try {
-    // 1. 呼叫後端登出（讓後端走完 Spring Security 的登出流程）
-    await authApi.logout()
-  } catch (err) {
-    // 就算後端出錯，前端還是要強制登出
-    console.error('後端登出通知失敗:', err)
+    await authStore.logout() // 觸發大腦
+    ElMessage.success("登出成功")
   } finally {
-    // 2. 完美的副作用處理：清空前端快取
-    localStorage.removeItem('token')
-    localStorage.removeItem('username')
-
-    // 同步更新響應式變數，讓畫面立刻變回預設值
-    currentUsername.value = '訪客'
-    
-    alert('您已成功登出！')
-    
-    // 3. 導向登入頁
-    router.push('/login')
+    router.push('/login') // 統一在這裡收尾
   }
-}
+})
 </script>
-
 <template>
-  <div class="navbar">
-    <span>歡迎，{{ currentUsername }}</span>
-    <button @click="handleLogout">安全登出</button>
+  <div v-loading="true" style="height: 100vh; display: flex; align-items: center; justify-content: center;">
+    正在安全登出中...
   </div>
 </template>

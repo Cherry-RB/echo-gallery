@@ -2,14 +2,6 @@ import request from "./request"
 
 
 export const userApi = {
-    // 登入
-    login(data: any){
-        return request({
-            url: "/auth/login",
-            method: "POST",
-            data
-        });
-    },
     // 取得使用者資訊
     getUserInfo(){
         return request({

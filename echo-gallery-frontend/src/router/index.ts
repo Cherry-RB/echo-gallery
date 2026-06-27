@@ -12,6 +12,11 @@ const routes = [
     name: 'Register',
     component: () => import('../views/Register.vue')
   },
+  {
+    path: '/logout',
+    name: 'Logout',
+    component: () => import('../components/Logout.vue')
+  },
   // 2. 需要側邊欄的頁面（巢狀路由）
   {
     path: '/',

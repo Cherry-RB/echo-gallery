@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import CardItem from './CardItem.vue'
 import type { CardDto } from '../types/card.ts';
 import type { ViewMode } from '../types/card.ts';
-import { cardApi } from '../utils/api/card.ts';
+import { cardApi } from '../utils/api/cardApi.ts';
 import { useAsync } from '../utils/api/useAsync.ts';
 
 // 模擬從後端取得的資料，符合 DTO 結構
@@ -82,7 +82,7 @@ onUnmounted(() => {
 const columnsData = computed(() => {
     // 建立指定欄數的空陣列，例如: [[], [], [], []]
     const cols = Array.from({ length: columnCount.value }, () => [] as CardDto[])
-    
+
     // 輪流發牌給各個欄位
     cardList.value.forEach((item, index) => {
         cols[index % columnCount.value].push(item)
@@ -98,7 +98,7 @@ const columnsData = computed(() => {
         <!-- <el-switch v-model="isTextMode" active-text="Text" inactive-text="Gallery" /> -->
     </div>
     <div class="feed-container">
-        <div 
+        <div
         class="masonry-wrapper"
             v-infinite-scroll="loadMore"
             :infinite-scroll-disabled="loading"

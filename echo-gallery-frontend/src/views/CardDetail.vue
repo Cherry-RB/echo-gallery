@@ -2,10 +2,10 @@
 import { ArrowLeft, Link, Star, StarFilled, Calendar, CollectionTag, Clock, Plus } from '@element-plus/icons-vue'
 import router from '../router';
 import type { CardDto } from '../types/card';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
-import { cardApi } from '../utils/api/card';
+import { cardApi } from '../utils/api/cardApi';
 import { useAsync } from '../utils/api/useAsync';
 import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';

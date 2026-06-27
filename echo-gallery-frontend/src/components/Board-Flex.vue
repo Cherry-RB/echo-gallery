@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import CardItem from './CardItem.vue'
 import type { CardDto } from '../types/card.ts';
 import type { ViewMode } from '../types/card.ts';
-import { cardApi } from '../utils/api/card.ts';
+import { cardApi } from '../utils/api/cardApi.ts';
 import { useInfiniteQuery } from '@tanstack/vue-query'
 
 // =====================================================
@@ -114,7 +114,7 @@ onUnmounted(() => {
 const columnsData = computed(() => {
     // 建立指定欄數的空陣列，例如: [[], [], [], []]
     const cols = Array.from({ length: columnCount.value }, () => [] as CardDto[])
-    
+
     // 輪流發牌給各個欄位
     cardList.value.forEach((item, index) => {
         cols[index % columnCount.value].push(item)
@@ -131,7 +131,7 @@ const columnsData = computed(() => {
         <!-- <el-switch v-model="isTextMode" active-text="Text" inactive-text="Gallery" /> -->
     </div>
     <div class="feed-container" >
-        <div 
+        <div
         class="masonry-wrapper">
             <div v-for="(col, colIndex) in columnsData" :key="colIndex" class="masonry-col">
                 <CardItem
@@ -198,7 +198,7 @@ const columnsData = computed(() => {
 
 /* 🌟 新增：讓滾動區域撐滿畫面 */
 /* .feed-scrollbar {
-    height: 100vh; 
+    height: 100vh;
 } */
 
 /* 🌟 新增：底部觀測點置中樣式 */
