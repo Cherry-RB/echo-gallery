@@ -6,7 +6,6 @@ import { computed, ref, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
 import { cardApi } from '../utils/api/cardApi';
-import { useAsync } from '../utils/api/useAsync';
 import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';
 
@@ -39,17 +38,15 @@ const { data: fetchedCard, isLoading: loading } = useQuery({
   // 💡 只有在「非創建模式」且有 id 時才發送請求
   enabled: computed(() => !isCreateMode.value && !!props.id)
 });
-
-// =====================================================
-// // 傳入 API 函式，直接解構出需要的狀態與執行函式
-// const { loading, data: fetchedCard, execute: fetchCard } = useAsync(cardApi.getCard);
-const { loading: updateLoading, execute: updateCard } = useAsync(cardApi.updateCard);
-const { loading: createLoading, execute: createCard } = useAsync(cardApi.createCard);
-// const { execute: toggleCardStar } = useAsync(cardApi.toggleCardStar);
 // =====================================================
 
 // 引入你寫好的超強基礎建設工具
-const { handleToggleStar, handleToggleArchive } = useCardStatus();
+const {
+  handleToggleStar,
+  handleToggleArchive,
+  handleCreateCard,
+  handleUpdateCard,
+} = useCardStatus();
 
 // 如果你喜歡用監聽的方式同步：
 watch(fetchedCard, (newCard) => {
@@ -82,16 +79,23 @@ const handleSave = () => {
 
   if(isCreateMode.value){
     console.log('送出 POST API 建立新卡片', cardData.value);
-    createCard(cardData.value);
-    // router.push('/list') // 創建成功回列表
+    // 調用對外接口建立卡片
+    handleCreateCard(cardData.value, {
+      // 💡 當 useCardStatus 內部的後端成功且快取刷完後，才會觸發這個 UI 回呼
+      onSuccess: () => {
+        router.push('/'); // 建立成功後優雅退回首頁瀑布流
+      }
+    });
   } else{
     console.log('送出 PUT API 更新卡片');
     // 這裡未來可以對接後端 API 儲存修改
-    updateCard(props.id, cardData.value);
-    isEditMode.value = false
-    // 模擬更新最後修改時間
-    cardData.value.updatedAt = new Date().toISOString()
-
+    // 調用對外接口更新卡片（傳入封裝好的參數物件）
+    handleUpdateCard({ id: props.id, data: cardData.value }, {
+      // 💡 後端儲存成功且快取重整後，才執行 UI 狀態切換
+      onSuccess: () => {
+        isEditMode.value = false;
+      }
+    });
   }
 }
 

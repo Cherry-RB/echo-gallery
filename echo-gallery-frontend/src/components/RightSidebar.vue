@@ -1,64 +1,71 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-// 🌟 僅保留右側面板所需的圖示
 import { CollectionTag, DataAnalysis } from '@element-plus/icons-vue'
+import { useQuery } from '@tanstack/vue-query'
+import { sidebarApi } from '../utils/api/sidebarApi'
 
-// 1. 標籤排行資料模擬
-const hotTags = ref([
-  { name: 'Vue3', count: 142 },
-  { name: 'TypeScript', count: 98 },
-  { name: 'CSS佈局', count: 64 },
-  { name: '演算法', count: 32 },
-  { name: '經典文學', count: 18 }
-])
+// =====================================================
+// 🚀 TanStack Query 側邊欄資料獲取
+// =====================================================
+// 1. 取得右方側邊欄 核心數據統計資料
+const { data: sidebarStats, isLoading: isStatsLoading } = useQuery({
+  queryKey: ['sidebar', 'stats'],
+  queryFn: sidebarApi.getSidebarStatus,
+  // 選配：通常統計數據不需要每秒都變，可以設定 1 分鐘內不重複發送請求
+  staleTime: 1000 * 60, // 標籤排行快取 1 分鐘
+})
 
-// 2. 系統核心數據統計資料
-const totalCards = ref(528)
-const todayReviewCount = ref(24)
-const highWatchLaterCount = ref(7)
+// 2. 取得右方側邊欄 標籤熱門排行
+const { data: hotTags, isLoading: isTagsLoading } = useQuery({
+  queryKey: ['sidebar', 'tags'],
+  queryFn: sidebarApi.getSidebarTagsTop,
+  // 預設給予空陣列，防止未載入完成時 v-for 報錯
+  placeholderData: [],
+  staleTime: 1000 * 60 * 5, // 標籤排行快取 5 分鐘
+})
+
 </script>
 
 <template>
   <div class="stats-wrapper">
 
-    <section class="sidebar-section">
+    <section class="sidebar-section" v-loading="isStatsLoading">
       <h3 class="section-title">
         <el-icon><DataAnalysis /></el-icon>
         <span>EchoGallery 統計</span>
       </h3>
 
-      <div class="stats-grid">
+      <div class="stats-grid" v-if="sidebarStats">
         <div class="stat-box highlight-box">
-          <span class="stat-value">{{ todayReviewCount }}</span>
+          <span class="stat-value">{{ sidebarStats.todayEchoCards ?? 0 }}</span>
           <span class="stat-label">今日回流卡片數</span>
         </div>
         <div class="stat-box">
-          <span class="stat-value">{{ totalCards }}</span>
-          <span class="stat-label">已建立總卡片數</span>
+          <span class="stat-value">{{ sidebarStats.totalCards ?? 0 }}</span>
+          <span class="stat-label">未封存總卡片數</span>
         </div>
         <div class="stat-box">
-          <span class="stat-value">{{ highWatchLaterCount }}</span>
+          <span class="stat-value">{{ sidebarStats.highSnoozeCards ?? 0 }}</span>
           <span class="stat-label">稍後觀看 > 10</span>
         </div>
       </div>
     </section>
 
-    <section class="sidebar-section">
+    <section class="sidebar-section" v-loading="isTagsLoading">
       <h3 class="section-title">
         <el-icon><CollectionTag /></el-icon>
         <span>熱門標籤排行</span>
       </h3>
       <div class="tag-ranking-list">
-        <div v-for="(tag, index) in hotTags" :key="tag.name" class="tag-rank-item">
+        <div v-for="(tag, index) in hotTags" :key="tag.tagName" class="tag-rank-item">
           <div class="tag-info">
             <span class="rank-badge" :class="{ 'top-three': index < 3 }">
               {{ index + 1 }}
             </span>
             <el-tag size="default" type="info" effect="plain" class="custom-tag">
-              {{ tag.name }}
+              {{ tag.tagName }}
             </el-tag>
           </div>
-          <span class="tag-count-text">{{ tag.count }} 條</span>
+          <span class="tag-count-text">{{ tag.cardCount }} 條</span>
         </div>
       </div>
     </section>

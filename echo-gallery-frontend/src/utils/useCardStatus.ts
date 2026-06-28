@@ -185,6 +185,10 @@ export const useCardStatus = () => {
         onSuccess: (updatedCard, variables) => {
             // DTO 覆蓋快取
             updateLocalCache(variables.id, updatedCard);
+
+            // 通知右側側邊欄過期，觸發自動重撈
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+
             // 跳出 Element Plus 的成功通知
             ElMessage.success(updatedCard.isArchived ? "卡片已成功封存" : "卡片已取消封存");
         },
@@ -224,6 +228,10 @@ export const useCardStatus = () => {
             // 因為大清單（['cards']）在 onMutate 已經清乾淨了，這裡完全不需動它。
             // 我們只需要同步更新「單張卡片詳情頁」的快取，確保系統底層資料的一致性
             queryClient.setQueryData(['card', variables.id], updatedCard);
+
+            // 通知右側側邊欄過期，觸發自動重撈
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+
             ElMessage.success("已排程，卡片將於下次回流日再次出現");
         },
         // 【後端失敗時執行】
@@ -257,10 +265,54 @@ export const useCardStatus = () => {
         // 【後端成功後執行】
         onSuccess: (updatedCard, variables) => {
             queryClient.setQueryData(['card', variables.id], updatedCard);
+            // 通知右側側邊欄過期，觸發自動重撈
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
         },
         // 【後端失敗時執行】
         onError: (err, variables, context) =>
             handleMutationError(err, variables.id, context)
+    });
+    // =====================================================
+    // 🚀 功能 5. 新建卡片 Mutation
+    // =====================================================
+    const createCardMutation = useMutation({
+        mutationFn: cardApi.createCard,
+        // 後端成功建立卡片後執行
+        onSuccess: () => {
+            ElMessage.success('卡片建立成功！');
+
+            // 🌟 自動刷新右側側邊欄（統計、標籤排行）
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+            // 🌟 自動刷新主頁瀑布流
+            queryClient.invalidateQueries({ queryKey: ['cards'] });
+        },
+        onError: (err) => {
+            ElMessage.error('建立卡片失敗，請稍後再試');
+            console.error(err);
+        }
+    });
+
+    // =====================================================
+    // 🚀 功能 6. 更新卡片 Mutation
+    // =====================================================
+    // 💡 注意：因為 useMutation 的 mutationFn 只能接收一個參數，
+    //    所以我們用解構賦值包成一個物件傳入 { id, data }
+    const updateCardMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string | number; data: any }) => cardApi.updateCard(id, data),
+        // 後端成功修改卡片後執行
+        onSuccess: (updatedCard, variables) => {
+            ElMessage.success('卡片修改儲存成功！');
+
+            // 🌟 讓當前這張卡片的詳細資料快取失效，觸發 Detail 頁面自動重撈
+            queryClient.invalidateQueries({ queryKey: ['card', String(variables.id)] });
+            // 🌟 同步刷新側邊欄與主頁瀑布流
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+            queryClient.invalidateQueries({ queryKey: ['cards'] });
+        },
+        onError: (err) => {
+            ElMessage.error('儲存修改失敗');
+            console.error(err);
+        }
     });
 
 
@@ -272,6 +324,8 @@ export const useCardStatus = () => {
         handleToggleArchive: archiveMutation.mutate,
         handleSnoozeCard: snoozeMutation.mutate,
         handleReadCard: readMutation.mutate,
+        handleCreateCard: createCardMutation.mutate,
+        handleUpdateCard: updateCardMutation.mutate,
 
         // 如果你有需要按鈕讀條(Loading) 狀態也可以順便拿出去
         isStarPending: starMutation.isPending,

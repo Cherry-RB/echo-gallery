@@ -13,7 +13,7 @@ public class CardRequest {
     private String summary;
     private String content;
     private String reason;
-    private String[] tagNames;
+    private String[] tags;
     private Integer intervalDays;
     private Boolean isArchived;
 }

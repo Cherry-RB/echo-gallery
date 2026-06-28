@@ -59,23 +59,27 @@ public class Card {
 
     @Column(name = "next_show_at")
     private ZonedDateTime nextShowAt;
-    
+
     @Column(name = "like_available_at")
     private ZonedDateTime likeAvailableAt;
 
     @Column(name = "last_liked_at")
     private ZonedDateTime lastLikedAt;
-    
+
     @Builder.Default
     @Column(name = "like_count")
     private int likeCount = 0;
-    
+
+    @Builder.Default
+    @Column(name = "snooze_count")
+    private int snoozeCount = 0;
+
     @Column(name = "is_archived", nullable = false)
     private boolean isArchived = false;
 
     @Column(name = "last_open_at")
     private ZonedDateTime lastOpenAt;
-    
+
     @Builder.Default
     @Column(name = "open_count")
     private int openCount = 0;

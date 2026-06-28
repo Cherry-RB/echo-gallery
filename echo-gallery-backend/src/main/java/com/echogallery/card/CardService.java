@@ -91,7 +91,7 @@ public class CardService {
         }
 
         // 4. 處理標籤安全性：走「查無此標籤才建立」的邏輯
-        Set<Tag> associatedTags = associateTags(card.getUser(), request.getTagNames());
+        Set<Tag> associatedTags = associateTags(card.getUser(), request.getTags());
 
         // 5. 將 DTO 轉換為 Entity，並綁定目前登入的使用者
         card.setType(request.getType());
@@ -128,7 +128,7 @@ public class CardService {
         User user = userRepository.getReferenceById(userId);
 
         // 3. 處理標籤安全性：走「查無此標籤才建立」的邏輯
-        Set<Tag> associatedTags = associateTags(user, request.getTagNames());
+        Set<Tag> associatedTags = associateTags(user, request.getTags());
 
         // 4. 將 DTO 轉換為 Entity，並綁定目前登入的使用者
         Card card = Card.builder()

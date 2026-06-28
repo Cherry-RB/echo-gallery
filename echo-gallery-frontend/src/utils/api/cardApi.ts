@@ -1,4 +1,3 @@
-import { getCardByIdFromMock } from "../../mock-data/card-detail-mock-data";
 import type { CardDto } from "../../types/card";
 import request from "./request"
 
@@ -28,7 +27,7 @@ export const cardApi = {
     // 新建卡片資料
     createCard(data: any): Promise<CardDto>{
         return request({
-            url: `/cards/create`,
+            url: `/cards`,
             method: "POST",
             data
         })
@@ -46,7 +45,7 @@ export const cardApi = {
         return request({
             url: `/cards/${id}`,
             method: "DELETE",
-        })  
+        })
     },
     ///////////// 卡片互動 //////////////
     toggleCardStar(id: string | number, data: { starStatus: boolean }): Promise<any>{
