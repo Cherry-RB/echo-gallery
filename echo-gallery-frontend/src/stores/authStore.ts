@@ -6,6 +6,9 @@ export const useAuthStore = defineStore('auth', () => {
   // 1. 狀態 (State) - 初始化時直接從 localStorage 讀取，確保重整網頁不會跳登出
   const token = ref<string | null>(localStorage.getItem('token'))
   const username = ref<string>(localStorage.getItem('username') || '訪客')
+  const id = ref<number | null>(
+    localStorage.getItem('id') ? Number(localStorage.getItem('id')) : null
+  )
 
   // 2. 計算屬性 (Getters) - 判斷目前是否為登入狀態
   const isAuthenticated = computed(() => !!token.value)
@@ -16,7 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (loginForm: { email: string, password: string }) => {
     const res = await authApi.login(loginForm)
     if (res?.token) {
-      setAuth(res.token, res.username);
+      setAuth(res.token, res.username, res.id);
     }
     return res
   }
@@ -25,7 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
   const register = async (registerForm: { username: string, email: string, password: string }) => {
     const res = await authApi.register(registerForm)
     if (res?.token) {
-      setAuth(res.token, res.username);
+      setAuth(res.token, res.username, res.id);
     }
     return res
   }
@@ -43,24 +46,29 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 內部輔助函式：設定憑證
-  function setAuth(userToken: string, name: string) {
+  function setAuth(userToken: string, name: string, inputUserId: number) {
     token.value = userToken
     username.value = name
+    id.value = inputUserId
     localStorage.setItem('token', userToken)
     localStorage.setItem('username', name)
+    localStorage.setItem('userId', inputUserId.toString())
   }
 
   // 內部輔助函式：清除憑證
   function clearAuth() {
     token.value = null
     username.value = '訪客'
+    id.value = null
     localStorage.removeItem('token')
     localStorage.removeItem('username')
+    localStorage.removeItem('id')
   }
 
   return {
     token,
     username,
+    id,
     isAuthenticated,
     login,
     register,

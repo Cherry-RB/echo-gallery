@@ -14,15 +14,22 @@ public class SecurityUtil {
         // 等加入 Spring Security 後，會改為：
         // SecurityContextHolder.getContext().getAuthentication().getPrincipal()...
         // return 1L;
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            return null;
+        }
         try {
-            CustomUserDetails principal = (CustomUserDetails) SecurityContextHolder
+            Object principal =  SecurityContextHolder
                     .getContext()
                     .getAuthentication()
                     .getPrincipal();
-            return principal.getId();
+                    // 運用 instanceof 進行防禦，優雅、安全且高效
+            if (principal instanceof CustomUserDetails) {
+                return ((CustomUserDetails) principal).getId();
+            }
+            return null;
         } catch (Exception e) {
             // 若未登入或解析出錯，回傳 null（亦可拋出對應的自訂異常）
-            return null; 
+            return null;
         }
     }
 }

@@ -27,7 +27,6 @@ const { isAuthenticated, username } = storeToRefs(authStore)
 const userProfile = ref({
   name: username,
   avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-  title: '全端開發工程師'
 })
 
 const menuItems = [
@@ -74,21 +73,25 @@ const activeMenu = computed(() => route.path)
       </el-menu-item>
     </el-menu>
 
-    <div class="brand-action-group">
-      <div v-if="isAuthenticated" class="user-profile-card">
-        <el-avatar :size="40" :src="userProfile.avatar" />
-        <div class="user-meta">
-          <span class="username">{{ username }}</span>
-          <span class="user-title">{{ userProfile.title }}</span>
-        </div>
+<div class="brand-action-group">
+      <div v-if="isAuthenticated">
+        <el-dropdown trigger="click" placement="bottom-end" class="profile-dropdown-container">
 
-        <el-dropdown trigger="click" placement="bottom-end">
-          <el-button link :icon="Setting" class="action-icon-btn" />
+          <div class="user-profile-card">
+            <el-avatar :size="40" :src="userProfile.avatar" />
+            <div class="user-meta">
+              <span class="username">{{ username }}</span>
+            </div>
+          </div>
+
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item :icon="User">個人資料</el-dropdown-item>
+              <!-- <el-dropdown-item :icon="User">個人資料</el-dropdown-item>
               <el-dropdown-item :icon="Setting">偏好設定</el-dropdown-item>
               <el-dropdown-item divided :icon="RemoveFilled" @click="router.push('/logout')">
+                登出
+              </el-dropdown-item> -->
+              <el-dropdown-item :icon="RemoveFilled" @click="router.push('/logout')">
                 登出
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -144,6 +147,11 @@ const activeMenu = computed(() => route.path)
   margin-top: 12px;
 }
 
+/* 強制外部 Dropdown 元件撐滿容器寬度 */
+.profile-dropdown-container {
+  width: 100%;
+}
+
 /* 用戶資料名片樣式 */
 .user-profile-card {
   display: flex;
@@ -153,17 +161,27 @@ const activeMenu = computed(() => route.path)
   border: 1px solid var(--el-border-color-light);
   border-radius: 12px;
   gap: 10px;
+  width: 100%;           /* 確保卡片在 Dropdown 內部完全展開 */
+  box-sizing: border-box;
+  cursor: pointer;       /* 讓滑鼠移上去時顯示手指符號，提示整張都可以點 */
+  transition: background-color 0.2s ease;
+}
+/* 滑鼠懸停名片時加入淡淡的背景，讓互動感更精緻 */
+.user-profile-card:hover {
+  background-color: var(--el-fill-color-light);
 }
 .user-meta {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
+  flex: 1;
   min-width: 0;
 }
 .username {
   font-size: 14px;
   font-weight: 600;
   color: var(--el-text-color-primary);
+  display: block;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -172,10 +190,6 @@ const activeMenu = computed(() => route.path)
   font-size: 11px;
   color: var(--el-text-color-placeholder);
   margin-top: 1px;
-}
-.action-icon-btn {
-  font-size: 16px;
-  color: var(--el-text-color-regular);
 }
 .login-prompt-box {
   padding: 4px 0;

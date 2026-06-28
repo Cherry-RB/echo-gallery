@@ -20,6 +20,7 @@ public class AuthDto {
     @Getter @Builder
     @AllArgsConstructor
     public static class AuthResponse {
+        private Long id;
         private String token;
         private String username;
         private String email;
