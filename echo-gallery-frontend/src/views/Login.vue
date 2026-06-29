@@ -49,7 +49,7 @@ const onSubmit = async () => {
     const res = await handleLogin(form)
     if (res?.token) {
       ElMessage.success("登入成功");
-      router.push('/')
+      router.push('/board/today') // 導向今日看板
     }
   } catch (err: any) {
     console.error('API 呼叫失敗:', err);

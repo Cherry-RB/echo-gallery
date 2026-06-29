@@ -57,7 +57,7 @@ const onSubmit = async () => {
     const res = await handleRegister(form)
     if (res?.token) {
       ElMessage.success("註冊成功");
-      router.push('/')
+      router.push('/login') // 註冊完畢，導向登入畫面
     }
   } catch (err: any) {
     console.error('API 呼叫失敗:', err);

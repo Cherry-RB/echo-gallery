@@ -83,7 +83,7 @@ const handleSave = () => {
     handleCreateCard(cardData.value, {
       // 💡 當 useCardStatus 內部的後端成功且快取刷完後，才會觸發這個 UI 回呼
       onSuccess: () => {
-        router.push('/'); // 建立成功後優雅退回首頁瀑布流
+        router.push('/board/all') // 成功後回總卡片列表，可看見最新新增的卡片
       }
     });
   } else{

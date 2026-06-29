@@ -23,7 +23,7 @@ const form = ref({
 const handleCreate = () => {
   // 呼叫建立 API: POST /api/cards
   console.log('提交表單', form.value)
-  router.push('/cards') // 成功後回列表
+  router.push('/board/all') // 成功後回總卡片列表，可看見最新新增的卡片
 }
 </script>
 
@@ -41,7 +41,7 @@ const handleCreate = () => {
 
     <el-card class="create-card">
       <el-form :model="form" label-position="top">
-        
+
         <el-form-item label="卡片類型">
           <el-radio-group v-model="form.type">
             <el-radio-button label="note">知識筆記</el-radio-button>
