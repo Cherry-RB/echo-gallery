@@ -11,6 +11,8 @@ pgdata/
 **/.gradle/
 **/*.class
 **/*.jar
+# 允許追蹤 gradle-wrapper.jar，解決雲端部署找不到引導程式的問題
+!**/gradle/wrapper/gradle-wrapper.jar
 
 # --- 3. 前端：遞迴排除依賴與打包物 ---
 **/node_modules/
