@@ -11,8 +11,6 @@ import {
   Clock,
   Search,
   Plus,
-  Setting,
-  User,
   RemoveFilled
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';

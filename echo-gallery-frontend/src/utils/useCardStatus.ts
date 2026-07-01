@@ -11,11 +11,6 @@ interface CardDTO {
     [key: string]: any; // 保留其他後端自訂欄位
 }
 
-interface InfiniteCardData {
-    pages: CardDTO[][];
-    pageParams: any[];
-}
-
 // =====================================================
 // TanStack Query 樂觀更新核心邏輯
 // 核心組合式函式 (Composable)：管理所有卡片狀態的互動
@@ -300,7 +295,7 @@ export const useCardStatus = () => {
     const updateCardMutation = useMutation({
         mutationFn: ({ id, data }: { id: string | number; data: any }) => cardApi.updateCard(id, data),
         // 後端成功修改卡片後執行
-        onSuccess: (updatedCard, variables) => {
+        onSuccess: (_updatedCard, variables) => {
             ElMessage.success('卡片修改儲存成功！');
 
             // 🌟 讓當前這張卡片的詳細資料快取失效，觸發 Detail 頁面自動重撈

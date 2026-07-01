@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import CardItem from './CardItem.vue'
 import type { CardDto } from '../types/card.ts';
 import { generateCards } from '../mock-data/card-mock-data.ts';

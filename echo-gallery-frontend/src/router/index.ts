@@ -85,7 +85,7 @@ const router = createRouter({
     history: createWebHistory(),
     routes,
     // 關鍵自動回滾機制：只要改這裡就好！
-    scrollBehavior(to, from, savedPosition) {
+    scrollBehavior(_to, _from, savedPosition) {
         if (savedPosition) {
           // 當使用者點擊「瀏覽器返回」或 router.back() 時，savedPosition 會自動帶出當年的坐標 { top: xxx, left: xxx }
           return savedPosition
@@ -97,7 +97,7 @@ const router = createRouter({
 })
 
 // 加入路由守衛
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token');
 
   // Vue Router 4 會自動將父路由的 meta 合併到子路由的 to.meta 中

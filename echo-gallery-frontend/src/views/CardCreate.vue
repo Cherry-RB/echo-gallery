@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ArrowLeft, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import router from '../router'
 
 const goBack = () => router.back()

@@ -32,7 +32,7 @@ const cardData = ref<CardDto>(getDefaultCardData());
 // =====================================================
 // 🔄 【核心重構】改成用 useQuery 監聽同一個快取 Key
 // =====================================================
-const { data: fetchedCard, isLoading: loading } = useQuery({
+const { data: fetchedCard } = useQuery({
   queryKey: ['card', props.id],
   queryFn: () => cardApi.getCard(props.id),
   // 💡 只有在「非創建模式」且有 id 時才發送請求

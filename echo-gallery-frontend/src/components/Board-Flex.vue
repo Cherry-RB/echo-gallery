@@ -127,7 +127,7 @@ const columnsData = computed(() => {
 <template>
     <!-- <el-scrollbar class="feed-scrollbar"> -->
     <div>
-        <h1>Board</h1>
+        <!-- <h1>Board</h1> -->
         <!-- <el-switch v-model="isTextMode" active-text="Text" inactive-text="Gallery" /> -->
     </div>
     <div class="feed-container" >
