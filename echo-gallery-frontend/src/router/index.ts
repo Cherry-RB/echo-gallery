@@ -27,49 +27,49 @@ const routes = [
     meta: { requiresAuth: true }, // 直接在父路由加上需要權限，子路由會自動繼承
     children: [
     {
-      path: '/card/new', // 新建卡片
+      path: 'card/new', // 新建卡片
       name: 'CardCreate',
       component: () => import('../views/CardDetail.vue'),
       props: true // 讓 id 直接變成元件的 props
     },
     {
-      path: '/card/:id', // 卡片詳情/更新卡片
+      path: 'card/:id', // 卡片詳情/更新卡片
       name: 'CardDetail',
       component: () => import('../views/CardDetail.vue'),
       props: true
     },
     {
-      path: '/board/today', // 今日看板
-      name: 'Home',
+      path: 'board/today', // 今日看板
+      name: 'TodayBoard',
       component: () => import('../components/Board-Flex.vue')
     },
     {
-      path: '/board/random', // 隨機看板
-      name: 'Home',
+      path: 'board/random', // 隨機看板
+      name: 'RandomBoard',
       component: () => import('../components/Board-Flex.vue')
     },
     {
-      path: '/board/all', // 最新看板
-      name: 'Home',
+      path: 'board/all', // 最新看板
+      name: 'NewBoard',
       component: () => import('../components/Board-Flex.vue')
     },
     {
-      path: '/board/hot', // 熱門看板
-      name: 'Home',
+      path: 'board/hot', // 熱門看板
+      name: 'HotBoard',
       component: () => import('../components/Board-Flex.vue')
     },
     {
-      path: '/board/archived', // 封存看板
-      name: 'Home',
+      path: 'board/archived', // 封存看板
+      name: 'ArchivedBoard',
       component: () => import('../components/Board-Flex.vue')
     },
     {
-      path: '/board/snoozed', // 稍後再看看板
-      name: 'Home',
+      path: 'board/snoozed', // 稍後再看看板
+      name: 'SnoozedBoard',
       component: () => import('../components/Board-Flex.vue')
     },
     {
-      path: '/search', // 查詢看板
+      path: 'search', // 查詢看板
       name: 'Search',
       component: () => import('../views/SearchView.vue')
     },
