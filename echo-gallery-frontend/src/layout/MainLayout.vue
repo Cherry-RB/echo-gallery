@@ -31,7 +31,7 @@ watch(() => route.path, () => {
       <LeftSidebar />
     </aside>
 
-    <!-- <el-drawer
+    <el-drawer
       v-model="isLeftDrawerOpen"
       direction="ltr"
       size="260px"
@@ -40,7 +40,7 @@ watch(() => route.path, () => {
       class="custom-mobile-drawer"
     >
       <LeftSidebar />
-    </el-drawer> -->
+    </el-drawer>
 
     <main class="content-viewport">
       <RouterView />
@@ -50,7 +50,7 @@ watch(() => route.path, () => {
       <RightSidebar />
     </aside>
 
-    <!-- <el-drawer
+    <el-drawer
       v-model="isRightDrawerOpen"
       direction="rtl"
       size="280px"
@@ -61,7 +61,7 @@ watch(() => route.path, () => {
       <div class="mobile-drawer-content">
         <RightSidebar />
       </div>
-    </el-drawer> -->
+    </el-drawer>
   </div>
 </template>
 
