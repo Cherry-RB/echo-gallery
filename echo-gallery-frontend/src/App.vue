@@ -4,39 +4,45 @@ import { ref, onMounted } from 'vue'
 const debugInfo = ref('')
 const showDebug = ref(true)
 
+function describeEl(selector: string) {
+  const els = document.querySelectorAll(selector)
+  if (els.length === 0) return [`${selector}: (找不到這個元素)`]
+  const lines: string[] = []
+  els.forEach((el, i) => {
+    const cs = getComputedStyle(el as HTMLElement)
+    const rect = (el as HTMLElement).getBoundingClientRect()
+    lines.push(
+      `${selector}[${i}] display=${cs.display} width=${Math.round(rect.width)} ` +
+      `visibility=${cs.visibility} opacity=${cs.opacity}`
+    )
+  })
+  return lines
+}
+
 onMounted(() => {
-  // 等排版完全穩定後再抓，避免抓到還沒 render 完成的中間值
   setTimeout(() => {
-    const html = document.documentElement
-    const body = document.body
-
     const lines: string[] = []
-    lines.push(`window.innerWidth: ${window.innerWidth}`)
-    lines.push(`document.documentElement.clientWidth: ${html.clientWidth}`)
-    lines.push(`document.documentElement.scrollWidth: ${html.scrollWidth}`)
-    lines.push(`document.body.scrollWidth: ${body.scrollWidth}`)
-    lines.push(`devicePixelRatio: ${window.devicePixelRatio}`)
-    lines.push(`matchMedia(max-width:1200px): ${window.matchMedia('(max-width: 1200px)').matches}`)
-    lines.push('---撐寬版面的可疑元素---')
+    lines.push(`innerWidth: ${window.innerWidth} | matchMedia1200: ${window.matchMedia('(max-width:1200px)').matches}`)
+    lines.push('--- .main-layout ---')
+    lines.push(...describeEl('.main-layout'))
+    lines.push('--- .desktop-only ---')
+    lines.push(...describeEl('.desktop-only'))
+    lines.push('--- .sidebar ---')
+    lines.push(...describeEl('.sidebar'))
+    lines.push('--- .stats-panel ---')
+    lines.push(...describeEl('.stats-panel'))
+    lines.push('--- .mobile-header ---')
+    lines.push(...describeEl('.mobile-header'))
+    lines.push('--- .content-viewport ---')
+    lines.push(...describeEl('.content-viewport'))
 
-    // 找出所有「實際右邊界超過目前 viewport 寬度」的元素
-    const all = document.querySelectorAll('*')
-    const offenders: string[] = []
-    all.forEach((el) => {
-      const rect = (el as HTMLElement).getBoundingClientRect()
-      if (rect.right > window.innerWidth + 1) {
-        const tag = el.tagName.toLowerCase()
-        const cls = (el as HTMLElement).className
-        const clsStr = typeof cls === 'string' ? cls : ''
-        offenders.push(`<${tag} class="${clsStr}"> right=${Math.round(rect.right)} width=${Math.round(rect.width)}`)
-      }
-    })
-
-    if (offenders.length === 0) {
-      lines.push('(沒有找到超出邊界的元素)')
-    } else {
-      // 只顯示前 15 個，避免畫面爆版
-      offenders.slice(0, 15).forEach((o) => lines.push(o))
+    // 額外：找出目前套用在 .desktop-only 身上的所有 CSS 規則來源
+    const target = document.querySelector('.desktop-only')
+    if (target) {
+      lines.push('--- .desktop-only 的 class 屬性原始值 ---')
+      lines.push(target.className)
+      lines.push('--- .desktop-only 的所有 data- 屬性 ---')
+      lines.push(JSON.stringify((target as HTMLElement).dataset))
     }
 
     debugInfo.value = lines.join('\n')
@@ -47,7 +53,7 @@ onMounted(() => {
 <template>
   <div
     v-if="showDebug"
-    style="position: fixed; top: 0; left: 0; right: 0; z-index: 999999; background: #000; color: #0f0; font-size: 11px; font-family: monospace; white-space: pre-wrap; padding: 8px; max-height: 50vh; overflow-y: auto; word-break: break-all;"
+    style="position: fixed; top: 0; left: 0; right: 0; z-index: 999999; background: #000; color: #0f0; font-size: 10px; font-family: monospace; white-space: pre-wrap; padding: 8px; max-height: 60vh; overflow-y: auto; word-break: break-all;"
   >
     <button style="position: absolute; top: 4px; right: 4px; background: red; color: white; border: none; padding: 2px 8px;" @click="showDebug = false">關閉</button>
     {{ debugInfo || '偵測中...' }}
