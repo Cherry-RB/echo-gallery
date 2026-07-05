@@ -2,7 +2,7 @@
 import { ArrowLeft, Link, Star, StarFilled, Calendar, CollectionTag, Clock, Plus } from '@element-plus/icons-vue'
 import router from '../router';
 import type { CardDto } from '../types/card';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, toRaw, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
 import { cardApi } from '../utils/api/cardApi';
@@ -41,7 +41,8 @@ const { data: fetchedCard } = useQuery({
   queryKey: ['card', props.id],
   queryFn: () => cardApi.getCard(props.id),
   // 💡 只有在「非創建模式」且有 id 時才發送請求
-  enabled: computed(() => !isCreateMode.value && !!props.id)
+  enabled: computed(() => !isCreateMode.value && !!props.id),
+  refetchOnWindowFocus: false,
 });
 // =====================================================
 
@@ -55,7 +56,9 @@ const {
 
 // 如果你喜歡用監聽的方式同步：
 watch(fetchedCard, (newCard) => {
-  if (newCard) cardData.value = newCard
+  if (newCard && !isEditMode.value){
+    cardData.value = structuredClone(toRaw(newCard)) // 避免唯獨模式 cardData.value = newCard
+  }
 })
 
 // onMounted(()=>{
@@ -230,7 +233,7 @@ const openSourceUrl = () => {
       </el-page-header>
     </div>
 
-    <div class="main-layout">
+    <div class="detail-main-layout">
 
       <div class="left-content">
         <el-card class="detail-card">
@@ -484,7 +487,7 @@ const openSourceUrl = () => {
 }
 .page-header-wrapper { margin-bottom: 20px; }
 .header-title { font-size: 18px; font-weight: 600; color: #303133; }
-.main-layout { display: flex; gap: 20px; align-items: flex-start; }
+.detail-main-layout { display: flex; gap: 20px; align-items: flex-start; }
 .left-content { flex: 3; min-width: 0; }
 .right-sidebar { flex: 1; min-width: 280px; position: sticky; top: 20px; }
 .detail-card, .sidebar-card { box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05); }
@@ -510,7 +513,7 @@ const openSourceUrl = () => {
 .star-interaction { display: inline-flex; align-items: center; gap: 6px; user-select: none; }
 .active-star { animation: pop 0.3s ease; }
 @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
-@media (max-width: 768px) { .main-layout { flex-direction: column; } .right-sidebar { width: 100%; position: static; } }
+@media (max-width: 768px) { .detail-main-layout { flex-direction: column; } .right-sidebar { width: 100%; position: static; } }
 .sidebar-card { margin-bottom: 16px; }
 .sidebar-card-header { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #4a4a4a; margin-bottom: 10px; }
 .domain-text { font-size: 14px; color: #909399; }
