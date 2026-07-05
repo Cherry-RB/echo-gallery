@@ -28,12 +28,12 @@ const userProfile = ref({
 })
 
 const menuItems = [
-  { name: '今日', path: '/today', icon: Calendar },
-  { name: '隨機', path: '/random', icon: Refresh },
-  { name: '最新', path: '/', icon: Clock },
-  { name: '熱門', path: '/trending', icon: Star },
-  { name: '封存', path: '/archive', icon: Box },
-  { name: '稍後再看', path: '/watch-later', icon: Loading },
+  { name: '今日', path: '/board/today', icon: Calendar },
+  { name: '全部卡片', path: '/board/all', icon: Clock },
+  { name: '熱門', path: '/board/hot', icon: Star },
+  { name: '隨機', path: '/board/random', icon: Refresh },
+  { name: '封存', path: '/board/archived', icon: Box },
+  { name: '稍後再看', path: '/board/snoozed', icon: Loading },
   { name: '查詢', path: '/search', icon: Search }
 ]
 
@@ -47,7 +47,7 @@ const activeMenu = computed(() => route.path)
       <h2 class="brand-title">EchoGallery</h2>
     </div>
 
-    <el-button type="primary" size="large" :icon="Plus" class="create-card-btn" style="font-size: 20px;height: 50px;">
+    <el-button type="primary" size="large" :icon="Plus" class="create-card-btn" style="font-size: 20px;height: 50px;" @click="router.push('/card/new')">
       新建卡片
     </el-button>
 

@@ -1,10 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import CardItem from './CardItem.vue'
 import type { CardDto } from '../types/card.ts';
 import type { ViewMode } from '../types/card.ts';
 import { cardApi } from '../utils/api/cardApi.ts';
 import { useInfiniteQuery } from '@tanstack/vue-query'
+import { shouldMarkReviewedOnOpenDetail, type BoardType } from '../types/board.ts';
+import { useRouter } from 'vue-router';
+import { useCardStatus } from '../utils/useCardStatus.ts';
+
+const props = defineProps<{
+  boardType: BoardType;
+  title?: string;
+  description?: string;
+  filters?: Record<string, unknown>;
+}>();
+
+const router = useRouter();
+const { handleReadCard } = useCardStatus();
+const normalizedFilters = computed(() => props.filters ?? {});
 
 // =====================================================
 // 🚀 TanStack Query 無限滾動設定
@@ -14,13 +28,14 @@ const {
     fetchNextPage,      // 自動觸發抓取下頁
     hasNextPage,        // 判斷後面還有沒有資料
     isFetchingNextPage, // 正在載入下一頁時狀態為 true
-    isLoading           // 初次載入資料時為 true
+    isLoading,          // 初次載入資料時為 true
+    error
 } = useInfiniteQuery({
-    queryKey: ['cards'], // 給這個快取一個名字
+    queryKey: computed(() => ["cards", props.boardType, normalizedFilters.value]), // 給這個快取一個名字
     initialPageParam: 1, // 起始頁碼
 
     // 自動帶入當前頁碼進行 API 請求
-    queryFn: ({ pageParam }) => cardApi.getCards({ pageNumber: pageParam, pageSize: 15 }),
+    queryFn: ({ pageParam }) => cardApi.getCards({ pageNumber: pageParam, pageSize: 15, boardType: props.boardType, ...normalizedFilters.value }),
 
     /**
      * 判斷有無下一頁
@@ -38,9 +53,24 @@ const {
 });
 
 // 把二維陣列壓扁，無縫接軌瀑布流
-const cardList = computed(() => {
+const cardList = computed<CardDto[]>(() => {
     return data.value?.pages.flatMap(page => page) || [];
 })
+
+function handleOpenDetail(card: CardDto) {
+  router.push({
+    name: "CardDetail",
+    params: { id: card.id },
+    query: { from: props.boardType },
+  });
+
+  if (shouldMarkReviewedOnOpenDetail(props.boardType)) {
+    handleReadCard({
+      id: card.id,
+      sourceBoard: props.boardType,
+    });
+  }
+}
 
 // 無限推播觸發載入新內容
 const loadMore = () => {
@@ -94,20 +124,18 @@ onMounted(() => {
             loadMore()
         }
     }, { rootMargin: '200px' }) // 提早 200px 載入，體驗更流暢
+})
 
-    if (triggerRef.value) {
-        observer.observe(triggerRef.value)
-    }
+// 不管 triggerRef 何時出現／消失，都能正確跟上
+watch(triggerRef, (newEl, oldEl) => {
+    if (oldEl && observer) observer.unobserve(oldEl)
+    if (newEl && observer) observer.observe(newEl)
 })
 
 onUnmounted(() => {
     // 把剛剛的監聽器拔掉，這就像離開房間要關燈，避免佔用瀏覽器記憶體
     window.removeEventListener('resize', updateColumnCount);
-
-    // 🌟 新增：釋放觀測器記憶體
-    if (observer && triggerRef.value) {
-        observer.unobserve(triggerRef.value)
-    }
+    observer?.disconnect()
 })
 
 // 將扁平的陣列，依照索引依序分發到各個欄位中
@@ -126,11 +154,31 @@ const columnsData = computed(() => {
 
 <template>
     <!-- <el-scrollbar class="feed-scrollbar"> -->
-    <div>
+    <!-- <div> -->
         <!-- <h1>Board</h1> -->
         <!-- <el-switch v-model="isTextMode" active-text="Text" inactive-text="Gallery" /> -->
+    <!-- </div> -->
+
+  <section>
+    <header class="board-header">
+      <h1 style="text-align: center;margin: 10px;">{{ title }}</h1>
+      <p v-if="description" style="text-align: center;margin: 15px; color: gray;">{{ description }}</p>
+    </header>
+
+    <div v-if="isLoading && cardList.length === 0">
+      載入中...
     </div>
-    <div class="feed-container" >
+
+    <div v-else-if="error">
+      載入失敗，請稍後再試
+    </div>
+
+    <div v-else-if="cardList.length === 0">
+      目前沒有卡片
+    </div>
+
+
+    <div class="feed-container" v-else>
         <div
         class="masonry-wrapper">
             <div v-for="(col, colIndex) in columnsData" :key="colIndex" class="masonry-col">
@@ -139,6 +187,8 @@ const columnsData = computed(() => {
                 :key="item.id"
                 :data="item"
                 :viewMode="viewMode"
+                :board-type="boardType"
+                @open-detail="handleOpenDetail"
                 ></CardItem>
             </div>
         </div>
@@ -155,6 +205,7 @@ const columnsData = computed(() => {
     <!-- </el-scrollbar> -->
     <!-- <el-backtop target=".feed-scrollbar .el-scrollbar__wrap" :right="50" :bottom="50" /> -->
 
+  </section>
 </template>
 
 <style scoped>

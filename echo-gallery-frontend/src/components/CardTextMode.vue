@@ -1,19 +1,28 @@
 <script setup lang="ts">
 
-import router from '../router/index';
 import { formatDate } from '../utils/formatDate'
 import { computed } from 'vue';
 import { Link, Star, StarFilled, RefreshRight, MoreFilled } from '@element-plus/icons-vue'
 import { useCardStatus } from '../utils/useCardStatus';
+import type { CardDto } from '../types/card';
+import { getBoardCapabilities, type BoardType } from '../types/board';
 
-const props = defineProps({
-  data: {
-    type: Object,
-    required: true
-  }
-})
+const props = defineProps<{
+  data: CardDto;
+  boardType: BoardType;
+}>();
 
-const { handleToggleStar, handleToggleArchive, handleSnoozeCard, handleReadCard } = useCardStatus();
+const capabilities = computed(() => getBoardCapabilities(props.boardType));
+
+const emit = defineEmits<{
+  (e: "open-detail", card: any): void;
+}>();
+
+function openDetail() {
+  emit("open-detail", props.data);
+}
+
+const { handleToggleStar, handleToggleArchive, handleSnoozeCard } = useCardStatus();
 
 // =====================================================
 // 💡 關鍵：判定卡片是否處於「灰掉狀態 (Muted)」
@@ -46,33 +55,29 @@ const getCardShowInfo = computed(()=>{
 })
 
 const goToDetail = () => {
-  router.push( { name: 'CardDetail', params: { id: props.data.id }})
+  // router.push( { name: 'CardDetail', params: { id: props.data.id }})
 
-  // const routeData = router.resolve({
-  //   name: 'CardDetail', 
-  //   params: { id: props.data.id }
+  // handleReadCard({
+  //   id: props.data.id,
+  //   intervalDays: props.data.intervalDays  // 狀態反轉
   // });
-  // window.open(routeData.href, "_blank");
-  handleReadCard({ 
-    id: props.data.id, 
-    intervalDays: props.data.intervalDays  // 狀態反轉
-  });
+  openDetail();
 }
 
 const toggleStar = () => {
   const canLike = getLikeAvailableStatus(props.data.likeAvailableAt);
 
   // 觸發 mutation，將當前卡片 id 與是否為「點讚」狀態傳入
-  handleToggleStar({ 
-    id: props.data.id, 
+  handleToggleStar({
+    id: props.data.id,
     starStatus: canLike // 如果當前可以點讚，代表這次操作是加星星(true)；反之為取消(false)
   });
 }
 
 // 2. 點擊封存 / 取消封存
 const toggleArchive = () => {
-  handleToggleArchive({ 
-    id: props.data.id, 
+  handleToggleArchive({
+    id: props.data.id,
     archivedStatus: !props.data.isArchived  // 狀態反轉
   });
 };
@@ -81,11 +86,11 @@ const toggleArchive = () => {
 const triggerSnooze = () => {
   // 如果卡片本身有設定頻率就用它的，不然預設為 10 天
   // 後續根據使用體驗，考慮再加上直接可以客製化，讓使用者透過按鈕，決定本次回流增加天數，如：5天後再看 / 1 周後再看 / 1 個月後再看
-  const days = props.data.intervalDays || 10; 
+  const days = props.data.intervalDays || 10;
   handleSnoozeCard({ id: props.data.id, nextIntervalDays: days });
 };
 
-const getLikeAvailableStatus = (likeAvailableAt: string) => {
+const getLikeAvailableStatus = (likeAvailableAt: string | undefined) => {
   if (!likeAvailableAt) return true;
   try {
     return new Date() >= new Date(likeAvailableAt);
@@ -97,8 +102,8 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
 const openSourceUrl = (sourceUrl:string) => {
   window.open(sourceUrl, '_blank');
 
-  // handleReadCard({ 
-  //   id: props.data.id, 
+  // handleReadCard({
+  //   id: props.data.id,
   //   intervalDays: props.data.intervalDays  // 狀態反轉
   // });
 }
@@ -106,7 +111,7 @@ const openSourceUrl = (sourceUrl:string) => {
 </script>
 
 <template>
-  <el-card @click="goToDetail" 
+  <el-card @click="goToDetail"
   :class="['card-clickable', { 'card-muted-style': isMuted }]">
 
     <div v-if="isMuted" class="muted-banner">
@@ -137,10 +142,10 @@ const openSourceUrl = (sourceUrl:string) => {
         <div class="card-footer-side">
 
         <!-- 星數 -->
-        <div class="status star-clickable" @click.stop="toggleStar()">
-          <el-icon 
-          :size="16" 
-          style="color: #f7ba2a;" 
+        <div class="status star-clickable" v-if="capabilities.canStar" @click.stop="toggleStar">
+          <el-icon
+          :size="16"
+          style="color: #f7ba2a;"
           :class="{ 'active-star': !getLikeAvailableStatus(data.likeAvailableAt) }">
           <Star v-if="getLikeAvailableStatus(data.likeAvailableAt)" />
           <StarFilled v-else />
@@ -169,13 +174,12 @@ const openSourceUrl = (sourceUrl:string) => {
           </div>
           <!-- </div> -->
           <!-- 更多功能按鈕 -->
-          
   <el-dropdown>
     <el-icon :size="16" class="rotate-icon" @click.stop><MoreFilled /></el-icon>
     <template #dropdown>
       <el-dropdown-menu>
         <el-dropdown-item @click="goToDetail()">編輯</el-dropdown-item>
-        <el-dropdown-item v-if="!isMuted" @click.stop="triggerSnooze">
+        <el-dropdown-item v-if="!isMuted&&capabilities.canSnooze" @click.stop="triggerSnooze">
           稍後再看
         </el-dropdown-item>
         <el-dropdown-item @click.stop="toggleArchive">
@@ -192,14 +196,10 @@ const openSourceUrl = (sourceUrl:string) => {
 
 
     </div>
-    
-    
 
     </div>
-    
     <!-- 底部：來源、按讚數 -->
     <!-- <template #footer>
-      
     </template> -->
   </el-card>
 </template>
@@ -262,7 +262,7 @@ const openSourceUrl = (sourceUrl:string) => {
   /* transition: transform 0.5s; */
 }
 .link-btn:hover{
-  color: lightblue;  
+  color: lightblue;
 }
 .rotate-icon{
   transform: rotate(90deg);
@@ -300,7 +300,7 @@ const openSourceUrl = (sourceUrl:string) => {
 
   /* 💡 必加：防止遇到長英文單字或連續驚嘆號（例如 !!!!!）時， */
   /* 瀏覽器不知道怎麼斷行，導致整行直接隱形或破版 */
-  overflow-wrap: break-word; 
+  overflow-wrap: break-word;
   word-break: break-word;
 }
 .like-count{
@@ -326,7 +326,7 @@ const openSourceUrl = (sourceUrl:string) => {
 }
 .card-clickable:hover{
   transform: translateY(-5px);
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4); 
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4);
 }
 /* --- 修改後建議 --- */
 .star-clickable {

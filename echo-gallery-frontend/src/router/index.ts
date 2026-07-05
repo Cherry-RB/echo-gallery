@@ -41,32 +41,32 @@ const routes = [
     {
       path: 'board/today', // 今日看板
       name: 'TodayBoard',
-      component: () => import('../components/Board-Flex.vue')
+      component: () => import('../views/boards/TodayBoard.vue')
     },
     {
-      path: 'board/random', // 隨機看板
-      name: 'RandomBoard',
-      component: () => import('../components/Board-Flex.vue')
-    },
-    {
-      path: 'board/all', // 最新看板
-      name: 'NewBoard',
-      component: () => import('../components/Board-Flex.vue')
+      path: 'board/all', // 全部卡片
+      name: 'AllCardsBoard',
+      component: () => import('../views/boards/AllCardsBoard.vue')
     },
     {
       path: 'board/hot', // 熱門看板
       name: 'HotBoard',
-      component: () => import('../components/Board-Flex.vue')
+      component: () => import('../views/boards/HotBoard.vue')
+    },
+    {
+      path: 'board/random', // 隨機看板
+      name: 'RandomBoard',
+      component: () => import('../views/boards/RandomBoard.vue')
     },
     {
       path: 'board/archived', // 封存看板
       name: 'ArchivedBoard',
-      component: () => import('../components/Board-Flex.vue')
+      component: () => import('../views/boards/ArchivedBoard.vue')
     },
     {
       path: 'board/snoozed', // 稍後再看看板
       name: 'SnoozedBoard',
-      component: () => import('../components/Board-Flex.vue')
+      component: () => import('../views/boards/SnoozedBoard.vue')
     },
     {
       path: 'search', // 查詢看板

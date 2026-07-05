@@ -8,16 +8,21 @@ import { getDefaultCardData } from '../mock-data/card-default-new';
 import { cardApi } from '../utils/api/cardApi';
 import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';
+import { useRoute } from 'vue-router';
 
 const props = defineProps<{ id: string }>();
+const route = useRoute();
 
 const goBack = () => {
-  if (window.history.length > 1) {
+  // 有瀏覽紀錄（正常從看板點進來）→ 走原本的 back，體驗最自然（會保留捲動位置等）
+  if (window.history.state?.back) {
     router.back();
-  } else {
-    window.close();
+    return;
   }
-}
+  // 沒有紀錄（重新整理 / 外部連結進入）→ 退回到 query 記錄的來源看板，沒有就給預設值
+  const fallbackBoard = (route.query.from as string) || 'all';
+  router.push(`/board/${fallbackBoard}`);
+};
 
 // --- 💡 編輯模式核心邏輯 ---
 

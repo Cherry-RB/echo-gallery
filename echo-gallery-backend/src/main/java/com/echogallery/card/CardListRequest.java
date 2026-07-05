@@ -14,4 +14,5 @@ public class CardListRequest {
     // private String[] tagNames;
     private Integer pageNumber;
     private Integer pageSize;
+    private String boardType;
 }

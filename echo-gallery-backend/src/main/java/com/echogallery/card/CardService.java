@@ -42,8 +42,16 @@ public class CardService {
         // 3. 建立分頁與排序條件（依據建立時間降冪排序）
         Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
 
-        // 4. 查出該使用者的分頁卡片資料
-        Page<Card> cardPage = cardRepository.findActiveReviewCards(userId, ZonedDateTime.now(), pageable);
+        // 4. 根據看板類型，查出該使用者的分頁卡片資料
+        BoardType boardType = BoardType.from(request.getBoardType());
+        Page<Card> cardPage = switch (boardType) {
+            case TODAY -> cardRepository.findTodayCards(userId, ZonedDateTime.now(), pageable);
+            case ALL -> cardRepository.findByUserIdAndIsArchivedFalse(userId, pageable);
+            case HOT -> cardRepository.findHotCards(userId, pageable);
+            case RANDOM -> cardRepository.findRandomCards(userId, PageRequest.of(0, size));
+            case ARCHIVED -> cardRepository.findByUserIdAndIsArchivedTrue(userId, pageable);
+            case SNOOZED -> cardRepository.findSnoozedCards(userId, pageable);
+        };
 
         // 5. 轉換為 Response DTO 列表回傳
         return cardPage.getContent().stream()
@@ -65,10 +73,6 @@ public class CardService {
             // 故意拋出 403 Forbidden！這會直接觸發你前端 Axios 攔截器的 case 403 -> "權限不足，拒絕存取"
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權檢視此卡片");
         }
-
-        // 當使用者點進來查看時，自動根據 intervalDays 推遲 nextShowAt
-        int days = card.getIntervalDays() != null ? card.getIntervalDays() : 10; // 預設 10 天
-        card.setNextShowAt(ZonedDateTime.now().plusDays(days));
 
         // 4. 通過檢查，封裝回傳
         return convertToDetailResponse(card);
@@ -386,6 +390,9 @@ public class CardService {
         // 推進回流時間：若有設定天數就用卡片的，否則預設 10 天
         int days = card.getIntervalDays() != null ? card.getIntervalDays() : 10;
         card.setNextShowAt(ZonedDateTime.now().plusDays(days));
+
+        // 如果這張卡之前一直被稍後再看，現在終於被打開詳情，可重置 snoozeCount。
+        card.setSnoozeCount(0);
 
         return convertToDetailResponse(card);
     }

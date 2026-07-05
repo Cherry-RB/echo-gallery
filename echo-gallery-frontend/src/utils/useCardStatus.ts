@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/vue-query';
 import { cardApi } from './api/cardApi';
 import { ElMessage } from 'element-plus';
+import type { BoardType } from '../types/board';
 
 // 簡單定義卡片與無限捲動快取的基礎型別，提升程式碼強健度
 interface CardDTO {
@@ -237,15 +238,15 @@ export const useCardStatus = () => {
     // =====================================================
     const readMutation = useMutation({
         // 【打後端】
-        mutationFn: ({ id }: { id: string | number; intervalDays?: number }) =>
+        mutationFn: ({ id }: { id: string | number; sourceBoard : BoardType ;intervalDays?: number }) =>
             cardApi.readCard(id),
 
         // 【點擊瞬間立刻執行】
-        onMutate: async ({ id }) => {
+        onMutate: async ({ id, sourceBoard }) => {
             const snapshot = await prepareSnapshot(id);
 
             // 樂觀更新：立刻 filter 掉
-            queryClient.setQueriesData<InfiniteData<CardDTO[]>>({ queryKey: ['cards'] }, (oldData: any) => {
+            queryClient.setQueriesData<InfiniteData<CardDTO[]>>({ queryKey: ['cards', sourceBoard] }, (oldData: any) => {
                 if (!oldData || !oldData.pages) return oldData;
                 return {
                     ...oldData,
