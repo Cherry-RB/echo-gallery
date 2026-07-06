@@ -3,7 +3,7 @@ plugins {
 	id("org.springframework.boot") version "4.0.6"
 	id("io.spring.dependency-management") version "1.1.7"
 	// 新增這行 Lombok 插件（版本號可依需求調整，通常會自動與 Spring 協調）
-	id("io.freefair.lombok") version "8.6" 
+	id("io.freefair.lombok") version "8.6"
 }
 
 group = "com.echogallery"
@@ -39,6 +39,9 @@ dependencies {
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+
+	// 引入 Spring Boot Actuator 監控應用健康狀態
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
 }
 
 tasks.withType<Test> {

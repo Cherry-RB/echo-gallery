@@ -58,6 +58,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
                          // 註冊、登入端點一律放行
                         .anyRequest().authenticated()               // 其餘所有 API（包含 Card 控制器）強制登入
                 )
