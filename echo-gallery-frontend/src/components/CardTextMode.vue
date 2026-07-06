@@ -119,14 +119,16 @@ const openSourceUrl = (sourceUrl:string) => {
     </div>
 
     <!-- header -->
-    <template #header v-if="!isMuted">
+     <div v-if="!isMuted">
+    <!-- <template #header v-if="!isMuted"> -->
       <div class="card-header">
         <!-- 類型標籤 -->
-        <el-tag :type="data.type==='note'?'success':'primary'">{{ data.type==='note'?'筆記':'連結' }}</el-tag>
+        <!-- <el-tag :type="data.type==='note'?'success':'primary'">{{ data.type==='note'?'筆記':'連結' }}</el-tag> -->
         <!-- 標題 -->
-        <span class="title-text">{{ data.title }}</span>
+        <h4 class="title-text">{{ data.title }}</h4>
       </div>
-    </template>
+    <!-- </template> -->
+    </div>
 
     <!-- body -->
     <div class="card-body" v-if="!isMuted">
@@ -213,7 +215,7 @@ const openSourceUrl = (sourceUrl:string) => {
   color: #999;
   font-size: 12px;
   gap: 20px; /* 確保左右區塊中間至少有間距 */
-  margin-top: 15px;
+  /* margin-top: 15px; */
 }
 .card-footer-side{
   display: flex;
@@ -241,12 +243,12 @@ const openSourceUrl = (sourceUrl:string) => {
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 5px;
 }
 .card-body-content {
   color: #666;
   font-size: 14px;
-  line-height: 1.5;
+  /* line-height: 1.5; */
   /* 即使不顯示圖片，也可以限制文字行數，讓卡片整齊 */
   /* display: -webkit-box; */
   /* -webkit-line-clamp: 3;  */
@@ -256,6 +258,7 @@ const openSourceUrl = (sourceUrl:string) => {
   overflow-wrap: break-word;
   /* 強制所有字符在邊界斷開 */
   /* word-break: break-all;  */
+  white-space: pre-wrap;
 }
 .link-btn{
   color: #999;
@@ -294,7 +297,7 @@ const openSourceUrl = (sourceUrl:string) => {
 
   /* 🌟 限制 3 行並顯示省略號的關鍵 CSS */
   display: -webkit-box;
-  -webkit-line-clamp: 3;    /* 這裡寫幾，就是限制最多幾行 */
+  -webkit-line-clamp: 5;    /* 這裡寫幾，就是限制最多幾行 */
   -webkit-box-orient: vertical;
   overflow: hidden;
 
@@ -302,6 +305,7 @@ const openSourceUrl = (sourceUrl:string) => {
   /* 瀏覽器不知道怎麼斷行，導致整行直接隱形或破版 */
   overflow-wrap: break-word;
   word-break: break-word;
+  margin-bottom: 10px;
 }
 .like-count{
   font-weight: 900;

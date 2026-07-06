@@ -330,19 +330,19 @@ const openSourceUrl = () => {
                 v-else
                 v-model="cardData.summary"
                 type="textarea"
-                :rows="3"
+                :rows="5"
                 placeholder="請輸入內容摘要..."
               />
             </div>
 
-            <div class="info-paragraph" v-if="cardData.type === 'note' || cardData.showContentPreview || isEditMode">
+            <div class="info-paragraph" v-if="cardData.content || isEditMode">
               <h3 class="paragraph-title content"><span class="title-marker content"></span>詳細內容</h3>
               <p v-if="!isEditMode" class="paragraph-text main-content">{{ cardData.content }}</p>
               <el-input
                 v-else
                 v-model="cardData.content"
                 type="textarea"
-                :rows="6"
+                :rows="10"
                 placeholder="請輸入詳細內容..."
               />
             </div>
