@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.echogallery.card.CardRepository;
+import com.echogallery.card.CardService;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.util.SecurityUtil;
 
@@ -19,6 +20,7 @@ public class SidebarService {
 
     private final CardRepository cardRepository;
     private final TagRepository tagRepository;
+    private final CardService cardService;
 
     @Transactional(readOnly = true)
     public SidebarStatsResponse getSidebarStats() {
@@ -26,9 +28,7 @@ public class SidebarService {
         // 安全地從安全上下文取得目前登入的 userId，落實多租戶資料隔離
         Long userId = SecurityUtil.getCurrentUserId();
 
-        ZonedDateTime today = ZonedDateTime.now();
-
-        long todayEcho = cardRepository.countByUserIdAndIsArchivedFalseAndNextShowAtLessThanEqual(userId, today); // nextShowAt <= today
+        long todayEcho = cardRepository.countByUserIdAndIsArchivedFalseAndNextShowAtLessThan(userId, cardService.getStartOfTomorrowTaipei()); // nextShowAt <= today
         long total = cardRepository.countByUserIdAndIsArchivedFalse(userId);
         long highSnooze = cardRepository.countByUserIdAndIsArchivedFalseAndSnoozeCountGreaterThan(userId, 10);   // snoozeCount > 10
 

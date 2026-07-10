@@ -15,4 +15,5 @@ public class CardListRequest {
     private Integer pageNumber;
     private Integer pageSize;
     private String boardType;
+    private int threshold;
 }

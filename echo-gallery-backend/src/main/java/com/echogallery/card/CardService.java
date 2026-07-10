@@ -1,5 +1,7 @@
 package com.echogallery.card;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +30,18 @@ public class CardService {
     private final UserRepository userRepository;
     private final TagRepository tagRepository;
 
+    // 給查詢用:排他上界(今天結束 = 明天開始)
+    public ZonedDateTime getStartOfTomorrowTaipei() {
+        ZoneId taipei = ZoneId.of("Asia/Taipei");
+        return LocalDate.now(taipei).plusDays(1).atStartOfDay(taipei);
+    }
+
+    // 給建卡/回流用:今天的起算基準
+    private ZonedDateTime getStartOfTodayTaipei() {
+        ZoneId taipei = ZoneId.of("Asia/Taipei");
+        return LocalDate.now(taipei).atStartOfDay(taipei);
+    }
+
     @Transactional(readOnly = true)
     public List<CardSummaryResponse> getCardList(CardListRequest request){
 
@@ -45,12 +59,12 @@ public class CardService {
         // 4. 根據看板類型，查出該使用者的分頁卡片資料
         BoardType boardType = BoardType.from(request.getBoardType());
         Page<Card> cardPage = switch (boardType) {
-            case TODAY -> cardRepository.findTodayCards(userId, ZonedDateTime.now(), pageable);
+            case TODAY -> cardRepository.findTodayCards(userId, getStartOfTomorrowTaipei(), pageable);
             case ALL -> cardRepository.findByUserIdAndIsArchivedFalse(userId, pageable);
             case HOT -> cardRepository.findHotCards(userId, pageable);
             case RANDOM -> cardRepository.findRandomCards(userId, PageRequest.of(0, size));
             case ARCHIVED -> cardRepository.findByUserIdAndIsArchivedTrue(userId, pageable);
-            case SNOOZED -> cardRepository.findSnoozedCards(userId, pageable);
+            case SNOOZED -> cardRepository.findSnoozedCards(userId, request.getThreshold() == 0 ? 10 : request.getThreshold(), pageable);
         };
 
         // 5. 轉換為 Response DTO 列表回傳
@@ -110,7 +124,7 @@ public class CardService {
         // 只有當前端有傳入新的 intervalDays 且跟原本不同時，才重新計算時間
         if (request.getIntervalDays() != null && !java.util.Objects.equals(request.getIntervalDays(), card.getIntervalDays())) {
             card.setIntervalDays(request.getIntervalDays());
-            card.setNextShowAt(ZonedDateTime.now().plusDays(request.getIntervalDays()));
+            card.setNextShowAt(getStartOfTodayTaipei().plusDays(request.getIntervalDays()));
         }
         card.setArchived(request.getIsArchived());
 
@@ -147,7 +161,7 @@ public class CardService {
                 .reason(request.getReason())
                 .tags(associatedTags) // 關聯安全的標籤庫
                 .intervalDays(request.getIntervalDays())
-                .nextShowAt(ZonedDateTime.now().plusDays(request.getIntervalDays()!=null ? request.getIntervalDays():10)) // 預設 10 天後回流
+                .nextShowAt(getStartOfTodayTaipei().plusDays(request.getIntervalDays()!=null ? request.getIntervalDays():10)) // 預設 10 天後回流
                 .isArchived(false)
                 .build();
 
@@ -368,7 +382,7 @@ public class CardService {
         }
 
         // 5. 更新下次回流時間，不碰 lastInteractionAt
-        card.setNextShowAt(ZonedDateTime.now().plusDays(daysToPlus));
+        card.setNextShowAt(getStartOfTodayTaipei().plusDays(daysToPlus));
 
         return convertToDetailResponse(card);
     }
@@ -389,7 +403,7 @@ public class CardService {
 
         // 推進回流時間：若有設定天數就用卡片的，否則預設 10 天
         int days = card.getIntervalDays() != null ? card.getIntervalDays() : 10;
-        card.setNextShowAt(ZonedDateTime.now().plusDays(days));
+        card.setNextShowAt(getStartOfTodayTaipei().plusDays(days));
 
         // 如果這張卡之前一直被稍後再看，現在終於被打開詳情，可重置 snoozeCount。
         card.setSnoozeCount(0);

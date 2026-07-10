@@ -20,8 +20,8 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     // 對應先前建立的記憶回流複合索引 (idx_cards_user_review_flow)
     // @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.nextShowAt <= :now AND c.isArchived = false")
     // List<Card> findActiveReviewCards(@Param("userId") Long userId, @Param("now") ZonedDateTime now);
-    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.nextShowAt <= :now AND c.isArchived = false")
-    Page<Card> findTodayCards(@Param("userId") Long userId, @Param("now") ZonedDateTime now, Pageable pageable);
+    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.nextShowAt < :startOfTomorrow AND c.isArchived = false")
+    Page<Card> findTodayCards(@Param("userId") Long userId, @Param("startOfTomorrow") ZonedDateTime startOfTomorrow, Pageable pageable);
 
     // 看板分頁 - 熱度排行
     @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false ORDER BY c.likeCount DESC")
@@ -37,14 +37,14 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     Page<Card> findByUserIdAndIsArchivedTrue(Long userId, Pageable pageable);
 
     // 看板分頁 - 稍後再看看版
-    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false AND c.snoozeCount > 10")
-    Page<Card> findSnoozedCards(@Param("userId") Long userId, Pageable pageable);
+    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false AND c.snoozeCount > :threshold")
+    Page<Card> findSnoozedCards(@Param("userId") Long userId, @Param("threshold") int threshold, Pageable pageable);
 
     // 透過 Spring Data JPA 命名規範，直接建立限定用戶且支援分頁的查詢
     Page<Card> findByUserId(Long userId, Pageable pageable);
 
     // 統計資訊 1: 今日回流卡片數
-    long countByUserIdAndIsArchivedFalseAndNextShowAtLessThanEqual(Long userId, ZonedDateTime now);
+    long countByUserIdAndIsArchivedFalseAndNextShowAtLessThan(Long userId, ZonedDateTime startOfTomorrow);
 
     // 統計資訊 2: 未封存總卡片數
     long countByUserIdAndIsArchivedFalse(Long userId);
