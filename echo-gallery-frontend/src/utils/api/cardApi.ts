@@ -4,7 +4,7 @@ import request from "./request"
 
 export const cardApi = {
     // 取得卡片瀑布流
-    getCards(data: { pageNumber: number, pageSize: number, boardType: BoardType }): Promise<any>{
+    getCards(data: { pageNumber: number, pageSize: number, boardType: BoardType, threshold?: number }): Promise<any>{
         return request({
             url: "/cards/list",
             method: "POST",

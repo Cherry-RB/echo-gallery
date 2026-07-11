@@ -84,3 +84,26 @@
   * 分支命名規範與合併策略。
   * 標準化 Commit 訊息格式 (Conventional Commits)。
   * Git 操作紀錄、異動查詢與版本復原（Revert/Reset/Stash）標準處理機制。
+
+### 9. [09_RWD失效與CDN快取除錯記錄.md](./09_RWD失效與CDN快取除錯記錄.md)
+
+* **屬性**：前端除錯與部署基礎設施（Postmortem）。
+* **內容**：正式環境真機 RWD 版面失效之完整排查歷程與根本原因分析。
+* **重點**：
+  * Vite 正式建置時 CSS 壓縮工具自動套用 Media Query Range Syntax（`width<=1200px`），導致 Safari 16.4 以下版本（含 iOS 16.3.1）無法辨識、整段 `@media` 規則靜默失效。
+  * Render 靜態網站背後 Cloudflare CDN 對 `index.html` 的預設快取策略（`s-maxage=300`），導致不同使用者於快取過期前取得不一致版本，干擾排查判斷。
+  * 自訂 Response Header 路徑比對需以瀏覽器實際 Request URL（如 `/`）為準，而非僅設定實體檔名（如 `/index.html`）。
+  * 無遠端除錯設備（Mac / Android）情況下，透過在頁面內植入臨時診斷元件（讀取 `window.matchMedia`、`getComputedStyle`、`document.styleSheets`）逐層縮小問題範圍之排查手法。
+  * 完整的假設驗證時間軸與可遷移之除錯方法論總結。
+
+### 10. [10_今日看板時區判斷錯誤除錯記錄.md](./10_今日看板時區判斷錯誤除錯記錄.md)
+
+* **屬性**：後端除錯與資料庫維運（Postmortem）。
+* **內容**：TODAY 看板卡片無法於台灣時間 00:00 準時刷新之完整排查歷程、修復設計與既有資料修復紀錄。
+* **重點**：
+  * 手動測試 SQL 使用 `CURRENT_DATE` 時，受 DB session timezone（Supabase 預設為 `UTC`）影響，導致「今日」判斷基準比台北實際午夜晚 8 小時。
+  * 應用層查詢邏輯 `nextShowAt <= now()` 屬於精確到秒的絕對時刻比較，而建卡邏輯 `ZonedDateTime.now().plusDays(N)` 保留了建立當下的時分秒，導致卡片延遲到「建立當下的時分秒」才刷新，而非台北午夜。
+  * `timestamptz`／`ZonedDateTime` 型別本身無須更動（本質為絕對時刻儲存），問題根源在應用層計算「今天」時所選用的時區基準與比較粒度，而非欄位型別。
+  * 修復設計：拆分「查詢用排他上界」（`getStartOfTomorrowTaipei()`）與「建卡/回流起算基準」（`getStartOfTodayTaipei()`）兩個獨立時區錨點方法，避免共用同一方法時因內建偏移量疊加造成 off-by-one。
+  * 既有資料 migration SQL（`date_trunc` + `AT TIME ZONE 'Asia/Taipei'`）設計與驗證方式；記錄兩次操作誤判：UTC 顯示值誤認為未生效、Supabase SQL Editor 分次執行導致 transaction 未真正 commit。
+  * 附帶記錄刪除卡片時觸發外鍵約束（`card_tags` 中介表）之排查與處理方式。
