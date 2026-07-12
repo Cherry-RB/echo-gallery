@@ -1,4 +1,22 @@
 import {createRouter, createWebHistory } from 'vue-router';
+import { jwtDecode } from 'jwt-decode';
+
+interface JwtPayload {
+  exp: number; // 過期時間 (unix timestamp, 秒)
+  [key: string]: any;
+}
+
+// 檢查 token 是否存在且未過期
+function isTokenValid(token: string | null): boolean {
+  if (!token) return false;
+  try {
+    const { exp } = jwtDecode<JwtPayload>(token);
+    return exp * 1000 > Date.now();
+  } catch {
+    // decode 失敗代表格式不對，視為無效
+    return false;
+  }
+}
 
 const routes = [
   // 1. 不需要側邊欄的頁面（頂層路由）
@@ -73,6 +91,10 @@ const routes = [
       name: 'Search',
       component: () => import('../views/SearchView.vue')
     },
+    {
+      path: '', // 預設導向 今日看板
+      redirect: 'board/today'
+    }
   ]},
   // 3. 補上 404 頁面（選用，增加體驗）
   {
@@ -99,18 +121,25 @@ const router = createRouter({
 // 加入路由守衛
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token');
+  const tokenValid = isTokenValid(token);
+
+  // token 存在但已過期 -> 順手清掉，避免殘留髒資料
+  if (token && !tokenValid) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+  }
 
   // Vue Router 4 會自動將父路由的 meta 合併到子路由的 to.meta 中
   const requiresAuth = to.meta.requiresAuth;
   const isGuestOnly = to.meta.guestOnly;
 
   // 1. 該頁面需要登入，但使用者沒有 token -> 踢回登入頁
-  if (requiresAuth && !token) {
+  if (requiresAuth && !tokenValid) {
     next({ name: 'Login' });
   }
   // 2. 該頁面僅限訪客（如登入/註冊），但使用者已有 token -> 導回首頁
-  else if (isGuestOnly && token) {
-    next({ name: 'Home' });
+  else if (isGuestOnly && tokenValid) {
+    next({ name: 'TodayBoard' });
   }
   // 3. 其餘放行
   else {
