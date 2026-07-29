@@ -17,8 +17,9 @@ const validateForm = () => {
   let isValid = true;
 
   // 1. Username 驗證
-  if (form.username.trim().length < 2) {
-    errors.username = '名稱至少需要 2 個字元';
+  const usernameLen = form.username.trim().length;
+  if (usernameLen < 2 || usernameLen > 50) {
+    errors.username = '名稱長度必須介於 2 到 50 個字之間';
     isValid = false;
   } else {
     errors.username = '';
@@ -68,7 +69,10 @@ const onSubmit = async () => {
 // 2. 判斷表單是否允許送出
 const isFormValid = computed(() => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return form.username.trim() !== '' &&
+  const usernameLen = form.username.trim().length;
+  return usernameLen >= 2 &&
+         usernameLen <= 50 &&
+         form.username.trim() !== '' &&
          form.email.trim() !== '' &&
          emailRegex.test(form.email) &&
          form.password.trim().length >= 6 &&

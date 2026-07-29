@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -31,7 +32,7 @@ public class CardController {
         List<CardSummaryResponse> cards = cardService.getCardList(request);
         return ResponseEntity.ok(cards);
     }
-    
+
     @GetMapping("/{id}")
     public ResponseEntity<CardDetailResponse> getCardDetail(@PathVariable Long id) {
         CardDetailResponse response = cardService.getCardDetailById(id);
@@ -39,14 +40,14 @@ public class CardController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CardDetailResponse> updateCard(@PathVariable("id") Long cardId, @RequestBody CardRequest request) {
+    public ResponseEntity<CardDetailResponse> updateCard(@PathVariable("id") Long cardId, @Valid @RequestBody CardRequest request) {
         // @RequestBody 會自動把 Vue 傳來的 JSON 轉成 Java 的 CardRequest 物件
         CardDetailResponse response = cardService.updateCard(cardId, request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping
-    public ResponseEntity<CardDetailResponse> createCard(@RequestBody CardRequest request) {
+    public ResponseEntity<CardDetailResponse> createCard(@Valid @RequestBody CardRequest request) {
         // @RequestBody 會自動把 Vue 傳來的 JSON 轉成 Java 的 CardRequest 物件
         CardDetailResponse response = cardService.createCard(request);
         return ResponseEntity.ok(response);

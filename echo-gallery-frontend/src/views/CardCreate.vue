@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<!-- <script setup lang="ts">
 import { ref } from 'vue'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import router from '../router'
@@ -74,4 +74,4 @@ const handleCreate = () => {
 .create-container { padding: 20px; max-width: 800px; margin: 0 auto; }
 .create-card { padding: 20px; }
 /* 你的其他優雅樣式... */
-</style>
+</style> -->

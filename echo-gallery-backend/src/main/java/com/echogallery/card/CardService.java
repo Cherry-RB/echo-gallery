@@ -51,7 +51,8 @@ public class CardService {
         // 2. 防禦性程式設計：處理分頁參數預設值
         // 前端通常習慣從第 1 頁開始算（pageNumber），但 Spring Data JPA 的 PageRequest 是從第 0 頁開始
         int page = (request.getPageNumber() != null && request.getPageNumber() > 0) ? request.getPageNumber() - 1 : 0;
-        int size = (request.getPageSize() != null && request.getPageSize() > 0) ? request.getPageSize() : 10;
+        int requestedSize = (request.getPageSize() != null && request.getPageSize() > 0) ? request.getPageSize() : 10;
+        int size = Math.min(requestedSize, 100);
 
         // 3. 建立分頁與排序條件（依據建立時間降冪排序）
         Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());

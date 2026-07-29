@@ -2,13 +2,14 @@
 import { ArrowLeft, Link, Star, StarFilled, Calendar, CollectionTag, Clock, Plus } from '@element-plus/icons-vue'
 import router from '../router';
 import type { CardDto } from '../types/card';
-import { computed, ref, toRaw, watch } from 'vue';
+import { computed, reactive, ref, toRaw, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
 import { cardApi } from '../utils/api/cardApi';
 import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';
 import { useRoute } from 'vue-router';
+import type { FormInstance, FormRules } from 'element-plus';
 
 const props = defineProps<{ id: string }>();
 const route = useRoute();
@@ -83,28 +84,36 @@ watch(isEditMode, (newVal) => {
 })
 
 // 💡 5. 儲存與取消的路由導向
-const handleSave = () => {
+const handleSave = async () => {
+  if (!cardFormRef.value) return;
 
-  if(isCreateMode.value){
-    console.log('送出 POST API 建立新卡片', cardData.value);
-    // 調用對外接口建立卡片
-    handleCreateCard(cardData.value, {
-      // 💡 當 useCardStatus 內部的後端成功且快取刷完後，才會觸發這個 UI 回呼
-      onSuccess: () => {
-        router.push('/board/all') // 成功後回總卡片列表，可看見最新新增的卡片
-      }
-    });
-  } else{
-    console.log('送出 PUT API 更新卡片');
-    // 這裡未來可以對接後端 API 儲存修改
-    // 調用對外接口更新卡片（傳入封裝好的參數物件）
-    handleUpdateCard({ id: props.id, data: cardData.value }, {
-      // 💡 後端儲存成功且快取重整後，才執行 UI 狀態切換
-      onSuccess: () => {
-        isEditMode.value = false;
-      }
-    });
-  }
+  // 執行前端欄位校驗
+  await cardFormRef.value.validate(async (valid) => {
+    if (!valid) {
+      return; // 校驗失敗會自動顯示紅字提示，直接中斷不送出
+    }
+
+    if(isCreateMode.value){
+      console.log('送出 POST API 建立新卡片', cardData.value);
+      // 調用對外接口建立卡片
+      handleCreateCard(cardData.value, {
+        // 💡 當 useCardStatus 內部的後端成功且快取刷完後，才會觸發這個 UI 回呼
+        onSuccess: () => {
+          router.push('/board/all') // 成功後回總卡片列表，可看見最新新增的卡片
+        }
+      });
+    } else{
+      console.log('送出 PUT API 更新卡片');
+      // 這裡未來可以對接後端 API 儲存修改
+      // 調用對外接口更新卡片（傳入封裝好的參數物件）
+      handleUpdateCard({ id: props.id, data: cardData.value }, {
+        // 💡 後端儲存成功且快取重整後，才執行 UI 狀態切換
+        onSuccess: () => {
+          isEditMode.value = false;
+        }
+      });
+    }
+  });
 }
 
 // 取消編輯（還原資料）
@@ -194,6 +203,33 @@ const openSourceUrl = () => {
   if (!cardData.value.url) return;
   window.open(cardData.value.url, '_blank');
 }
+
+// 建立表單參照
+const cardFormRef = ref<FormInstance>();
+
+// 對應你後端 DTO 的驗證規則
+const rules = reactive<FormRules>({
+  type: [
+    { required: true, message: '卡片類型不能為空', trigger: 'change' }
+  ],
+  title: [
+    { required: true, message: '標題不能為空', trigger: 'blur' },
+    { max: 255, message: '標題長度不能超過 255 個字元', trigger: 'blur' }
+  ],
+  coverImageUrl: [
+    { max: 2048, message: '封面圖片網址過長', trigger: 'blur' }
+  ],
+  url: [
+    { max: 2048, message: '網址過長', trigger: 'blur' }
+  ],
+  summary: [
+    { max: 600, message: '摘要不能超過 600 個字元', trigger: 'blur' }
+  ],
+  reason: [
+    { max: 300, message: '原因不能超過 300 個字元', trigger: 'blur' }
+  ]
+});
+
 </script>
 
 <template>
@@ -233,7 +269,8 @@ const openSourceUrl = () => {
       </el-page-header>
     </div>
 
-    <div class="detail-main-layout">
+    <!-- 外層包上 el-form 並綁定 ref、model、rules -->
+    <el-form :model="cardData" :rules="rules" ref="cardFormRef" class="detail-main-layout" @submit.prevent>
 
       <div class="left-content">
         <el-card class="detail-card">
@@ -243,23 +280,27 @@ const openSourceUrl = () => {
 
                 <!-- 卡片類型 -->
                 <!-- 顯示/編輯狀態 -->
-                <el-tag v-if="!isCreateMode" :type="cardData.type==='note'?'success':'primary'">
-                  {{ cardData.type==='note'?'筆記':'連結' }}
-                </el-tag>
-                <!-- 創建卡片狀態 -->
-                 <el-radio-group v-else v-model="cardData.type" size="small">
-                  <el-radio-button label="note">筆記</el-radio-button>
-                  <el-radio-button label="link">連結</el-radio-button>
-                </el-radio-group>
+                <el-form-item prop="type" style="margin-bottom: 0;">
+                  <el-tag v-if="!isCreateMode" :type="cardData.type==='note'?'success':'primary'">
+                    {{ cardData.type==='note'?'筆記':'連結' }}
+                  </el-tag>
+                  <!-- 創建卡片狀態 -->
+                  <el-radio-group v-else v-model="cardData.type" size="small">
+                    <el-radio-button label="note">筆記</el-radio-button>
+                    <el-radio-button label="link">連結</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
 
-                <h1 v-if="!isEditMode" class="main-title">{{ cardData.title }}</h1>
-                <el-input
-                  v-else
-                  v-model="cardData.title"
-                  placeholder="請輸入卡片標題"
-                  size="large"
-                  style="flex: 1;"
-                />
+                <el-form-item prop="title" style="flex: 1; margin-bottom: 0;">
+                  <h1 v-if="!isEditMode" class="main-title">{{ cardData.title }}</h1>
+                  <el-input
+                    v-else
+                    v-model="cardData.title"
+                    placeholder="請輸入卡片標題"
+                    size="large"
+                    style="flex: 1;"
+                  />
+                </el-form-item>
               </div>
 
               <div class="tags-row" v-if="(cardData.tags && cardData.tags.length) || isEditMode">
@@ -297,11 +338,13 @@ const openSourceUrl = () => {
             </template>
             <template v-else>
               <div class="cover-edit-area">
+                <el-form-item prop="coverImageUrl" style="margin-bottom: 0;">
                 <el-input
                   v-model="cardData.coverImageUrl"
                   placeholder="請輸入封面圖片 URL (留空則不顯示封面)"
                   clearable
                 />
+                </el-form-item>
                 <div v-if="cardData.coverImageUrl" class="cover-preview-mini">
                   <span>預覽：</span>
                   <img :src="cardData.coverImageUrl" style="max-height: 80px; border-radius: 4px;" />
@@ -314,37 +357,40 @@ const openSourceUrl = () => {
             <div class="info-paragraph" v-if="cardData.reason || isEditMode">
               <h3 class="paragraph-title reason"><span class="title-marker reason"></span>收藏理由</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.reason }}</p>
-              <el-input
-                v-else
-                v-model="cardData.reason"
-                type="textarea"
-                :rows="3"
-                placeholder="請輸入這張卡片的收藏理由..."
-              />
+              <el-form-item v-else prop="reason">
+                <el-input
+                  v-model="cardData.reason"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="請輸入這張卡片的收藏理由..."
+                />
+              </el-form-item>
             </div>
 
             <div class="info-paragraph" v-if="cardData.summary || isEditMode">
               <h3 class="paragraph-title summary"><span class="title-marker summary"></span>內容摘要</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.summary }}</p>
+              <el-form-item v-else prop="summary">
               <el-input
-                v-else
                 v-model="cardData.summary"
                 type="textarea"
                 :rows="5"
                 placeholder="請輸入內容摘要..."
               />
+              </el-form-item>
             </div>
 
             <div class="info-paragraph" v-if="cardData.content || isEditMode">
               <h3 class="paragraph-title content"><span class="title-marker content"></span>詳細內容</h3>
               <p v-if="!isEditMode" class="paragraph-text main-content">{{ cardData.content }}</p>
+              <el-form-item v-else prop="content">
               <el-input
-                v-else
                 v-model="cardData.content"
                 type="textarea"
                 :rows="10"
                 placeholder="請輸入詳細內容..."
               />
+              </el-form-item>
             </div>
           </div>
         </el-card>
@@ -366,7 +412,9 @@ const openSourceUrl = () => {
             </el-button>
           </template>
           <template v-else>
-            <el-input v-model="cardData.url" placeholder="https://..." size="small" />
+            <el-form-item prop="url" style="margin-bottom: 0;">
+              <el-input v-model="cardData.url" placeholder="https://..." size="small" />
+            </el-form-item>
           </template>
         </el-card>
 
@@ -474,7 +522,8 @@ const openSourceUrl = () => {
         </el-card>
       </div>
 
-    </div>
+    </el-form>
+
   </div>
 </template>
 
