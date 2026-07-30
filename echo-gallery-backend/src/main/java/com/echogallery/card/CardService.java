@@ -10,6 +10,7 @@ import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,12 +56,16 @@ public class CardService {
         int size = Math.min(requestedSize, 100);
 
         // 3. 建立分頁與排序條件（依據建立時間降冪排序）
-        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         // 4. 根據看板類型，查出該使用者的分頁卡片資料
         BoardType boardType = BoardType.from(request.getBoardType());
         Page<Card> cardPage = switch (boardType) {
-            case TODAY -> cardRepository.findTodayCards(userId, getStartOfTomorrowTaipei(), pageable);
+            case TODAY -> {
+                Pageable todayPageable = PageRequest.of(page, size, Sort.by("nextShowAt").ascending()
+                );
+                yield cardRepository.findTodayCards(userId, getStartOfTomorrowTaipei(), todayPageable);
+            }
             case ALL -> cardRepository.findByUserIdAndIsArchivedFalse(userId, pageable);
             case HOT -> cardRepository.findHotCards(userId, pageable);
             case RANDOM -> cardRepository.findRandomCards(userId, PageRequest.of(0, size));
