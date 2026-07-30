@@ -38,8 +38,8 @@ const cardData = ref<CardDto>(getDefaultCardData());
 // =====================================================
 // 🔄 【核心重構】改成用 useQuery 監聽同一個快取 Key
 // =====================================================
-const { data: fetchedCard } = useQuery({
-  queryKey: ['card', props.id],
+const { data: fetchedCard, isLoading, isError } = useQuery({
+  queryKey: ['card', String(props.id)],
   queryFn: () => cardApi.getCard(props.id),
   // 💡 只有在「非創建模式」且有 id 時才發送請求
   enabled: computed(() => !isCreateMode.value && !!props.id),
@@ -47,20 +47,20 @@ const { data: fetchedCard } = useQuery({
 });
 // =====================================================
 
-// 引入你寫好的超強基礎建設工具
 const {
   handleToggleStar,
   handleToggleArchive,
   handleCreateCard,
   handleUpdateCard,
+  handleDeleteCard
 } = useCardStatus();
 
 // 如果你喜歡用監聽的方式同步：
 watch(fetchedCard, (newCard) => {
-  if (newCard && !isEditMode.value){
+  if (newCard){
     cardData.value = structuredClone(toRaw(newCard)) // 避免唯獨模式 cardData.value = newCard
   }
-})
+}, {immediate: true})
 
 // onMounted(()=>{
 //   // 💡 4. 只有在「非創建模式」下，才去撈取舊資料
@@ -230,10 +230,23 @@ const rules = reactive<FormRules>({
   ]
 });
 
+const deleteCard = async () => {
+  await handleDeleteCard({ id: props.id });
+  goBack();
+}
+
 </script>
 
 <template>
   <div class="detail-container">
+
+    <div v-if="isLoading">
+      載入中...
+    </div>
+
+    <div v-else-if="isError">
+      載入失敗
+    </div>
 
     <div class="page-header-wrapper">
 
@@ -258,7 +271,8 @@ const rules = reactive<FormRules>({
 
             <!-- 編輯模式切換按鈕 -->
             <template v-if="!isCreateMode">
-              <el-button v-if="!isEditMode" @click="isEditMode = !isEditMode">
+              <el-button v-if="!isEditMode" @click="deleteCard" type="danger" plain>刪除</el-button>
+              <el-button v-if="!isEditMode" @click="isEditMode = !isEditMode" type="primary" plain>
                 <el-icon style="margin-right: 5px;"><Edit /></el-icon>
                 編輯
               </el-button>

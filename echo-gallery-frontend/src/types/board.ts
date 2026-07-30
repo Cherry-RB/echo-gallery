@@ -23,7 +23,7 @@ const boardCapabilityMap: Record<BoardType, BoardCapabilities> = {
   hot:      { canStar: true, canArchive: true, canSnooze: true },
   random:   { canStar: true, canArchive: true, canSnooze: true },
   snoozed:  { canStar: true, canArchive: true, canSnooze: true },
-  archived: { canStar: true, canArchive: true, canSnooze: true }, // TODO: 之後改成 false，只留取消封存
+  archived: { canStar: true, canArchive: true, canSnooze: false }, // TODO: 之後改成 false，只留取消封存
 };
 
 export function getBoardCapabilities(boardType: BoardType): BoardCapabilities {

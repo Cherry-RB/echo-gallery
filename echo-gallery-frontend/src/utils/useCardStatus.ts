@@ -27,7 +27,7 @@ export const useCardStatus = () => {
     const prepareSnapshot = async (id: string | number) => {
         // 1. 取消所有相關的網路請求，避免舊資料回流覆蓋了樂觀更新
         await queryClient.cancelQueries({ queryKey: ['cards'] });
-        await queryClient.cancelQueries({ queryKey: ['card', id] });
+        await queryClient.cancelQueries({ queryKey: ['card', String(id)] });
 
         // 2. 獲取當前單張卡片的詳情快照
         const previousCardDetail = queryClient.getQueryData<CardDTO>(['card', id]);
@@ -77,7 +77,7 @@ export const useCardStatus = () => {
             return old;
         });
         // B. 同步更新「單張卡片詳情頁」的快取
-        queryClient.setQueryData<CardDTO>(['card', id], (old) => {
+        queryClient.setQueryData<CardDTO>(['card', String(id)], (old) => {
             // 如果詳情頁還沒有快取，就不處理
             if (!old) return old;
             // 找到了就直接進行物件欄位疊加覆蓋
@@ -98,7 +98,7 @@ export const useCardStatus = () => {
         }
         // 還原詳情頁快取
         if (context?.previousCardDetail){
-            queryClient.setQueryData(['card', id], context.previousCardDetail);
+            queryClient.setQueryData(['card', String(id)], context.previousCardDetail);
         }
 
         // 解析後端報錯的客製化訊息（例如："星星冷卻中"、"權限不足"），如果沒有就給預設字串
@@ -223,7 +223,7 @@ export const useCardStatus = () => {
             // updateLocalCache(variables.id, updatedCard);
             // 因為大清單（['cards']）在 onMutate 已經清乾淨了，這裡完全不需動它。
             // 我們只需要同步更新「單張卡片詳情頁」的快取，確保系統底層資料的一致性
-            queryClient.setQueryData(['card', variables.id], updatedCard);
+            queryClient.setQueryData(['card', String(variables.id)], updatedCard);
 
             // 通知右側側邊欄過期，觸發自動重撈
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
@@ -260,7 +260,7 @@ export const useCardStatus = () => {
         },
         // 【後端成功後執行】
         onSuccess: (updatedCard, variables) => {
-            queryClient.setQueryData(['card', variables.id], updatedCard);
+            queryClient.setQueryData(['card', String(variables.id)], updatedCard);
             // 通知右側側邊欄過期，觸發自動重撈
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
         },
@@ -311,6 +311,53 @@ export const useCardStatus = () => {
         }
     });
 
+    // =====================================================
+    // 🚀 功能 7. 刪除卡片 Mutation
+    // =====================================================
+    const deleteCardMutation = useMutation({
+      mutationFn: ({ id }: { id: string | number }) =>
+        cardApi.deleteCard(id),
+
+      onMutate: async ({ id }) => {
+          const snapshot = await prepareSnapshot(id);
+          queryClient.setQueriesData(
+              { queryKey: ['cards'] },
+              (oldData: any) => {
+                  if (!oldData?.pages) return oldData;
+                  return {
+                      ...oldData,
+                      pages: oldData.pages.map((page: CardDTO[]) =>
+                          page.filter(
+                              card => String(card.id) !== String(id)
+                          )
+                      )
+                  };
+              }
+          );
+          return snapshot;
+      },
+
+      onSuccess: (_, variables) => {
+          // 移除詳細頁快取
+          queryClient.removeQueries({
+              queryKey:['card', String(variables.id)]
+          });
+          // 更新側邊欄
+          queryClient.invalidateQueries({
+              queryKey:['sidebar']
+          });
+          ElMessage.success('卡片刪除成功');
+      },
+
+      onError:(err, variables, context)=>{
+          handleMutationError(
+              err,
+              variables.id,
+              context
+          );
+      }
+    })
+
 
     // =====================================================
     // 📤 統一對外暴露的接口
@@ -322,6 +369,7 @@ export const useCardStatus = () => {
         handleReadCard: readMutation.mutate,
         handleCreateCard: createCardMutation.mutate,
         handleUpdateCard: updateCardMutation.mutate,
+        handleDeleteCard: deleteCardMutation.mutateAsync,
 
         // 如果你有需要按鈕讀條(Loading) 狀態也可以順便拿出去
         isStarPending: starMutation.isPending,

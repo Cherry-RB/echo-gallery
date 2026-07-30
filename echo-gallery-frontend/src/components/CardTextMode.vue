@@ -18,16 +18,15 @@ const emit = defineEmits<{
   (e: "open-detail", card: any): void;
 }>();
 
-function openDetail() {
-  emit("open-detail", props.data);
-}
-
-const { handleToggleStar, handleToggleArchive, handleSnoozeCard } = useCardStatus();
+const { handleToggleStar, handleToggleArchive, handleSnoozeCard, handleDeleteCard } = useCardStatus();
 
 // =====================================================
 // 💡 關鍵：判定卡片是否處於「灰掉狀態 (Muted)」
 // =====================================================
 const isMuted= computed(() => {
+  if(props.boardType == 'archived'){
+    return false;
+  }
   return props.data.isArchived;
 });
 
@@ -55,13 +54,9 @@ const getCardShowInfo = computed(()=>{
 })
 
 const goToDetail = () => {
-  // router.push( { name: 'CardDetail', params: { id: props.data.id }})
-
-  // handleReadCard({
-  //   id: props.data.id,
-  //   intervalDays: props.data.intervalDays  // 狀態反轉
-  // });
-  openDetail();
+  if(!isMuted.value){
+    emit("open-detail", props.data);
+  }
 }
 
 const toggleStar = () => {
@@ -106,6 +101,10 @@ const openSourceUrl = (sourceUrl:string) => {
   //   id: props.data.id,
   //   intervalDays: props.data.intervalDays  // 狀態反轉
   // });
+}
+
+const deleteCard = () => {
+  handleDeleteCard({ id: props.data.id });
 }
 
 </script>
@@ -180,7 +179,7 @@ const openSourceUrl = (sourceUrl:string) => {
     <el-icon :size="16" class="rotate-icon" @click.stop><MoreFilled /></el-icon>
     <template #dropdown>
       <el-dropdown-menu>
-        <el-dropdown-item @click="goToDetail()">編輯</el-dropdown-item>
+        <!-- <el-dropdown-item @click="goToDetail()">編輯</el-dropdown-item> -->
         <el-dropdown-item v-if="!isMuted&&capabilities.canSnooze" @click.stop="triggerSnooze">
           稍後再看
         </el-dropdown-item>
@@ -188,7 +187,7 @@ const openSourceUrl = (sourceUrl:string) => {
           {{ data.isArchived ? '還原卡片' : '封存卡片' }}
         </el-dropdown-item>
         <el-dropdown-item divided>
-          <span style="color: red;">刪除</span>
+          <span style="color: red;" @click.stop="deleteCard">刪除</span>
         </el-dropdown-item>
       </el-dropdown-menu>
     </template>
