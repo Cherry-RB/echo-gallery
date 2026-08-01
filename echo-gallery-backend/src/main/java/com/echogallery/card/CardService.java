@@ -62,7 +62,7 @@ public class CardService {
         BoardType boardType = BoardType.from(request.getBoardType());
         Page<Card> cardPage = switch (boardType) {
             case TODAY -> {
-                Pageable todayPageable = PageRequest.of(page, size, Sort.by("nextShowAt").ascending()
+                Pageable todayPageable = PageRequest.of(page, size, Sort.by("nextShowAt").descending()
                 );
                 yield cardRepository.findTodayCards(userId, getStartOfTomorrowTaipei(), todayPageable);
             }
