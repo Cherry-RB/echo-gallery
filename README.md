@@ -49,6 +49,12 @@ docker-compose up -d
 
 ```
 
+啟動完成後，如果要關閉：
+
+```bash
+docker-compose down
+```
+
 #### 步驟 2: 啟動後端
 
 進入後端目錄並編譯執行：

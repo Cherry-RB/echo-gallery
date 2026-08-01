@@ -62,13 +62,6 @@ watch(fetchedCard, (newCard) => {
   }
 }, {immediate: true})
 
-// onMounted(()=>{
-//   // 💡 4. 只有在「非創建模式」下，才去撈取舊資料
-//   if(!isCreateMode.value){
-//     fetchCard(props.id) // 只要執行，上面的 watch 就會自動幫你更新 cardData
-//   }
-// })
-
 let backupData = '' // 用於存放編輯前的資料快照
 
 // 處理動態標籤動態新增所需變數
@@ -104,7 +97,6 @@ const handleSave = async () => {
       });
     } else{
       console.log('送出 PUT API 更新卡片');
-      // 這裡未來可以對接後端 API 儲存修改
       // 調用對外接口更新卡片（傳入封裝好的參數物件）
       handleUpdateCard({ id: props.id, data: cardData.value }, {
         // 💡 後端儲存成功且快取重整後，才執行 UI 狀態切換
@@ -118,7 +110,6 @@ const handleSave = async () => {
 
 // 取消編輯（還原資料）
 const handleCancel = () => {
-
   if (isCreateMode.value) {
     router.back() // 創建點取消，直接退回上一頁
   } else {
@@ -126,7 +117,7 @@ const handleCancel = () => {
       cardData.value = JSON.parse(backupData)
     }
     isEditMode.value = false
-}
+  }
 }
 
 // 刪除標籤
@@ -150,7 +141,6 @@ const handleTagInputConfirm = () => {
   inputVisible.value = false
   newTagInputValue.value = ''
 }
-// ----------------------------
 
 // 取得網域的輔助函式
 const getUrlDomain = (url: string) => {
@@ -163,26 +153,18 @@ const getUrlDomain = (url: string) => {
 }
 
 // 點擊星標互動
-// =====================================================
-// 🎯 完善互動功能 1：點擊星標（直接享用樂觀更新）
-// =====================================================
 const toggleStar = async () => {
   if (isEditMode.value) return // 編輯模式下停用星標點擊
 
   // 1. 根據當前冷卻狀態，判定這次點擊是要「點亮(true)」還是「熄滅(false)」
   // getLikeAvailableStatus 為 true 代表目前沒點過或冷卻結束(空心星星) -> 這次要點亮
   const canLike = getLikeAvailableStatus(cardData.value.likeAvailableAt);
-
-  // 呼叫封裝好的 Mutation 丟入參數，try-catch 與 ElMessage 你的工具都幫你做好了！
   handleToggleStar({ id: props.id, starStatus: canLike });
 }
 
-// =====================================================
-// 🎯 完善互動功能 2：快速切換封存狀態
-// =====================================================
+// 快速切換封存狀態
 const toggleArchive = () => {
-  if (isEditMode.value) return; // 編輯模式下交給下拉選單，非編輯模式點擊按鈕直接觸發
-
+  if (isEditMode.value) return;
   // 反轉當前狀態發送
   handleToggleArchive({
     id: props.id,
@@ -234,7 +216,6 @@ const deleteCard = async () => {
   await handleDeleteCard({ id: props.id });
   goBack();
 }
-
 </script>
 
 <template>
@@ -259,7 +240,7 @@ const deleteCard = async () => {
         </template>
 
         <template #extra>
-          <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="page-header-inner">
 
             <!-- 儲存/取消更新按鈕 -->
             <template v-if="isEditMode">
@@ -290,8 +271,6 @@ const deleteCard = async () => {
         <el-card class="detail-card">
           <template #header>
             <div class="card-header-zone">
-              <div class="title-row">
-
                 <!-- 卡片類型 -->
                 <!-- 顯示/編輯狀態 -->
                 <el-form-item prop="type" style="margin-bottom: 0;">
@@ -312,10 +291,11 @@ const deleteCard = async () => {
                     v-model="cardData.title"
                     placeholder="請輸入卡片標題"
                     size="large"
-                    style="flex: 1;"
                   />
+                  <div v-if="isEditMode" class="word-count-hint" :class="{ 'over-limit': (cardData.title?.length || 0) > 255 }">總字數：
+                      {{ cardData.title?.length || 0 }} / 255
+                    </div>
                 </el-form-item>
-              </div>
 
               <div class="tags-row" v-if="(cardData.tags && cardData.tags.length) || isEditMode">
                 <el-tag
@@ -378,6 +358,9 @@ const deleteCard = async () => {
                   :rows="3"
                   placeholder="請輸入這張卡片的收藏理由..."
                 />
+                <div class="word-count-hint" :class="{ 'over-limit': (cardData.reason?.length || 0) > 300 }">總字數：
+                  {{ cardData.reason?.length || 0 }} / 300
+                </div>
               </el-form-item>
             </div>
 
@@ -385,12 +368,15 @@ const deleteCard = async () => {
               <h3 class="paragraph-title summary"><span class="title-marker summary"></span>內容摘要</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.summary }}</p>
               <el-form-item v-else prop="summary">
-              <el-input
-                v-model="cardData.summary"
-                type="textarea"
-                :rows="5"
-                placeholder="請輸入內容摘要..."
-              />
+                <el-input
+                  v-model="cardData.summary"
+                  type="textarea"
+                  :rows="5"
+                  placeholder="請輸入內容摘要..."
+                />
+                <div class="word-count-hint" :class="{ 'over-limit': (cardData.summary?.length || 0) > 600 }">總字數：
+                  {{ cardData.summary?.length || 0 }} / 600
+                </div>
               </el-form-item>
             </div>
 
@@ -398,12 +384,15 @@ const deleteCard = async () => {
               <h3 class="paragraph-title content"><span class="title-marker content"></span>詳細內容</h3>
               <p v-if="!isEditMode" class="paragraph-text main-content">{{ cardData.content }}</p>
               <el-form-item v-else prop="content">
-              <el-input
-                v-model="cardData.content"
-                type="textarea"
-                :rows="10"
-                placeholder="請輸入詳細內容..."
-              />
+                <el-input
+                  v-model="cardData.content"
+                  type="textarea"
+                  :rows="10"
+                  placeholder="請輸入詳細內容..."
+                />
+                <div class="word-count-hint">
+                  總字數：{{ cardData.content?.length || 0 }} 字
+                </div>
               </el-form-item>
             </div>
           </div>
@@ -542,20 +531,24 @@ const deleteCard = async () => {
 </template>
 
 <style scoped>
-/* 原本的 CSS 樣式完整保留... */
 .detail-container {
   padding: 20px;
   max-width: 1300px;
-  /* margin: 0 auto; */
 }
 .page-header-wrapper { margin-bottom: 20px; }
+.page-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap; /* 💡 允許按鈕在空間不足時自動換行 */
+  justify-content: flex-end;
+}
 .header-title { font-size: 18px; font-weight: 600; color: #303133; }
 .detail-main-layout { display: flex; gap: 20px; align-items: flex-start; }
 .left-content { flex: 3; min-width: 0; }
 .right-sidebar { flex: 1; min-width: 280px; position: sticky; top: 20px; }
 .detail-card, .sidebar-card { box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05); }
 .card-header-zone { display: flex; flex-direction: column; gap: 12px; }
-.title-row { display: flex; align-items: center; gap: 12px; }
 .main-title { font-size: 20px; font-weight: 600; color: #1d1d1f; margin: 0; line-height: 1.4; }
 .tags-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .cover-wrapper { margin: -20px -20px 20px -20px; overflow: hidden; max-height: 450px; display: flex; align-items: center; justify-content: center; background-color: #f5f7fa; }
@@ -576,7 +569,27 @@ const deleteCard = async () => {
 .star-interaction { display: inline-flex; align-items: center; gap: 6px; user-select: none; }
 .active-star { animation: pop 0.3s ease; }
 @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
-@media (max-width: 768px) { .detail-main-layout { flex-direction: column; } .right-sidebar { width: 100%; position: static; } }
+
+/* 💡 手機版響應式調整 (<= 768px) */
+@media (max-width: 768px) {
+  .detail-main-layout { flex-direction: column; }
+  .right-sidebar { width: 100%; position: static; }
+
+  /* 讓 Element Plus 的頁首改為上下排列，釋放標題空間 */
+  :deep(.el-page-header__header) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  /* 讓右側按鈕區塊佔滿整行並靠右對齊 */
+  :deep(.el-page-header__right) {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
 .sidebar-card { margin-bottom: 16px; }
 .sidebar-card-header { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #4a4a4a; margin-bottom: 10px; }
 .domain-text { font-size: 14px; color: #909399; }
@@ -591,9 +604,7 @@ const deleteCard = async () => {
 .info-label { color: #606266; }
 .info-val { color: #303133; font-weight: 500; }
 .time-stamp-section { font-size: 11px; color: #a8abb2; text-align: center; line-height: 1.6; }
-/* .header-title.active-blue { color: #409eff; } */
 
-/* 💡 新增編輯模式微調樣式 */
 .cover-edit-area {
   width: 100%;
   padding: 20px;
@@ -613,5 +624,14 @@ const deleteCard = async () => {
   height: 24px;
   padding-top: 0;
   padding-bottom: 0;
+}
+.word-count-hint {
+  text-align: right;
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+.word-count-hint.over-limit {
+  color: #f56c6c;
 }
 </style>
