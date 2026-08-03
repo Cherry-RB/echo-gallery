@@ -56,13 +56,20 @@ public class CardService {
         int size = Math.min(requestedSize, 100);
 
         // 3. 建立分頁與排序條件（依據建立時間降冪排序）
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+            .and(Sort.by(Sort.Direction.DESC, "id"))
+        );
 
         // 4. 根據看板類型，查出該使用者的分頁卡片資料
         BoardType boardType = BoardType.from(request.getBoardType());
         Page<Card> cardPage = switch (boardType) {
+            // Sort.by(Sort.Direction.DESC, "nextShowAt").and(Sort.by(Sort.Direction.DESC, "id"))
             case TODAY -> {
-                Pageable todayPageable = PageRequest.of(page, size, Sort.by("nextShowAt").descending()
+                Pageable todayPageable = PageRequest.of(page, size,
+                    Sort.by(Sort.Direction.DESC, "nextShowAt")
+                    .and(Sort.by(Sort.Direction.DESC, "createdAt"))
+                    .and(Sort.by(Sort.Direction.DESC, "id"))
                 );
                 yield cardRepository.findTodayCards(userId, getStartOfTomorrowTaipei(), todayPageable);
             }
