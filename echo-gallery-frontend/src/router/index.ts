@@ -110,7 +110,13 @@ const router = createRouter({
     scrollBehavior(_to, _from, savedPosition) {
         if (savedPosition) {
           // 當使用者點擊「瀏覽器返回」或 router.back() 時，savedPosition 會自動帶出當年的坐標 { top: xxx, left: xxx }
-          return savedPosition
+          return new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    resolve(savedPosition)
+                })
+            })
+        })
         } else {
           // 如果是從別的地方點選連結新進來的，就自動置頂
           return { top: 0 }
@@ -119,7 +125,7 @@ const router = createRouter({
 })
 
 // 加入路由守衛
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to, _from) => {
   const token = localStorage.getItem('token');
   const tokenValid = isTokenValid(token);
 
@@ -135,15 +141,15 @@ router.beforeEach((to, _from, next) => {
 
   // 1. 該頁面需要登入，但使用者沒有 token -> 踢回登入頁
   if (requiresAuth && !tokenValid) {
-    next({ name: 'Login' });
+    return { name: 'Login' };
   }
   // 2. 該頁面僅限訪客（如登入/註冊），但使用者已有 token -> 導回首頁
   else if (isGuestOnly && tokenValid) {
-    next({ name: 'TodayBoard' });
+    return { name: 'TodayBoard' };
   }
   // 3. 其餘放行
   else {
-    next();
+    return;
   }
 });
 

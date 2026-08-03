@@ -7,5 +7,9 @@ import { isNetworkError } from './stores/networkStatus';
   <div v-if="isNetworkError" class="network-banner">
     ⚠️ 目前無法連線到伺服器，部分功能可能無法使用
   </div>
-  <router-view />
+  <RouterView v-slot="{ Component }">
+    <KeepAlive include="BoardFlex">
+      <component :is="Component" />
+    </KeepAlive>
+  </RouterView>
 </template>

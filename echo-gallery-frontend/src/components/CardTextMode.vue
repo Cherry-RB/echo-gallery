@@ -111,26 +111,22 @@ const deleteCard = () => {
 
 <template>
   <el-card @click="goToDetail"
-  :class="['card-clickable', { 'card-muted-style': isMuted }]">
+  :class="['card-clickable', { 'card-muted-style': isMuted }, { disabled: isMuted }]">
 
-    <div v-if="isMuted" class="muted-banner">
+    <div v-if="isMuted" class="muted-overlay">
         <span>📥 已封存卡片</span>
     </div>
 
     <!-- header -->
-     <div v-if="!isMuted">
-    <!-- <template #header v-if="!isMuted"> -->
+     <div>
       <div class="card-header">
-        <!-- 類型標籤 -->
-        <!-- <el-tag :type="data.type==='note'?'success':'primary'">{{ data.type==='note'?'筆記':'連結' }}</el-tag> -->
         <!-- 標題 -->
         <h4 class="title-text">{{ data.title }}</h4>
       </div>
-    <!-- </template> -->
     </div>
 
     <!-- body -->
-    <div class="card-body" v-if="!isMuted">
+    <div class="card-body">
       <!-- 內文 -->
       <p class="card-body-content" v-if="getCardShowInfo">{{ getCardShowInfo }}</p>
       <!-- 標籤 -->
@@ -175,7 +171,7 @@ const deleteCard = () => {
           </div>
           <!-- </div> -->
           <!-- 更多功能按鈕 -->
-  <el-dropdown>
+  <el-dropdown @click.stop>
     <el-icon :size="16" class="rotate-icon" @click.stop><MoreFilled /></el-icon>
     <template #dropdown>
       <el-dropdown-menu>
@@ -350,7 +346,28 @@ const deleteCard = () => {
 /* 🎯 新增的灰掉卡片核心 CSS 樣式 */
 .card-muted-style {
   opacity: 0.45;              /* 半透明度 */
-  filter: grayscale(85%);     /* 灰階化 */
+  filter: grayscale(90%);     /* 灰階化 */
   position: relative;
+}
+.muted-overlay{
+  position:absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,.45);
+  backdrop-filter: blur(1px);
+
+  font-size: 18px;
+  font-weight: bold;
+
+  z-index: 20;
+
+  pointer-events: none;
+}
+.disabled{
+  cursor: default;
 }
 </style>

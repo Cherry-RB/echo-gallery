@@ -1,4 +1,7 @@
 <script setup lang="ts">
+defineOptions({
+  name: 'BoardFlex'
+})
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import CardItem from './CardItem.vue'
 import type { CardDto } from '../types/card.ts';
@@ -8,6 +11,7 @@ import { useInfiniteQuery } from '@tanstack/vue-query'
 import { shouldMarkReviewedOnOpenDetail, type BoardType } from '../types/board.ts';
 import { useRouter } from 'vue-router';
 import { useCardStatus } from '../utils/useCardStatus.ts';
+import { MasonryWall } from '@yeger/vue-masonry-wall'
 
 const props = defineProps<{
   boardType: BoardType;
@@ -83,42 +87,13 @@ const loadMore = () => {
 
 const viewMode = ref<ViewMode>("text");
 
-// =====================================================
-// 響應式欄數控制與瀑布流發牌演算法
-// =====================================================
-// 響應式欄數控制 (替代原本 CSS 的 auto-fill)
-const columnCount = ref(3)
-
-const updateColumnCount = () => {
-    const width = window.innerWidth
-    if (width < 900) {
-        columnCount.value = 1 // 手機 1 欄
-    } else if (width < 1200) {
-        columnCount.value = 2 // 平板 2 欄
-    } else if (width < 1500) {
-        columnCount.value = 3 // 小螢幕 3 欄
-    } else {
-        columnCount.value = 3 // 桌機 3/4 欄
-    }
-    // if (width < 900) {
-    //     columnCount.value = 1 // 手機 1 欄
-    // } else if (width < 1200) {
-    //     columnCount.value = 2 // 平板 2 欄
-    // } else {
-    //     columnCount.value = 3 // 桌機 3/4 欄
-    // }
-}
-
 // 新增這兩行，用來綁定底部觸發點與觀測器
 const triggerRef = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
 
 onMounted(() => {
-    updateColumnCount() // 一進網頁先執行一次，決定初始欄數
-    // 叫瀏覽器監聽 resize（縮放視窗）事件，只要使用者拉動視窗，就立刻執行 updateColumnCount
-    window.addEventListener('resize', updateColumnCount);
 
-    // 🌟 新增：建立交叉觀測器，當滾動到底部 triggerRef 時觸發 loadMore
+    // 新增：建立交叉觀測器，當滾動到底部 triggerRef 時觸發 loadMore
     observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
             loadMore()
@@ -133,21 +108,7 @@ watch(triggerRef, (newEl, oldEl) => {
 })
 
 onUnmounted(() => {
-    // 把剛剛的監聽器拔掉，這就像離開房間要關燈，避免佔用瀏覽器記憶體
-    window.removeEventListener('resize', updateColumnCount);
     observer?.disconnect()
-})
-
-// 將扁平的陣列，依照索引依序分發到各個欄位中
-const columnsData = computed(() => {
-    // 建立指定欄數的空陣列，例如: [[], [], [], []]
-    const cols = Array.from({ length: columnCount.value }, () => [] as CardDto[])
-
-    // 輪流發牌給各個欄位
-    cardList.value.forEach((item, index) => {
-        cols[index % columnCount.value].push(item)
-    })
-    return cols
 })
 
 </script>
@@ -179,31 +140,29 @@ const columnsData = computed(() => {
 
 
     <div class="feed-container" v-else>
-        <div
-        class="masonry-wrapper">
-            <div v-for="(col, colIndex) in columnsData" :key="colIndex" class="masonry-col">
-                <CardItem
-                v-for="item in col"
-                :key="item.id"
-                :data="item"
-                :viewMode="viewMode"
-                :board-type="boardType"
-                @open-detail="handleOpenDetail"
-                ></CardItem>
-            </div>
-        </div>
-        <!-- 載入中提示 -->
-        <div ref="triggerRef" class="loading-trigger">
-            <p v-if="isLoading" class="loading-text">正在初始化卡片...</p>
-            <p v-else-if="isFetchingNextPage" class="loading-text">更多卡片載入中...</p>
-            <p v-else-if="!hasNextPage && cardList.length > 0" class="loading-text">🎉 已經看完全部卡片囉！</p>
-        </div>
+      <masonry-wall
+      :items="cardList"
+      :column-width="270"
+      :gap="20">
+        <template #default="{item}">
+          <CardItem
+          :data="item"
+          :viewMode="viewMode"
+          :board-type="boardType"
+          @open-detail="handleOpenDetail"
+          ></CardItem>
+        </template>
+      </masonry-wall>
+    </div>
+    <!-- 載入中提示 -->
+    <div ref="triggerRef" class="loading-trigger">
+        <p v-if="isLoading" class="loading-text">正在初始化卡片...</p>
+        <p v-else-if="isFetchingNextPage" class="loading-text">更多卡片載入中...</p>
+        <p v-else-if="!hasNextPage && cardList.length > 0" class="loading-text">🎉 已經看完全部卡片囉！</p>
     </div>
 
     <!-- 置頂按鈕 -->
     <el-backtop :right="50" :bottom="50" />
-    <!-- </el-scrollbar> -->
-    <!-- <el-backtop target=".feed-scrollbar .el-scrollbar__wrap" :right="50" :bottom="50" /> -->
 
   </section>
 </template>
@@ -213,24 +172,6 @@ const columnsData = computed(() => {
     padding: 20px;
     background-color: #f4f4f4; /* 淡淡的底色 */
     min-height: 100vh;
-}
-/* .card-grid{
-    display: grid;
-    align-items: start; */
-    /* 自動填滿：每張卡片最小 280px，最大平均分配 */
-    /* grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
-    max-width: 1600px;
-    margin: 0 auto;
-} */
-
-/* 💡 4. 瀑布流外層：改用 Flex 橫向並排 */
-.masonry-wrapper {
-    display: flex;
-    gap: 20px;         /* 欄與欄之間的左右間距 */
-    max-width: 1600px;
-    margin: 0 auto;
-    align-items: flex-start; /* 關鍵：防止子元素欄位被拉到等高 */
 }
 
 /* 💡 5. 瀑布流單欄：直向排列卡片 */
@@ -246,11 +187,6 @@ const columnsData = computed(() => {
   padding: 20px;
   color: #999;
 }
-
-/* 🌟 新增：讓滾動區域撐滿畫面 */
-/* .feed-scrollbar {
-    height: 100vh;
-} */
 
 /* 🌟 新增：底部觀測點置中樣式 */
 .loading-trigger {
