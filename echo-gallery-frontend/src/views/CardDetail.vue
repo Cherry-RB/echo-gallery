@@ -360,7 +360,7 @@ const deleteCard = async () => {
 
           <div class="content-section">
             <div class="info-paragraph" v-if="cardData.reason || isEditMode">
-              <h3 class="paragraph-title reason"><span class="title-marker reason"></span>收藏理由</h3>
+              <h3 class="paragraph-title reason"><span class="title-marker reason"></span>我思我長/金句</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.reason }}</p>
               <el-form-item v-else prop="reason">
                 <el-input
@@ -376,7 +376,7 @@ const deleteCard = async () => {
             </div>
 
             <div class="info-paragraph" v-if="cardData.summary || isEditMode">
-              <h3 class="paragraph-title summary"><span class="title-marker summary"></span>內容摘要</h3>
+              <h3 class="paragraph-title summary"><span class="title-marker summary"></span>我見我聞</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.summary }}</p>
               <el-form-item v-else prop="summary">
                 <el-input
@@ -392,7 +392,7 @@ const deleteCard = async () => {
             </div>
 
             <div class="info-paragraph" v-if="cardData.content || isEditMode">
-              <h3 class="paragraph-title content"><span class="title-marker content"></span>詳細內容</h3>
+              <h3 class="paragraph-title content"><span class="title-marker content"></span>Plan/Review/Content</h3>
               <p v-if="!isEditMode" class="paragraph-text main-content">{{ cardData.content }}</p>
               <el-form-item v-else prop="content">
                 <el-input
