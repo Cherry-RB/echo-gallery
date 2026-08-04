@@ -240,35 +240,36 @@ const deleteCard = async () => {
     </div>
 
     <div class="page-header-wrapper">
+      <!-- 新增模式 -->
+      <div v-if="isCreateMode" class="create-header">
+        <span class="header-title">新增卡片</span>
+        <div class="page-header-inner">
+          <el-button type="primary" @click="handleSave">確認建立</el-button>
+        </div>
+      </div>
 
-      <!-- Back 按鈕 -->
-      <el-page-header :icon="ArrowLeft" @back="goBack">
-
-        <!-- 元件標題 -->
+      <!-- 詳情與編輯模式 -->
+      <el-page-header v-else :icon="ArrowLeft" @back="goBack">
         <template #content>
           <span class="header-title">卡片詳情</span>
         </template>
 
         <template #extra>
           <div class="page-header-inner">
-
             <!-- 儲存/取消更新按鈕 -->
             <template v-if="isEditMode">
               <el-button @click="handleCancel">取消</el-button>
-              <el-button type="primary" @click="handleSave">
-                {{ isCreateMode ? '確認建立' : '儲存變更' }}
-              </el-button>
+              <el-button type="primary" @click="handleSave">儲存變更</el-button>
             </template>
 
             <!-- 編輯模式切換按鈕 -->
-            <template v-if="!isCreateMode">
-              <el-button v-if="!isEditMode" @click="deleteCard" type="danger" plain>刪除</el-button>
-              <el-button v-if="!isEditMode" @click="isEditMode = !isEditMode" type="primary" plain>
+            <template v-if="!isEditMode">
+              <el-button @click="deleteCard" type="danger" plain>刪除</el-button>
+              <el-button @click="isEditMode = true" type="primary" plain>
                 <el-icon style="margin-right: 5px;"><Edit /></el-icon>
                 編輯
               </el-button>
             </template>
-
           </div>
         </template>
       </el-page-header>
@@ -643,5 +644,11 @@ const deleteCard = async () => {
 }
 .word-count-hint.over-limit {
   color: #f56c6c;
+}
+.create-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
 }
 </style>
