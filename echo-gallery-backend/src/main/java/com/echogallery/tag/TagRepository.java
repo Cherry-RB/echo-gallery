@@ -26,4 +26,6 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
         ORDER BY COUNT(c.id) DESC
     """)
     List<TagRankingResponse> findTopTagsByCardCount(@Param("userId") Long userId, Pageable pageable);
+
+    List<Tag> findByUserIdOrderByUpdatedAtDesc(Long userId);
 }

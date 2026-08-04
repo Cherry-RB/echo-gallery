@@ -1,7 +1,11 @@
 package com.echogallery.tag;
 
+import java.time.ZonedDateTime;
 import java.util.HashSet;
 import java.util.Set;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import com.echogallery.card.Card;
 import com.echogallery.user.User;
@@ -47,4 +51,12 @@ public class Tag {
     @ManyToMany(mappedBy = "tags")
     @Builder.Default
     private Set<Card> cards = new HashSet<>();
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreationTimestamp
+    private ZonedDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    @UpdateTimestamp
+    private ZonedDateTime updatedAt;
 }
