@@ -35,6 +35,16 @@ const isEditMode = ref(isCreateMode.value)
 // 模擬資料取得
 const cardData = ref<CardDto>(getDefaultCardData());
 
+// 監聽路由的 id 變動，當從詳情頁切換到 'new' (新增模式) 時，強制重置表單與狀態
+watch(() => props.id, (newId) => {
+  const createMode = newId === 'new' || !newId;
+  isEditMode.value = createMode;
+  if (createMode) {
+    cardData.value = getDefaultCardData(); // 重置為空白的新卡片預設值
+    cardFormRef.value?.clearValidate();
+  }
+});
+
 // =====================================================
 // 🔄 【核心重構】改成用 useQuery 監聽同一個快取 Key
 // =====================================================
