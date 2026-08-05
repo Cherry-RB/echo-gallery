@@ -75,10 +75,6 @@ watch(fetchedCard, (newCard) => {
 
 let backupData = '' // 用於存放編輯前的資料快照
 
-// 處理動態標籤動態新增所需變數
-const inputVisible = ref(false)
-const newTagInputValue = ref('')
-
 // 監聽編輯模式切換
 watch(isEditMode, (newVal) => {
   if (newVal) {
