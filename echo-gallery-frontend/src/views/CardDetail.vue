@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';
 import { useRoute } from 'vue-router';
 import type { FormInstance, FormRules } from 'element-plus';
+import { useTags } from '../utils/composables/useTags';
 
 const props = defineProps<{ id: string }>();
 const route = useRoute();
@@ -130,11 +131,6 @@ const handleCancel = () => {
   }
 }
 
-// 刪除標籤
-const handleCloseTag = (tag: string) => {
-  cardData.value.tags = cardData.value.tags?.filter(t => t !== tag) || []
-}
-
 // 顯示標籤輸入框
 const showTagInput = () => {
   inputVisible.value = true
@@ -226,6 +222,18 @@ const deleteCard = async () => {
   await handleDeleteCard({ id: props.id });
   goBack();
 }
+
+const {
+  tagPopoverVisible,
+    tagSearchQuery,
+    existingTags,
+    isTagsLoading,
+    filteredExistingTags,
+    handleToggleSelectTag,
+    handleCloseTag,
+    handleConfirmAddTag
+} = useTags(cardData)
+
 </script>
 
 <template>
@@ -308,7 +316,8 @@ const deleteCard = async () => {
                     </div>
                 </el-form-item>
 
-              <div class="tags-row" v-if="(cardData.tags && cardData.tags.length) || isEditMode">
+                <div class="tags-row" v-if="(cardData.tags && cardData.tags.length) || isEditMode">
+                <!-- 已選取的標籤呈現 -->
                 <el-tag
                   v-for="tag in cardData.tags"
                   :key="tag"
@@ -321,18 +330,57 @@ const deleteCard = async () => {
                   #{{ tag }}
                 </el-tag>
 
-                <el-input
-                  v-if="inputVisible"
-                  ref="saveTagInput"
-                  v-model="newTagInputValue"
-                  size="small"
-                  style="width: 90px;"
-                  @keyup.enter="handleTagInputConfirm"
-                  @blur="handleTagInputConfirm"
-                />
-                <el-button v-else-if="isEditMode" size="small" class="button-new-tag" @click="showTagInput">
-                  <el-icon><Plus /></el-icon> 新增標籤
-                </el-button>
+                <!-- 標籤 Popover 選單 (僅在編輯模式顯示) -->
+                <el-popover
+                  v-if="isEditMode"
+                  v-model:visible="tagPopoverVisible"
+                  placement="bottom-start"
+                  :width="280"
+                  trigger="click"
+                >
+                  <template #reference>
+                    <el-button size="small" class="button-new-tag">
+                      <el-icon><Plus /></el-icon> 新增標籤
+                    </el-button>
+                  </template>
+
+                <!-- Popover 內部內容 -->
+                <div class="tag-popover-content">
+                  <!-- 手機與桌面共用的搜尋與輸入框 -->
+                  <div class="tag-input-group" style="display: flex; gap: 6px;">
+                    <el-input
+                      v-model="tagSearchQuery"
+                      placeholder="加上標籤或搜尋..."
+                      size="small"
+                      clearable
+                      @keyup.enter="handleConfirmAddTag"
+                    />
+                    <!-- 💡 新增的明顯觸控確認按鈕，解決手機沒有 Enter/Esc 的痛點 -->
+                    <el-button type="primary" size="small" @click="handleConfirmAddTag">
+                      新增
+                    </el-button>
+                  </div>
+
+                  <div class="existing-tags-section">
+                    <div class="popover-subtitle">現有標籤 (點擊選取)：</div>
+                    <div class="popover-tags-list">
+                      <el-tag
+                        v-for="t in filteredExistingTags"
+                        :key="t.id"
+                        size="small"
+                        :effect="cardData.tags?.includes(t.name) ? 'dark' : 'plain'"
+                        class="clickable-popover-tag"
+                        @click="handleToggleSelectTag(t.name)"
+                      >
+                        {{ t.name }}
+                      </el-tag>
+                      <div v-if="filteredExistingTags.length === 0" class="no-tag-tip">
+                        沒有找到相符標籤
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </el-popover>
               </div>
             </div>
           </template>
@@ -650,5 +698,47 @@ const deleteCard = async () => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
+}
+/* --- 💡 仿 HackMD 標籤彈出框樣式 --- */
+.tag-popover-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px;
+}
+.existing-tags-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.popover-subtitle {
+  font-size: 12px;
+  color: #909399;
+}
+.popover-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+.clickable-popover-tag {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.clickable-popover-tag:hover {
+  opacity: 0.8;
+}
+.no-tag-tip {
+  font-size: 12px;
+  color: #c0c4cc;
+  padding: 4px 0;
+}
+.popover-footer-hint {
+  font-size: 11px;
+  color: #a8abb2;
+  border-top: 1px solid #ebeef5;
+  padding-top: 8px;
+  text-align: center;
 }
 </style>

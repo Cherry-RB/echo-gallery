@@ -281,6 +281,8 @@ export const useCardStatus = () => {
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
             // 🌟 自動刷新主頁瀑布流
             queryClient.invalidateQueries({ queryKey: ['cards'] });
+            // 卡片建立時如果帶有新標籤，讓全域標籤快取失效同步更新
+            queryClient.invalidateQueries({ queryKey: ['tags'] });
         },
         onError: (err) => {
             ElMessage.error('建立卡片失敗，請稍後再試');
@@ -304,6 +306,9 @@ export const useCardStatus = () => {
             // 🌟 同步刷新側邊欄與主頁瀑布流
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
             queryClient.invalidateQueries({ queryKey: ['cards'] });
+
+            // 卡片建立時如果帶有新標籤，讓全域標籤快取失效同步更新
+            queryClient.invalidateQueries({ queryKey: ['tags'] });
         },
         onError: (err) => {
             ElMessage.error('儲存修改失敗');
@@ -339,13 +344,10 @@ export const useCardStatus = () => {
 
       onSuccess: (_, variables) => {
           // 移除詳細頁快取
-          queryClient.removeQueries({
-              queryKey:['card', String(variables.id)]
-          });
+          queryClient.removeQueries({ queryKey:['card', String(variables.id)] });
+          queryClient.invalidateQueries({ queryKey: ['cards'] });
           // 更新側邊欄
-          queryClient.invalidateQueries({
-              queryKey:['sidebar']
-          });
+          queryClient.invalidateQueries({ queryKey:['sidebar'] });
           ElMessage.success('卡片刪除成功');
       },
 
