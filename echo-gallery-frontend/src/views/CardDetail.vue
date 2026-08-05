@@ -131,23 +131,6 @@ const handleCancel = () => {
   }
 }
 
-// 顯示標籤輸入框
-const showTagInput = () => {
-  inputVisible.value = true
-}
-
-// 確認新增標籤
-const handleTagInputConfirm = () => {
-  if (newTagInputValue.value) {
-    if (!cardData.value.tags) cardData.value.tags = []
-    if (!cardData.value.tags.includes(newTagInputValue.value)) {
-      cardData.value.tags.push(newTagInputValue.value)
-    }
-  }
-  inputVisible.value = false
-  newTagInputValue.value = ''
-}
-
 // 取得網域的輔助函式
 const getUrlDomain = (url: string) => {
   try {
@@ -226,8 +209,6 @@ const deleteCard = async () => {
 const {
   tagPopoverVisible,
     tagSearchQuery,
-    existingTags,
-    isTagsLoading,
     filteredExistingTags,
     handleToggleSelectTag,
     handleCloseTag,
