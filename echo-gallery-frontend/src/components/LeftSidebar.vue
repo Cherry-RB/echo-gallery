@@ -11,7 +11,8 @@ import {
   Clock,
   Search,
   Plus,
-  RemoveFilled
+  RemoveFilled,
+  CollectionTag
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';
 import { storeToRefs } from 'pinia';
@@ -34,7 +35,8 @@ const menuItems = [
   { name: '隨機', path: '/board/random', icon: Refresh },
   { name: '封存', path: '/board/archived', icon: Box },
   { name: '稍後再看', path: '/board/snoozed', icon: Loading },
-  { name: '查詢', path: '/search', icon: Search }
+  { name: '查詢', path: '/search', icon: Search },
+  { name: '標籤管理', path: '/center/tag', icon: CollectionTag }
 ]
 
 const activeMenu = computed(() => route.path)

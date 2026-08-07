@@ -9,8 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.echogallery.sidebar.TagRankingResponse;
-
 @Repository
 public interface TagRepository extends JpaRepository<Tag, Long> {
 
@@ -18,14 +16,22 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     Optional<Tag> findByUserIdAndName(Long userId, String name);
 
     @Query("""
-        SELECT new com.echogallery.sidebar.TagRankingResponse(t.name, COUNT(c.id))
+        SELECT new com.echogallery.tag.TagDto(t.id, t.name, COUNT(c.id))
         FROM Tag t
         JOIN t.cards c
         WHERE t.user.id = :userId AND c.isArchived = false
         GROUP BY t.id, t.name
         ORDER BY COUNT(c.id) DESC
     """)
-    List<TagRankingResponse> findTopTagsByCardCount(@Param("userId") Long userId, Pageable pageable);
+    List<TagDto> findTopTagsWithCardCount(@Param("userId") Long userId, Pageable pageable);
 
-    List<Tag> findByUserIdOrderByUpdatedAtDesc(Long userId);
+    @Query("""
+        SELECT new com.echogallery.tag.TagDto(t.id, t.name, COUNT(c.id))
+        FROM Tag t
+        JOIN t.cards c
+        WHERE t.user.id = :userId AND c.isArchived = false
+        GROUP BY t.id, t.name
+        ORDER BY COUNT(c.id) DESC
+    """)
+    List<TagDto> findTagsWithCardCount(@Param("userId") Long userId);
 }

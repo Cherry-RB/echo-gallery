@@ -92,6 +92,11 @@ const routes = [
       component: () => import('../views/SearchView.vue')
     },
     {
+      path: 'center/tag', // 標籤中心
+      name: 'TagCenter',
+      component: () => import('../views/center/TagCenter.vue')
+    },
+    {
       path: '', // 預設導向 今日看板
       redirect: 'board/today'
     }

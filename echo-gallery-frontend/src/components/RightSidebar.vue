@@ -56,13 +56,13 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
         <span>熱門標籤排行</span>
       </h3>
       <div class="tag-ranking-list">
-        <div v-for="(tag, index) in hotTags" :key="tag.tagName" class="tag-rank-item">
+        <div v-for="(tag, index) in hotTags" :key="tag.name" class="tag-rank-item">
           <div class="tag-info">
             <span class="rank-badge" :class="{ 'top-three': index < 3 }">
               {{ index + 1 }}
             </span>
             <el-tag size="default" type="info" effect="plain" class="custom-tag">
-              {{ tag.tagName }}
+              {{ tag.name }}
             </el-tag>
           </div>
           <span class="tag-count-text">{{ tag.cardCount }} 條</span>

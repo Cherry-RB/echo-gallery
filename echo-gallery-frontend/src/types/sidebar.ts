@@ -5,6 +5,7 @@ export interface SidebarStats {
 }
 
 export interface TagRanking {
-  tagName: string;
+  id: number;
+  name: string;
   cardCount: number;
 }

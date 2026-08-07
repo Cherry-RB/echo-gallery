@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -82,5 +83,12 @@ public class CardController {
     public ResponseEntity<CardDetailResponse> readCard(@PathVariable Long id) {
         CardDetailResponse response = cardService.readCard(id);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/tag")
+    public ResponseEntity<List<CardSummaryResponse>> getCardListByTag(
+            @RequestParam List<Long> tagIds,
+            @RequestParam(defaultValue = "OR") String operator) {
+        return ResponseEntity.ok(cardService.getCardListByTag(tagIds, operator));
     }
 }

@@ -1,6 +1,5 @@
 package com.echogallery.sidebar;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
@@ -10,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.echogallery.card.CardRepository;
 import com.echogallery.card.CardService;
 import com.echogallery.tag.TagRepository;
+import com.echogallery.tag.TagDto;
 import com.echogallery.util.SecurityUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class SidebarService {
     }
 
     @Transactional(readOnly = true)
-    public List<TagRankingResponse> getTopTags() {
+    public List<TagDto> getTopTags() {
 
         // 安全地從安全上下文取得目前登入的 userId，落實多租戶資料隔離
         Long userId = SecurityUtil.getCurrentUserId();
@@ -45,7 +45,7 @@ public class SidebarService {
         Pageable topN = PageRequest.of(0, 10, org.springframework.data.domain.Sort.by("name").descending());
 
         // 傳入 Repository
-        return tagRepository.findTopTagsByCardCount(userId, topN);
+        return tagRepository.findTopTagsWithCardCount(userId, topN);
     }
 
 }

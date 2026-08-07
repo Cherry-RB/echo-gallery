@@ -71,9 +71,21 @@ export const cardApi = {
         })
     },
     readCard(id: string | number): Promise<CardDto> {
-        return request({
+      return request({
             url: `/cards/${id}/read`,
             method: "PUT"
-    });
-}
+      })
+    },
+    // 標籤查詢卡片
+    getCardsByTags(data: {
+        tagIds: (number | string)[],
+        operator: 'AND' | 'OR'
+      }):
+      Promise<CardDto[]> {
+        return request({
+              url: `/cards/tag`,
+              method: "GET",
+              params: data
+        })
+      }
 }

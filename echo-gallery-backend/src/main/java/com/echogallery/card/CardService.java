@@ -424,4 +424,25 @@ public class CardService {
         return convertToDetailResponse(card);
     }
 
+    @Transactional(readOnly = true)
+    public List<CardSummaryResponse> getCardListByTag(List<Long> tagIds, String operator){
+
+        // 安全地從安全上下文取得目前登入的 userId，落實多租戶資料隔離
+        Long userId = SecurityUtil.getCurrentUserId();
+
+        if (tagIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Card> cards;
+        if ("AND".equalsIgnoreCase(operator)) {
+            cards = cardRepository.findCardsByAllTags(userId, tagIds, (long) tagIds.size());
+        } else {
+            cards = cardRepository.findCardsByAnyTags(userId, tagIds);
+        }
+        return cards.stream()
+            .map(this::convertToSummaryResponse)
+            .toList();
+    }
+
 }

@@ -1,6 +1,7 @@
 package com.echogallery.card;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,4 +51,35 @@ public interface CardRepository extends JpaRepository<Card, Long> {
 
     // 統計資訊 3: 稍後再看次數累積超過 10 次
     long countByUserIdAndIsArchivedFalseAndSnoozeCountGreaterThan(Long userId, int snoozeThreshold);
+
+    // 以標籤作為篩選條件 查詢卡片
+        // 只有當命中的標籤數量恰好等於傳入的標籤總數，才保留該張卡片。這確保了卡片同時擁有了所有要求的標籤（AND 邏輯）
+    @Query("""
+    SELECT c
+    FROM Card c
+    JOIN c.tags t
+    WHERE c.user.id = :userId
+    AND c.isArchived = false
+    AND t.id IN :tagIds
+    GROUP BY c
+    HAVING COUNT(DISTINCT t.id) = :tagCount
+    ORDER BY c.updatedAt DESC
+    """)
+    List<Card> findCardsByAllTags(
+            @Param("userId") Long userId,
+            @Param("tagIds") List<Long> tagIds,
+            @Param("tagCount") Long tagCount);
+
+    @Query("""
+    SELECT DISTINCT c
+    FROM Card c
+    JOIN c.tags t
+    WHERE c.user.id = :userId
+    AND c.isArchived = false
+    AND t.id IN :tagIds
+    ORDER BY c.updatedAt DESC
+    """)
+    List<Card> findCardsByAnyTags(
+        @Param("userId") Long userId,
+        @Param("tagIds") List<Long> tagIds);
 }
