@@ -1,10 +1,9 @@
 package com.echogallery;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import com.echogallery.support.IntegrationTestBase;
 
-@SpringBootTest
-class EchoGalleryApplicationTests {
+class EchoGalleryApplicationTests extends IntegrationTestBase {
 
 	@Test
 	void contextLoads() {

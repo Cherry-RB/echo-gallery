@@ -1,0 +1,11 @@
+jwt:
+  secret: test-only-jwt-secret-key-for-echo-gallery-integration-tests
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: false
+
+app:
+  frontend-url: http://localhost:5173
