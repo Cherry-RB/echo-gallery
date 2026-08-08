@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick, onActivated } from 'vue'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, More, Edit, Delete, CollectionTag } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import { cardApi } from '../../utils/api/cardApi'
 import { tagApi } from '../../utils/api/tagApi'
+import { useCardStatus } from '../../utils/useCardStatus'
+import { shouldMarkReviewedOnOpenDetail, type BoardType } from '../../types/board'
 import type { CardDto } from '../../types/card'
+import CardItem from '../../components/CardItem.vue';
 
 // 標籤資料結構：id 是唯一識別，name 只作為顯示用途（可被改名）
 interface TagDto {
@@ -13,6 +17,39 @@ interface TagDto {
   name: string
   cardCount?: number
 }
+
+const router = useRouter()
+const { handleReadCard } = useCardStatus()
+const cardsGridWrapperRef = ref<HTMLElement | null>(null)
+const savedCardsScrollTop = ref(0)
+
+// 標籤中心對應的 boardType。只要不讓 shouldMarkReviewedOnOpenDetail 回傳 true，
+// 從這裡點進卡片詳情就不會被判定為「完成本輪回顧」，不會動到 nextShowAt
+const TAG_BOARD_TYPE: BoardType = 'tag'
+
+function handleOpenDetail(card: CardDto) {
+  // 卡片列表使用內部滾動容器，Vue Router 的 scrollBehavior 不會保存其位置
+  savedCardsScrollTop.value = cardsGridWrapperRef.value?.scrollTop ?? 0
+
+  router.push({
+    name: 'CardDetail',
+    params: { id: card.id },
+    query: { from: TAG_BOARD_TYPE },
+  })
+
+  if (shouldMarkReviewedOnOpenDetail(TAG_BOARD_TYPE)) {
+    handleReadCard({ id: card.id, sourceBoard: TAG_BOARD_TYPE })
+  }
+}
+
+onActivated(async () => {
+  await nextTick()
+  requestAnimationFrame(() => {
+    if (cardsGridWrapperRef.value) {
+      cardsGridWrapperRef.value.scrollTop = savedCardsScrollTop.value
+    }
+  })
+})
 
 const queryClient = useQueryClient()
 
@@ -263,20 +300,17 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
       </div>
 
       <!-- 卡片瀑布流/網格展示區 -->
-      <div class="cards-grid-wrapper" v-loading="isCardsLoading">
+      <div ref="cardsGridWrapperRef" class="cards-grid-wrapper" v-loading="isCardsLoading">
         <template v-if="selectedTagIds.length > 0">
           <div v-if="cardsData && cardsData.length > 0" class="cards-grid">
-            <!-- 這裡可替換為你現有的卡片元件，例如 <CardItem v-for="card in cardsData" :key="card.id" :card="card" /> -->
-            <div v-for="card in cardsData" :key="card.id" class="mock-card-item">
-              <h4 class="card-title">{{ card.title || '無標題卡片' }}</h4>
-              <!-- 依專案文件的顯示優先序：reason > summary > content -->
-              <p class="card-snippet">{{ card.reason || card.summary || card.content || '無內容預覽...' }}</p>
-              <div class="card-tags-footer">
-                <el-tag v-for="ct in card.tags" :key="ct" size="small" type="info" effect="plain">
-                  #{{ ct }}
-                </el-tag>
-              </div>
-            </div>
+            <CardItem
+              v-for="card in cardsData"
+              :key="card.id"
+              :data="card"
+              view-mode="text"
+              :board-type="TAG_BOARD_TYPE"
+              @open-detail="handleOpenDetail"
+            />
           </div>
           <div v-else class="empty-cards">
             <p>沒有符合條件的卡片內容</p>
@@ -514,42 +548,6 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
-
-.mock-card-item {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 10px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: var(--el-box-shadow-light);
-  transition: transform 0.2s;
-}
-.mock-card-item:hover {
-  transform: translateY(-2px);
-}
-.card-title {
-  margin: 0;
-  font-size: 15px;
-  color: var(--el-text-color-primary);
-}
-.card-snippet {
-  margin: 0;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.card-tags-footer {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
 .empty-cards, .initial-placeholder {
   display: flex;
   flex-direction: column;

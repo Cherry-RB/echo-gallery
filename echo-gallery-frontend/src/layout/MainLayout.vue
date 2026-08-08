@@ -43,7 +43,11 @@ watch(() => route.path, () => {
     </el-drawer>
 
     <main class="content-viewport">
-      <RouterView />
+       <RouterView v-slot="{ Component }">
+        <KeepAlive :include="['BoardFlex','TagCenter']">
+          <component :is="Component" />
+        </KeepAlive>
+      </RouterView>
     </main>
 
     <aside class="stats-panel desktop-only">

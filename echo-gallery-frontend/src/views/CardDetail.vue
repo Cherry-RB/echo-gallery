@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: 'CardDetail' })
+
 import { ArrowLeft, Link, Star, StarFilled, Calendar, CollectionTag, Clock, Plus } from '@element-plus/icons-vue'
 import router from '../router';
 import type { CardDto } from '../types/card';
