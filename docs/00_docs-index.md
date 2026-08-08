@@ -107,3 +107,9 @@
   * 修復設計：拆分「查詢用排他上界」（`getStartOfTomorrowTaipei()`）與「建卡/回流起算基準」（`getStartOfTodayTaipei()`）兩個獨立時區錨點方法，避免共用同一方法時因內建偏移量疊加造成 off-by-one。
   * 既有資料 migration SQL（`date_trunc` + `AT TIME ZONE 'Asia/Taipei'`）設計與驗證方式；記錄兩次操作誤判：UTC 顯示值誤認為未生效、Supabase SQL Editor 分次執行導致 transaction 未真正 commit。
   * 附帶記錄刪除卡片時觸發外鍵約束（`card_tags` 中介表）之排查與處理方式。
+
+### 11. [11_全專案CodeReview追蹤.md](./11_全專案CodeReview追蹤.md)
+
+* **屬性**：持續追蹤文件（Current）。
+* **內容**：全專案 Code Review 問題清單、嚴重度、完成條件、Top 5、分批修正策略與可復用 Prompt。
+* **Agent 讀取時機**：僅在執行 Code Review、處理 CR 編號、更新修正狀態，或使用者明確要求時讀取。
