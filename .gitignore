@@ -18,6 +18,7 @@ pgdata/
 **/node_modules/
 **/dist/
 **/dist-ssr/
+**/coverage/
 **/*.local
 
 # --- 4. IDE 開發工具配置 (允許擴充設定) ---
