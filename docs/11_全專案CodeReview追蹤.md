@@ -59,7 +59,7 @@
 | CR-015 | 中 | 型別／維護性 | 前端存在重複 Card DTO 與大量 any | 待處理 |
 | CR-016 | 中 | 型別 | Tag delete 前後端回傳型別不一致 | 待處理 |
 | CR-017 | 中 | 前端狀態 | localStorage 的使用者 ID key 不一致 | 待處理 |
-| CR-018 | 高 | 測試 | 缺乏可穩定執行的實質測試 | 待處理 |
+| CR-018 | 高 | 測試 | 缺乏可穩定執行的實質測試 | 已完成 |
 | CR-019 | 中 | 維護性 | CardService 過大且重複授權邏輯 | 待處理 |
 | CR-020 | 中 | 可測試性 | 業務邏輯直接使用系統時鐘 | 待處理 |
 | CR-021 | 中 | 維護性 | Query cache 更新依賴 any 與結構猜測 | 待處理 |
@@ -223,11 +223,14 @@
 ### CR-018：缺乏可穩定執行的實質測試
 
 - 嚴重度：高。
-- 狀態：待處理。
-- 相關檔案：`src/test/java/com/echogallery/EchoGalleryApplicationTests.java`、前端 `package.json`。
+- 狀態：已完成（2026-08-09）。
+- 相關檔案：後端 `build.gradle.kts`、`src/test/resources/application-test.yml`、`src/test/java/com/echogallery/support/IntegrationTestBase.java`、`src/test/java/com/echogallery/EchoGalleryApplicationTests.java`、`src/test/java/com/echogallery/security/SecurityAndOwnershipIntegrationTests.java`；前端 `package.json`、`package-lock.json`、`vitest.config.ts`、`src/stores/authStore.test.ts`、`src/types/board.test.ts`；根目錄 `.gitignore`。
 - 風險：後端只有 contextLoads，且目前會因資料庫環境前置條件失敗；前端沒有測試指令。
 - 建議：建立 test profile 與隔離資料庫，優先補 JWT、多租戶、validation、互動行為、錯誤 schema 與前端狀態測試。
 - 完成條件：乾淨環境可執行測試，核心安全與業務規則有回歸保護。
+- 實作 Commit：`89c1804`（後端 PostgreSQL 隔離測試環境）、`483ca28`（JWT 與多租戶授權整合測試）、`11819a2`（前端 Vitest 與核心狀態測試）。
+- 驗證證據：2026-08-09 於全新本機 clone 執行；Docker daemon 正常，後端 `.\gradlew.bat test` 通過 7 個測試，前端 `npm ci` 安裝成功且掃描為 0 個漏洞，`npm run test:run` 通過 2 個測試檔案共 4 個測試，`npm run build` 通過。
+- 驗收結論：測試可在不依賴原工作目錄、開發資料庫或 `.env` 的環境重新安裝與執行；validation、錯誤 schema 及其他業務測試由對應 CR 持續擴充，不影響本項測試基礎驗收。
 
 ### CR-019：CardService 過大且重複授權邏輯
 
@@ -267,7 +270,7 @@
 
 ## 建議優先處理 Top 5
 
-1. CR-018：建立可穩定執行的測試環境，先保護 JWT 與多租戶授權。
+1. CR-018（已完成）：已建立可穩定執行的測試環境，後續 CR 應持續在此基礎補上回歸測試。
 2. CR-006、CR-007、CR-012：補齊 request validation 與邊界限制。
 3. CR-014、CR-015、CR-016、CR-017：統一前後端 contract 與前端狀態型別。
 4. CR-001、CR-002：強化公開認證端點與 JWT lifecycle。
@@ -277,7 +280,7 @@
 
 不建議只用一個大型 commit 修完全部問題。最低應拆成三批，實務上建議使用五個以上的邏輯階段，而且每個階段仍可再拆成數個原子 commit：
 
-1. 測試基礎：CR-018、CR-020。
+1. 測試基礎：CR-018（已完成）、CR-020。
 2. 輸入與錯誤：CR-005～CR-009、CR-012。
 3. Contract 與前端型別：CR-014～CR-017、CR-021。
 4. 認證安全：CR-001、CR-002、CR-004。
@@ -359,4 +362,5 @@ ExecPlan 應只涵蓋一個可驗收目標，例如「統一 Card API contract�
 
 | 日期 | 變更 | 說明 |
 |---|---|---|
+| 2026-08-09 | 完成 CR-018 | 建立前後端測試基礎，並於全新本機 clone 完成後端測試、前端安裝、測試與正式建置驗證 |
 | 2026-08-08 | 建立 | 建立全專案靜態 Code Review 問題清單、Top 5、分批策略與可復用流程 |
