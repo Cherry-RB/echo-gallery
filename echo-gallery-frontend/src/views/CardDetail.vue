@@ -3,7 +3,7 @@ defineOptions({ name: 'CardDetail' })
 
 import { ArrowLeft, Link, Star, StarFilled, Calendar, CollectionTag, Clock, Plus } from '@element-plus/icons-vue'
 import router from '../router';
-import type { CardDto } from '../types/card';
+import type { CardContentRequest, CardDto, UpdateCardRequest } from '../types/card';
 import { computed, reactive, ref, toRaw, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
@@ -37,6 +37,18 @@ const isEditMode = ref(isCreateMode.value)
 
 // 模擬資料取得
 const cardData = ref<CardDto>(getDefaultCardData());
+
+const toCardContentRequest = (card: CardDto): CardContentRequest => ({
+  type: card.type,
+  title: card.title,
+  url: card.url,
+  summary: card.summary,
+  content: card.content,
+  reason: card.reason,
+  coverImageUrl: card.coverImageUrl,
+  tags: card.tags,
+  intervalDays: card.intervalDays
+});
 
 // 監聽路由的 id 變動，當從詳情頁切換到 'new' (新增模式) 時，強制重置表單與狀態
 watch(() => props.id, (newId) => {
@@ -98,7 +110,7 @@ const handleSave = async () => {
     if(isCreateMode.value){
       console.log('送出 POST API 建立新卡片', cardData.value);
       // 調用對外接口建立卡片
-      handleCreateCard(cardData.value, {
+      handleCreateCard(toCardContentRequest(cardData.value), {
         // 💡 當 useCardStatus 內部的後端成功且快取刷完後，才會觸發這個 UI 回呼
         onSuccess: () => {
           router.push('/board/all') // 成功後回總卡片列表，可看見最新新增的卡片
@@ -107,7 +119,11 @@ const handleSave = async () => {
     } else{
       console.log('送出 PUT API 更新卡片');
       // 調用對外接口更新卡片（傳入封裝好的參數物件）
-      handleUpdateCard({ id: props.id, data: cardData.value }, {
+      const request: UpdateCardRequest = {
+        ...toCardContentRequest(cardData.value),
+        isArchived: cardData.value.isArchived
+      };
+      handleUpdateCard({ id: props.id, data: request }, {
         // 💡 後端儲存成功且快取重整後，才執行 UI 狀態切換
         onSuccess: () => {
           isEditMode.value = false;
@@ -176,6 +192,43 @@ const openSourceUrl = () => {
 // 建立表單參照
 const cardFormRef = ref<FormInstance>();
 
+const isHttpUrl = (value?: string) => {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const validateUrl = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+  if (cardData.value.type === 'link' && !value?.trim()) {
+    callback(new Error('連結類卡片必須提供來源網址'));
+    return;
+  }
+  callback(isHttpUrl(value) ? undefined : new Error('來源網址必須是有效的 HTTP 或 HTTPS 網址'));
+};
+
+const validateOptionalUrl = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+  callback(isHttpUrl(value) ? undefined : new Error('封面圖片網址必須是有效的 HTTP 或 HTTPS 網址'));
+};
+
+const validateTags = (_rule: unknown, value: string[], callback: (error?: Error) => void) => {
+  if ((value?.length ?? 0) > 10) {
+    callback(new Error('每張卡片最多只能有 10 個標籤'));
+    return;
+  }
+  const normalizedTags = (value ?? []).map(tag => tag.trim());
+  if (normalizedTags.some(tag => !tag || tag.length > 50)) {
+    callback(new Error('標籤不可為空，且單一標籤不可超過 50 個字元'));
+    return;
+  }
+  callback(new Set(normalizedTags).size === normalizedTags.length
+    ? undefined
+    : new Error('標籤不可重複'));
+};
+
 // 對應你後端 DTO 的驗證規則
 const rules = reactive<FormRules>({
   type: [
@@ -186,16 +239,24 @@ const rules = reactive<FormRules>({
     { max: 255, message: '標題長度不能超過 255 個字元', trigger: 'blur' }
   ],
   coverImageUrl: [
-    { max: 2048, message: '封面圖片網址過長', trigger: 'blur' }
+    { max: 2048, message: '封面圖片網址不可超過 2048 個字元', trigger: 'blur' },
+    { validator: validateOptionalUrl, trigger: 'blur' }
   ],
   url: [
-    { max: 2048, message: '網址過長', trigger: 'blur' }
+    { max: 2048, message: '來源網址不可超過 2048 個字元', trigger: 'blur' },
+    { validator: validateUrl, trigger: 'blur' }
   ],
   summary: [
     { max: 600, message: '摘要不能超過 600 個字元', trigger: 'blur' }
   ],
   reason: [
     { max: 300, message: '原因不能超過 300 個字元', trigger: 'blur' }
+  ],
+  tags: [
+    { validator: validateTags, trigger: 'change' }
+  ],
+  intervalDays: [
+    { type: 'number', min: 1, max: 365, message: '回流間隔必須介於 1 到 365 天', trigger: 'change' }
   ]
 });
 
@@ -295,7 +356,7 @@ const {
                     </div>
                 </el-form-item>
 
-                <div class="tags-row" v-if="(cardData.tags && cardData.tags.length) || isEditMode">
+                <el-form-item prop="tags" class="tags-row" v-if="(cardData.tags && cardData.tags.length) || isEditMode">
                 <!-- 已選取的標籤呈現 -->
                 <el-tag
                   v-for="tag in cardData.tags"
@@ -360,7 +421,7 @@ const {
                   </div>
                 </div>
                 </el-popover>
-              </div>
+              </el-form-item>
             </div>
           </template>
 

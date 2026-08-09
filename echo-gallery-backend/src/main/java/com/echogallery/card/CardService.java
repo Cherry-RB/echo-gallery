@@ -106,7 +106,7 @@ public class CardService {
     }
 
     @Transactional
-    public CardDetailResponse updateCard(Long cardId, CardRequest request) {
+    public CardDetailResponse updateCard(Long cardId, UpdateCardRequest request) {
 
         // 1. 安全地從安全上下文取得目前登入的 userId（防範前端越權傳參）
         Long currentUserId = SecurityUtil.getCurrentUserId();
@@ -149,7 +149,7 @@ public class CardService {
     }
 
     @Transactional
-    public CardDetailResponse createCard(CardRequest request) {
+    public CardDetailResponse createCard(CreateCardRequest request) {
 
         // 1. 安全地從安全上下文取得目前登入的 userId（防範前端越權傳參）
         Long userId = SecurityUtil.getCurrentUserId();
@@ -211,24 +211,23 @@ public class CardService {
         return response;
     }
 
-    private Set<Tag> associateTags(User user, String[] requestTags){
+    private Set<Tag> associateTags(User user, List<String> requestTags){
 
         if(requestTags==null){
             return new java.util.HashSet<>(); // ✨ 永遠回傳空集合，絕對不回傳 null
         }
 
-        // 使用 Arrays.stream 去重，避免同一次請求帶入重複字串導致非預期錯誤
-        List<String> distinctTags = java.util.Arrays.stream(requestTags)
+        // Request validation 已拒絕重複標籤，此處只正規化準備入庫的名稱
+        List<String> normalizedTags = requestTags.stream()
             .filter(java.util.Objects::nonNull)
             .map(String::trim)
             .filter(tag -> !tag.isEmpty()) // 防止空白標籤入庫
-            .distinct()
             .toList();
 
         // 3. 處理標籤安全性：走「查無此標籤才建立」的邏輯
         Set<Tag> associatedTags = new HashSet<>();
 
-        for (String tagname : distinctTags){
+        for (String tagname : normalizedTags){
             // 嚴格隔離：只找「當前登入使用者」的標籤庫
             Tag tag = tagRepository.findByUserIdAndName(user.getId(), tagname)
                         .orElseGet(()->{

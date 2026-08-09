@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/vue-qu
 import { cardApi } from './api/cardApi';
 import { ElMessage } from 'element-plus';
 import type { BoardType } from '../types/board';
+import type { UpdateCardRequest } from '../types/card';
 
 // 簡單定義卡片與無限捲動快取的基礎型別，提升程式碼強健度
 interface CardDTO {
@@ -296,7 +297,7 @@ export const useCardStatus = () => {
     // 💡 注意：因為 useMutation 的 mutationFn 只能接收一個參數，
     //    所以我們用解構賦值包成一個物件傳入 { id, data }
     const updateCardMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string | number; data: any }) => cardApi.updateCard(id, data),
+        mutationFn: ({ id, data }: { id: string | number; data: UpdateCardRequest }) => cardApi.updateCard(id, data),
         // 後端成功修改卡片後執行
         onSuccess: (_updatedCard, variables) => {
             ElMessage.success('卡片修改儲存成功！');

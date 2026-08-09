@@ -1,5 +1,5 @@
 import type { BoardType } from "../../types/board";
-import type { CardDto } from "../../types/card";
+import type { CardDto, CreateCardRequest, UpdateCardRequest } from "../../types/card";
 import request from "./request"
 
 export const cardApi = {
@@ -26,7 +26,7 @@ export const cardApi = {
         // return Promise.resolve(mockData);
     },
     // 新建卡片資料
-    createCard(data: any): Promise<CardDto>{
+    createCard(data: CreateCardRequest): Promise<CardDto>{
         return request({
             url: `/cards`,
             method: "POST",
@@ -34,7 +34,7 @@ export const cardApi = {
         })
     },
     // 更新卡片資料
-    updateCard(id: string | number, data: any): Promise<CardDto>{
+    updateCard(id: string | number, data: UpdateCardRequest): Promise<CardDto>{
         return request({
             url: `/cards/${id}`,
             method: "PUT",

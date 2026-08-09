@@ -41,15 +41,15 @@ public class CardController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CardDetailResponse> updateCard(@PathVariable("id") Long cardId, @Valid @RequestBody CardRequest request) {
-        // @RequestBody 會自動把 Vue 傳來的 JSON 轉成 Java 的 CardRequest 物件
+    public ResponseEntity<CardDetailResponse> updateCard(@PathVariable("id") Long cardId, @Valid @RequestBody UpdateCardRequest request) {
+        // @RequestBody 會自動把 Vue 傳來的 JSON 轉成 Java 的更新請求
         CardDetailResponse response = cardService.updateCard(cardId, request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping
-    public ResponseEntity<CardDetailResponse> createCard(@Valid @RequestBody CardRequest request) {
-        // @RequestBody 會自動把 Vue 傳來的 JSON 轉成 Java 的 CardRequest 物件
+    public ResponseEntity<CardDetailResponse> createCard(@Valid @RequestBody CreateCardRequest request) {
+        // @RequestBody 會自動把 Vue 傳來的 JSON 轉成 Java 的建立請求
         CardDetailResponse response = cardService.createCard(request);
         return ResponseEntity.ok(response);
     }

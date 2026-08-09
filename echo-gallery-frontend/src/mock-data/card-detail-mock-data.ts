@@ -17,6 +17,7 @@ export const getCardByIdFromMock = (id: string): CardDto | null => {
     coverImageUrl: 'https://picsum.photos/800/400', // 隨機封面圖
     tags: ['Vue3', 'TypeScript', 'ElementPlus'],
     intervalDays: 7,
+    isArchived: false,
     nextShowAt: new Date().toISOString(),
     openCount: 12,
     likeCount: 5,

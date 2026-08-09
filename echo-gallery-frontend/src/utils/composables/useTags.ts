@@ -1,8 +1,14 @@
 import { ref, computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { tagApi } from '../api/tagApi'
+import { ElMessage } from 'element-plus'
+import type { Ref } from 'vue'
+import type { CardDto } from '../../types/card'
 
-export function useTags(cardDataRef: any) {
+const MAX_TAGS = 10
+const MAX_TAG_LENGTH = 50
+
+export function useTags(cardDataRef: Ref<CardDto>) {
   const tagPopoverVisible = ref(false)
   const tagSearchQuery = ref('')
 
@@ -29,6 +35,10 @@ export function useTags(cardDataRef: any) {
     if (cardDataRef.value.tags.includes(tagName)) {
       cardDataRef.value.tags = cardDataRef.value.tags.filter((t: string) => t !== tagName)
     } else {
+      if (cardDataRef.value.tags.length >= MAX_TAGS) {
+        ElMessage.warning(`每張卡片最多只能有 ${MAX_TAGS} 個標籤`)
+        return
+      }
       cardDataRef.value.tags.push(tagName)
     }
   }
@@ -41,12 +51,25 @@ export function useTags(cardDataRef: any) {
   // 5. 新增/選取標籤（支援按 Enter 或點擊觸控按鈕觸發）
   const handleConfirmAddTag = () => {
     const trimmed = tagSearchQuery.value.trim()
-    if (!trimmed) return
+    if (!trimmed) {
+      ElMessage.warning('標籤不可為空')
+      return
+    }
+    if (trimmed.length > MAX_TAG_LENGTH) {
+      ElMessage.warning(`單一標籤不可超過 ${MAX_TAG_LENGTH} 個字元`)
+      return
+    }
 
     if (!cardDataRef.value.tags) cardDataRef.value.tags = []
-    if (!cardDataRef.value.tags.includes(trimmed)) {
-      cardDataRef.value.tags.push(trimmed)
+    if (cardDataRef.value.tags.includes(trimmed)) {
+      ElMessage.warning('標籤不可重複')
+      return
     }
+    if (cardDataRef.value.tags.length >= MAX_TAGS) {
+      ElMessage.warning(`每張卡片最多只能有 ${MAX_TAGS} 個標籤`)
+      return
+    }
+    cardDataRef.value.tags.push(trimmed)
     tagSearchQuery.value = ''
   }
 

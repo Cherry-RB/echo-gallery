@@ -10,6 +10,24 @@ export type SourceType =
   | "article"
   | "other";
 
+export interface CardContentRequest {
+    type: CardType;
+    title: string;
+    url?: string;
+    summary?: string;
+    content?: string;
+    reason?: string;
+    coverImageUrl?: string;
+    tags: string[];
+    intervalDays: number | null;
+}
+
+export type CreateCardRequest = CardContentRequest;
+
+export interface UpdateCardRequest extends CardContentRequest {
+    isArchived: boolean;
+}
+
 export interface CardDto {
     id: string;
 
@@ -54,7 +72,7 @@ export interface CardDto {
     lastInteractionAt?: string; // lastOpenAt/lastLikedAt
 
     // 狀態 (是否封存)
-    isArchived?: boolean;
+    isArchived: boolean;
 
     isShowContentPreview?: boolean| null;
 
