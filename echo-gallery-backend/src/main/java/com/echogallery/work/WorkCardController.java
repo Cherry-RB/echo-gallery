@@ -50,4 +50,12 @@ public class WorkCardController {
             @Valid @RequestBody UpdateWorkCardStatusRequest request) {
         return ResponseEntity.ok(workCardService.updateStatus(workId, cardId, request));
     }
+
+    @PutMapping("/{cardId}/note")
+    public ResponseEntity<WorkCardResponse> updateNote(
+            @PathVariable("workId") Long workId,
+            @PathVariable("cardId") Long cardId,
+            @Valid @RequestBody UpdateWorkCardNoteRequest request) {
+        return ResponseEntity.ok(workCardService.updateNote(workId, cardId, request));
+    }
 }

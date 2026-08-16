@@ -19,9 +19,14 @@ const workStatusMeta: Record<WorkStatus, { label: string; type: WorkStatusTagTyp
   ARCHIVED: { label: '已封存', type: 'info' },
 }
 
+const workStatusOptions = (Object.entries(workStatusMeta) as Array<
+  [WorkStatus, { label: string; type: WorkStatusTagType }]
+>).map(([value, meta]) => ({ value, label: meta.label }))
+
 const queryClient = useQueryClient()
 const router = useRouter()
 const createDialogVisible = ref(false)
+const selectedStatuses = ref<WorkStatus[]>([])
 const createFormRef = ref<FormInstance>()
 const createForm = reactive<CreateWorkRequest>({
   title: '',
@@ -78,7 +83,12 @@ const {
   staleTime: 1000 * 60,
 })
 
-const workList = computed(() => works.value ?? [])
+const allWorks = computed(() => works.value ?? [])
+const workList = computed(() => {
+  if (selectedStatuses.value.length === 0) return allWorks.value
+  const selectedStatusSet = new Set(selectedStatuses.value)
+  return allWorks.value.filter((work) => selectedStatusSet.has(work.status))
+})
 
 const createMutation = useMutation({
   mutationFn: workApi.createWork,
@@ -126,9 +136,28 @@ const submitCreateWork = async () => {
         <h1 class="page-title">作品</h1>
         <p class="page-description">讓卡片素材逐步匯聚成可以完成與分享的輸出</p>
       </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-        新增作品
-      </el-button>
+      <div class="page-actions">
+        <el-select
+          v-model="selectedStatuses"
+          class="status-filter"
+          multiple
+          clearable
+          collapse-tags
+          collapse-tags-tooltip
+          placeholder="全部狀態"
+          aria-label="依作品狀態篩選"
+        >
+          <el-option
+            v-for="option in workStatusOptions"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
+          />
+        </el-select>
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog">
+          新增作品
+        </el-button>
+      </div>
     </header>
 
     <div class="work-content-surface">
@@ -149,10 +178,17 @@ const submitCreateWork = async () => {
         </template>
       </el-result>
 
-      <el-empty v-else-if="workList.length === 0" description="還沒有作品，先建立第一個具體輸出吧">
+      <el-empty v-else-if="allWorks.length === 0" description="還沒有作品，先建立第一個具體輸出吧">
         <el-button type="primary" :icon="Plus" @click="openCreateDialog">
           建立第一個作品
         </el-button>
+      </el-empty>
+
+      <el-empty
+        v-else-if="workList.length === 0"
+        description="沒有符合目前狀態篩選的作品"
+      >
+        <el-button @click="selectedStatuses = []">清除篩選</el-button>
       </el-empty>
 
       <div v-else class="work-grid">
@@ -297,6 +333,16 @@ const submitCreateWork = async () => {
   font-size: 14px;
 }
 
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-filter {
+  width: 240px;
+}
+
 .work-content-surface {
   min-height: 360px;
   padding: 20px;
@@ -435,7 +481,14 @@ const submitCreateWork = async () => {
     gap: 16px;
   }
 
-  .page-header .el-button {
+  .page-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .status-filter,
+  .page-actions .el-button {
     width: 100%;
   }
 

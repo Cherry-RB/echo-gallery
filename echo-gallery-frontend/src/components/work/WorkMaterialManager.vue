@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { Check, Delete, Plus, RefreshLeft, Search } from '@element-plus/icons-vue'
+import { Check, Delete, Edit, Plus, RefreshLeft, Search } from '@element-plus/icons-vue'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
@@ -14,6 +14,9 @@ const props = defineProps<{ workId: string }>()
 const router = useRouter()
 const queryClient = useQueryClient()
 const addCardDialogVisible = ref(false)
+const noteDialogVisible = ref(false)
+const editingNoteCard = ref<WorkCard | null>(null)
+const noteInput = ref('')
 const searchInput = ref('')
 const searchKeyword = ref('')
 let searchTimer: ReturnType<typeof setTimeout> | undefined
@@ -119,6 +122,19 @@ const statusMutation = useMutation({
   },
 })
 
+const noteMutation = useMutation({
+  mutationFn: ({ card, note }: { card: WorkCard; note: string }) =>
+    workApi.updateWorkCardNote(props.workId, card.cardId, { note }),
+  onSuccess: async (_updatedCard, variables) => {
+    await Promise.all([
+      refreshMaterialQueries(),
+      queryClient.invalidateQueries({ queryKey: ['cardWorks'] }),
+    ])
+    ElMessage.success(variables.note.trim() ? '素材備註已更新' : '素材備註已清除')
+    noteDialogVisible.value = false
+  },
+})
+
 const removeCardMutation = useMutation({
   mutationFn: (card: WorkCard) => workApi.removeWorkCard(props.workId, card.cardId),
   onSuccess: async () => {
@@ -133,6 +149,22 @@ const openCard = (cardId: number) => {
     params: { id: cardId },
     query: { fromWork: props.workId },
   })
+}
+
+const openNoteDialog = (card: WorkCard) => {
+  editingNoteCard.value = card
+  noteInput.value = card.note ?? ''
+  noteDialogVisible.value = true
+}
+
+const submitNote = () => {
+  if (!editingNoteCard.value || noteMutation.isPending.value) return
+  noteMutation.mutate({ card: editingNoteCard.value, note: noteInput.value })
+}
+
+const resetNoteDialog = () => {
+  editingNoteCard.value = null
+  noteInput.value = ''
 }
 
 const confirmRemoveCard = async (card: WorkCard) => {
@@ -221,6 +253,15 @@ const resetCardSearch = () => {
           </div>
           <div class="material-actions">
             <el-button
+              text
+              size="small"
+              :icon="Edit"
+              :disabled="noteMutation.isPending.value"
+              @click="openNoteDialog(card)"
+            >
+              備註
+            </el-button>
+            <el-button
               type="success"
               plain
               size="small"
@@ -279,6 +320,15 @@ const resetCardSearch = () => {
           </div>
           <div class="material-actions">
             <el-button
+              text
+              size="small"
+              :icon="Edit"
+              :disabled="noteMutation.isPending.value"
+              @click="openNoteDialog(card)"
+            >
+              備註
+            </el-button>
+            <el-button
               plain
               size="small"
               :icon="RefreshLeft"
@@ -301,6 +351,38 @@ const resetCardSearch = () => {
         </article>
       </section>
     </div>
+
+    <el-dialog
+      v-model="noteDialogVisible"
+      title="編輯素材備註"
+      width="min(520px, calc(100vw - 32px))"
+      destroy-on-close
+      @closed="resetNoteDialog"
+    >
+      <p v-if="editingNoteCard" class="note-dialog-card-title">
+        {{ editingNoteCard.cardTitle }}
+      </p>
+      <el-input
+        v-model="noteInput"
+        type="textarea"
+        :rows="5"
+        maxlength="1000"
+        show-word-limit
+        placeholder="記錄這張卡片在此作品中的用途、觀點或使用方式（選填）"
+        @keydown.ctrl.enter="submitNote"
+        @keydown.meta.enter="submitNote"
+      />
+      <p class="note-dialog-hint">清空內容並儲存即可移除備註。</p>
+
+      <template #footer>
+        <el-button :disabled="noteMutation.isPending.value" @click="noteDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" :loading="noteMutation.isPending.value" @click="submitNote">
+          儲存備註
+        </el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="addCardDialogVisible"
@@ -511,6 +593,20 @@ const resetCardSearch = () => {
   line-height: 1.6;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.note-dialog-card-title {
+  margin: -8px 0 14px;
+  color: var(--el-text-color-primary);
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.note-dialog-hint {
+  margin: 8px 0 0;
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
 }
 
 .material-actions {

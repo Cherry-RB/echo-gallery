@@ -25,6 +25,10 @@ export interface UpdateWorkCardStatusRequest {
   status: WorkCardStatus
 }
 
+export interface UpdateWorkCardNoteRequest {
+  note?: string | null
+}
+
 export interface WorkSummary {
   id: number
   title: string

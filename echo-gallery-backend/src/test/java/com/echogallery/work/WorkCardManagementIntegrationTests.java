@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -19,8 +21,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import com.echogallery.card.CardRepository;
+import com.echogallery.card.Card;
 import com.echogallery.card.CardGrowthStatus;
+import com.echogallery.card.CardRepository;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
@@ -239,6 +242,64 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void updateNoteNormalizesAndClearsRelationNote() throws Exception {
+        String token = register("note-owner", "note-owner@example.com");
+        long workId = createWork(token, "備註作品");
+        long cardId = createCard(token, "備註素材");
+        addCard(token, workId, cardId);
+
+        mockMvc.perform(put("/api/works/{workId}/cards/{cardId}/note", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new NoteRequest("  用於開場論點  "))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.note").value("用於開場論點"));
+
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId))
+                .get()
+                .extracting(WorkCard::getNote)
+                .isEqualTo("用於開場論點");
+
+        mockMvc.perform(put("/api/works/{workId}/cards/{cardId}/note", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new NoteRequest("   "))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.note").doesNotExist());
+
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId))
+                .get()
+                .extracting(WorkCard::getNote)
+                .isNull();
+    }
+
+    @Test
+    void updateNoteValidatesLengthAndRelationOwnership() throws Exception {
+        String ownerToken = register("note-private-owner", "note-private-owner@example.com");
+        String otherToken = register("note-private-other", "note-private-other@example.com");
+        long workId = createWork(ownerToken, "私人備註作品");
+        long cardId = createCard(ownerToken, "私人備註素材");
+        addCard(ownerToken, workId, cardId);
+
+        mockMvc.perform(put("/api/works/{workId}/cards/{cardId}/note", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(otherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new NoteRequest("不應寫入"))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/works/{workId}/cards/{cardId}/note", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new NoteRequest("a".repeat(1001)))))
+                .andExpect(status().isBadRequest());
+
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId))
+                .get()
+                .extracting(WorkCard::getNote)
+                .isNull();
+    }
+
+    @Test
     void workCardListReturnsCardDisplayDataAndRelationStatus() throws Exception {
         String token = register("list-owner", "list-owner@example.com");
         long workId = createWork(token, "素材列表作品");
@@ -375,6 +436,77 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
         assertThat(emptyWork.get("usedCount").asLong()).isZero();
     }
 
+    @Test
+    void cardBoardsAndInteractionsKeepWorkRelationAndGrowthStatus() throws Exception {
+        String token = register("regression-owner", "regression-owner@example.com");
+        long workId = createWork(token, "回歸驗收作品");
+        long cardId = createCard(token, "回歸驗收卡片");
+        addCard(token, workId, cardId);
+
+        Card card = cardRepository.findById(cardId).orElseThrow();
+        card.setNextShowAt(ZonedDateTime.now(ZoneId.of("Asia/Taipei")).minusDays(1));
+        card.setSnoozeCount(11);
+        cardRepository.saveAndFlush(card);
+
+        assertCardListContains(token, "today", cardId);
+        assertCardListContains(token, "all", cardId);
+        assertCardListContains(token, "snoozed", cardId);
+
+        mockMvc.perform(put("/api/cards/{id}/star", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"starStatus\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.likeCount").value(1))
+                .andExpect(jsonPath("$.growthStatus").value("SEED"));
+
+        mockMvc.perform(put("/api/cards/{id}/snooze", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nextIntervalDays\":5}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nextShowAt").exists())
+                .andExpect(jsonPath("$.growthStatus").value("SEED"));
+
+        mockMvc.perform(put("/api/cards/{id}/read", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.openCount").value(1))
+                .andExpect(jsonPath("$.growthStatus").value("SEED"));
+
+        mockMvc.perform(put("/api/cards/{id}/archive", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"archivedStatus\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isArchived").value(true));
+
+        assertCardListContains(token, "archived", cardId);
+        assertCardListExcludes(token, "all", cardId);
+
+        mockMvc.perform(put("/api/works/{id}", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new WorkUpdateRequest(
+                        "封存後仍保留素材",
+                        null,
+                        null,
+                        "ARCHIVED"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ARCHIVED"));
+
+        mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].cardId").value(cardId))
+                .andExpect(jsonPath("$[0].status").value("CANDIDATE"))
+                .andExpect(jsonPath("$[0].cardGrowthStatus").value("SEED"));
+
+        assertThat(cardRepository.existsById(cardId)).isTrue();
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId)).isPresent();
+    }
+
     private String register(String username, String email) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -469,6 +601,30 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
         throw new AssertionError("找不到 workId=" + workId + " 的卡片作品關聯");
     }
 
+    private void assertCardListContains(String token, String boardType, long cardId) throws Exception {
+        JsonNode cards = getCardList(token, boardType);
+        assertThat(cards).anyMatch(card -> card.get("id").asLong() == cardId);
+    }
+
+    private void assertCardListExcludes(String token, String boardType, long cardId) throws Exception {
+        JsonNode cards = getCardList(token, boardType);
+        assertThat(cards).noneMatch(card -> card.get("id").asLong() == cardId);
+    }
+
+    private JsonNode getCardList(String token, String boardType) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/cards/list")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CardListRequest(
+                        1,
+                        20,
+                        boardType,
+                        10))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString());
+    }
+
     private String addCardJson(long cardId, String note) throws Exception {
         return objectMapper.writeValueAsString(new AddCardRequest(cardId, note));
     }
@@ -481,9 +637,25 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
 
     private record WorkRequest(String title, String description, String externalUrl) {}
 
+    private record WorkUpdateRequest(
+            String title,
+            String description,
+            String externalUrl,
+            String status
+    ) {}
+
     private record AddCardRequest(Long cardId, String note) {}
 
     private record StatusRequest(String status) {}
+
+    private record NoteRequest(String note) {}
+
+    private record CardListRequest(
+            Integer pageNumber,
+            Integer pageSize,
+            String boardType,
+            Integer threshold
+    ) {}
 
     private record CardRequest(
             String type,

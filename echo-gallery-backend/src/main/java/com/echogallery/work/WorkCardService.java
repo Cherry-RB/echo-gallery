@@ -93,6 +93,22 @@ public class WorkCardService {
         return toResponse(relation);
     }
 
+    @Transactional
+    public WorkCardResponse updateNote(
+            Long workId,
+            Long cardId,
+            UpdateWorkCardNoteRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        getOwnedWork(workId, userId);
+        getOwnedCard(cardId, userId);
+
+        WorkCard relation = workCardRepository.findByWorkIdAndCardId(workId, cardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "作品素材關聯不存在"));
+        relation.setNote(normalizeOptionalText(request.getNote()));
+
+        return toResponse(relation);
+    }
+
     private Work getOwnedWork(Long workId, Long userId) {
         Work work = workRepository.findById(workId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "作品不存在"));

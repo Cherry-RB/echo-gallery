@@ -3,6 +3,7 @@ import type {
   CardWork,
   CreateWorkRequest,
   UpdateWorkCardStatusRequest,
+  UpdateWorkCardNoteRequest,
   UpdateWorkRequest,
   WorkCard,
   WorkDetail,
@@ -79,6 +80,18 @@ export const workApi = {
   ): Promise<WorkCard> {
     return request({
       url: `/works/${workId}/cards/${cardId}/status`,
+      method: 'PUT',
+      data,
+    })
+  },
+
+  updateWorkCardNote(
+    workId: ResourceId,
+    cardId: ResourceId,
+    data: UpdateWorkCardNoteRequest,
+  ): Promise<WorkCard> {
+    return request({
+      url: `/works/${workId}/cards/${cardId}/note`,
       method: 'PUT',
       data,
     })
