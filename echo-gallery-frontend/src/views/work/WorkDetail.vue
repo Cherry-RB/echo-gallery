@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import WorkMaterialManager from '../../components/work/WorkMaterialManager.vue'
 import type { UpdateWorkRequest, WorkStatus } from '../../types/work'
 import { formatDate } from '../../utils/formatDate'
 import { workApi } from '../../utils/api/workApi'
@@ -207,6 +208,8 @@ const submitUpdateWork = async () => {
       </article>
     </div>
 
+    <WorkMaterialManager v-if="work" :work-id="props.id" />
+
     <el-dialog
       v-model="editDialogVisible"
       title="編輯作品"
@@ -222,11 +225,7 @@ const submitUpdateWork = async () => {
         @submit.prevent="submitUpdateWork"
       >
         <el-form-item label="作品名稱" prop="title">
-          <el-input
-            v-model="editForm.title"
-            maxlength="255"
-            show-word-limit
-          />
+          <el-input v-model="editForm.title" maxlength="255" show-word-limit />
         </el-form-item>
 
         <el-form-item label="作品說明" prop="description">
@@ -282,7 +281,7 @@ const submitUpdateWork = async () => {
 <style scoped>
 .work-detail-page {
   width: 100%;
-  max-width: 960px;
+  max-width: 1040px;
   margin: 0 auto;
 }
 

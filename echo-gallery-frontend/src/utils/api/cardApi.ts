@@ -4,11 +4,18 @@ import request from "./request"
 
 export const cardApi = {
     // 取得卡片瀑布流
-    getCards(data: { pageNumber: number, pageSize: number, boardType: BoardType, threshold?: number }): Promise<any>{
+    getCards(data: { pageNumber: number, pageSize: number, boardType: BoardType, threshold?: number }): Promise<CardDto[]>{
         return request({
             url: "/cards/list",
             method: "POST",
             data
+        });
+    },
+    searchCards(data: { keyword: string, pageNumber: number, pageSize: number }): Promise<CardDto[]> {
+        return request({
+            url: "/cards/search",
+            method: "GET",
+            params: data
         });
     },
     // 取得單張卡片資訊

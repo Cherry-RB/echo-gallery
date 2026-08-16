@@ -86,6 +86,48 @@ public class CardService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<CardSummaryResponse> searchCards(String keyword, Integer pageNumber, Integer pageSize) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (normalizedKeyword.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "搜尋關鍵字不可為空白");
+        }
+        if (normalizedKeyword.length() > 255) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "搜尋關鍵字不可超過 255 個字");
+        }
+
+        int page = pageNumber != null && pageNumber > 0 ? pageNumber - 1 : 0;
+        int requestedSize = pageSize != null && pageSize > 0 ? pageSize : 20;
+        int size = Math.min(requestedSize, 100);
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+                        .and(Sort.by(Sort.Direction.DESC, "id")));
+
+        Long cardId = parseSearchCardId(normalizedKeyword);
+        return cardRepository.searchActiveCards(
+                        SecurityUtil.getCurrentUserId(),
+                        cardId,
+                        normalizedKeyword,
+                        pageable)
+                .getContent()
+                .stream()
+                .map(this::convertToSummaryResponse)
+                .toList();
+    }
+
+    private Long parseSearchCardId(String keyword) {
+        String idCandidate = keyword.startsWith("#") ? keyword.substring(1) : keyword;
+        if (idCandidate.isEmpty() || !idCandidate.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+
+        try {
+            return Long.valueOf(idCandidate);
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
     @Transactional
     public CardDetailResponse getCardDetailById(Long id){
         // 1. 從安全上下文抓取目前發出請求的用戶 ID（對應你前端攔截器帶入的 Token 身份）

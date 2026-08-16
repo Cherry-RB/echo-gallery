@@ -195,6 +195,7 @@ const deleteCard = () => {
             <el-icon :size="16"><RefreshRight /></el-icon>
             <span>{{ formatDate(data.nextShowAt, "YYYY-MM-DD") }}</span>
           </div>
+          <span class="card-id" @click.stop>#{{ data.id }}</span>
           <!-- </div> -->
           <!-- 更多功能按鈕 -->
   <el-dropdown @click.stop>
@@ -268,6 +269,13 @@ const deleteCard = () => {
   gap: 8px;
   overflow: hidden; /* 防止標題把標籤擠掉 */
 }
+.card-id {
+  color: var(--el-text-color-placeholder);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  white-space: nowrap;
+}
 .card-body{
   text-align: left;
   display: flex;
@@ -334,7 +342,7 @@ const deleteCard = () => {
   /* 瀏覽器不知道怎麼斷行，導致整行直接隱形或破版 */
   overflow-wrap: break-word;
   word-break: break-word;
-  margin-bottom: 10px;
+  margin: 0 0 10px;
 }
 .like-count{
   font-weight: 900;

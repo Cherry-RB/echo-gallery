@@ -34,6 +34,14 @@ public class CardController {
         return ResponseEntity.ok(cards);
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<CardSummaryResponse>> searchCards(
+            @RequestParam("keyword") String keyword,
+            @RequestParam(name = "pageNumber", defaultValue = "1") Integer pageNumber,
+            @RequestParam(name = "pageSize", defaultValue = "20") Integer pageSize) {
+        return ResponseEntity.ok(cardService.searchCards(keyword, pageNumber, pageSize));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<CardDetailResponse> getCardDetail(@PathVariable("id") Long id) {
         CardDetailResponse response = cardService.getCardDetailById(id);

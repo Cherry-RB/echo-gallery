@@ -23,6 +23,12 @@ const goBack = () => {
     router.back();
     return;
   }
+  // 從作品素材直接開啟或重新整理時，優先回到來源作品。
+  const fromWork = route.query.fromWork;
+  if (typeof fromWork === 'string' && fromWork) {
+    router.push({ name: 'WorkDetail', params: { id: fromWork } });
+    return;
+  }
   // 沒有紀錄（重新整理 / 外部連結進入）→ 退回到 query 記錄的來源看板，沒有就給預設值
   const fallbackBoard = (route.query.from as string) || 'all';
   router.push(`/board/${fallbackBoard}`);
@@ -348,16 +354,19 @@ const {
             <div class="card-header-zone">
                 <!-- 卡片類型 -->
                 <!-- 顯示/編輯狀態 -->
-                <el-form-item prop="type" style="margin-bottom: 0;">
-                  <el-tag v-if="!isCreateMode" :type="cardData.type==='note'?'success':'primary'">
-                    {{ cardData.type==='note'?'筆記':'連結' }}
-                  </el-tag>
-                  <!-- 創建卡片狀態 -->
-                  <el-radio-group v-else v-model="cardData.type" size="small">
-                    <el-radio-button label="note">筆記</el-radio-button>
-                    <el-radio-button label="link">連結</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
+                <div class="card-identity-row">
+                  <el-form-item prop="type" style="margin-bottom: 0;">
+                    <el-tag v-if="!isCreateMode" :type="cardData.type==='note'?'success':'primary'">
+                      {{ cardData.type==='note'?'筆記':'連結' }}
+                    </el-tag>
+                    <!-- 創建卡片狀態 -->
+                    <el-radio-group v-else v-model="cardData.type" size="small">
+                      <el-radio-button label="note">筆記</el-radio-button>
+                      <el-radio-button label="link">連結</el-radio-button>
+                    </el-radio-group>
+                  </el-form-item>
+                  <span v-if="!isCreateMode" class="detail-card-id">#{{ cardData.id }}</span>
+                </div>
 
                 <el-form-item prop="title" style="flex: 1; margin-bottom: 0;">
                   <h1 v-if="!isEditMode" class="main-title">{{ cardData.title }}</h1>
@@ -688,6 +697,8 @@ const {
 .right-sidebar { flex: 1; min-width: 280px; position: sticky; top: 20px; }
 .detail-card, .sidebar-card { box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05); }
 .card-header-zone { display: flex; flex-direction: column; gap: 12px; }
+.card-identity-row { display: flex; align-items: center; gap: 8px; }
+.detail-card-id { color: var(--el-text-color-placeholder); font-size: 12px; font-variant-numeric: tabular-nums; }
 .main-title { font-size: 20px; font-weight: 600; color: #1d1d1f; margin: 0; line-height: 1.4; }
 .tags-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .cover-wrapper { margin: -20px -20px 20px -20px; overflow: hidden; max-height: 450px; display: flex; align-items: center; justify-content: center; background-color: #f5f7fa; }

@@ -43,6 +43,22 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     // 透過 Spring Data JPA 命名規範，直接建立限定用戶且支援分頁的查詢
     Page<Card> findByUserId(Long userId, Pageable pageable);
 
+    @Query("""
+    SELECT c
+    FROM Card c
+    WHERE c.user.id = :userId
+    AND c.isArchived = false
+    AND (
+        (:cardId IS NOT NULL AND c.id = :cardId)
+        OR LOWER(c.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+    )
+    """)
+    Page<Card> searchActiveCards(
+            @Param("userId") Long userId,
+            @Param("cardId") Long cardId,
+            @Param("keyword") String keyword,
+            Pageable pageable);
+
     // 統計資訊 1: 今日回流卡片數
     long countByUserIdAndIsArchivedFalseAndNextShowAtLessThan(Long userId, ZonedDateTime startOfTomorrow);
 
