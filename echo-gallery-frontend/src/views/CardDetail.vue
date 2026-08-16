@@ -3,17 +3,18 @@ defineOptions({ name: 'CardDetail' })
 
 import { ArrowLeft, Link, Star, StarFilled, Calendar, CollectionTag, Clock, Plus } from '@element-plus/icons-vue'
 import router from '../router';
-import type { CardContentRequest, CardDto, CardGrowthStatus, UpdateCardRequest } from '../types/card';
-import { computed, reactive, ref, toRaw, watch } from 'vue';
+import type { CardDto, CardGrowthStatus, UpdateCardRequest } from '../types/card';
+import { computed, ref, toRaw, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
 import { cardApi } from '../utils/api/cardApi';
 import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';
 import { useRoute } from 'vue-router';
-import type { FormInstance, FormRules } from 'element-plus';
+import type { FormInstance } from 'element-plus';
 import { useTags } from '../utils/composables/useTags';
 import CardWorkManager from '../components/work/CardWorkManager.vue';
+import { createCardFormRules, toCardContentRequest } from '../utils/cardForm';
 
 const props = defineProps<{ id: string }>();
 const route = useRoute();
@@ -59,18 +60,6 @@ const currentGrowthStatus = computed(() =>
   growthStatusOptions.find(option => option.value === cardData.value.growthStatus)
     ?? growthStatusOptions[0]
 );
-
-const toCardContentRequest = (card: CardDto): CardContentRequest => ({
-  type: card.type,
-  title: card.title,
-  url: card.url,
-  summary: card.summary,
-  content: card.content,
-  reason: card.reason,
-  coverImageUrl: card.coverImageUrl,
-  tags: card.tags,
-  intervalDays: card.intervalDays
-});
 
 // 監聽路由的 id 變動，當從詳情頁切換到 'new' (新增模式) 時，強制重置表單與狀態
 watch(() => props.id, (newId) => {
@@ -215,73 +204,7 @@ const openSourceUrl = () => {
 // 建立表單參照
 const cardFormRef = ref<FormInstance>();
 
-const isHttpUrl = (value?: string) => {
-  if (!value) return true;
-  try {
-    const url = new URL(value);
-    return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname);
-  } catch {
-    return false;
-  }
-};
-
-const validateUrl = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
-  if (cardData.value.type === 'link' && !value?.trim()) {
-    callback(new Error('連結類卡片必須提供來源網址'));
-    return;
-  }
-  callback(isHttpUrl(value) ? undefined : new Error('來源網址必須是有效的 HTTP 或 HTTPS 網址'));
-};
-
-const validateOptionalUrl = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
-  callback(isHttpUrl(value) ? undefined : new Error('封面圖片網址必須是有效的 HTTP 或 HTTPS 網址'));
-};
-
-const validateTags = (_rule: unknown, value: string[], callback: (error?: Error) => void) => {
-  if ((value?.length ?? 0) > 10) {
-    callback(new Error('每張卡片最多只能有 10 個標籤'));
-    return;
-  }
-  const normalizedTags = (value ?? []).map(tag => tag.trim());
-  if (normalizedTags.some(tag => !tag || tag.length > 50)) {
-    callback(new Error('標籤不可為空，且單一標籤不可超過 50 個字元'));
-    return;
-  }
-  callback(new Set(normalizedTags).size === normalizedTags.length
-    ? undefined
-    : new Error('標籤不可重複'));
-};
-
-// 對應你後端 DTO 的驗證規則
-const rules = reactive<FormRules>({
-  type: [
-    { required: true, message: '卡片類型不能為空', trigger: 'change' }
-  ],
-  title: [
-    { required: true, message: '標題不能為空', trigger: 'blur' },
-    { max: 255, message: '標題長度不能超過 255 個字元', trigger: 'blur' }
-  ],
-  coverImageUrl: [
-    { max: 2048, message: '封面圖片網址不可超過 2048 個字元', trigger: 'blur' },
-    { validator: validateOptionalUrl, trigger: 'blur' }
-  ],
-  url: [
-    { max: 2048, message: '來源網址不可超過 2048 個字元', trigger: 'blur' },
-    { validator: validateUrl, trigger: 'blur' }
-  ],
-  summary: [
-    { max: 600, message: '摘要不能超過 600 個字元', trigger: 'blur' }
-  ],
-  reason: [
-    { max: 300, message: '原因不能超過 300 個字元', trigger: 'blur' }
-  ],
-  tags: [
-    { validator: validateTags, trigger: 'change' }
-  ],
-  intervalDays: [
-    { type: 'number', min: 1, max: 365, message: '回流間隔必須介於 1 到 365 天', trigger: 'change' }
-  ]
-});
+const rules = createCardFormRules(cardData);
 
 const deleteCard = async () => {
   await handleDeleteCard({ id: props.id });

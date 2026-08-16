@@ -379,5 +379,6 @@ export const useCardStatus = () => {
         isArchivePending: archiveMutation.isPending,
         isSnoozePending: snoozeMutation.isPending,
         isReadPending: readMutation.isPending,
+        isCreatePending: createCardMutation.isPending,
     };
 };

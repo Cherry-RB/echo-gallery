@@ -3,11 +3,18 @@ import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import LeftSidebar from '../components/LeftSidebar.vue'
 import RightSidebar from '../components/RightSidebar.vue'
+import QuickCreateCardDialog from '../components/QuickCreateCardDialog.vue'
 
 const isLeftDrawerOpen = ref(false)
 const isRightDrawerOpen = ref(false)
+const isQuickCreateOpen = ref(false)
 
 const route = useRoute()
+
+const openQuickCreate = () => {
+  isLeftDrawerOpen.value = false
+  isQuickCreateOpen.value = true
+}
 
 // 當偵測到頁面路由切換時，才自動關閉手機版抽屜
 watch(() => route.path, () => {
@@ -28,7 +35,7 @@ watch(() => route.path, () => {
     </header>
 
     <aside class="sidebar desktop-only">
-      <LeftSidebar />
+      <LeftSidebar @open-quick-create="openQuickCreate" />
     </aside>
 
     <el-drawer
@@ -39,7 +46,7 @@ watch(() => route.path, () => {
       destroy-on-close
       class="custom-mobile-drawer"
     >
-      <LeftSidebar />
+      <LeftSidebar @open-quick-create="openQuickCreate" />
     </el-drawer>
 
     <main class="content-viewport">
@@ -66,6 +73,8 @@ watch(() => route.path, () => {
         <RightSidebar />
       </div>
     </el-drawer>
+
+    <QuickCreateCardDialog v-model="isQuickCreateOpen" />
   </div>
 </template>
 

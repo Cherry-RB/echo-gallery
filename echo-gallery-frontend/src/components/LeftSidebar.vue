@@ -21,6 +21,9 @@ import { storeToRefs } from 'pinia';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const emit = defineEmits<{
+  'open-quick-create': []
+}>()
 
 const { isAuthenticated, username } = storeToRefs(authStore)
 
@@ -42,6 +45,14 @@ const menuItems = [
 ]
 
 const activeMenu = computed(() => route.path)
+
+const openQuickCreate = () => {
+  if (!isAuthenticated.value) {
+    router.push('/login')
+    return
+  }
+  emit('open-quick-create')
+}
 </script>
 
 <template>
@@ -51,7 +62,7 @@ const activeMenu = computed(() => route.path)
       <h2 class="brand-title">EchoGallery</h2>
     </div>
 
-    <el-button type="primary" size="large" :icon="Plus" class="create-card-btn" style="font-size: 20px;height: 50px;" @click="router.push('/card/new')">
+    <el-button type="primary" size="large" :icon="Plus" class="create-card-btn" style="font-size: 20px;height: 50px;" @click="openQuickCreate">
       新建卡片
     </el-button>
 
