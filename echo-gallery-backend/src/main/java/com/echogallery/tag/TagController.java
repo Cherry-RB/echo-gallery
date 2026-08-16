@@ -29,7 +29,7 @@ public class TagController {
 
     @PutMapping("/{id}")
     public ResponseEntity<TagDto> updateTag(
-        @PathVariable Long id,
+        @PathVariable("id") Long id,
         @Valid @RequestBody TagRequest request
     ) {
          TagDto response = tagService.updateTag(id, request.getName());
@@ -37,7 +37,7 @@ public class TagController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTag(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteTag(@PathVariable("id") Long id) {
         tagService.deleteTag(id);
         return ResponseEntity.noContent().build();
     }

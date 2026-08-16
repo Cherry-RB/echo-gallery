@@ -35,7 +35,7 @@ public class CardController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CardDetailResponse> getCardDetail(@PathVariable Long id) {
+    public ResponseEntity<CardDetailResponse> getCardDetail(@PathVariable("id") Long id) {
         CardDetailResponse response = cardService.getCardDetailById(id);
         return ResponseEntity.ok(response);
     }
@@ -55,40 +55,40 @@ public class CardController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<CardDetailResponse> deleteCard(@PathVariable Long id) {
+    public ResponseEntity<CardDetailResponse> deleteCard(@PathVariable("id") Long id) {
         CardDetailResponse response = cardService.deleteCardById(id);
         return ResponseEntity.ok(response);
     }
 
     ////////// 卡片互動 ////////////
     @PutMapping("/{id}/star")
-    public ResponseEntity<CardDetailResponse> toggleCardStar(@PathVariable Long id, @RequestBody CardStatusRequest request) {
+    public ResponseEntity<CardDetailResponse> toggleCardStar(@PathVariable("id") Long id, @RequestBody CardStatusRequest request) {
         CardDetailResponse response = cardService.toggleCardStar(id, request);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/archive")
-    public ResponseEntity<CardDetailResponse> toggleCardArchive(@PathVariable Long id, @RequestBody CardStatusRequest request) {
+    public ResponseEntity<CardDetailResponse> toggleCardArchive(@PathVariable("id") Long id, @RequestBody CardStatusRequest request) {
         CardDetailResponse response = cardService.toggleCardArchive(id, request);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/snooze")
-    public ResponseEntity<CardDetailResponse> snoozeCard(@PathVariable Long id, @RequestBody CardStatusRequest request) {
+    public ResponseEntity<CardDetailResponse> snoozeCard(@PathVariable("id") Long id, @RequestBody CardStatusRequest request) {
         CardDetailResponse response = cardService.snoozeCard(id, request);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/read")
-    public ResponseEntity<CardDetailResponse> readCard(@PathVariable Long id) {
+    public ResponseEntity<CardDetailResponse> readCard(@PathVariable("id") Long id) {
         CardDetailResponse response = cardService.readCard(id);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/tag")
     public ResponseEntity<List<CardSummaryResponse>> getCardListByTag(
-            @RequestParam List<Long> tagIds,
-            @RequestParam(defaultValue = "OR") String operator) {
+            @RequestParam("tagIds") List<Long> tagIds,
+            @RequestParam(name = "operator", defaultValue = "OR") String operator) {
         return ResponseEntity.ok(cardService.getCardListByTag(tagIds, operator));
     }
 }
