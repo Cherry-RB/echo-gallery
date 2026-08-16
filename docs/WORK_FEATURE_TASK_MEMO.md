@@ -1,9 +1,9 @@
 # Work 功能任務追蹤 Memo
 
 - 建立日期：2026-08-16
-- 目前基線分支：`feat/OTPAR`
-- 預計功能分支：`feat/work-management`
-- 目前狀態：任務 1 程式模型完成，等待保存及執行 Work table SQL
+- 基線分支：`feat/OTPAR`
+- 目前功能分支：`feat/work-management`
+- 目前狀態：任務 2 完成；Work table SQL 已在本機執行，Supabase 待整體功能驗收
 - 需求來源：`ECHO_GALLERY_CREATION_INCUBATOR_CHANGE_REQUIREMENTS.md`
 
 ---
@@ -83,23 +83,23 @@ feat(work): 建立作品資料模型
 
 預計內容：
 
-- [ ] 建立 Work request／response DTO。
-- [ ] 新增 `WorkService`。
-- [ ] 新增 `WorkController`。
-- [ ] 支援新增 Work。
-- [ ] 支援 Work list。
-- [ ] 支援 Work detail。
-- [ ] 支援修改 Work。
-- [ ] 支援封存 Work。
-- [ ] 檢查 Work ownership。
-- [ ] 新增 Controller／Service 整合測試。
+- [x] 建立 Work request／response DTO。
+- [x] 新增 `WorkService`。
+- [x] 新增 `WorkController`。
+- [x] 支援新增 Work。
+- [x] 支援 Work list。
+- [x] 支援 Work detail。
+- [x] 支援修改 Work。
+- [x] 支援封存 Work。
+- [x] 檢查 Work ownership。
+- [x] 新增 Controller／Service 整合測試。
 
 完成條件：
 
-- [ ] 使用者只能讀寫自己的 Work。
-- [ ] 建立、查看、修改與封存皆可正常操作。
-- [ ] 非法 URL 或欄位內容會收到合理錯誤。
-- [ ] 後端測試通過。
+- [x] 使用者只能讀寫自己的 Work。
+- [x] 建立、查看、修改與封存皆可正常操作。
+- [x] 非法 URL 或欄位內容會收到合理錯誤。
+- [x] Work 管理整合測試通過：`./gradlew test --tests com.echogallery.work.WorkManagementIntegrationTests`，2026-08-16。
 
 建議 commit：
 
@@ -199,7 +199,7 @@ feat(card): 新增卡片加入作品流程
 
 後端驗收：
 
-- [ ] Work CRUD 與 ownership 正常。
+- [ ] Work 建立、查詢、修改、封存與 ownership 正常。
 - [ ] 同一 Card 可以加入多個 Work。
 - [ ] 同一 Card 不可重複加入同一 Work。
 - [ ] `CANDIDATE → USED` 會設定 `usedAt`。
@@ -243,7 +243,7 @@ SQL 目前預計存放於 VS Code Database 套件管理的 SQL 資料夾，不�
 
 | SQL | 本機 PostgreSQL | 重複執行 | Supabase 正式環境 | 備註 |
 | --- | --- | --- | --- | --- |
-| 建立 `works` | 未執行 | 未驗證 | 未執行 | 路徑待填 |
+| 建立 `works` | 已執行（2026-08-16） | 未驗證 | 未執行 | SQL 存放於 repository 外部 |
 | 建立 `work_cards` | 未執行 | 未驗證 | 未執行 | 路徑待填 |
 
 正式環境執行原則：

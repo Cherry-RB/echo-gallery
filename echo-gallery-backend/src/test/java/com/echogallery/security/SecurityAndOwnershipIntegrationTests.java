@@ -25,6 +25,7 @@ import com.echogallery.card.CardRepository;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
+import com.echogallery.work.WorkRepository;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -49,11 +50,15 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private WorkRepository workRepository;
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
     @BeforeEach
     void cleanDatabase() {
+        workRepository.deleteAll();
         cardRepository.deleteAll();
         tagRepository.deleteAll();
         userRepository.deleteAll();
