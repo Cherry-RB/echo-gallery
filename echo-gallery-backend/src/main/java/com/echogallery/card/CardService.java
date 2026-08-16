@@ -132,6 +132,9 @@ public class CardService {
         card.setReason(request.getReason());
         card.setSummary(request.getSummary());
         card.setContent(request.getContent());
+        if (request.getGrowthStatus() != null) {
+            card.setGrowthStatus(request.getGrowthStatus());
+        }
         // 透過 clear() 與 addAll() 保持 PersistentSet 的引用，讓 Hibernate 聰明地只做差集 SQL 更新
         card.updateTags(associatedTags);
         // 只有當前端有傳入新的 intervalDays 且跟原本不同時，才重新計算時間
@@ -256,6 +259,7 @@ public class CardService {
         response.setCreatedAt(card.getCreatedAt());
         response.setIsArchived(card.isArchived());
         response.setIntervalDays(card.getIntervalDays());
+        response.setGrowthStatus(card.getGrowthStatus());
         return response;
     }
 
@@ -279,6 +283,7 @@ public class CardService {
         response.setIsArchived(card.isArchived());
         response.setLastOpenAt(card.getLastOpenAt());
         response.setLastInteractionAt(card.getLastInteractionAt());
+        response.setGrowthStatus(card.getGrowthStatus());
         response.setCreatedAt(card.getCreatedAt());
         response.setUpdatedAt(card.getUpdatedAt());
         response.setSourceType(card.getSourceType());

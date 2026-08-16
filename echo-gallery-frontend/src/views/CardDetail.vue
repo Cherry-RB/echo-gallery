@@ -3,7 +3,7 @@ defineOptions({ name: 'CardDetail' })
 
 import { ArrowLeft, Link, Star, StarFilled, Calendar, CollectionTag, Clock, Plus } from '@element-plus/icons-vue'
 import router from '../router';
-import type { CardContentRequest, CardDto, UpdateCardRequest } from '../types/card';
+import type { CardContentRequest, CardDto, CardGrowthStatus, UpdateCardRequest } from '../types/card';
 import { computed, reactive, ref, toRaw, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
@@ -37,6 +37,21 @@ const isEditMode = ref(isCreateMode.value)
 
 // 模擬資料取得
 const cardData = ref<CardDto>(getDefaultCardData());
+
+const growthStatusOptions: Array<{
+  value: CardGrowthStatus;
+  label: string;
+  tagType: 'success' | 'warning' | 'primary';
+}> = [
+  { value: 'SEED', label: '🌱 種子', tagType: 'success' },
+  { value: 'GROWING', label: '🌿 生長', tagType: 'warning' },
+  { value: 'MATURE', label: '🌳 成熟', tagType: 'primary' }
+];
+
+const currentGrowthStatus = computed(() =>
+  growthStatusOptions.find(option => option.value === cardData.value.growthStatus)
+    ?? growthStatusOptions[0]
+);
 
 const toCardContentRequest = (card: CardDto): CardContentRequest => ({
   type: card.type,
@@ -121,7 +136,8 @@ const handleSave = async () => {
       // 調用對外接口更新卡片（傳入封裝好的參數物件）
       const request: UpdateCardRequest = {
         ...toCardContentRequest(cardData.value),
-        isArchived: cardData.value.isArchived
+        isArchived: cardData.value.isArchived,
+        growthStatus: cardData.value.growthStatus
       };
       handleUpdateCard({ id: props.id, data: request }, {
         // 💡 後端儲存成功且快取重整後，才執行 UI 狀態切換
@@ -577,6 +593,30 @@ const {
           <el-divider class="compact-divider" />
 
           <div class="info-list">
+            <div class="info-item">
+              <span class="info-label">成長狀態</span>
+              <el-tag
+                v-if="!isEditMode"
+                :type="currentGrowthStatus.tagType"
+                size="small"
+                effect="light"
+              >
+                {{ currentGrowthStatus.label }}
+              </el-tag>
+              <el-select
+                v-else
+                v-model="cardData.growthStatus"
+                size="small"
+                style="width: 112px;"
+              >
+                <el-option
+                  v-for="option in growthStatusOptions"
+                  :key="option.value"
+                  :value="option.value"
+                  :label="option.label"
+                />
+              </el-select>
+            </div>
             <div class="info-item">
               <span class="info-label">使用狀態</span>
               <template v-if="!isEditMode">

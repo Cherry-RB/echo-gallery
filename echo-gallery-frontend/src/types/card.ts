@@ -1,5 +1,7 @@
 export type CardType = "note" | "link";
 
+export type CardGrowthStatus = "SEED" | "GROWING" | "MATURE";
+
 export type ViewMode = "text" | "gallery";
 
 export type SourceType =
@@ -26,6 +28,7 @@ export type CreateCardRequest = CardContentRequest;
 
 export interface UpdateCardRequest extends CardContentRequest {
     isArchived: boolean;
+    growthStatus?: CardGrowthStatus;
 }
 
 export interface CardDto {
@@ -73,6 +76,8 @@ export interface CardDto {
 
     // 狀態 (是否封存)
     isArchived: boolean;
+
+    growthStatus?: CardGrowthStatus;
 
     isShowContentPreview?: boolean| null;
 

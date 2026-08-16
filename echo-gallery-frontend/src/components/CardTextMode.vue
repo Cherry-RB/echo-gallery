@@ -14,6 +14,16 @@ const props = defineProps<{
 
 const capabilities = computed(() => getBoardCapabilities(props.boardType));
 
+const growthTag = computed(() => {
+  if (props.data.growthStatus === 'GROWING') {
+    return { icon: '🌿', label: '生長' };
+  }
+  if (props.data.growthStatus === 'MATURE') {
+    return { icon: '🌳', label: '成熟' };
+  }
+  return null;
+});
+
 const emit = defineEmits<{
   (e: "open-detail", card: any): void;
 }>();
@@ -111,7 +121,11 @@ const deleteCard = () => {
 
 <template>
   <el-card @click="goToDetail"
-  :class="['card-clickable', { 'card-muted-style': isMuted }, { disabled: isMuted }]">
+  :class="[
+    'card-clickable',
+    { 'card-muted-style': isMuted },
+    { disabled: isMuted }
+  ]">
 
     <div v-if="isMuted" class="muted-overlay">
         <span>📥 已封存卡片</span>
@@ -131,6 +145,18 @@ const deleteCard = () => {
       <p class="card-body-content" v-if="getCardShowInfo">{{ getCardShowInfo }}</p>
       <!-- 標籤 -->
       <div class="tag-container">
+        <el-tooltip v-if="growthTag" :content="growthTag.label" placement="top">
+          <el-tag
+            type="info"
+            size="small"
+            effect="plain"
+            class="growth-status-tag"
+            role="img"
+            :aria-label="growthTag.label"
+          >
+            {{ growthTag.icon }}
+          </el-tag>
+        </el-tooltip>
         <el-tag v-for="tag in data.tags" type="info" size="small" effect="plain" :key="tag">#{{ tag }}</el-tag>
       </div>
 
@@ -219,13 +245,21 @@ const deleteCard = () => {
 }
 .tag-container{
   display: flex;
-  gap: 5px;
+  gap: 0;
   overflow: hidden;    /* 隱藏超出寬度的標籤 */
   white-space: nowrap; /* 強制不換行（若想換行則改用 flex-wrap: wrap） */
   flex: 1;             /* 讓標籤區塊自動伸縮 */
   /* 選配：加上漸層遮罩，讓標籤末端看起來是淡出的，比較美觀 */
   mask-image: linear-gradient(to right, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+.growth-status-tag {
+  flex: 0 0 auto;
+  width: 24px;
+  padding: 0;
+  margin-right: 5px;
+  justify-content: center;
+  cursor: default;
 }
 /* 讓標題跟標籤有點距離 */
 .card-header {

@@ -1,6 +1,7 @@
 package com.echogallery.card;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -180,6 +181,130 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
         performCreate(request).andExpect(status().isOk());
 
         assertThat(tagRepository.count()).isEqualTo(10);
+    }
+
+    @Test
+    void createReturnsSeedGrowthStatusByDefault() throws Exception {
+        MvcResult createResult = performCreate(validRequest())
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(createResult.getResponse().getContentAsString());
+
+        assertThat(response.get("growthStatus").asText()).isEqualTo("SEED");
+    }
+
+    @Test
+    void getCardDetailBindsPathVariable() throws Exception {
+        MvcResult createResult = performCreate(validRequest())
+                .andExpect(status().isOk())
+                .andReturn();
+        long cardId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(get("/api/cards/{id}", cardId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void updateChangesAndReturnsGrowthStatus() throws Exception {
+        MvcResult createResult = performCreate(validRequest())
+                .andExpect(status().isOk())
+                .andReturn();
+        long cardId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        Map<String, Object> updateRequest = validRequest();
+        updateRequest.put("isArchived", false);
+        updateRequest.put("growthStatus", "GROWING");
+
+        MvcResult updateResult = mockMvc.perform(put("/api/cards/{id}", cardId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(updateResult.getResponse().getContentAsString());
+        assertThat(response.get("growthStatus").asText()).isEqualTo("GROWING");
+        assertThat(cardRepository.findById(cardId))
+                .get()
+                .extracting(Card::getGrowthStatus)
+                .isEqualTo(CardGrowthStatus.GROWING);
+    }
+
+    @Test
+    void cardListReturnsGrowthStatus() throws Exception {
+        MvcResult createResult = performCreate(validRequest())
+                .andExpect(status().isOk())
+                .andReturn();
+        long cardId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        Map<String, Object> updateRequest = validRequest();
+        updateRequest.put("isArchived", false);
+        updateRequest.put("growthStatus", "MATURE");
+        mockMvc.perform(put("/api/cards/{id}", cardId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk());
+
+        MvcResult listResult = mockMvc.perform(post("/api/cards/list")
+                        .header(HttpHeaders.AUTHORIZATION, bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "pageNumber", 1,
+                                "pageSize", 15,
+                                "boardType", "all"))))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(listResult.getResponse().getContentAsString());
+        assertThat(response.get(0).get("growthStatus").asText()).isEqualTo("MATURE");
+    }
+
+    @Test
+    void updateWithoutGrowthStatusKeepsExistingValue() throws Exception {
+        MvcResult createResult = performCreate(validRequest())
+                .andExpect(status().isOk())
+                .andReturn();
+        long cardId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        Map<String, Object> updateRequest = validRequest();
+        updateRequest.put("isArchived", false);
+
+        mockMvc.perform(put("/api/cards/{id}", cardId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk());
+
+        assertThat(cardRepository.findById(cardId))
+                .get()
+                .extracting(Card::getGrowthStatus)
+                .isEqualTo(CardGrowthStatus.SEED);
+    }
+
+    @Test
+    void updateRejectsUnknownGrowthStatus() throws Exception {
+        MvcResult createResult = performCreate(validRequest())
+                .andExpect(status().isOk())
+                .andReturn();
+        long cardId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        Map<String, Object> updateRequest = validRequest();
+        updateRequest.put("isArchived", false);
+        updateRequest.put("growthStatus", "COMPLETED");
+
+        mockMvc.perform(put("/api/cards/{id}", cardId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isBadRequest());
+
+        assertThat(cardRepository.findById(cardId))
+                .get()
+                .extracting(Card::getGrowthStatus)
+                .isEqualTo(CardGrowthStatus.SEED);
     }
 
     @Test

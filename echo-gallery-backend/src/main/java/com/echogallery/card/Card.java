@@ -87,6 +87,11 @@ public class Card {
     @Column(name = "last_interaction_at")
     private ZonedDateTime lastInteractionAt;
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "growth_status", nullable = false, length = 20)
+    private CardGrowthStatus growthStatus = CardGrowthStatus.SEED;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private ZonedDateTime createdAt;

@@ -22,4 +22,5 @@ public class CardSummaryResponse {
     @JsonProperty("isArchived")
     private Boolean isArchived;
     private Integer intervalDays;
+    private CardGrowthStatus growthStatus;
 }

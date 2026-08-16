@@ -27,6 +27,7 @@ public class CardDetailResponse {
     private Boolean isArchived;
     private ZonedDateTime lastOpenAt;
     private ZonedDateTime lastInteractionAt;
+    private CardGrowthStatus growthStatus;
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;
     private String sourceType;
