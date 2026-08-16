@@ -4,6 +4,7 @@ import { Link, Plus } from '@element-plus/icons-vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import type { CreateWorkRequest, WorkStatus } from '../../types/work'
 import { formatDate } from '../../utils/formatDate'
 import { workApi } from '../../utils/api/workApi'
@@ -19,6 +20,7 @@ const workStatusMeta: Record<WorkStatus, { label: string; type: WorkStatusTagTyp
 }
 
 const queryClient = useQueryClient()
+const router = useRouter()
 const createDialogVisible = ref(false)
 const createFormRef = ref<FormInstance>()
 const createForm = reactive<CreateWorkRequest>({
@@ -91,6 +93,10 @@ const openCreateDialog = () => {
   createDialogVisible.value = true
 }
 
+const openWorkDetail = (workId: number) => {
+  router.push({ name: 'WorkDetail', params: { id: workId } })
+}
+
 const resetCreateForm = () => {
   createForm.title = ''
   createForm.description = ''
@@ -155,6 +161,12 @@ const submitCreateWork = async () => {
           :key="work.id"
           shadow="never"
           class="work-card"
+          role="link"
+          tabindex="0"
+          :aria-label="`查看作品：${work.title}`"
+          @click="openWorkDetail(work.id)"
+          @keydown.enter="openWorkDetail(work.id)"
+          @keydown.space.prevent="openWorkDetail(work.id)"
         >
           <div class="work-card-header">
             <h2 class="work-title" :title="work.title">{{ work.title }}</h2>
@@ -187,6 +199,7 @@ const submitCreateWork = async () => {
               rel="noopener noreferrer"
               class="external-link"
               @click.stop
+              @keydown.stop
             >
               <el-icon><Link /></el-icon>
               <span>開啟作品</span>
@@ -303,6 +316,23 @@ const submitCreateWork = async () => {
   height: auto;
   border-color: var(--el-border-color-light);
   box-shadow: var(--el-box-shadow-lighter);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.work-card:hover,
+.work-card:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: var(--el-box-shadow-light);
+}
+
+.work-card:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+.work-card:active {
+  transform: translateY(-1px);
 }
 
 .work-card-header {

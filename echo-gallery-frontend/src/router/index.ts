@@ -102,6 +102,12 @@ const routes = [
       component: () => import('../views/work/WorkList.vue')
     },
     {
+      path: 'works/:id', // 作品詳情
+      name: 'WorkDetail',
+      component: () => import('../views/work/WorkDetail.vue'),
+      props: true
+    },
+    {
       path: '', // 預設導向 今日看板
       redirect: 'board/today'
     }
