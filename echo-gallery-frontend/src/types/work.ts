@@ -28,6 +28,8 @@ export interface UpdateWorkCardStatusRequest {
 export interface WorkSummary {
   id: number
   title: string
+  description: string | null
+  externalUrl: string | null
   status: WorkStatus
   completedAt: string | null
   updatedAt: string

@@ -97,6 +97,11 @@ const routes = [
       component: () => import('../views/center/TagCenter.vue')
     },
     {
+      path: 'works', // 作品列表
+      name: 'WorkList',
+      component: () => import('../views/work/WorkList.vue')
+    },
+    {
       path: '', // 預設導向 今日看板
       redirect: 'board/today'
     }

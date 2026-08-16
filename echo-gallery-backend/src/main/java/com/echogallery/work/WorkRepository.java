@@ -13,6 +13,8 @@ public interface WorkRepository extends JpaRepository<Work, Long> {
             SELECT new com.echogallery.work.WorkSummaryResponse(
                 w.id,
                 w.title,
+                w.description,
+                w.externalUrl,
                 w.status,
                 w.completedAt,
                 w.updatedAt,
@@ -22,7 +24,7 @@ public interface WorkRepository extends JpaRepository<Work, Long> {
             FROM Work w
             LEFT JOIN WorkCard wc ON wc.work = w
             WHERE w.user.id = :userId
-            GROUP BY w.id, w.title, w.status, w.completedAt, w.updatedAt
+            GROUP BY w.id, w.title, w.description, w.externalUrl, w.status, w.completedAt, w.updatedAt
             ORDER BY w.updatedAt DESC
             """)
     List<WorkSummaryResponse> findSummariesByUserId(

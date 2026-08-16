@@ -12,7 +12,8 @@ import {
   Search,
   Plus,
   RemoveFilled,
-  CollectionTag
+  CollectionTag,
+  Briefcase
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';
 import { storeToRefs } from 'pinia';
@@ -35,6 +36,7 @@ const menuItems = [
   { name: '隨機', path: '/board/random', icon: Refresh },
   { name: '封存', path: '/board/archived', icon: Box },
   { name: '稍後再看', path: '/board/snoozed', icon: Loading },
+  { name: '作品', path: '/works', icon: Briefcase },
   { name: '查詢', path: '/search', icon: Search },
   { name: '標籤管理', path: '/center/tag', icon: CollectionTag }
 ]

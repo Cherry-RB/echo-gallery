@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 public class WorkSummaryResponse {
     private Long id;
     private String title;
+    private String description;
+    private String externalUrl;
     private WorkStatus status;
     private ZonedDateTime completedAt;
     private ZonedDateTime updatedAt;

@@ -296,7 +296,11 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
     void workListReturnsCandidateAndUsedCountsPerWorkAndUser() throws Exception {
         String firstToken = register("count-first-owner", "count-first-owner@example.com");
         String secondToken = register("count-second-owner", "count-second-owner@example.com");
-        long populatedWorkId = createWork(firstToken, "有素材作品");
+        long populatedWorkId = createWork(
+                firstToken,
+                "有素材作品",
+                "把候選素材整理成一篇文章",
+                "https://example.com/work");
         long emptyWorkId = createWork(firstToken, "空素材作品");
         long otherWorkId = createWork(secondToken, "其他使用者作品");
         long candidateCardId = createCard(firstToken, "候選計數素材");
@@ -316,6 +320,8 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         JsonNode populatedWork = findWork(response, populatedWorkId);
+        assertThat(populatedWork.get("description").asText()).isEqualTo("把候選素材整理成一篇文章");
+        assertThat(populatedWork.get("externalUrl").asText()).isEqualTo("https://example.com/work");
         assertThat(populatedWork.get("candidateCount").asLong()).isEqualTo(1);
         assertThat(populatedWork.get("usedCount").asLong()).isEqualTo(1);
 
@@ -337,10 +343,14 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
     }
 
     private long createWork(String token, String title) throws Exception {
+        return createWork(token, title, null, null);
+    }
+
+    private long createWork(String token, String title, String description, String externalUrl) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/works")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(new WorkRequest(title, null, null))))
+                .content(objectMapper.writeValueAsString(new WorkRequest(title, description, externalUrl))))
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
