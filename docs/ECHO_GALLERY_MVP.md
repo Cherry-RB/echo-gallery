@@ -14,6 +14,7 @@
 | 1 | 2026.05.08 | 專案MVP設計說明 | 撰寫：簡介、使用方式、MVP 第一版邊界、技術選型/開發規劃、功能需求釐清 |
 | 2 | 2026.06.23 | 補充更新在開發過程中<br>逐步釐清的功能需求 | 補充：<br>1.「使用方式」章節中的推播方式、互動方式、側邊欄、畫面示意圖<br>2.「功能需求釐清與設計決策」補充第2與3項<br>3. 調整文件章節順序：簡介、使用方式、技術選型/開發規劃、功能需求釐清與設計決策<br>4. 暫時移除早期 MVP 邊界草案，待 MVP 第一版完成後重新整理 |
 | 3 | 2026.08.04 | 卡片欄位結構重新設計與 OTPAR 思考框架引入 | 補充：<br>1.「功能需求釐清與設計決策」補充第4項<br>2. 釐清 EchoGallery 定位為回流工具而非文檔儲存庫<br>3. 引入 OTPAR 框架重新設計欄位結構（quote / observe / think / plan / review / content）<br>4. 新增成長狀態欄位（🌱🌿🌳）設計決策<br>5. 標籤功能補強方向與近期行動清單 |
+| 4 | 2026.08.16 | 新增作品孵化最小垂直切片 | 補充：<br>1. 記錄 Card growthStatus 的目前實作<br>2. 新增 Work 與 WorkCard 產品模型<br>3. 記錄 Card 與 Work 的多對多使用流程<br>4. 明確區分 Card growthStatus 與 WorkCard status<br>5. 記錄第一版範圍、暫不實作項目與待驗證假設 |
 
 ---
 
@@ -758,3 +759,158 @@ content (TEXT) → 暫時對應 Plan / Review / Content
 5. 進行一次性卡片內容整理
 6. 驗證通過後，正式動資料庫欄位變更（新增 quote / observe / think / plan / review，移除 reason / summary）
 ```
+
+### 5. 2026.08.16 從內容回流走向作品孵化的最小垂直切片
+
+#### 背景與驗證目的
+
+Echo Gallery 原有流程能讓收藏與想法重新出現，但「重新看見」不一定會自然變成具體輸出。本次新增的 Work 功能不把系統擴張成通用專案管理工具，而是驗證一個較小的產品假設：
+
+> 讓 Card 可以自然進入一個或多個具體 Work，並區分候選素材與已採用素材，是否能提高舊內容最後成為作品一部分的機率？
+
+此假設仍需透過實際使用觀察，不應視為已證實成果。
+
+#### 目前產品模型
+
+##### Card：可長期回流、重複利用的原子素材
+
+Card 仍是 Echo Gallery 的核心資產，不直接隸屬單一作品。Card 可以持續回流、補充內容、調整成長狀態，並被不同 Work 重複使用。
+
+Card 目前使用獨立的 `growthStatus`：
+
+```text
+SEED    🌱 種子
+GROWING 🌿 生長
+MATURE  🌳 成熟
+```
+
+資料庫欄位為必填，既有與新 Card 的預設值為 `SEED`；使用者可在 Card Detail 主動修改。成長狀態描述的是「卡片本身發展到哪裡」，不會因為 Card 被作品採用就自動改變。
+
+##### Work：具體輸出或作品
+
+Work 代表一個可以逐步完成的具體輸出，例如文章、軟體成果、短篇故事、影片、簡報或作品集 Case Study。
+
+目前欄位包括：
+
+```text
+title
+description     optional
+status
+externalUrl     optional
+completedAt     optional
+createdAt
+updatedAt
+```
+
+Work status：
+
+```text
+IDEA / DRAFT / ACTIVE / DONE / ARCHIVED
+```
+
+新 Work 預設為 `IDEA`。進入 `DONE` 時記錄 `completedAt`；回到進行中的狀態時清除。第一版不提供 hard delete，以 `ARCHIVED` 表示封存。作品內容可繼續寫在 HackMD、Notion、GitHub 或其他外部工具，Echo Gallery 透過 `externalUrl` 保存入口。
+
+##### WorkCard：Card 與 Work 的顯式關聯
+
+Card 與 Work 是多對多關係，透過顯式 join entity `WorkCard` 表示：
+
+```text
+Card   N <------> N   Work
+          WorkCard
+```
+
+WorkCard 目前欄位：
+
+```text
+workId
+cardId
+status       CANDIDATE / USED
+note         optional
+linkedAt
+usedAt       optional
+```
+
+關聯規則：
+
+- 同一張 Card 可以加入多個 Work。
+- 同一組 `(workId, cardId)` 不可重複，資料庫 unique constraint 是最後防線。
+- `CANDIDATE` 表示可能使用；`USED` 表示已被該作品採用。
+- `CANDIDATE → USED` 會設定 `usedAt`。
+- `USED → CANDIDATE` 會清除 `usedAt`。
+- 每個 WorkCard 的狀態彼此獨立。
+- 移除 WorkCard 只解除關聯，不刪除 Card 或 Work。
+- 封存 Work 不刪除 Card 或既有 WorkCard。
+- 所有查詢與修改皆以登入使用者 ownership 隔離。
+
+`note` 用來記錄「這張 Card 在這件作品裡為什麼有用」。資料模型與 API 已保留 nullable 欄位，畫面可以顯示既有 note；第一版暫不提供 note 新增或編輯操作，待實際使用確認需求後再決定。
+
+#### Card growthStatus 與 WorkCard status 必須獨立
+
+兩種狀態描述不同維度：
+
+| 狀態 | 描述問題 | 範例 |
+| --- | --- | --- |
+| `Card.growthStatus` | 這個想法本身發展到哪裡？ | `SEED / GROWING / MATURE` |
+| `WorkCard.status` | 這張 Card 在某一件作品裡是否已被採用？ | `CANDIDATE / USED` |
+
+合法組合例如：一張 `SEED` Card 已被 Work A 實際採用，因此 Work A 的 WorkCard 是 `USED`；同一張 Card 在 Work B 中仍可能是 `CANDIDATE`。系統不會自動把 `USED` 等同於 `MATURE`。
+
+#### 第一版使用流程
+
+##### 從 Work 整理素材
+
+1. 從導覽進入作品列表。
+2. 建立 Work，填寫名稱及選填的說明、外部連結。
+3. 進入 Work Detail，從既有未封存 Card 中選擇素材。
+4. 可用 Card ID 或標題模糊搜尋素材。
+5. 新加入的 Card 預設為 `CANDIDATE`。
+6. Card 被實際使用後切換為 `USED`，也可移回候選。
+7. 可以解除關聯，Card 本身不會被刪除。
+
+##### 從 Card 加入作品
+
+1. 進入 Card Detail 查看「所在作品」。
+2. 查看每個 Work 中的 `CANDIDATE / USED` 狀態。
+3. 使用「加入作品」將 Card 加入其他尚未關聯、未封存的 Work。
+4. 點擊關聯項目可前往 Work Detail。
+
+目前前端不提供把 Card 加入封存 Work 的選項；後端尚未把「封存 Work 禁止新增素材」定義為強制 domain rule，需依實際使用再決定是否限制。
+
+#### 第一版 API 範圍
+
+```text
+GET  /api/works
+POST /api/works
+GET  /api/works/{id}
+PUT  /api/works/{id}
+
+GET    /api/works/{workId}/cards
+POST   /api/works/{workId}/cards
+DELETE /api/works/{workId}/cards/{cardId}
+PUT    /api/works/{workId}/cards/{cardId}/status
+
+GET /api/cards/{cardId}/works
+GET /api/cards/search
+```
+
+#### 本次明確不實作
+
+- Project entity、Parent Work 或 Sub Work。
+- Work type、分類與標籤。
+- Work 素材拖曳排序、章節大綱或複雜 role taxonomy。
+- 內建長文編輯器。
+- WorkCard note 的新增與編輯 UI。
+- 自動依 Card 欄位、WorkCard status 或互動紀錄調整 growthStatus。
+- OTPAR 正式資料庫 schema 拆分。
+- 熱度圖、Streak、今日創作桌與靈感碰撞。
+
+#### 上線後待實際使用驗證
+
+1. 建立 Work 後，是否會自然把既有 Card 加入？
+2. Card 回流時，「加入作品」是否比繼續補充大量文字更自然？
+3. Work 聚集多張舊 Card 後，是否更容易開始創作？
+4. 是否真的會把 Card 從 `CANDIDATE` 改為 `USED`？
+5. 同一張 Card 是否會被多個 Work 重複使用？
+6. WorkCard note 是否值得提供編輯 UI？
+7. 是否開始出現素材排序、角色分類或 Project 層級的真實痛點？
+8. growthStatus 是否有助於理解 Card 的發展，而不是變成裝飾資訊？
