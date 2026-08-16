@@ -1,5 +1,7 @@
 package com.echogallery.work;
 
+import java.time.ZonedDateTime;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,29 @@ public class WorkCardService {
         WorkCard relation = workCardRepository.findByWorkIdAndCardId(workId, cardId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "作品素材關聯不存在"));
         workCardRepository.delete(relation);
+    }
+
+    @Transactional
+    public WorkCardResponse updateStatus(
+            Long workId,
+            Long cardId,
+            UpdateWorkCardStatusRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        getOwnedWork(workId, userId);
+        getOwnedCard(cardId, userId);
+
+        WorkCard relation = workCardRepository.findByWorkIdAndCardId(workId, cardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "作品素材關聯不存在"));
+
+        WorkCardStatus nextStatus = request.getStatus();
+        if (nextStatus == WorkCardStatus.USED && relation.getUsedAt() == null) {
+            relation.setUsedAt(ZonedDateTime.now());
+        } else if (nextStatus == WorkCardStatus.CANDIDATE) {
+            relation.setUsedAt(null);
+        }
+        relation.setStatus(nextStatus);
+
+        return toResponse(relation);
     }
 
     private Work getOwnedWork(Long workId, Long userId) {

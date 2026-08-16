@@ -83,9 +83,14 @@ class WorkCardPersistenceTests extends IntegrationTestBase {
         workCardRepository.flush();
         entityManager.clear();
 
-        assertThat(workCardRepository.findAll())
+        assertThat(workCardRepository.findByWorkIdAndCardId(firstWork.getId(), card.getId()))
+                .get()
                 .extracting(WorkCard::getStatus)
-                .containsExactlyInAnyOrder(WorkCardStatus.CANDIDATE, WorkCardStatus.USED);
+                .isEqualTo(WorkCardStatus.CANDIDATE);
+        assertThat(workCardRepository.findByWorkIdAndCardId(secondWork.getId(), card.getId()))
+                .get()
+                .extracting(WorkCard::getStatus)
+                .isEqualTo(WorkCardStatus.USED);
         assertThat(cardRepository.findById(card.getId()))
                 .get()
                 .extracting(Card::getGrowthStatus)
@@ -134,16 +139,16 @@ class WorkCardPersistenceTests extends IntegrationTestBase {
         User user = createUser("delete-card");
         Work work = createWork(user, "仍然存在的作品");
         Card card = createCard(user, "即將刪除的卡片");
-        workCardRepository.saveAndFlush(WorkCard.builder()
+        Long relationId = workCardRepository.saveAndFlush(WorkCard.builder()
                 .work(work)
                 .card(card)
-                .build());
+                .build()).getId();
 
         cardRepository.delete(card);
         cardRepository.flush();
         entityManager.clear();
 
-        assertThat(workCardRepository.findAll()).isEmpty();
+        assertThat(workCardRepository.findById(relationId)).isEmpty();
         assertThat(cardRepository.findById(card.getId())).isEmpty();
         assertThat(workRepository.findById(work.getId())).isPresent();
     }

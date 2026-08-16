@@ -3,6 +3,7 @@ package com.echogallery.work;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,10 +19,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.echogallery.card.CardRepository;
+import com.echogallery.card.CardGrowthStatus;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
 
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @AutoConfigureMockMvc
@@ -162,6 +165,78 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
         assertThat(workCardRepository.count()).isZero();
     }
 
+    @Test
+    void statusTransitionSetsPreservesAndClearsUsedAtWithoutChangingCardGrowth() throws Exception {
+        String token = register("status-relation-owner", "status-relation-owner@example.com");
+        long workId = createWork(token, "狀態切換作品");
+        long cardId = createCard(token, "狀態切換素材");
+        addCard(token, workId, cardId);
+
+        JsonNode firstUsedResponse = updateStatus(token, workId, cardId, "USED");
+        String firstUsedAt = firstUsedResponse.get("usedAt").asText();
+        assertThat(firstUsedResponse.get("status").asText()).isEqualTo("USED");
+        assertThat(firstUsedAt).isNotBlank();
+        java.time.ZonedDateTime persistedUsedAt = workCardRepository
+                .findByWorkIdAndCardId(workId, cardId)
+                .orElseThrow()
+                .getUsedAt();
+
+        JsonNode repeatedUsedResponse = updateStatus(token, workId, cardId, "USED");
+        assertThat(repeatedUsedResponse.get("usedAt").asText()).isNotBlank();
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId))
+                .get()
+                .extracting(WorkCard::getUsedAt)
+                .isEqualTo(persistedUsedAt);
+
+        JsonNode candidateResponse = updateStatus(token, workId, cardId, "CANDIDATE");
+        assertThat(candidateResponse.get("status").asText()).isEqualTo("CANDIDATE");
+        assertThat(candidateResponse.get("usedAt").isNull()).isTrue();
+
+        assertThat(cardRepository.findById(cardId))
+                .get()
+                .extracting(card -> card.getGrowthStatus())
+                .isEqualTo(CardGrowthStatus.SEED);
+    }
+
+    @Test
+    void anotherUserCannotUpdateRelationStatus() throws Exception {
+        String ownerToken = register("status-owner", "status-owner@example.com");
+        String otherToken = register("status-other", "status-other@example.com");
+        long workId = createWork(ownerToken, "私人狀態作品");
+        long cardId = createCard(ownerToken, "私人狀態素材");
+        addCard(ownerToken, workId, cardId);
+
+        mockMvc.perform(put("/api/works/{workId}/cards/{cardId}/status", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(otherToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new StatusRequest("USED"))))
+                .andExpect(status().isForbidden());
+
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId))
+                .get()
+                .extracting(WorkCard::getStatus)
+                .isEqualTo(WorkCardStatus.CANDIDATE);
+    }
+
+    @Test
+    void missingStatusIsRejectedWithoutChangingRelation() throws Exception {
+        String token = register("invalid-status-owner", "invalid-status-owner@example.com");
+        long workId = createWork(token, "驗證狀態作品");
+        long cardId = createCard(token, "驗證狀態素材");
+        addCard(token, workId, cardId);
+
+        mockMvc.perform(put("/api/works/{workId}/cards/{cardId}/status", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId))
+                .get()
+                .extracting(WorkCard::getStatus)
+                .isEqualTo(WorkCardStatus.CANDIDATE);
+    }
+
     private String register(String username, String email) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -211,6 +286,16 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk());
     }
 
+    private JsonNode updateStatus(String token, long workId, long cardId, String statusValue) throws Exception {
+        MvcResult result = mockMvc.perform(put("/api/works/{workId}/cards/{cardId}/status", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new StatusRequest(statusValue))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString());
+    }
+
     private String addCardJson(long cardId, String note) throws Exception {
         return objectMapper.writeValueAsString(new AddCardRequest(cardId, note));
     }
@@ -224,6 +309,8 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
     private record WorkRequest(String title, String description, String externalUrl) {}
 
     private record AddCardRequest(Long cardId, String note) {}
+
+    private record StatusRequest(String status) {}
 
     private record CardRequest(
             String type,
