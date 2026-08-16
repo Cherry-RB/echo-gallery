@@ -82,7 +82,7 @@ watch(() => route.path, () => {
 .main-layout {
   display: flex;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
   text-align: left;
 }
 
@@ -94,10 +94,9 @@ watch(() => route.path, () => {
 .sidebar {
   width: 240px;
   flex-shrink: 0;
+  align-self: stretch;
   border-right: 1px solid var(--el-border-color-light);
-  height: 100vh;
-  position: sticky;
-  top: 0;
+  min-height: 100dvh;
 }
 
 .content-viewport {
@@ -110,10 +109,9 @@ watch(() => route.path, () => {
 .stats-panel {
   width: 280px;
   flex-shrink: 0;
+  align-self: stretch;
   border-left: 1px solid var(--el-border-color-light);
-  height: 100vh;
-  position: sticky;
-  top: 0;
+  min-height: 100dvh;
 }
 
 /* 🧼 清除 Element Plus 抽屜預設的 Padding，交由內部組件自己決定邊距 */

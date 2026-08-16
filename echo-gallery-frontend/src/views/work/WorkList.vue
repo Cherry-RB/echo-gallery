@@ -345,7 +345,6 @@ const submitCreateWork = async () => {
 }
 
 .work-content-surface {
-  min-height: 360px;
   padding: 20px;
   border-radius: 8px;
   background: var(--el-bg-color-page);

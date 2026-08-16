@@ -98,3 +98,9 @@ code {
   border-radius: 4px;
   display: inline-flex;
 }
+
+/* 統一所有 Element Plus 彈窗的標題層級 */
+.el-dialog .el-dialog__title {
+  font-size: 18px;
+  font-weight: 700;
+}

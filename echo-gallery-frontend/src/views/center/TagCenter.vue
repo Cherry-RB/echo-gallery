@@ -356,7 +356,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 /* 整體主畫面左右雙欄佈局 (預設案桌面版) */
 .tag-center-container {
   display: flex;
-  height: calc(100vh - 60px);
+  height: calc(100dvh - 40px);
   box-sizing: border-box;
   background-color: var(--el-bg-color-page);
   overflow: hidden;
@@ -576,11 +576,17 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 /* =====================================================
    RWD 手機版適應 (螢幕寬度小於 768px 時觸發)
    ===================================================== */
+@media (max-width: 1200px) {
+  .tag-center-container {
+    height: calc(100dvh - 88px);
+  }
+}
+
 @media (max-width: 768px) {
   .tag-center-container {
     flex-direction: column; /* 改為上下垂直堆疊 */
     height: auto;
-    min-height: calc(100vh - 60px);
+    min-height: calc(100dvh - 88px);
     overflow-y: auto;
   }
 

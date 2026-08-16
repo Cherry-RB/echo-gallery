@@ -127,7 +127,7 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
   position: sticky;
   top: 0;
   overflow-y: auto;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .sidebar-section {

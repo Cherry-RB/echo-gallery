@@ -35,13 +35,13 @@ const userProfile = ref({
 const menuItems = [
   { name: '今日', path: '/board/today', icon: Calendar },
   { name: '全部卡片', path: '/board/all', icon: Clock },
+  { name: '作品', path: '/works', icon: Briefcase },
+  { name: '標籤管理', path: '/center/tag', icon: CollectionTag },
   { name: '熱門', path: '/board/hot', icon: Star },
   { name: '隨機', path: '/board/random', icon: Refresh },
   { name: '封存', path: '/board/archived', icon: Box },
   { name: '稍後再看', path: '/board/snoozed', icon: Loading },
-  { name: '作品', path: '/works', icon: Briefcase },
   { name: '查詢', path: '/search', icon: Search },
-  { name: '標籤管理', path: '/center/tag', icon: CollectionTag }
 ]
 
 const activeMenu = computed(() => route.path)
@@ -130,11 +130,35 @@ const openQuickCreate = () => {
 .sidebar-wrapper {
   display: flex;
   flex-direction: column;
+  height: 100dvh;
   padding: 24px 16px;
   box-sizing: border-box;
   position: sticky;
   top: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.sidebar-wrapper:hover {
+  scrollbar-color: var(--el-border-color-darker) transparent;
+}
+
+.sidebar-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-wrapper::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: transparent;
+}
+
+.sidebar-wrapper:hover::-webkit-scrollbar-thumb {
+  background: var(--el-border-color-darker);
 }
 
 .sidebar-brand {
