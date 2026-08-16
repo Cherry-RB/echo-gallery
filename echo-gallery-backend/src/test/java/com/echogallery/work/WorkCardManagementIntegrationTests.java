@@ -292,6 +292,38 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void workListReturnsCandidateAndUsedCountsPerWorkAndUser() throws Exception {
+        String firstToken = register("count-first-owner", "count-first-owner@example.com");
+        String secondToken = register("count-second-owner", "count-second-owner@example.com");
+        long populatedWorkId = createWork(firstToken, "有素材作品");
+        long emptyWorkId = createWork(firstToken, "空素材作品");
+        long otherWorkId = createWork(secondToken, "其他使用者作品");
+        long candidateCardId = createCard(firstToken, "候選計數素材");
+        long usedCardId = createCard(firstToken, "使用計數素材");
+        long otherCardId = createCard(secondToken, "其他使用者素材");
+        addCard(firstToken, populatedWorkId, candidateCardId);
+        addCard(firstToken, populatedWorkId, usedCardId);
+        updateStatus(firstToken, populatedWorkId, usedCardId, "USED");
+        addCard(secondToken, otherWorkId, otherCardId);
+        updateStatus(secondToken, otherWorkId, otherCardId, "USED");
+
+        MvcResult result = mockMvc.perform(get("/api/works")
+                .header(HttpHeaders.AUTHORIZATION, bearer(firstToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode populatedWork = findWork(response, populatedWorkId);
+        assertThat(populatedWork.get("candidateCount").asLong()).isEqualTo(1);
+        assertThat(populatedWork.get("usedCount").asLong()).isEqualTo(1);
+
+        JsonNode emptyWork = findWork(response, emptyWorkId);
+        assertThat(emptyWork.get("candidateCount").asLong()).isZero();
+        assertThat(emptyWork.get("usedCount").asLong()).isZero();
+    }
+
     private String register(String username, String email) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -362,6 +394,15 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
             }
         }
         throw new AssertionError("找不到 cardId=" + cardId + " 的作品素材關聯");
+    }
+
+    private JsonNode findWork(JsonNode works, long workId) {
+        for (JsonNode work : works) {
+            if (work.get("id").asLong() == workId) {
+                return work;
+            }
+        }
+        throw new AssertionError("找不到 id=" + workId + " 的作品");
     }
 
     private String addCardJson(long cardId, String note) throws Exception {

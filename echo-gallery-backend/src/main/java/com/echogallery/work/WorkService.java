@@ -24,9 +24,10 @@ public class WorkService {
     @Transactional(readOnly = true)
     public List<WorkSummaryResponse> getWorks() {
         Long userId = SecurityUtil.getCurrentUserId();
-        return workRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
-                .map(this::toSummaryResponse)
-                .toList();
+        return workRepository.findSummariesByUserId(
+                userId,
+                WorkCardStatus.CANDIDATE,
+                WorkCardStatus.USED);
     }
 
     @Transactional(readOnly = true)
@@ -86,16 +87,6 @@ public class WorkService {
 
     private String normalizeOptionalText(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private WorkSummaryResponse toSummaryResponse(Work work) {
-        WorkSummaryResponse response = new WorkSummaryResponse();
-        response.setId(work.getId());
-        response.setTitle(work.getTitle());
-        response.setStatus(work.getStatus());
-        response.setCompletedAt(work.getCompletedAt());
-        response.setUpdatedAt(work.getUpdatedAt());
-        return response;
     }
 
     private WorkDetailResponse toDetailResponse(Work work) {
