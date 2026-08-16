@@ -95,7 +95,10 @@ const updateMutation = useMutation({
   mutationFn: (data: UpdateWorkRequest) => workApi.updateWork(props.id, data),
   onSuccess: async (updatedWork) => {
     queryClient.setQueryData(['work', String(props.id)], updatedWork)
-    await queryClient.invalidateQueries({ queryKey: ['works'] })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['works'] }),
+      queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] }),
+    ])
     ElMessage.success('作品更新成功')
     editDialogVisible.value = false
   },

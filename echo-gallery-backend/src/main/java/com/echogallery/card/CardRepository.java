@@ -59,14 +59,25 @@ public interface CardRepository extends JpaRepository<Card, Long> {
             @Param("keyword") String keyword,
             Pageable pageable);
 
-    // 統計資訊 1: 今日回流卡片數
-    long countByUserIdAndIsArchivedFalseAndNextShowAtLessThan(Long userId, ZonedDateTime startOfTomorrow);
-
-    // 統計資訊 2: 未封存總卡片數
-    long countByUserIdAndIsArchivedFalse(Long userId);
-
-    // 統計資訊 3: 稍後再看次數累積超過 10 次
-    long countByUserIdAndIsArchivedFalseAndSnoozeCountGreaterThan(Long userId, int snoozeThreshold);
+    @Query("""
+            SELECT
+                COUNT(c) AS totalCards,
+                COALESCE(SUM(CASE WHEN c.nextShowAt < :startOfTomorrow THEN 1 ELSE 0 END), 0) AS todayEchoCards,
+                COALESCE(SUM(CASE WHEN c.snoozeCount > :snoozeThreshold THEN 1 ELSE 0 END), 0) AS highSnoozeCards,
+                COALESCE(SUM(CASE WHEN c.growthStatus = :seedStatus THEN 1 ELSE 0 END), 0) AS seedCards,
+                COALESCE(SUM(CASE WHEN c.growthStatus = :growingStatus THEN 1 ELSE 0 END), 0) AS growingCards,
+                COALESCE(SUM(CASE WHEN c.growthStatus = :matureStatus THEN 1 ELSE 0 END), 0) AS matureCards
+            FROM Card c
+            WHERE c.user.id = :userId
+            AND c.isArchived = false
+            """)
+    CardStatsProjection findActiveStats(
+            @Param("userId") Long userId,
+            @Param("startOfTomorrow") ZonedDateTime startOfTomorrow,
+            @Param("snoozeThreshold") int snoozeThreshold,
+            @Param("seedStatus") CardGrowthStatus seedStatus,
+            @Param("growingStatus") CardGrowthStatus growingStatus,
+            @Param("matureStatus") CardGrowthStatus matureStatus);
 
     // 以標籤作為篩選條件 查詢卡片
         // 只有當命中的標籤數量恰好等於傳入的標籤總數，才保留該張卡片。這確保了卡片同時擁有了所有要求的標籤（AND 邏輯）

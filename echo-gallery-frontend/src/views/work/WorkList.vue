@@ -94,6 +94,7 @@ const createMutation = useMutation({
   mutationFn: workApi.createWork,
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['works'] })
+    await queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] })
     ElMessage.success('作品建立成功')
     createDialogVisible.value = false
   },

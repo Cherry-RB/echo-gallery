@@ -8,9 +8,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.echogallery.card.CardRepository;
 import com.echogallery.card.CardService;
+import com.echogallery.card.CardGrowthStatus;
+import com.echogallery.card.CardStatsProjection;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.tag.TagDto;
 import com.echogallery.util.SecurityUtil;
+import com.echogallery.work.WorkRepository;
+import com.echogallery.work.WorkStatsProjection;
+import com.echogallery.work.WorkStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,6 +26,7 @@ public class SidebarService {
     private final CardRepository cardRepository;
     private final TagRepository tagRepository;
     private final CardService cardService;
+    private final WorkRepository workRepository;
 
     @Transactional(readOnly = true)
     public SidebarStatsResponse getSidebarStats() {
@@ -28,11 +34,26 @@ public class SidebarService {
         // 安全地從安全上下文取得目前登入的 userId，落實多租戶資料隔離
         Long userId = SecurityUtil.getCurrentUserId();
 
-        long todayEcho = cardRepository.countByUserIdAndIsArchivedFalseAndNextShowAtLessThan(userId, cardService.getStartOfTomorrowTaipei()); // nextShowAt <= today
-        long total = cardRepository.countByUserIdAndIsArchivedFalse(userId);
-        long highSnooze = cardRepository.countByUserIdAndIsArchivedFalseAndSnoozeCountGreaterThan(userId, 10);   // snoozeCount > 10
+        CardStatsProjection cardStats = cardRepository.findActiveStats(
+                userId,
+                cardService.getStartOfTomorrowTaipei(),
+                10,
+                CardGrowthStatus.SEED,
+                CardGrowthStatus.GROWING,
+                CardGrowthStatus.MATURE);
+        WorkStatsProjection workStats = workRepository.findStats(
+                userId,
+                List.of(WorkStatus.IDEA, WorkStatus.DRAFT, WorkStatus.ACTIVE));
 
-        return new SidebarStatsResponse(total, todayEcho, highSnooze);
+        return new SidebarStatsResponse(
+                cardStats.getTotalCards(),
+                workStats.getTotalWorks(),
+                workStats.getUnfinishedWorks(),
+                cardStats.getTodayEchoCards(),
+                cardStats.getHighSnoozeCards(),
+                cardStats.getSeedCards(),
+                cardStats.getGrowingCards(),
+                cardStats.getMatureCards());
     }
 
     @Transactional(readOnly = true)

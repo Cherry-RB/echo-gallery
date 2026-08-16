@@ -10,6 +10,17 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface WorkRepository extends JpaRepository<Work, Long> {
     @Query("""
+            SELECT
+                COUNT(w) AS totalWorks,
+                COALESCE(SUM(CASE WHEN w.status IN :unfinishedStatuses THEN 1 ELSE 0 END), 0) AS unfinishedWorks
+            FROM Work w
+            WHERE w.user.id = :userId
+            """)
+    WorkStatsProjection findStats(
+            @Param("userId") Long userId,
+            @Param("unfinishedStatuses") List<WorkStatus> unfinishedStatuses);
+
+    @Query("""
             SELECT new com.echogallery.work.WorkSummaryResponse(
                 w.id,
                 w.title,

@@ -41,11 +41,55 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
         </div>
         <div class="stat-box">
           <span class="stat-value">{{ sidebarStats.totalCards ?? 0 }}</span>
-          <span class="stat-label">未封存總卡片數</span>
+          <span class="stat-label">未封存卡片</span>
         </div>
         <div class="stat-box">
           <span class="stat-value">{{ sidebarStats.highSnoozeCards ?? 0 }}</span>
-          <span class="stat-label">稍後觀看 > 10</span>
+          <span class="stat-label">稍後觀看 &gt; 10</span>
+        </div>
+
+        <div class="stat-box growth-overview">
+          <div class="growth-stats">
+            <el-tooltip content="種子卡片" placement="top">
+              <span
+                class="growth-stat seed-stat"
+                role="img"
+                tabindex="0"
+                :aria-label="`種子卡片 ${sidebarStats.seedCards ?? 0} 張`"
+              >
+                {{ sidebarStats.seedCards ?? 0 }}<span aria-hidden="true">🌱</span>
+              </span>
+            </el-tooltip>
+            <el-tooltip content="生長卡片" placement="top">
+              <span
+                class="growth-stat growing-stat"
+                role="img"
+                tabindex="0"
+                :aria-label="`生長卡片 ${sidebarStats.growingCards ?? 0} 張`"
+              >
+                {{ sidebarStats.growingCards ?? 0 }}<span aria-hidden="true">🌿</span>
+              </span>
+            </el-tooltip>
+            <el-tooltip content="成熟卡片" placement="top">
+              <span
+                class="growth-stat mature-stat"
+                role="img"
+                tabindex="0"
+                :aria-label="`成熟卡片 ${sidebarStats.matureCards ?? 0} 張`"
+              >
+                {{ sidebarStats.matureCards ?? 0 }}<span aria-hidden="true">🌳</span>
+              </span>
+            </el-tooltip>
+          </div>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-value">{{ sidebarStats.unfinishedWorks ?? 0 }}</span>
+          <span class="stat-label">未完成作品</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value">{{ sidebarStats.totalWorks ?? 0 }}</span>
+          <span class="stat-label">作品總數</span>
         </div>
       </div>
     </section>
@@ -131,6 +175,52 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
 .stat-box.highlight-box .stat-label {
   color: var(--el-color-primary-light-2);
   font-weight: 500;
+}
+
+.stat-box.growth-overview {
+  grid-column: span 2;
+  background: var(--el-color-success-light-9);
+}
+
+.overview-label {
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.growth-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.growth-stat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  outline: none;
+}
+
+.growth-stat:focus-visible {
+  box-shadow: 0 0 0 2px var(--el-color-primary-light-5);
+}
+
+.seed-stat {
+  color: var(--el-color-success-dark-2);
+}
+
+.growing-stat {
+  color: var(--el-color-warning-dark-2);
+}
+
+.mature-stat {
+  color: var(--el-color-primary);
 }
 
 .stat-value {
