@@ -1,0 +1,239 @@
+package com.echogallery.work;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import com.echogallery.card.CardRepository;
+import com.echogallery.support.IntegrationTestBase;
+import com.echogallery.tag.TagRepository;
+import com.echogallery.user.UserRepository;
+
+import tools.jackson.databind.ObjectMapper;
+
+@AutoConfigureMockMvc
+class WorkCardManagementIntegrationTests extends IntegrationTestBase {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private WorkCardRepository workCardRepository;
+
+    @Autowired
+    private WorkRepository workRepository;
+
+    @Autowired
+    private CardRepository cardRepository;
+
+    @Autowired
+    private TagRepository tagRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @BeforeEach
+    void cleanDatabase() {
+        workCardRepository.deleteAll();
+        workRepository.deleteAll();
+        cardRepository.deleteAll();
+        tagRepository.deleteAll();
+        userRepository.deleteAll();
+    }
+
+    @Test
+    void addCardCreatesCandidateRelation() throws Exception {
+        String token = register("relation-owner", "relation-owner@example.com");
+        long workId = createWork(token, "關聯作品");
+        long cardId = createCard(token, "候選素材");
+
+        mockMvc.perform(post("/api/works/{workId}/cards", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(addCardJson(cardId, "  核心論點  ")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workId").value(workId))
+                .andExpect(jsonPath("$.cardId").value(cardId))
+                .andExpect(jsonPath("$.status").value("CANDIDATE"))
+                .andExpect(jsonPath("$.note").value("核心論點"))
+                .andExpect(jsonPath("$.linkedAt").exists())
+                .andExpect(jsonPath("$.usedAt").doesNotExist());
+
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId)).isPresent();
+    }
+
+    @Test
+    void duplicateRelationReturnsConflict() throws Exception {
+        String token = register("duplicate-owner", "duplicate-owner@example.com");
+        long workId = createWork(token, "不可重複作品");
+        long cardId = createCard(token, "不可重複素材");
+        addCard(token, workId, cardId);
+
+        mockMvc.perform(post("/api/works/{workId}/cards", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(addCardJson(cardId, null)))
+                .andExpect(status().isConflict());
+
+        assertThat(workCardRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void relationRequiresOwnershipOfBothWorkAndCard() throws Exception {
+        String firstToken = register("first-owner", "first-owner@example.com");
+        String secondToken = register("second-owner", "second-owner@example.com");
+        long firstWorkId = createWork(firstToken, "第一位使用者的作品");
+        long firstCardId = createCard(firstToken, "第一位使用者的卡片");
+        long secondCardId = createCard(secondToken, "第二位使用者的卡片");
+
+        mockMvc.perform(post("/api/works/{workId}/cards", firstWorkId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(firstToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(addCardJson(secondCardId, null)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/works/{workId}/cards", firstWorkId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(secondToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(addCardJson(firstCardId, null)))
+                .andExpect(status().isForbidden());
+
+        assertThat(workCardRepository.count()).isZero();
+    }
+
+    @Test
+    void removeRelationKeepsWorkAndCard() throws Exception {
+        String token = register("unlink-owner", "unlink-owner@example.com");
+        long workId = createWork(token, "保留的作品");
+        long cardId = createCard(token, "保留的卡片");
+        addCard(token, workId, cardId);
+
+        mockMvc.perform(delete("/api/works/{workId}/cards/{cardId}", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isNoContent());
+
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId)).isEmpty();
+        assertThat(workRepository.findById(workId)).isPresent();
+        assertThat(cardRepository.findById(cardId)).isPresent();
+    }
+
+    @Test
+    void anotherUserCannotRemoveRelation() throws Exception {
+        String ownerToken = register("unlink-relation-owner", "unlink-relation-owner@example.com");
+        String otherToken = register("unlink-relation-other", "unlink-relation-other@example.com");
+        long workId = createWork(ownerToken, "私人作品");
+        long cardId = createCard(ownerToken, "私人卡片");
+        addCard(ownerToken, workId, cardId);
+
+        mockMvc.perform(delete("/api/works/{workId}/cards/{cardId}", workId, cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(otherToken)))
+                .andExpect(status().isForbidden());
+
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId)).isPresent();
+    }
+
+    @Test
+    void missingCardIdIsRejected() throws Exception {
+        String token = register("invalid-relation", "invalid-relation@example.com");
+        long workId = createWork(token, "驗證作品");
+
+        mockMvc.perform(post("/api/works/{workId}/cards", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        assertThat(workCardRepository.count()).isZero();
+    }
+
+    private String register(String username, String email) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new RegistrationRequest(
+                        username,
+                        email,
+                        "password123"))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("token").asText();
+    }
+
+    private long createWork(String token, String title) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/works")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new WorkRequest(title, null, null))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+    }
+
+    private long createCard(String token, String title) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/cards")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CardRequest(
+                        "note",
+                        title,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of(),
+                        10))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+    }
+
+    private void addCard(String token, long workId, long cardId) throws Exception {
+        mockMvc.perform(post("/api/works/{workId}/cards", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(addCardJson(cardId, null)))
+                .andExpect(status().isOk());
+    }
+
+    private String addCardJson(long cardId, String note) throws Exception {
+        return objectMapper.writeValueAsString(new AddCardRequest(cardId, note));
+    }
+
+    private String bearer(String token) {
+        return "Bearer " + token;
+    }
+
+    private record RegistrationRequest(String username, String email, String password) {}
+
+    private record WorkRequest(String title, String description, String externalUrl) {}
+
+    private record AddCardRequest(Long cardId, String note) {}
+
+    private record CardRequest(
+            String type,
+            String title,
+            String coverImageUrl,
+            String url,
+            String summary,
+            String content,
+            String reason,
+            List<String> tags,
+            Integer intervalDays
+    ) {}
+}
