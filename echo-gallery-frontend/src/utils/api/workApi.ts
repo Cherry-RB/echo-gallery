@@ -1,5 +1,6 @@
 import type {
   AddWorkCardRequest,
+  CardWork,
   CreateWorkRequest,
   UpdateWorkCardStatusRequest,
   UpdateWorkRequest,
@@ -45,6 +46,13 @@ export const workApi = {
   getWorkCards(workId: ResourceId): Promise<WorkCard[]> {
     return request({
       url: `/works/${workId}/cards`,
+      method: 'GET',
+    })
+  },
+
+  getCardWorks(cardId: ResourceId): Promise<CardWork[]> {
+    return request({
+      url: `/cards/${cardId}/works`,
       method: 'GET',
     })
   },

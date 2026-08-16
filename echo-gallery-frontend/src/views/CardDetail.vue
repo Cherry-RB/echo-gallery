@@ -13,6 +13,7 @@ import { useCardStatus } from '../utils/useCardStatus';
 import { useRoute } from 'vue-router';
 import type { FormInstance, FormRules } from 'element-plus';
 import { useTags } from '../utils/composables/useTags';
+import CardWorkManager from '../components/work/CardWorkManager.vue';
 
 const props = defineProps<{ id: string }>();
 const route = useRoute();
@@ -521,6 +522,7 @@ const {
             </div>
           </div>
         </el-card>
+
       </div>
 
       <div class="right-sidebar">
@@ -671,6 +673,11 @@ const {
             <div>更新於：{{ formatDate(cardData.updatedAt || '') }}</div>
           </div>
         </el-card>
+
+        <CardWorkManager
+          v-if="fetchedCard && !isEditMode"
+          :card-id="props.id"
+        />
       </div>
 
     </el-form>

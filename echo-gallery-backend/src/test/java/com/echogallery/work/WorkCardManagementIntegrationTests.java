@@ -293,6 +293,51 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void cardWorkListReturnsCandidateAndUsedRelations() throws Exception {
+        String token = register("card-work-owner", "card-work-owner@example.com");
+        long cardId = createCard(token, "可重複使用素材");
+        long candidateWorkId = createWork(token, "候選作品");
+        long usedWorkId = createWork(token, "已採用作品");
+        addCard(token, candidateWorkId, cardId);
+        addCard(token, usedWorkId, cardId);
+        updateStatus(token, usedWorkId, cardId, "USED");
+
+        MvcResult result = mockMvc.perform(get("/api/cards/{cardId}/works", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode candidate = findCardWork(response, candidateWorkId);
+        assertThat(candidate.get("workTitle").asText()).isEqualTo("候選作品");
+        assertThat(candidate.get("workStatus").asText()).isEqualTo("IDEA");
+        assertThat(candidate.get("status").asText()).isEqualTo("CANDIDATE");
+        assertThat(candidate.get("usedAt").isNull()).isTrue();
+
+        JsonNode used = findCardWork(response, usedWorkId);
+        assertThat(used.get("workTitle").asText()).isEqualTo("已採用作品");
+        assertThat(used.get("status").asText()).isEqualTo("USED");
+        assertThat(used.get("usedAt").isNull()).isFalse();
+    }
+
+    @Test
+    void cardWorkListIsEmptyWithoutRelationsAndRejectsOtherUsers() throws Exception {
+        String ownerToken = register("card-work-private-owner", "card-work-private-owner@example.com");
+        String otherToken = register("card-work-private-other", "card-work-private-other@example.com");
+        long cardId = createCard(ownerToken, "私人卡片");
+
+        mockMvc.perform(get("/api/cards/{cardId}/works", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(get("/api/cards/{cardId}/works", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(otherToken)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void workListReturnsCandidateAndUsedCountsPerWorkAndUser() throws Exception {
         String firstToken = register("count-first-owner", "count-first-owner@example.com");
         String secondToken = register("count-second-owner", "count-second-owner@example.com");
@@ -413,6 +458,15 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
             }
         }
         throw new AssertionError("找不到 id=" + workId + " 的作品");
+    }
+
+    private JsonNode findCardWork(JsonNode relations, long workId) {
+        for (JsonNode relation : relations) {
+            if (relation.get("workId").asLong() == workId) {
+                return relation;
+            }
+        }
+        throw new AssertionError("找不到 workId=" + workId + " 的卡片作品關聯");
     }
 
     private String addCardJson(long cardId, String note) throws Exception {

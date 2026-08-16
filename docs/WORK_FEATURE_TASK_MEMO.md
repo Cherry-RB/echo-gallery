@@ -3,7 +3,7 @@
 - 建立日期：2026-08-16
 - 基線分支：`feat/OTPAR`
 - 目前功能分支：`feat/work-management`
-- 目前狀態：任務 3 後端作品素材關聯完成；下一步進入任務 4 前端作品頁面
+- 目前狀態：任務 5 Card Detail 作品整合完成；下一步進入任務 6 全面驗收與文件
 - 需求來源：`ECHO_GALLERY_CREATION_INCUBATOR_CHANGE_REQUIREMENTS.md`
 
 ---
@@ -148,25 +148,25 @@ feat(work): 新增作品素材關聯功能
 
 預計內容：
 
-- [ ] 新增 Work TypeScript types。
-- [ ] 新增 Work API client。
-- [ ] 建立 TanStack Query keys 與 mutations。
-- [ ] 新增「作品」導覽入口。
-- [ ] 新增 Work List。
-- [ ] 新增 Work create／edit UI。
-- [ ] 新增 Work Detail。
-- [ ] 顯示候選素材與已使用素材。
-- [ ] 支援加入、移除 Card。
-- [ ] 支援 `CANDIDATE / USED` 切換。
-- [ ] 處理 loading、empty 與 error state。
+- [x] 新增 Work TypeScript types。
+- [x] 新增 Work API client。
+- [x] 建立 TanStack Query keys 與 mutations。
+- [x] 新增「作品」導覽入口。
+- [x] 新增 Work List。
+- [x] 新增 Work create／edit UI。
+- [x] 新增 Work Detail。
+- [x] 顯示候選素材與已使用素材。
+- [x] 支援加入、移除 Card。
+- [x] 支援 `CANDIDATE / USED` 切換。
+- [x] 處理 loading、empty 與 error state。
 
 完成條件：
 
-- [ ] 使用者可以從前端建立及編輯 Work。
-- [ ] Work Detail 能正確顯示候選與已使用素材。
-- [ ] mutation 成功後相關畫面會更新。
-- [ ] API 失敗時 UI 不會假裝成功。
-- [ ] 前端測試與 build 通過。
+- [x] 使用者可以從前端建立及編輯 Work。
+- [x] Work Detail 能正確顯示候選與已使用素材。
+- [x] mutation 成功後相關畫面會更新。
+- [x] API 失敗時 UI 不會假裝成功。
+- [x] 前端 `npm run build` 通過，2026-08-16。
 
 建議 commit：
 
@@ -178,20 +178,21 @@ feat(work): 新增作品管理頁面
 
 預計內容：
 
-- [ ] Card Detail 顯示所在 Works。
-- [ ] 顯示每個 Work 中的 `CANDIDATE / USED`。
-- [ ] 新增「加入作品」操作。
-- [ ] Work options 排除已加入的 Work。
-- [ ] 加入成功後刷新 Card 與 Work 相關 query。
-- [ ] 可以從 Card Detail 前往 Work Detail。
+- [x] Card Detail 顯示所在 Works。
+- [x] 顯示每個 Work 中的 `CANDIDATE / USED`。
+- [x] 新增「加入作品」操作。
+- [x] Work options 排除已加入的 Work 與封存 Work。
+- [x] 加入成功後刷新 Card 與 Work 相關 query。
+- [x] 可以從 Card Detail 前往 Work Detail。
 
 完成條件：
 
-- [ ] 同一 Card 可以從 Card Detail 加入多個 Work。
-- [ ] UI 不提供重複加入同一 Work 的選項。
-- [ ] API 與 DB 仍保留防止重複的最後防線。
-- [ ] Card growth status 與 WorkCard status 分開顯示。
-- [ ] 前端測試與 build 通過。
+- [x] 同一 Card 可以從 Card Detail 加入多個 Work。
+- [x] UI 不提供重複加入同一 Work 的選項。
+- [x] API 與 DB 仍保留防止重複的最後防線。
+- [x] Card growth status 與 WorkCard status 分開顯示。
+- [x] Card 反查 Work ownership 整合測試與完整後端測試通過，2026-08-16。
+- [x] 前端 `npm run build` 通過，2026-08-16。
 
 建議 commit：
 

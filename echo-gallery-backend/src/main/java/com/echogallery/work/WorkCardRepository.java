@@ -15,4 +15,7 @@ public interface WorkCardRepository extends JpaRepository<WorkCard, Long> {
 
     @EntityGraph(attributePaths = { "card", "card.tags" })
     List<WorkCard> findByWorkIdOrderByLinkedAtDesc(Long workId);
+
+    @EntityGraph(attributePaths = "work")
+    List<WorkCard> findByCardIdAndWorkUserIdOrderByLinkedAtDesc(Long cardId, Long userId);
 }

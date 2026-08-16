@@ -31,6 +31,15 @@ public class WorkCardService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<CardWorkResponse> getWorks(Long cardId) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        getOwnedCard(cardId, userId);
+        return workCardRepository.findByCardIdAndWorkUserIdOrderByLinkedAtDesc(cardId, userId).stream()
+                .map(this::toCardWorkResponse)
+                .toList();
+    }
+
     @Transactional
     public WorkCardResponse addCard(Long workId, AddWorkCardRequest request) {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -118,6 +127,18 @@ public class WorkCardService {
                 .map(tag -> tag.getName())
                 .sorted()
                 .toList());
+        response.setStatus(relation.getStatus());
+        response.setNote(relation.getNote());
+        response.setLinkedAt(relation.getLinkedAt());
+        response.setUsedAt(relation.getUsedAt());
+        return response;
+    }
+
+    private CardWorkResponse toCardWorkResponse(WorkCard relation) {
+        CardWorkResponse response = new CardWorkResponse();
+        response.setWorkId(relation.getWork().getId());
+        response.setWorkTitle(relation.getWork().getTitle());
+        response.setWorkStatus(relation.getWork().getStatus());
         response.setStatus(relation.getStatus());
         response.setNote(relation.getNote());
         response.setLinkedAt(relation.getLinkedAt());

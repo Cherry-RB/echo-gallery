@@ -61,3 +61,13 @@ export interface WorkCard {
   linkedAt: string
   usedAt: string | null
 }
+
+export interface CardWork {
+  workId: number
+  workTitle: string
+  workStatus: WorkStatus
+  status: WorkCardStatus
+  note: string | null
+  linkedAt: string
+  usedAt: string | null
+}
