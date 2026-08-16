@@ -3,7 +3,7 @@
 - 建立日期：2026-08-16
 - 基線分支：`feat/OTPAR`
 - 目前功能分支：`feat/work-management`
-- 目前狀態：任務 3C WorkCard 狀態切換完成；素材列表與數量查詢尚未實作
+- 目前狀態：任務 3D Work 素材列表完成；Work List 素材數量尚未實作
 - 需求來源：`ECHO_GALLERY_CREATION_INCUBATOR_CHANGE_REQUIREMENTS.md`
 
 ---
@@ -121,7 +121,7 @@ feat(work): 新增作品管理 API
 - [x] 支援 Card 從 Work 移除。
 - [x] 支援 `CANDIDATE / USED` 切換。
 - [x] 正確設定或清除 `usedAt`。
-- [ ] 支援 Work Detail 取得素材列表與 Card 顯示資訊。
+- [x] 支援 Work Detail 取得素材列表與 Card 顯示資訊。
 - [ ] Work List 回傳候選與已使用素材數量。
 - [x] 檢查 Work 與 Card ownership。
 - [x] 將 DB duplicate constraint 轉換成合理 API 錯誤。
@@ -135,7 +135,7 @@ feat(work): 新增作品管理 API
 - [x] WorkCard 狀態不會自動修改 Card growth status。
 - [x] unlink 後 Card 仍存在。
 - [x] WorkCard 持久化測試通過：`./gradlew test --tests com.echogallery.work.WorkCardPersistenceTests`，2026-08-16。
-- [x] WorkCard 加入／移除／狀態切換整合測試通過：`./gradlew test --tests com.echogallery.work.WorkCardManagementIntegrationTests`，2026-08-16。
+- [x] WorkCard 加入／移除／狀態切換／素材列表整合測試通過：`./gradlew test --tests com.echogallery.work.WorkCardManagementIntegrationTests`，2026-08-16。
 
 建議 commit：
 

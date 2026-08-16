@@ -2,6 +2,7 @@ package com.echogallery.work;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -237,6 +238,60 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                 .isEqualTo(WorkCardStatus.CANDIDATE);
     }
 
+    @Test
+    void workCardListReturnsCardDisplayDataAndRelationStatus() throws Exception {
+        String token = register("list-owner", "list-owner@example.com");
+        long workId = createWork(token, "素材列表作品");
+        long candidateCardId = createCard(token, "候選卡片", List.of("AI", "Java"));
+        long usedCardId = createCard(token, "已使用卡片", List.of("創作"));
+        addCard(token, workId, candidateCardId);
+        addCard(token, workId, usedCardId);
+        updateStatus(token, workId, usedCardId, "USED");
+
+        MvcResult result = mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode candidate = findRelation(response, candidateCardId);
+        assertThat(candidate.get("cardTitle").asText()).isEqualTo("候選卡片");
+        assertThat(candidate.get("cardType").asText()).isEqualTo("note");
+        assertThat(candidate.get("cardGrowthStatus").asText()).isEqualTo("SEED");
+        assertThat(candidate.get("status").asText()).isEqualTo("CANDIDATE");
+        assertThat(candidate.get("tags").get(0).asText()).isEqualTo("AI");
+        assertThat(candidate.get("tags").get(1).asText()).isEqualTo("Java");
+
+        JsonNode used = findRelation(response, usedCardId);
+        assertThat(used.get("status").asText()).isEqualTo("USED");
+        assertThat(used.get("usedAt").isNull()).isFalse();
+    }
+
+    @Test
+    void workCardListReturnsEmptyArrayWhenWorkHasNoCards() throws Exception {
+        String token = register("empty-list-owner", "empty-list-owner@example.com");
+        long workId = createWork(token, "空素材作品");
+
+        mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void anotherUserCannotReadWorkCardList() throws Exception {
+        String ownerToken = register("private-list-owner", "private-list-owner@example.com");
+        String otherToken = register("private-list-other", "private-list-other@example.com");
+        long workId = createWork(ownerToken, "私人素材列表");
+        long cardId = createCard(ownerToken, "私人素材");
+        addCard(ownerToken, workId, cardId);
+
+        mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(otherToken)))
+                .andExpect(status().isForbidden());
+    }
+
     private String register(String username, String email) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -260,6 +315,10 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
     }
 
     private long createCard(String token, String title) throws Exception {
+        return createCard(token, title, List.of());
+    }
+
+    private long createCard(String token, String title, List<String> tags) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/cards")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -271,7 +330,7 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                         null,
                         null,
                         null,
-                        List.of(),
+                        tags,
                         10))))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -294,6 +353,15 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString());
+    }
+
+    private JsonNode findRelation(JsonNode relations, long cardId) {
+        for (JsonNode relation : relations) {
+            if (relation.get("cardId").asLong() == cardId) {
+                return relation;
+            }
+        }
+        throw new AssertionError("找不到 cardId=" + cardId + " 的作品素材關聯");
     }
 
     private String addCardJson(long cardId, String note) throws Exception {

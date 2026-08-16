@@ -1,6 +1,7 @@
 package com.echogallery.work;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,15 @@ public class WorkCardService {
     private final WorkCardRepository workCardRepository;
     private final WorkRepository workRepository;
     private final CardRepository cardRepository;
+
+    @Transactional(readOnly = true)
+    public List<WorkCardResponse> getCards(Long workId) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        getOwnedWork(workId, userId);
+        return workCardRepository.findByWorkIdOrderByLinkedAtDesc(workId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
 
     @Transactional
     public WorkCardResponse addCard(Long workId, AddWorkCardRequest request) {
@@ -101,6 +111,13 @@ public class WorkCardService {
         response.setId(relation.getId());
         response.setWorkId(relation.getWork().getId());
         response.setCardId(relation.getCard().getId());
+        response.setCardTitle(relation.getCard().getTitle());
+        response.setCardType(relation.getCard().getType());
+        response.setCardGrowthStatus(relation.getCard().getGrowthStatus());
+        response.setTags(relation.getCard().getTags().stream()
+                .map(tag -> tag.getName())
+                .sorted()
+                .toList());
         response.setStatus(relation.getStatus());
         response.setNote(relation.getNote());
         response.setLinkedAt(relation.getLinkedAt());
