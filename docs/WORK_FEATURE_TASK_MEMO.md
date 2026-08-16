@@ -3,7 +3,7 @@
 - 建立日期：2026-08-16
 - 基線分支：`feat/OTPAR`
 - 目前功能分支：`feat/work-management`
-- 目前狀態：任務 2 完成；Work table SQL 已在本機執行，Supabase 待整體功能驗收
+- 目前狀態：任務 3A WorkCard 資料模型完成，等待本機執行 WorkCard SQL；關聯 API 尚未實作
 - 需求來源：`ECHO_GALLERY_CREATION_INCUBATOR_CHANGE_REQUIREMENTS.md`
 
 ---
@@ -111,12 +111,12 @@ feat(work): 新增作品管理 API
 
 預計內容：
 
-- [ ] 新增 `WorkCardStatus`：`CANDIDATE / USED`。
-- [ ] 新增明確的 `WorkCard` entity。
-- [ ] 新增 `WorkCardRepository`。
-- [ ] 建立 WorkCard table SQL。
-- [ ] 加入 `(work_id, card_id)` unique constraint。
-- [ ] 加入 foreign key 與必要 index。
+- [x] 新增 `WorkCardStatus`：`CANDIDATE / USED`。
+- [x] 新增明確的 `WorkCard` entity。
+- [x] 新增 `WorkCardRepository`。
+- [x] 建立 WorkCard table SQL。
+- [x] 加入 `(work_id, card_id)` unique constraint。
+- [x] 加入 foreign key 與必要 index。
 - [ ] 支援 Card 加入 Work，預設為 `CANDIDATE`。
 - [ ] 支援 Card 從 Work 移除。
 - [ ] 支援 `CANDIDATE / USED` 切換。
@@ -126,13 +126,13 @@ feat(work): 新增作品管理 API
 
 完成條件：
 
-- [ ] 同一 Card 可以加入多個 Work。
-- [ ] 同一 Card 不可重複加入同一 Work。
+- [x] 同一 Card 可以加入多個 Work。
+- [x] 同一 Card 不可重複加入同一 Work。
 - [ ] User A 不可連結 User B 的 Card 或 Work。
-- [ ] WorkCard 狀態彼此獨立。
-- [ ] WorkCard 狀態不會自動修改 Card growth status。
-- [ ] unlink 後 Card 仍存在。
-- [ ] 後端測試通過。
+- [x] WorkCard 狀態彼此獨立。
+- [x] WorkCard 狀態不會自動修改 Card growth status。
+- [x] unlink 後 Card 仍存在。
+- [x] WorkCard 持久化測試通過：`./gradlew test --tests com.echogallery.work.WorkCardPersistenceTests`，2026-08-16。
 
 建議 commit：
 
@@ -244,7 +244,7 @@ SQL 目前預計存放於 VS Code Database 套件管理的 SQL 資料夾，不�
 | SQL | 本機 PostgreSQL | 重複執行 | Supabase 正式環境 | 備註 |
 | --- | --- | --- | --- | --- |
 | 建立 `works` | 已執行（2026-08-16） | 未驗證 | 未執行 | SQL 存放於 repository 外部 |
-| 建立 `work_cards` | 未執行 | 未驗證 | 未執行 | 路徑待填 |
+| 建立 `work_cards` | 待執行 | 未驗證 | 未執行 | SQL 於任務 3A 交付，存放位置由使用者管理 |
 
 正式環境執行原則：
 
