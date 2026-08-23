@@ -112,12 +112,13 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
 
         long growingCardId = createCard(ownerToken, "Growing card", new String[0]);
         long matureCardId = createCard(ownerToken, "Mature card", new String[0]);
-        createCard(ownerToken, "Seed card", new String[0]);
+        long seedCardId = createCard(ownerToken, "Seed card", new String[0]);
         long archivedCardId = createCard(ownerToken, "Archived mature card", new String[0]);
         long otherCardId = createCard(otherToken, "Other user's mature card", new String[0]);
 
         updateCard(ownerToken, growingCardId, "Growing card", false, "GROWING");
         updateCard(ownerToken, matureCardId, "Mature card", false, "MATURE");
+        updateCard(ownerToken, seedCardId, "Seed card", false, "SEED");
         updateCard(ownerToken, archivedCardId, "Archived mature card", true, "MATURE");
         updateCard(otherToken, otherCardId, "Other user's mature card", false, "MATURE");
         createWork(ownerToken, "Unfinished owner work");

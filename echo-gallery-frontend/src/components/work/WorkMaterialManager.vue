@@ -27,6 +27,7 @@ const cardTypeMeta: Record<CardType, string> = {
 }
 
 const growthStatusMeta: Record<CardGrowthStatus, { icon: string; label: string }> = {
+  UNMARKED: { icon: '', label: '未標記' },
   SEED: { icon: '🌱', label: '種子' },
   GROWING: { icon: '🌿', label: '生長' },
   MATURE: { icon: '🌳', label: '成熟' },
@@ -237,7 +238,7 @@ const resetCardSearch = () => {
             </button>
             <div class="card-metadata">
               <span>{{ cardTypeMeta[card.cardType] }}</span>
-              <el-tooltip :content="growthStatusMeta[card.cardGrowthStatus].label">
+              <el-tooltip v-if="card.cardGrowthStatus !== 'UNMARKED'" :content="growthStatusMeta[card.cardGrowthStatus].label">
                 <span class="growth-icon" role="img" :aria-label="growthStatusMeta[card.cardGrowthStatus].label">
                   {{ growthStatusMeta[card.cardGrowthStatus].icon }}
                 </span>
@@ -304,7 +305,7 @@ const resetCardSearch = () => {
             </button>
             <div class="card-metadata">
               <span>{{ cardTypeMeta[card.cardType] }}</span>
-              <el-tooltip :content="growthStatusMeta[card.cardGrowthStatus].label">
+              <el-tooltip v-if="card.cardGrowthStatus !== 'UNMARKED'" :content="growthStatusMeta[card.cardGrowthStatus].label">
                 <span class="growth-icon" role="img" :aria-label="growthStatusMeta[card.cardGrowthStatus].label">
                   {{ growthStatusMeta[card.cardGrowthStatus].icon }}
                 </span>
@@ -420,13 +421,13 @@ const resetCardSearch = () => {
             <div class="card-metadata">
               <span class="card-id">#{{ card.id }}</span>
               <span>{{ cardTypeMeta[card.type] }}</span>
-              <el-tooltip :content="growthStatusMeta[card.growthStatus ?? 'SEED'].label">
+              <el-tooltip v-if="card.growthStatus !== 'UNMARKED'" :content="growthStatusMeta[card.growthStatus].label">
                 <span
                   class="growth-icon"
                   role="img"
-                  :aria-label="growthStatusMeta[card.growthStatus ?? 'SEED'].label"
+                  :aria-label="growthStatusMeta[card.growthStatus].label"
                 >
-                  {{ growthStatusMeta[card.growthStatus ?? 'SEED'].icon }}
+                  {{ growthStatusMeta[card.growthStatus].icon }}
                 </span>
               </el-tooltip>
             </div>

@@ -94,7 +94,7 @@ class WorkCardPersistenceTests extends IntegrationTestBase {
         assertThat(cardRepository.findById(card.getId()))
                 .get()
                 .extracting(Card::getGrowthStatus)
-                .isEqualTo(CardGrowthStatus.SEED);
+                .isEqualTo(CardGrowthStatus.UNMARKED);
     }
 
     @Test

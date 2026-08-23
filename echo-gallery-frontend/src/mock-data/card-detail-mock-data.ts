@@ -18,7 +18,7 @@ export const getCardByIdFromMock = (id: string): CardDto | null => {
     tags: ['Vue3', 'TypeScript', 'ElementPlus'],
     intervalDays: 7,
     isArchived: false,
-    growthStatus: 'SEED',
+    growthStatus: 'UNMARKED',
     nextShowAt: new Date().toISOString(),
     openCount: 12,
     likeCount: 5,

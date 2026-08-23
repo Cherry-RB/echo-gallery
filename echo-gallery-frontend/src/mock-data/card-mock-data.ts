@@ -46,6 +46,8 @@ export const generateCards = (pageNumber: number, pageSize: number) : CardDto[] 
 
             isArchived: true,
 
+            growthStatus: "UNMARKED",
+
             isShowContentPreview: true,
 
             createdAt: "2026-05-06T09:14:00Z",

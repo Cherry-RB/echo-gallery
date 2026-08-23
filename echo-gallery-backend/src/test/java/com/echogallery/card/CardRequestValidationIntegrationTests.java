@@ -189,14 +189,14 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
-    void createReturnsSeedGrowthStatusByDefault() throws Exception {
+    void createReturnsUnmarkedGrowthStatusByDefault() throws Exception {
         MvcResult createResult = performCreate(validRequest())
                 .andExpect(status().isOk())
                 .andReturn();
 
         JsonNode response = objectMapper.readTree(createResult.getResponse().getContentAsString());
 
-        assertThat(response.get("growthStatus").asText()).isEqualTo("SEED");
+        assertThat(response.get("growthStatus").asText()).isEqualTo("UNMARKED");
     }
 
     @Test
@@ -286,7 +286,7 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
         assertThat(cardRepository.findById(cardId))
                 .get()
                 .extracting(Card::getGrowthStatus)
-                .isEqualTo(CardGrowthStatus.SEED);
+                .isEqualTo(CardGrowthStatus.UNMARKED);
     }
 
     @Test
@@ -309,7 +309,7 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
         assertThat(cardRepository.findById(cardId))
                 .get()
                 .extracting(Card::getGrowthStatus)
-                .isEqualTo(CardGrowthStatus.SEED);
+                .isEqualTo(CardGrowthStatus.UNMARKED);
     }
 
     @Test

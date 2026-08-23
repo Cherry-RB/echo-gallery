@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/vue-qu
 import { cardApi } from './api/cardApi';
 import { ElMessage } from 'element-plus';
 import type { BoardType } from '../types/board';
-import type { UpdateCardRequest } from '../types/card';
+import type { CardGrowthStatus, UpdateCardRequest } from '../types/card';
 
 // 簡單定義卡片與無限捲動快取的基礎型別，提升程式碼強健度
 interface CardDTO {
@@ -318,7 +318,25 @@ export const useCardStatus = () => {
     });
 
     // =====================================================
-    // 🚀 功能 7. 刪除卡片 Mutation
+    // 🚀 功能 7. 更新卡片成長狀態 Mutation
+    // =====================================================
+    const growthStatusMutation = useMutation({
+        mutationFn: ({ id, growthStatus }: { id: string | number; growthStatus: CardGrowthStatus }) =>
+            cardApi.updateGrowthStatus(id, growthStatus),
+        onSuccess: (updatedCard, variables) => {
+            updateLocalCache(variables.id, updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+            queryClient.invalidateQueries({ queryKey: ['workCards'] });
+            ElMessage.success(updatedCard.growthStatus === 'SEED' ? '已標記為種子' : '成長狀態已更新');
+        },
+        onError: (err: any) => {
+            const errorMsg = err.response?.data?.message || '更新成長狀態失敗';
+            ElMessage.error(errorMsg);
+        }
+    });
+
+    // =====================================================
+    // 🚀 功能 8. 刪除卡片 Mutation
     // =====================================================
     const deleteCardMutation = useMutation({
       mutationFn: ({ id }: { id: string | number }) =>
@@ -372,6 +390,7 @@ export const useCardStatus = () => {
         handleReadCard: readMutation.mutate,
         handleCreateCard: createCardMutation.mutate,
         handleUpdateCard: updateCardMutation.mutate,
+        handleUpdateGrowthStatus: growthStatusMutation.mutate,
         handleDeleteCard: deleteCardMutation.mutateAsync,
 
         // 如果你有需要按鈕讀條(Loading) 狀態也可以順便拿出去
@@ -380,5 +399,6 @@ export const useCardStatus = () => {
         isSnoozePending: snoozeMutation.isPending,
         isReadPending: readMutation.isPending,
         isCreatePending: createCardMutation.isPending,
+        isGrowthStatusPending: growthStatusMutation.isPending,
     };
 };

@@ -15,6 +15,9 @@ const props = defineProps<{
 const capabilities = computed(() => getBoardCapabilities(props.boardType));
 
 const growthTag = computed(() => {
+  if (props.data.growthStatus === 'SEED') {
+    return { icon: '🌱', label: '種子' };
+  }
   if (props.data.growthStatus === 'GROWING') {
     return { icon: '🌿', label: '生長' };
   }
@@ -28,7 +31,14 @@ const emit = defineEmits<{
   (e: "open-detail", card: any): void;
 }>();
 
-const { handleToggleStar, handleToggleArchive, handleSnoozeCard, handleDeleteCard } = useCardStatus();
+const {
+  handleToggleStar,
+  handleToggleArchive,
+  handleSnoozeCard,
+  handleUpdateGrowthStatus,
+  handleDeleteCard,
+  isGrowthStatusPending,
+} = useCardStatus();
 
 // =====================================================
 // 💡 關鍵：判定卡片是否處於「灰掉狀態 (Muted)」
@@ -93,6 +103,10 @@ const triggerSnooze = () => {
   // 後續根據使用體驗，考慮再加上直接可以客製化，讓使用者透過按鈕，決定本次回流增加天數，如：5天後再看 / 1 周後再看 / 1 個月後再看
   const days = props.data.intervalDays || 10;
   handleSnoozeCard({ id: props.data.id, nextIntervalDays: days });
+};
+
+const markAsSeed = () => {
+  handleUpdateGrowthStatus({ id: props.data.id, growthStatus: 'SEED' });
 };
 
 const getLikeAvailableStatus = (likeAvailableAt: string | undefined) => {
@@ -203,6 +217,13 @@ const deleteCard = () => {
     <template #dropdown>
       <el-dropdown-menu>
         <!-- <el-dropdown-item @click="goToDetail()">編輯</el-dropdown-item> -->
+        <el-dropdown-item
+          v-if="!isMuted && data.growthStatus !== 'SEED'"
+          :disabled="isGrowthStatusPending"
+          @click.stop="markAsSeed"
+        >
+          標記種子
+        </el-dropdown-item>
         <el-dropdown-item v-if="!isMuted&&capabilities.canSnooze" @click.stop="triggerSnooze">
           稍後再看
         </el-dropdown-item>

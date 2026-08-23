@@ -194,6 +194,20 @@ public class CardService {
     }
 
     @Transactional
+    public CardDetailResponse updateGrowthStatus(Long cardId, CardGrowthStatusRequest request) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
+
+        if (!card.getUser().getId().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權修改此卡片的成長狀態");
+        }
+
+        card.setGrowthStatus(request.getGrowthStatus());
+        return convertToDetailResponse(card);
+    }
+
+    @Transactional
     public CardDetailResponse createCard(CreateCardRequest request) {
 
         // 1. 安全地從安全上下文取得目前登入的 userId（防範前端越權傳參）

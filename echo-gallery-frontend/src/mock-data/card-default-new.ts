@@ -33,7 +33,7 @@ export const getDefaultCardData = (): CardDto => {
 
         isArchived: true,
 
-        growthStatus: "SEED",
+        growthStatus: "UNMARKED",
 
         createdAt: "",
         updatedAt: ""

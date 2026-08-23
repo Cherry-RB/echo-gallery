@@ -1,5 +1,5 @@
 import type { BoardType } from "../../types/board";
-import type { CardDto, CreateCardRequest, UpdateCardRequest } from "../../types/card";
+import type { CardDto, CardGrowthStatus, CreateCardRequest, UpdateCardRequest } from "../../types/card";
 import request from "./request"
 
 export const cardApi = {
@@ -46,6 +46,13 @@ export const cardApi = {
             url: `/cards/${id}`,
             method: "PUT",
             data
+        })
+    },
+    updateGrowthStatus(id: string | number, growthStatus: CardGrowthStatus): Promise<CardDto> {
+        return request({
+            url: `/cards/${id}/growth-status`,
+            method: "PUT",
+            data: { growthStatus }
         })
     },
     // 刪除卡片

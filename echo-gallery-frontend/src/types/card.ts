@@ -1,6 +1,6 @@
 export type CardType = "note" | "link";
 
-export type CardGrowthStatus = "SEED" | "GROWING" | "MATURE";
+export type CardGrowthStatus = "UNMARKED" | "SEED" | "GROWING" | "MATURE";
 
 export type ViewMode = "text" | "gallery";
 
@@ -77,7 +77,7 @@ export interface CardDto {
     // 狀態 (是否封存)
     isArchived: boolean;
 
-    growthStatus?: CardGrowthStatus;
+    growthStatus: CardGrowthStatus;
 
     isShowContentPreview?: boolean| null;
 

@@ -199,7 +199,7 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
         assertThat(cardRepository.findById(cardId))
                 .get()
                 .extracting(card -> card.getGrowthStatus())
-                .isEqualTo(CardGrowthStatus.SEED);
+                .isEqualTo(CardGrowthStatus.UNMARKED);
     }
 
     @Test
@@ -319,7 +319,7 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
         JsonNode candidate = findRelation(response, candidateCardId);
         assertThat(candidate.get("cardTitle").asText()).isEqualTo("候選卡片");
         assertThat(candidate.get("cardType").asText()).isEqualTo("note");
-        assertThat(candidate.get("cardGrowthStatus").asText()).isEqualTo("SEED");
+        assertThat(candidate.get("cardGrowthStatus").asText()).isEqualTo("UNMARKED");
         assertThat(candidate.get("status").asText()).isEqualTo("CANDIDATE");
         assertThat(candidate.get("tags").get(0).asText()).isEqualTo("AI");
         assertThat(candidate.get("tags").get(1).asText()).isEqualTo("Java");
@@ -458,7 +458,7 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                 .content("{\"starStatus\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.likeCount").value(1))
-                .andExpect(jsonPath("$.growthStatus").value("SEED"));
+                .andExpect(jsonPath("$.growthStatus").value("UNMARKED"));
 
         mockMvc.perform(put("/api/cards/{id}/snooze", cardId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
@@ -466,13 +466,13 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                 .content("{\"nextIntervalDays\":5}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nextShowAt").exists())
-                .andExpect(jsonPath("$.growthStatus").value("SEED"));
+                .andExpect(jsonPath("$.growthStatus").value("UNMARKED"));
 
         mockMvc.perform(put("/api/cards/{id}/read", cardId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openCount").value(1))
-                .andExpect(jsonPath("$.growthStatus").value("SEED"));
+                .andExpect(jsonPath("$.growthStatus").value("UNMARKED"));
 
         mockMvc.perform(put("/api/cards/{id}/archive", cardId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
@@ -501,7 +501,7 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].cardId").value(cardId))
                 .andExpect(jsonPath("$[0].status").value("CANDIDATE"))
-                .andExpect(jsonPath("$[0].cardGrowthStatus").value("SEED"));
+                .andExpect(jsonPath("$[0].cardGrowthStatus").value("UNMARKED"));
 
         assertThat(cardRepository.existsById(cardId)).isTrue();
         assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId)).isPresent();

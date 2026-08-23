@@ -49,8 +49,9 @@ const cardData = ref<CardDto>(getDefaultCardData());
 const growthStatusOptions: Array<{
   value: CardGrowthStatus;
   label: string;
-  tagType: 'success' | 'warning' | 'primary';
+  tagType: 'info' | 'success' | 'warning' | 'primary';
 }> = [
+  { value: 'UNMARKED', label: '未標記', tagType: 'info' },
   { value: 'SEED', label: '🌱 種子', tagType: 'success' },
   { value: 'GROWING', label: '🌿 生長', tagType: 'warning' },
   { value: 'MATURE', label: '🌳 成熟', tagType: 'primary' }
