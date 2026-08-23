@@ -26,6 +26,7 @@ public class CardDetailResponse {
     @JsonProperty("isArchived")
     private Boolean isArchived;
     private ZonedDateTime lastOpenAt;
+    private ZonedDateTime lastOfferedAt;
     private ZonedDateTime lastInteractionAt;
     private CardGrowthStatus growthStatus;
     private ZonedDateTime createdAt;

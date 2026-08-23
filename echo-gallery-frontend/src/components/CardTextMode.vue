@@ -1,8 +1,7 @@
 <script setup lang="ts">
 
-import { formatDate } from '../utils/formatDate'
 import { computed } from 'vue';
-import { Link, Star, StarFilled, RefreshRight, MoreFilled } from '@element-plus/icons-vue'
+import { Link, Star, StarFilled, MoreFilled } from '@element-plus/icons-vue'
 import { useCardStatus } from '../utils/useCardStatus';
 import type { CardDto } from '../types/card';
 import { getBoardCapabilities, type BoardType } from '../types/board';
@@ -204,11 +203,6 @@ const deleteCard = () => {
 
         <div class="card-footer-side">
           <!-- 下次回流 -->
-          <div class="next-review" @click.stop>
-          <!-- <div class="card-body-next-review-text"> -->
-            <el-icon :size="16"><RefreshRight /></el-icon>
-            <span>{{ formatDate(data.nextShowAt, "YYYY-MM-DD") }}</span>
-          </div>
           <span class="card-id" @click.stop>#{{ data.id }}</span>
           <!-- </div> -->
           <!-- 更多功能按鈕 -->
@@ -329,16 +323,6 @@ const deleteCard = () => {
   transform: rotate(90deg);
   color: #999; /* 調整為適合的灰色，可依需求自行更改 */
   outline: none; /* 關鍵：移除點擊或聚焦時的黑色外框 */
-}
-.card-body-next-review-text {
-  color: #b5b5b5;
-  font-size: 12px;
-  line-height: 1;
-}
-.next-review{
-  display: flex;
-  align-items: center;
-  gap: 5px;
 }
 .title-text{
   font-weight: 600;

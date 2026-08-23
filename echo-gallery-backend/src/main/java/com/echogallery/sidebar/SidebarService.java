@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.echogallery.card.CardRepository;
-import com.echogallery.card.CardService;
 import com.echogallery.card.CardGrowthStatus;
 import com.echogallery.card.CardStatsProjection;
 import com.echogallery.tag.TagRepository;
@@ -25,7 +24,6 @@ public class SidebarService {
 
     private final CardRepository cardRepository;
     private final TagRepository tagRepository;
-    private final CardService cardService;
     private final WorkRepository workRepository;
 
     @Transactional(readOnly = true)
@@ -36,7 +34,6 @@ public class SidebarService {
 
         CardStatsProjection cardStats = cardRepository.findActiveStats(
                 userId,
-                cardService.getStartOfTomorrowTaipei(),
                 10,
                 CardGrowthStatus.SEED,
                 CardGrowthStatus.GROWING,
@@ -49,7 +46,6 @@ public class SidebarService {
                 cardStats.getTotalCards(),
                 workStats.getTotalWorks(),
                 workStats.getUnfinishedWorks(),
-                cardStats.getTodayEchoCards(),
                 cardStats.getHighSnoozeCards(),
                 cardStats.getSeedCards(),
                 cardStats.getGrowingCards(),

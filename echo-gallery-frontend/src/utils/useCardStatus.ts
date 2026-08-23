@@ -2,7 +2,8 @@ import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/vue-qu
 import { cardApi } from './api/cardApi';
 import { ElMessage } from 'element-plus';
 import type { BoardType } from '../types/board';
-import type { CardGrowthStatus, UpdateCardRequest } from '../types/card';
+import type { CardDto, CardGrowthStatus, TodayBatchResponse, UpdateCardRequest } from '../types/card';
+import { removeTodayCard, todayBatchQueryKey, updateTodayCard } from './todayBatchCache';
 
 // 簡單定義卡片與無限捲動快取的基礎型別，提升程式碼強健度
 interface CardDTO {
@@ -28,10 +29,12 @@ export const useCardStatus = () => {
     const prepareSnapshot = async (id: string | number) => {
         // 1. 取消所有相關的網路請求，避免舊資料回流覆蓋了樂觀更新
         await queryClient.cancelQueries({ queryKey: ['cards'] });
+        await queryClient.cancelQueries({ queryKey: todayBatchQueryKey });
         await queryClient.cancelQueries({ queryKey: ['card', String(id)] });
 
         // 2. 獲取當前單張卡片的詳情快照
         const previousCardDetail = queryClient.getQueryData<CardDTO>(['card', id]);
+        const previousTodayBatch = queryClient.getQueryData<TodayBatchResponse>(todayBatchQueryKey);
         // 3. 進階：找出所有以 ['cards'] 開頭的快取（例如包含篩選條件的 ['cards', { status: 'active' }]）
         const queryCache = queryClient.getQueryCache();
         const matchingQueries = queryCache.findAll({ queryKey: ['cards'] });
@@ -42,12 +45,14 @@ export const useCardStatus = () => {
             data: query.state.data
         }));
 
-        return { previousListsSnapshot, previousCardDetail };
+        return { previousListsSnapshot, previousCardDetail, previousTodayBatch };
     };
     // =====================================================
     // 🎯 內部共用核心工具 2：精準修改單張卡片快取的通用手術刀
     // =====================================================
     const updateLocalCache = (id: string | number, patchFields: Partial<CardDTO>) => {
+        queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old =>
+            updateTodayCard(old, id, patchFields as Partial<CardDto>));
         // A. 使用 setQueriesData 模糊更新所有開頭為 ['cards'] 的列表快取（不論是否帶篩選參數）
         queryClient.setQueriesData<InfiniteData<CardDTO[]> | CardDTO[]>({ queryKey: ['cards'] }, (old: any) => {
             // 如果目前根本還沒有快取資料（例如還沒開過首頁），就什麼都不做直接返回
@@ -109,6 +114,9 @@ export const useCardStatus = () => {
         // 還原詳情頁快取
         if (context?.previousCardDetail){
             queryClient.setQueryData(['card', String(id)], context.previousCardDetail);
+        }
+        if (context?.previousTodayBatch) {
+            queryClient.setQueryData(todayBatchQueryKey, context.previousTodayBatch);
         }
 
         // 解析後端報錯的客製化訊息（例如："星星冷卻中"、"權限不足"），如果沒有就給預設字串
@@ -185,6 +193,9 @@ export const useCardStatus = () => {
 
             // 樂觀更新：立刻讓前端卡片進入封存狀態 (觸發 CSS 變灰)
             updateLocalCache(id, { isArchived: archivedStatus });
+            if (archivedStatus) {
+                queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old => removeTodayCard(old, id));
+            }
 
             return snapshot;
         },
@@ -214,6 +225,8 @@ export const useCardStatus = () => {
         // 【點擊瞬間立刻執行】
         onMutate: async ({ id }) => {
             const snapshot = await prepareSnapshot(id);
+
+            queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old => removeTodayCard(old, id));
 
             // 從前端大陣列中將其剔除，瀑布流會立刻重新排版，卡片原地消失
             // 使用 setQueriesData 確保所有開頭為 ['cards'] 的列表都同步剔除該卡片
@@ -257,6 +270,10 @@ export const useCardStatus = () => {
         // 【點擊瞬間立刻執行】
         onMutate: async ({ id, sourceBoard }) => {
             const snapshot = await prepareSnapshot(id);
+
+            if (sourceBoard === 'today') {
+                queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old => removeTodayCard(old, id));
+            }
 
             // 樂觀更新：立刻 filter 掉
             queryClient.setQueriesData<InfiniteData<CardDTO[]>>({ queryKey: ['cards', sourceBoard] }, (oldData: any) => {
@@ -357,6 +374,7 @@ export const useCardStatus = () => {
 
       onMutate: async ({ id }) => {
           const snapshot = await prepareSnapshot(id);
+          queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old => removeTodayCard(old, id));
           queryClient.setQueriesData(
               { queryKey: ['cards'] },
               (oldData: any) => {

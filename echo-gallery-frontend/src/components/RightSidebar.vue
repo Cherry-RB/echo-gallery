@@ -35,10 +35,6 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
       </h3>
 
       <div class="stats-grid" v-if="sidebarStats">
-        <div class="stat-box highlight-box">
-          <span class="stat-value">{{ sidebarStats.todayEchoCards ?? 0 }}</span>
-          <span class="stat-label">今日回流卡片數</span>
-        </div>
         <div class="stat-box">
           <span class="stat-value">{{ sidebarStats.totalCards ?? 0 }}</span>
           <span class="stat-label">未封存卡片</span>
@@ -164,19 +160,6 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
   border-radius: 10px;
 }
 /* 讓最重要的「今日回流」橫跨兩欄獨佔一列 */
-.stat-box.highlight-box {
-  grid-column: span 2;
-  background: var(--el-color-primary-light-9);
-  border-color: var(--el-color-primary-light-7);
-}
-.stat-box.highlight-box .stat-value {
-  color: var(--el-color-primary);
-}
-.stat-box.highlight-box .stat-label {
-  color: var(--el-color-primary-light-2);
-  font-weight: 500;
-}
-
 .stat-box.growth-overview {
   grid-column: span 2;
   background: var(--el-color-success-light-9);

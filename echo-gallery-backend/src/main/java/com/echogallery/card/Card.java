@@ -81,6 +81,9 @@ public class Card {
     @Column(name = "last_open_at")
     private ZonedDateTime lastOpenAt;
 
+    @Column(name = "last_offered_at")
+    private ZonedDateTime lastOfferedAt;
+
     @Builder.Default
     @Column(name = "open_count")
     private int openCount = 0;

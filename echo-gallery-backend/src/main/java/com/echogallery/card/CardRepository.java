@@ -8,11 +8,36 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificationExecutor<Card> {
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Card c WHERE c.id = :id")
+    java.util.Optional<Card> findByIdForUpdate(@Param("id") Long id);
+
+    @Query("SELECT MAX(c.lastOfferedAt) FROM Card c WHERE c.user.id = :userId AND c.lastOfferedAt >= :startOfToday AND c.lastOfferedAt < :startOfTomorrow")
+    java.util.Optional<ZonedDateTime> findLatestBatchOfferedAt(
+            @Param("userId") Long userId,
+            @Param("startOfToday") ZonedDateTime startOfToday,
+            @Param("startOfTomorrow") ZonedDateTime startOfTomorrow);
+
+    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.lastOfferedAt = :batchOfferedAt AND c.isArchived = false AND c.nextShowAt IS NOT NULL AND c.nextShowAt < :startOfTomorrow ORDER BY c.nextShowAt ASC, c.id ASC")
+    List<Card> findVisibleBatchCards(
+            @Param("userId") Long userId,
+            @Param("batchOfferedAt") ZonedDateTime batchOfferedAt,
+            @Param("startOfTomorrow") ZonedDateTime startOfTomorrow);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false AND c.nextShowAt IS NOT NULL AND c.nextShowAt < :startOfTomorrow AND (c.lastOfferedAt IS NULL OR c.lastOfferedAt < :startOfToday) ORDER BY CASE WHEN c.lastOfferedAt IS NULL THEN 0 ELSE 1 END ASC, c.lastOfferedAt ASC, c.nextShowAt ASC, c.id ASC")
+    List<Card> findTodayCandidatesForUpdate(
+            @Param("userId") Long userId,
+            @Param("startOfToday") ZonedDateTime startOfToday,
+            @Param("startOfTomorrow") ZonedDateTime startOfTomorrow,
+            Pageable pageable);
 
     // 看板分頁 - ALL 未封存卡片
     Page<Card> findByUserIdAndIsArchivedFalse(Long userId, Pageable pageable);
@@ -58,7 +83,6 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
     @Query("""
             SELECT
                 COUNT(c) AS totalCards,
-                COALESCE(SUM(CASE WHEN c.nextShowAt < :startOfTomorrow THEN 1 ELSE 0 END), 0) AS todayEchoCards,
                 COALESCE(SUM(CASE WHEN c.snoozeCount > :snoozeThreshold THEN 1 ELSE 0 END), 0) AS highSnoozeCards,
                 COALESCE(SUM(CASE WHEN c.growthStatus = :seedStatus THEN 1 ELSE 0 END), 0) AS seedCards,
                 COALESCE(SUM(CASE WHEN c.growthStatus = :growingStatus THEN 1 ELSE 0 END), 0) AS growingCards,
@@ -69,7 +93,6 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
             """)
     CardStatsProjection findActiveStats(
             @Param("userId") Long userId,
-            @Param("startOfTomorrow") ZonedDateTime startOfTomorrow,
             @Param("snoozeThreshold") int snoozeThreshold,
             @Param("seedStatus") CardGrowthStatus seedStatus,
             @Param("growingStatus") CardGrowthStatus growingStatus,

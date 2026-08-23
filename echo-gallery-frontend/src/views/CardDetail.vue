@@ -496,6 +496,12 @@ const {
               <el-icon class="icon-align"><Calendar /></el-icon>
               {{ formatDate(cardData.nextShowAt || '') || '-' }}
             </el-descriptions-item>
+            <el-descriptions-item label="最近出現在 Today" v-if="!isEditMode">
+              {{ formatDate(cardData.lastOfferedAt || '') || '尚未出現' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="最近完成回顧" v-if="!isEditMode">
+              {{ formatDate(cardData.lastOpenAt || '') || '尚無回顧' }}
+            </el-descriptions-item>
           </el-descriptions>
         </el-card>
 
@@ -575,10 +581,6 @@ const {
                   <el-option :value="true" label="已封存" />
                 </el-select>
               </template>
-            </div>
-            <div class="info-item">
-              <span class="info-label">最後點開</span>
-              <span class="info-val">{{ formatDate(cardData.lastOpenAt || '') || '無記錄' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">最後按讚</span>

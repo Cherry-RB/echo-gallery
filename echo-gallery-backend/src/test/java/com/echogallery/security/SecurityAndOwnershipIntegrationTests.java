@@ -132,7 +132,7 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.totalCards").value(3))
                 .andExpect(jsonPath("$.totalWorks").value(2))
                 .andExpect(jsonPath("$.unfinishedWorks").value(1))
-                .andExpect(jsonPath("$.todayEchoCards").value(0))
+                .andExpect(jsonPath("$.todayEchoCards").doesNotExist())
                 .andExpect(jsonPath("$.highSnoozeCards").value(0))
                 .andExpect(jsonPath("$.seedCards").value(1))
                 .andExpect(jsonPath("$.growingCards").value(1))

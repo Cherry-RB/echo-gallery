@@ -4,8 +4,6 @@ public interface CardStatsProjection {
 
     long getTotalCards();
 
-    long getTodayEchoCards();
-
     long getHighSnoozeCards();
 
     long getSeedCards();

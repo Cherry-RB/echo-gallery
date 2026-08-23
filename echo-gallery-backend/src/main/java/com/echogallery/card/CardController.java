@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class CardController {
 
     private final CardService cardService;
+    private final TodayCardService todayCardService;
 
     /**
      * 卡片查詢
@@ -97,6 +98,16 @@ public class CardController {
     public ResponseEntity<CardDetailResponse> readCard(@PathVariable("id") Long id) {
         CardDetailResponse response = cardService.readCard(id);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/today/prepare")
+    public ResponseEntity<TodayBatchResponse> prepareToday() {
+        return ResponseEntity.ok(todayCardService.prepare());
+    }
+
+    @PostMapping("/today/next")
+    public ResponseEntity<TodayBatchResponse> nextToday(@Valid @RequestBody TodayNextRequest request) {
+        return ResponseEntity.ok(todayCardService.next(request));
     }
 
     @GetMapping("/tag")

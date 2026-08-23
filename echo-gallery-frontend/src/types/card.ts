@@ -28,6 +28,11 @@ export interface PageResponse<T> {
     totalPages: number;
 }
 
+export interface TodayBatchResponse {
+    cards: CardDto[];
+    batchOfferedAt: string | null;
+}
+
 export type ViewMode = "text" | "gallery";
 
 export type SourceType =
@@ -90,6 +95,7 @@ export interface CardDto {
     
     // 使用者互動 (詳情/link)
     lastOpenAt? : string | null; // 上一次被使用者點開詳情 / link 的日期
+    lastOfferedAt?: string | null;
     openCount: number;
 
     // 使用者互動 (星標/熱度)

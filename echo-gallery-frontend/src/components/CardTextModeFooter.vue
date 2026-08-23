@@ -1,7 +1,6 @@
 <script setup lang="ts">
 
 import router from '../router/index';
-import { formatDate } from '../utils/formatDate'
 
 const props = defineProps({
   data: {
@@ -93,8 +92,6 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
         <el-tag v-for="tag in data.tags" type="info" size="small" effect="plain">#{{ tag }}</el-tag>
       </div>
       <!-- 下次回流 -->
-      <div class="card-body-next-review-text">下次回流：{{ formatDate(data.nextShowAt) }}</div>
-
     </div>
     
     <!-- 底部：來源、按讚數 -->
@@ -174,11 +171,6 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
   overflow-wrap: break-word;
   /* 強制所有字符在邊界斷開 */
   /* word-break: break-all;  */
-}
-.card-body-next-review-text {
-  color: #b5b5b5;
-  font-size: 12px;
-  line-height: 1;
 }
 .title-text{
   font-weight: 600;

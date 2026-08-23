@@ -1,7 +1,6 @@
 package com.echogallery.card;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -32,17 +31,16 @@ public class CardService {
     private final CardRepository cardRepository;
     private final UserRepository userRepository;
     private final TagRepository tagRepository;
+    private final Clock clock;
 
     // 給查詢用:排他上界(今天結束 = 明天開始)
     public ZonedDateTime getStartOfTomorrowTaipei() {
-        ZoneId taipei = ZoneId.of("Asia/Taipei");
-        return LocalDate.now(taipei).plusDays(1).atStartOfDay(taipei);
+        return ZonedDateTime.now(clock).toLocalDate().plusDays(1).atStartOfDay(clock.getZone());
     }
 
     // 給建卡/回流用:今天的起算基準
     private ZonedDateTime getStartOfTodayTaipei() {
-        ZoneId taipei = ZoneId.of("Asia/Taipei");
-        return LocalDate.now(taipei).atStartOfDay(taipei);
+        return ZonedDateTime.now(clock).toLocalDate().atStartOfDay(clock.getZone());
     }
 
     @Transactional(readOnly = true)
@@ -285,7 +283,7 @@ public class CardService {
         return associatedTags;
     }
 
-    private CardSummaryResponse convertToSummaryResponse(Card card){
+    CardSummaryResponse convertToSummaryResponse(Card card){
         CardSummaryResponse response = new CardSummaryResponse();
         response.setId(card.getId());
         response.setType(card.getType());
@@ -304,7 +302,7 @@ public class CardService {
         return response;
     }
 
-    private CardDetailResponse convertToDetailResponse(Card card) {
+    CardDetailResponse convertToDetailResponse(Card card) {
         CardDetailResponse response = new CardDetailResponse();
         response.setId(card.getId());
         response.setType(card.getType());
@@ -323,6 +321,7 @@ public class CardService {
         response.setLikeCount(card.getLikeCount());
         response.setIsArchived(card.isArchived());
         response.setLastOpenAt(card.getLastOpenAt());
+        response.setLastOfferedAt(card.getLastOfferedAt());
         response.setLastInteractionAt(card.getLastInteractionAt());
         response.setGrowthStatus(card.getGrowthStatus());
         response.setCreatedAt(card.getCreatedAt());
@@ -358,7 +357,7 @@ public class CardService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權操作此卡片的星星狀態");
         }
 
-        ZonedDateTime now = ZonedDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(clock);
 
         // 4. 根據 request.getStarStatus() 判斷是「點亮星星(true)」還是「熄滅星星(false)」
         if (Boolean.TRUE.equals(request.getStarStatus())) {
@@ -448,16 +447,25 @@ public class CardService {
     @Transactional
     public CardDetailResponse readCard(Long cardId) {
         Long currentUserId = SecurityUtil.getCurrentUserId();
-        Card card = cardRepository.findById(cardId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
+        Card card = cardRepository.findByIdForUpdate(cardId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
 
         if (!card.getUser().getId().equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權操作此卡片");
         }
 
         // 更新統計與互動時間相關欄位
+        if (card.getLastOfferedAt() != null && card.getLastOpenAt() != null
+                && !card.getLastOpenAt().toInstant().isBefore(card.getLastOfferedAt().toInstant())) {
+            return convertToDetailResponse(card);
+        }
+
+        ZonedDateTime now = ZonedDateTime.now(clock);
+        if (card.getLastOfferedAt() != null && now.toInstant().isBefore(card.getLastOfferedAt().toInstant())) {
+            now = card.getLastOfferedAt();
+        }
         card.setOpenCount(card.getOpenCount() + 1);
-        card.setLastOpenAt(ZonedDateTime.now());
-        card.setLastInteractionAt(ZonedDateTime.now());
+        card.setLastOpenAt(now);
+        card.setLastInteractionAt(now);
 
         // 推進回流時間：若有設定天數就用卡片的，否則預設 10 天
         int days = card.getIntervalDays() != null ? card.getIntervalDays() : 10;

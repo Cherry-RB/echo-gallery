@@ -1,5 +1,5 @@
 import type { BoardType } from "../../types/board";
-import type { CardDto, CardGrowthStatus, CardSearchParams, CreateCardRequest, PageResponse, UpdateCardRequest } from "../../types/card";
+import type { CardDto, CardGrowthStatus, CardSearchParams, CreateCardRequest, PageResponse, TodayBatchResponse, UpdateCardRequest } from "../../types/card";
 import request from "./request"
 
 export const cardApi = {
@@ -94,6 +94,16 @@ export const cardApi = {
             url: `/cards/${id}/read`,
             method: "PUT"
       })
+    },
+    prepareToday(): Promise<TodayBatchResponse> {
+        return request({ url: "/cards/today/prepare", method: "POST" })
+    },
+    nextToday(currentBatchOfferedAt: string): Promise<TodayBatchResponse> {
+        return request({
+            url: "/cards/today/next",
+            method: "POST",
+            data: { currentBatchOfferedAt }
+        })
     },
     // 標籤查詢卡片
     getCardsByTags(data: {
