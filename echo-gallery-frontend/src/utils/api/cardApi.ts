@@ -1,5 +1,5 @@
 import type { BoardType } from "../../types/board";
-import type { CardDto, CardGrowthStatus, CreateCardRequest, UpdateCardRequest } from "../../types/card";
+import type { CardDto, CardGrowthStatus, CardSearchParams, CreateCardRequest, PageResponse, UpdateCardRequest } from "../../types/card";
 import request from "./request"
 
 export const cardApi = {
@@ -11,11 +11,16 @@ export const cardApi = {
             data
         });
     },
-    searchCards(data: { keyword: string, pageNumber: number, pageSize: number }): Promise<CardDto[]> {
+    searchCards(data: CardSearchParams): Promise<PageResponse<CardDto>> {
+        const params = {
+            ...data,
+            tagIds: data.tagIds?.join(','),
+            growthStatuses: data.growthStatuses?.join(','),
+        }
         return request({
             url: "/cards/search",
             method: "GET",
-            params: data
+            params
         });
     },
     // 取得單張卡片資訊

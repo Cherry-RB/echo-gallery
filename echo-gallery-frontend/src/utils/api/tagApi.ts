@@ -3,7 +3,7 @@ import request from "./request"
 
 export const tagApi = {
     // 取得標籤列表
-    getTags(): Promise<any>{
+    getTags(): Promise<TagDto[]>{
         return request({
             url: "/tags/list",
             method: "GET"

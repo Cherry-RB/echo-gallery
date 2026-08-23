@@ -6,12 +6,13 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface CardRepository extends JpaRepository<Card, Long> {
+public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificationExecutor<Card> {
 
     // 看板分頁 - ALL 未封存卡片
     Page<Card> findByUserIdAndIsArchivedFalse(Long userId, Pageable pageable);
@@ -44,20 +45,15 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     Page<Card> findByUserId(Long userId, Pageable pageable);
 
     @Query("""
-    SELECT c
-    FROM Card c
-    WHERE c.user.id = :userId
-    AND c.isArchived = false
-    AND (
-        (:cardId IS NOT NULL AND c.id = :cardId)
-        OR LOWER(c.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
-    )
-    """)
-    Page<Card> searchActiveCards(
+            SELECT DISTINCT c
+            FROM Card c
+            LEFT JOIN FETCH c.tags
+            WHERE c.user.id = :userId
+            AND c.id IN :cardIds
+            """)
+    List<Card> findAllWithTagsByUserIdAndIdIn(
             @Param("userId") Long userId,
-            @Param("cardId") Long cardId,
-            @Param("keyword") String keyword,
-            Pageable pageable);
+            @Param("cardIds") List<Long> cardIds);
 
     @Query("""
             SELECT

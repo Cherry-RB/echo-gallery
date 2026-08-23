@@ -75,6 +75,15 @@ export const useCardStatus = () => {
                     String(card.id) === String(id) ? { ...card, ...patchFields } : card
                 );
             }
+            // 綜合查詢使用一般分頁 response，卡片位於 content。
+            if (Array.isArray(old.content)) {
+                return {
+                    ...old,
+                    content: old.content.map((card: CardDTO) =>
+                        String(card.id) === String(id) ? { ...card, ...patchFields } : card
+                    )
+                };
+            }
             return old;
         });
         // B. 同步更新「單張卡片詳情頁」的快取
@@ -154,6 +163,7 @@ export const useCardStatus = () => {
         onSuccess: (updatedCard, variables) => {
             // 後端成功後，用後端精準的最新 DTO (含排序好的 tags、精準互動時間) 覆蓋
             updateLocalCache(variables.id, updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['cards', 'search'] });
         },
         // 後端失敗時執行：直接打包丟給工具 3 安全氣囊處理
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
@@ -182,6 +192,7 @@ export const useCardStatus = () => {
         onSuccess: (updatedCard, variables) => {
             // DTO 覆蓋快取
             updateLocalCache(variables.id, updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['cards', 'search'] });
 
             // 通知右側側邊欄過期，觸發自動重撈
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
@@ -225,6 +236,7 @@ export const useCardStatus = () => {
             // 因為大清單（['cards']）在 onMutate 已經清乾淨了，這裡完全不需動它。
             // 我們只需要同步更新「單張卡片詳情頁」的快取，確保系統底層資料的一致性
             queryClient.setQueryData(['card', String(variables.id)], updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['cards', 'search'] });
 
             // 通知右側側邊欄過期，觸發自動重撈
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
@@ -325,6 +337,7 @@ export const useCardStatus = () => {
             cardApi.updateGrowthStatus(id, growthStatus),
         onSuccess: (updatedCard, variables) => {
             updateLocalCache(variables.id, updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['cards', 'search'] });
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
             queryClient.invalidateQueries({ queryKey: ['workCards'] });
             ElMessage.success(updatedCard.growthStatus === 'SEED' ? '已標記為種子' : '成長狀態已更新');

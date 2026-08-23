@@ -2,6 +2,32 @@ export type CardType = "note" | "link";
 
 export type CardGrowthStatus = "UNMARKED" | "SEED" | "GROWING" | "MATURE";
 
+export type CardSearchTagMode = "AND" | "OR";
+export type CardSearchArchiveStatus = "ACTIVE" | "ARCHIVED" | "ALL";
+export type CardSearchSortBy = "UPDATED_AT" | "CREATED_AT" | "NEXT_SHOW_AT" | "ID";
+export type CardSearchDirection = "ASC" | "DESC";
+
+export interface CardSearchParams {
+    id?: number;
+    title?: string;
+    tagIds?: number[];
+    tagMode?: CardSearchTagMode;
+    growthStatuses?: CardGrowthStatus[];
+    archiveStatus?: CardSearchArchiveStatus;
+    sortBy?: CardSearchSortBy;
+    direction?: CardSearchDirection;
+    page?: number;
+    size?: number;
+}
+
+export interface PageResponse<T> {
+    content: T[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+}
+
 export type ViewMode = "text" | "gallery";
 
 export type SourceType =

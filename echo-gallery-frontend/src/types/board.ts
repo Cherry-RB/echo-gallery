@@ -5,6 +5,7 @@ export type BoardType =
   | "random"
   | "archived"
   | "snoozed"
+  | "search"
   | "tag";
 
 export function shouldMarkReviewedOnOpenDetail(boardType: BoardType): boolean {
@@ -25,6 +26,7 @@ const boardCapabilityMap: Record<BoardType, BoardCapabilities> = {
   random:   { canStar: true, canArchive: true, canSnooze: true },
   snoozed:  { canStar: true, canArchive: true, canSnooze: true },
   archived: { canStar: true, canArchive: true, canSnooze: false },
+  search:   { canStar: true, canArchive: true, canSnooze: true },
   tag:      { canStar: true, canArchive: true, canSnooze: true }
 };
 

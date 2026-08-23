@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -35,11 +36,9 @@ public class CardController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<CardSummaryResponse>> searchCards(
-            @RequestParam("keyword") String keyword,
-            @RequestParam(name = "pageNumber", defaultValue = "1") Integer pageNumber,
-            @RequestParam(name = "pageSize", defaultValue = "20") Integer pageSize) {
-        return ResponseEntity.ok(cardService.searchCards(keyword, pageNumber, pageSize));
+    public ResponseEntity<PageResponse<CardSummaryResponse>> searchCards(
+            @Valid @ModelAttribute CardSearchRequest request) {
+        return ResponseEntity.ok(cardService.searchCards(request));
     }
 
     @GetMapping("/{id}")

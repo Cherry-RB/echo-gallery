@@ -9,6 +9,7 @@ import type { WorkCard, WorkCardStatus } from '../../types/work'
 import { cardApi } from '../../utils/api/cardApi'
 import { workApi } from '../../utils/api/workApi'
 import { formatDate } from '../../utils/formatDate'
+import { normalizeWorkCardSearch } from '../../utils/cardSearch'
 
 const props = defineProps<{ workId: string }>()
 const router = useRouter()
@@ -73,28 +74,25 @@ const {
   fetchNextPage,
 } = useInfiniteQuery({
   queryKey: computed(() => ['cards', 'work-picker', searchKeyword.value]),
-  queryFn: async ({ pageParam }): Promise<CardDto[]> => {
-    if (searchKeyword.value) {
-      return cardApi.searchCards({
-        keyword: searchKeyword.value,
-        pageNumber: pageParam,
-        pageSize: 20,
-      })
-    }
-    return cardApi.getCards({
-        pageNumber: pageParam,
-        pageSize: 20,
-        boardType: 'all',
-      })
+  queryFn: ({ pageParam }) => {
+    return cardApi.searchCards({
+      ...normalizeWorkCardSearch(searchKeyword.value),
+      archiveStatus: 'ACTIVE',
+      sortBy: 'UPDATED_AT',
+      direction: 'DESC',
+      page: pageParam,
+      size: 20,
+    })
   },
-  initialPageParam: 1,
-  getNextPageParam: (lastPage, pages) => lastPage.length === 20 ? pages.length + 1 : undefined,
+  initialPageParam: 0,
+  getNextPageParam: (lastPage) =>
+    lastPage.page + 1 < lastPage.totalPages ? lastPage.page + 1 : undefined,
   enabled: computed(() => addCardDialogVisible.value),
 })
 
 const availableCards = computed(() =>
   (cardPages.value?.pages ?? [])
-    .flat()
+    .flatMap((page) => page.content)
     .filter((card) => !linkedCardIds.value.has(String(card.id))),
 )
 

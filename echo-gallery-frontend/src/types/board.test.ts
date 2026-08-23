@@ -6,6 +6,7 @@ describe('board 規則', () => {
     expect(shouldMarkReviewedOnOpenDetail('today')).toBe(true)
     expect(shouldMarkReviewedOnOpenDetail('all')).toBe(false)
     expect(shouldMarkReviewedOnOpenDetail('tag')).toBe(false)
+    expect(shouldMarkReviewedOnOpenDetail('search')).toBe(false)
   })
 
   it('封存看板不提供稍後再看操作', () => {

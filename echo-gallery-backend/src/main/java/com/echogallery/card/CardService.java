@@ -4,7 +4,9 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.springframework.data.domain.Page;
@@ -87,45 +89,28 @@ public class CardService {
     }
 
     @Transactional(readOnly = true)
-    public List<CardSummaryResponse> searchCards(String keyword, Integer pageNumber, Integer pageSize) {
-        String normalizedKeyword = keyword == null ? "" : keyword.trim();
-        if (normalizedKeyword.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "搜尋關鍵字不可為空白");
-        }
-        if (normalizedKeyword.length() > 255) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "搜尋關鍵字不可超過 255 個字");
-        }
+    public PageResponse<CardSummaryResponse> searchCards(CardSearchRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        Page<Card> page = cardRepository.findAll(
+                CardSearchSpecifications.from(userId, request),
+                PageRequest.of(request.getPage(), request.getSize()));
 
-        int page = pageNumber != null && pageNumber > 0 ? pageNumber - 1 : 0;
-        int requestedSize = pageSize != null && pageSize > 0 ? pageSize : 20;
-        int size = Math.min(requestedSize, 100);
-        Pageable pageable = PageRequest.of(page, size,
-                Sort.by(Sort.Direction.DESC, "createdAt")
-                        .and(Sort.by(Sort.Direction.DESC, "id")));
+        List<Long> cardIds = page.getContent().stream().map(Card::getId).toList();
+        Map<Long, Card> cardsWithTags = cardIds.isEmpty()
+                ? Map.of()
+                : cardRepository.findAllWithTagsByUserIdAndIdIn(userId, cardIds).stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                Card::getId,
+                                card -> card,
+                                (first, ignored) -> first,
+                                LinkedHashMap::new));
 
-        Long cardId = parseSearchCardId(normalizedKeyword);
-        return cardRepository.searchActiveCards(
-                        SecurityUtil.getCurrentUserId(),
-                        cardId,
-                        normalizedKeyword,
-                        pageable)
-                .getContent()
-                .stream()
+        List<CardSummaryResponse> content = cardIds.stream()
+                .map(cardsWithTags::get)
+                .filter(java.util.Objects::nonNull)
                 .map(this::convertToSummaryResponse)
                 .toList();
-    }
-
-    private Long parseSearchCardId(String keyword) {
-        String idCandidate = keyword.startsWith("#") ? keyword.substring(1) : keyword;
-        if (idCandidate.isEmpty() || !idCandidate.chars().allMatch(Character::isDigit)) {
-            return null;
-        }
-
-        try {
-            return Long.valueOf(idCandidate);
-        } catch (NumberFormatException exception) {
-            return null;
-        }
+        return new PageResponse<>(content, page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
     }
 
     @Transactional

@@ -51,7 +51,7 @@ watch(() => route.path, () => {
 
     <main class="content-viewport">
        <RouterView v-slot="{ Component }">
-        <KeepAlive :include="['BoardFlex','TagCenter']">
+        <KeepAlive :include="['BoardFlex', 'TagCenter', 'SearchView']">
           <component :is="Component" />
         </KeepAlive>
       </RouterView>
