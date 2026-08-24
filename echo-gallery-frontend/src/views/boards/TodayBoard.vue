@@ -40,6 +40,7 @@ const nextMutation = useMutation({
   onError: async (error: unknown) => {
     const status = (error as { response?: { status?: number } }).response?.status
     if (status === 409) {
+      noMoreCards.value = false
       actionError.value = '批次已更新，已為你恢復目前內容'
       await refetch()
       return

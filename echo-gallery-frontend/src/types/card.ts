@@ -97,6 +97,7 @@ export interface CardDto {
     lastOpenAt? : string | null; // 上一次被使用者點開詳情 / link 的日期
     lastOfferedAt?: string | null;
     openCount: number;
+    snoozeCount?: number;
 
     // 使用者互動 (星標/熱度)
     lastLikedAt?: string; // 上一次按愛心的日期

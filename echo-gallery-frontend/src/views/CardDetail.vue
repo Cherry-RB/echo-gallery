@@ -15,6 +15,7 @@ import type { FormInstance } from 'element-plus';
 import { useTags } from '../utils/composables/useTags';
 import CardWorkManager from '../components/work/CardWorkManager.vue';
 import { createCardFormRules, toCardContentRequest } from '../utils/cardForm';
+import { cardDetailQueryKey } from '../utils/cardDetailQuery';
 
 const props = defineProps<{ id: string }>();
 const route = useRoute();
@@ -76,7 +77,7 @@ watch(() => props.id, (newId) => {
 // 🔄 【核心重構】改成用 useQuery 監聽同一個快取 Key
 // =====================================================
 const { data: fetchedCard, isLoading, isError } = useQuery({
-  queryKey: ['card', String(props.id)],
+  queryKey: computed(() => cardDetailQueryKey(props.id)),
   queryFn: () => cardApi.getCard(props.id),
   // 💡 只有在「非創建模式」且有 id 時才發送請求
   enabled: computed(() => !isCreateMode.value && !!props.id),

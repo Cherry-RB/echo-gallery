@@ -20,6 +20,7 @@ public class CardDetailResponse {
     private Integer intervalDays;
     private ZonedDateTime nextShowAt;
     private Integer openCount;
+    private Integer snoozeCount;
     private ZonedDateTime likeAvailableAt;
     private ZonedDateTime lastLikedAt;
     private Integer likeCount;

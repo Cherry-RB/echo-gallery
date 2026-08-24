@@ -228,27 +228,13 @@ export const useCardStatus = () => {
 
             queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old => removeTodayCard(old, id));
 
-            // 從前端大陣列中將其剔除，瀑布流會立刻重新排版，卡片原地消失
-            // 使用 setQueriesData 確保所有開頭為 ['cards'] 的列表都同步剔除該卡片
-            queryClient.setQueriesData<InfiniteData<CardDTO[]>>({ queryKey: ['cards'] }, (oldData: any) => {
-                if (!oldData || !oldData.pages) return oldData;
-                return {
-                    ...oldData,
-                    // 遍歷當前載入的每一頁，直接 filter 掉這張卡片
-                    pages: oldData.pages.map((page: any[]) => {
-                        return page.filter(card => String(card.id) !== String(id));
-                    })
-                };
-            });
-
             return snapshot;
         },
         // 【後端成功後執行】
         onSuccess: (updatedCard, variables) => {
-            // updateLocalCache(variables.id, updatedCard);
-            // 因為大清單（['cards']）在 onMutate 已經清乾淨了，這裡完全不需動它。
-            // 我們只需要同步更新「單張卡片詳情頁」的快取，確保系統底層資料的一致性
+            // Today 已在 onMutate 移除；其他看板依各自條件重新查詢。
             queryClient.setQueryData(['card', String(variables.id)], updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['cards', 'snoozed'] });
             queryClient.invalidateQueries({ queryKey: ['cards', 'search'] });
 
             // 通知右側側邊欄過期，觸發自動重撈

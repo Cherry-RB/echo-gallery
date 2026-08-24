@@ -77,7 +77,7 @@ public class CardService {
             case HOT -> cardRepository.findHotCards(userId, pageable);
             case RANDOM -> cardRepository.findRandomCards(userId, PageRequest.of(0, size));
             case ARCHIVED -> cardRepository.findByUserIdAndIsArchivedTrue(userId, pageable);
-            case SNOOZED -> cardRepository.findSnoozedCards(userId, request.getThreshold() == 0 ? 10 : request.getThreshold(), pageable);
+            case SNOOZED -> cardRepository.findSnoozedCards(userId, request.getThreshold() <= 0 ? 10 : request.getThreshold(), pageable);
         };
 
         // 5. 轉換為 Response DTO 列表回傳
@@ -316,6 +316,7 @@ public class CardService {
         response.setIntervalDays(card.getIntervalDays());
         response.setNextShowAt(card.getNextShowAt());
         response.setOpenCount(card.getOpenCount());
+        response.setSnoozeCount(card.getSnoozeCount());
         response.setLikeAvailableAt(card.getLikeAvailableAt());
         response.setLastLikedAt(card.getLastLikedAt());
         response.setLikeCount(card.getLikeCount());
@@ -423,7 +424,7 @@ public class CardService {
         Long currentUserId = SecurityUtil.getCurrentUserId();
 
         // 2. 查詢資料庫是否有這張卡片
-        Card card = cardRepository.findById(cardId)
+        Card card = cardRepository.findByIdForUpdate(cardId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
 
         // 3. 核心安全檢查：這張卡片的主人，是目前登入的這名用戶嗎？
@@ -440,6 +441,7 @@ public class CardService {
 
         // 5. 更新下次回流時間，不碰 lastInteractionAt
         card.setNextShowAt(getStartOfTodayTaipei().plusDays(daysToPlus));
+        card.setSnoozeCount(card.getSnoozeCount() + 1);
 
         return convertToDetailResponse(card);
     }

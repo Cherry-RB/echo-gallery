@@ -75,4 +75,27 @@ describe('TodayBoard', () => {
     const wrapper = mountBoard()
     await vi.waitFor(() => expect(wrapper.text()).toContain('重新載入'))
   })
+
+  it('409 後重新 prepare 並清除沒有更多提示', async () => {
+    const current = {
+      cards: [{ id: '1', title: 'card-1' } as never],
+      batchOfferedAt: '2026-08-24T12:00:00+08:00',
+    }
+    vi.mocked(cardApi.prepareToday).mockResolvedValue(current)
+    vi.mocked(cardApi.nextToday)
+      .mockResolvedValueOnce({ cards: [], batchOfferedAt: current.batchOfferedAt })
+      .mockRejectedValueOnce({ response: { status: 409 } })
+
+    const wrapper = mountBoard()
+    await flushPromises()
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('今天沒有更多新卡片了')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('今天沒有更多新卡片了')
+    expect(cardApi.prepareToday).toHaveBeenCalledTimes(2)
+    expect(cardApi.nextToday).toHaveBeenCalledTimes(2)
+  })
 })
