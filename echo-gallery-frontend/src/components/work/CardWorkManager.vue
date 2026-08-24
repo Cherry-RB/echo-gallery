@@ -202,7 +202,7 @@ const openWork = (workId: number) => {
 
 .header-title {
   gap: 8px;
-  color: #4a4a4a;
+  color: var(--el-text-color-primary);
   font-size: 14px;
   font-weight: 600;
 }

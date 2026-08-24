@@ -123,7 +123,7 @@ onUnmounted(() => {
   <section>
     <header class="board-header">
       <h1 style="text-align: center;margin: 10px;">{{ title }}</h1>
-      <p v-if="description" style="text-align: center;margin: 15px; color: gray;">{{ description }}</p>
+      <p v-if="description" class="board-description">{{ description }}</p>
     </header>
 
     <div v-if="isLoading && cardList.length === 0">
@@ -170,7 +170,7 @@ onUnmounted(() => {
 <style scoped>
 .feed-container{
     padding: 20px;
-    background-color: #f4f4f4; /* 淡淡的底色 */
+    background-color: var(--el-bg-color-page);
     min-height: 100vh;
 }
 
@@ -185,7 +185,12 @@ onUnmounted(() => {
 .loading-text {
   text-align: center;
   padding: 20px;
-  color: #999;
+  color: var(--el-text-color-secondary);
+}
+.board-description {
+  margin: 15px;
+  color: var(--el-text-color-secondary);
+  text-align: center;
 }
 
 /* 🌟 新增：底部觀測點置中樣式 */

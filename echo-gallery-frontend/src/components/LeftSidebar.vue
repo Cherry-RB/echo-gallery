@@ -17,6 +17,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';
 import { storeToRefs } from 'pinia';
+import ThemeSwitcher from './ThemeSwitcher.vue'
 
 const route = useRoute();
 const router = useRouter();
@@ -121,6 +122,7 @@ const openQuickCreate = () => {
     </div>
 
     <div class="sidebar-footer">
+      <ThemeSwitcher />
       <p class="version-text">v1.0.0</p>
     </div>
   </div>
@@ -249,6 +251,9 @@ const openQuickCreate = () => {
 }
 
 .sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   padding-top: 16px;
   /* margin-top: 16px; */
   border-top: 1px solid var(--el-border-color-light);

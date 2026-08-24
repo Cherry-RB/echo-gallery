@@ -2,11 +2,19 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh; /* 佔滿整個螢幕高度 */
-  background-color: #f5f7fa;
+  width: 100%;
+  min-height: 100dvh;
+  padding: 24px 16px;
+  position: relative;
+  background-color: var(--el-bg-color-page);
+}
+.auth-theme-switcher {
+  position: absolute;
+  top: 20px;
+  right: 20px;
 }
 .auth-card {
-  width: 400px;
+  width: min(400px, 100%);
 }
 .auth-link {
   margin-top: 20px;

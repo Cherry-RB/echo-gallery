@@ -5,6 +5,7 @@ import { useAsync } from '../utils/api/useAsync'
 import { Lock, Message, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/authStore'
+import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 
 const router = useRouter()
 const form = reactive({ username: '', email: '', password: '' })
@@ -83,7 +84,9 @@ const isFormValid = computed(() => {
 </script>
 
 <template>
-  <div class="auth-page"> <el-card class="auth-card">
+  <div class="auth-page">
+    <ThemeSwitcher compact class="auth-theme-switcher" />
+    <el-card class="auth-card">
       <template #header>
         <h2 class="auth-title">註冊新帳號</h2>
       </template>

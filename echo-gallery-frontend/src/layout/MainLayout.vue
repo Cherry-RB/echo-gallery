@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import LeftSidebar from '../components/LeftSidebar.vue'
 import RightSidebar from '../components/RightSidebar.vue'
 import QuickCreateCardDialog from '../components/QuickCreateCardDialog.vue'
+import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 
 const isLeftDrawerOpen = ref(false)
 const isRightDrawerOpen = ref(false)
@@ -31,7 +32,10 @@ watch(() => route.path, () => {
         <span class="brand-logo">🌌</span>
         <h2 class="brand-title">EchoGallery</h2>
       </div>
-      <button class="stats-toggle-btn" @click="isRightDrawerOpen = true">📊</button>
+      <div class="mobile-header-actions">
+        <ThemeSwitcher compact />
+        <button class="stats-toggle-btn" aria-label="開啟統計" @click="isRightDrawerOpen = true">📊</button>
+      </div>
     </header>
 
     <aside class="sidebar desktop-only">
@@ -132,9 +136,9 @@ watch(() => route.path, () => {
   }
 
   .mobile-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
     height: 56px;
     padding: 0 16px;
     border-bottom: 1px solid var(--el-border-color-light);
@@ -151,11 +155,20 @@ watch(() => route.path, () => {
     cursor: pointer;
     color: var(--el-text-color-primary);
   }
+  .hamburger-btn {
+    justify-self: start;
+  }
 
   .mobile-brand {
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  .mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    justify-self: end;
   }
   .mobile-brand .brand-title {
     font-size: 18px;

@@ -114,7 +114,7 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
         <div class="status star-clickable" @click.stop @click="toggleStar()">
           <el-icon 
             :size="16" 
-            style="color: #f7ba2a;" 
+            class="star-icon"
             :class="{ 'active-star': !getLikeAvailableStatus(data.likeAvailableAt) }">
             <Star v-if="getLikeAvailableStatus(data.likeAvailableAt)" />
             <StarFilled v-else />
@@ -131,7 +131,7 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
 .card-footer {
   display: flex;
   justify-content: space-between;
-  color: #999;
+  color: var(--el-text-color-secondary);
   font-size: 12px;
   gap: 20px; /* 確保左右區塊中間至少有間距 */
 }
@@ -159,7 +159,7 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
   gap: 10px;
 }
 .card-body-content {
-  color: #666;
+  color: var(--el-text-color-regular);
   font-size: 14px;
   line-height: 1.5;
   /* 即使不顯示圖片，也可以限制文字行數，讓卡片整齊 */
@@ -175,7 +175,7 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
 .title-text{
   font-weight: 600;
   text-align: left;
-  color: #333;
+  color: var(--el-text-color-primary);
   /* 強制不換行 */
   /* white-space: nowrap;       */
   /* 隱藏超出部分 */
@@ -204,7 +204,7 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
 }
 .card-clickable:hover{
   transform: translateY(-5px);
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4); 
+  box-shadow: var(--el-box-shadow-light);
 }
 /* --- 修改後建議 --- */
 .star-clickable {
@@ -216,6 +216,9 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
 }
 .active-star {
   animation: pop 0.3s ease;
+}
+.star-icon {
+  color: var(--el-color-warning);
 }
 @keyframes pop {
   0% { transform: scale(1); }

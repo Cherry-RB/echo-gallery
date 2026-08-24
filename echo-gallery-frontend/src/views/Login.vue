@@ -5,6 +5,7 @@ import { useAsync } from '../utils/api/useAsync'
 import { Lock, Message } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/authStore'
+import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 
 const router = useRouter()
 const form = reactive({ email: '', password: '' })
@@ -69,6 +70,7 @@ const isFormValid = computed(() => {
 
 <template>
   <div class="auth-page">
+    <ThemeSwitcher compact class="auth-theme-switcher" />
     <el-card class="auth-card">
       <template #header>
         <h2 class="auth-title">EchoGallery 登入</h2>

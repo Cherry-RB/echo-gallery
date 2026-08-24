@@ -181,7 +181,7 @@ const deleteCard = () => {
         <div class="status star-clickable" v-if="capabilities.canStar" @click.stop="toggleStar">
           <el-icon
           :size="16"
-          style="color: #f7ba2a;"
+          class="star-icon"
           :class="{ 'active-star': !getLikeAvailableStatus(data.likeAvailableAt) }">
           <Star v-if="getLikeAvailableStatus(data.likeAvailableAt)" />
           <StarFilled v-else />
@@ -249,7 +249,7 @@ const deleteCard = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #999;
+  color: var(--el-text-color-secondary);
   font-size: 12px;
   gap: 20px; /* 確保左右區塊中間至少有間距 */
   /* margin-top: 15px; */
@@ -298,7 +298,7 @@ const deleteCard = () => {
   gap: 5px;
 }
 .card-body-content {
-  color: #666;
+  color: var(--el-text-color-regular);
   font-size: 14px;
   /* line-height: 1.5; */
   /* 即使不顯示圖片，也可以限制文字行數，讓卡片整齊 */
@@ -313,21 +313,21 @@ const deleteCard = () => {
   white-space: pre-wrap;
 }
 .link-btn{
-  color: #999;
+  color: var(--el-text-color-secondary);
   /* transition: transform 0.5s; */
 }
 .link-btn:hover{
-  color: lightblue;
+  color: var(--el-color-primary-light-3);
 }
 .rotate-icon{
   transform: rotate(90deg);
-  color: #999; /* 調整為適合的灰色，可依需求自行更改 */
+  color: var(--el-text-color-secondary);
   outline: none; /* 關鍵：移除點擊或聚焦時的黑色外框 */
 }
 .title-text{
   font-weight: 600;
   text-align: left;
-  color: #333;
+  color: var(--el-text-color-primary);
   /* 強制不換行 */
   /* white-space: nowrap;       */
   /* 隱藏超出部分 */
@@ -372,7 +372,7 @@ const deleteCard = () => {
 }
 .card-clickable:hover{
   transform: translateY(-5px);
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--el-box-shadow-light);
 }
 /* --- 修改後建議 --- */
 .star-clickable {
@@ -404,7 +404,7 @@ const deleteCard = () => {
   align-items: center;
   justify-content: center;
 
-  background: rgba(255,255,255,.45);
+  background: color-mix(in srgb, var(--el-bg-color-overlay) 62%, transparent);
   backdrop-filter: blur(1px);
 
   font-size: 18px;
@@ -416,5 +416,8 @@ const deleteCard = () => {
 }
 .disabled{
   cursor: default;
+}
+.star-icon {
+  color: var(--el-color-warning);
 }
 </style>
