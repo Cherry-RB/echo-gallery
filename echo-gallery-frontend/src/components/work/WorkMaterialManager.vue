@@ -107,7 +107,7 @@ const addCardMutation = useMutation({
   mutationFn: (card: CardDto) => workApi.addWorkCard(props.workId, { cardId: Number(card.id) }),
   onSuccess: async () => {
     await refreshMaterialQueries()
-    ElMessage.success('卡片已加入候選素材')
+    ElMessage.success('卡片已加入素材池')
     addCardDialogVisible.value = false
   },
 })
@@ -117,7 +117,7 @@ const statusMutation = useMutation({
     workApi.updateWorkCardStatus(props.workId, card.cardId, { status }),
   onSuccess: async (_updatedCard, variables) => {
     await refreshMaterialQueries()
-    ElMessage.success(variables.status === 'USED' ? '已標記為採用' : '已移回候選素材')
+    ElMessage.success(variables.status === 'USED' ? '已標記為已運用' : '已移回素材池')
   },
 })
 
@@ -138,7 +138,7 @@ const removeCardMutation = useMutation({
   mutationFn: (card: WorkCard) => workApi.removeWorkCard(props.workId, card.cardId),
   onSuccess: async () => {
     await refreshMaterialQueries()
-    ElMessage.success('已解除卡片與作品的關聯')
+    ElMessage.success('已解除卡片與培育計畫的關聯')
   },
 })
 
@@ -169,7 +169,7 @@ const resetNoteDialog = () => {
 const confirmRemoveCard = async (card: WorkCard) => {
   try {
     await ElMessageBox.confirm(
-      `確定要從作品中移除「${card.cardTitle}」嗎？卡片本身不會被刪除。`,
+      `確定要從培育計畫中移除「${card.cardTitle}」嗎？卡片本身不會被刪除。`,
       '解除素材關聯',
       {
         confirmButtonText: '解除關聯',
@@ -194,22 +194,22 @@ const resetCardSearch = () => {
   <section class="material-surface" aria-labelledby="material-heading">
     <header class="material-heading-row">
       <div>
-        <h2 id="material-heading">作品素材</h2>
-        <p>整理準備使用與已採用的卡片</p>
+        <h2 id="material-heading">計畫素材</h2>
+        <p>整理參考資料與已在培育過程中實際運用的卡片</p>
       </div>
       <el-button type="primary" :icon="Plus" @click="addCardDialogVisible = true">
         加入卡片
       </el-button>
     </header>
 
-    <div v-if="areWorkCardsLoading" aria-label="作品素材載入中">
+    <div v-if="areWorkCardsLoading" aria-label="計畫素材載入中">
       <el-skeleton :rows="5" animated />
     </div>
 
     <el-result
       v-else-if="areWorkCardsError"
       icon="warning"
-      title="無法載入作品素材"
+      title="無法載入計畫素材"
     >
       <template #extra>
         <el-button type="primary" @click="refetchWorkCards()">重新載入</el-button>
@@ -219,14 +219,14 @@ const resetCardSearch = () => {
     <div v-else class="material-columns">
       <section class="material-column" aria-labelledby="candidate-heading">
         <header class="column-heading">
-          <h3 id="candidate-heading">候選素材</h3>
+          <h3 id="candidate-heading">素材池</h3>
           <el-tag type="info" round>{{ candidateCards.length }}</el-tag>
         </header>
 
         <el-empty
           v-if="candidateCards.length === 0"
           :image-size="72"
-          description="目前沒有候選素材"
+          description="目前沒有計畫素材"
         />
 
         <article v-for="card in candidateCards" :key="card.id" class="material-card">
@@ -268,7 +268,7 @@ const resetCardSearch = () => {
               :loading="statusMutation.isPending.value"
               @click="statusMutation.mutate({ card, status: 'USED' })"
             >
-              採用
+              標記已運用
             </el-button>
             <el-button
               type="danger"
@@ -286,14 +286,14 @@ const resetCardSearch = () => {
 
       <section class="material-column used-column" aria-labelledby="used-heading">
         <header class="column-heading">
-          <h3 id="used-heading">已採用</h3>
+          <h3 id="used-heading">已運用</h3>
           <el-tag type="success" round>{{ usedCards.length }}</el-tag>
         </header>
 
         <el-empty
           v-if="usedCards.length === 0"
           :image-size="72"
-          description="目前沒有已採用素材"
+          description="目前沒有已運用素材"
         />
 
         <article v-for="card in usedCards" :key="card.id" class="material-card">
@@ -308,7 +308,7 @@ const resetCardSearch = () => {
                   {{ growthStatusMeta[card.cardGrowthStatus].icon }}
                 </span>
               </el-tooltip>
-              <span v-if="card.usedAt">採用於 {{ formatDate(card.usedAt) }}</span>
+              <span v-if="card.usedAt">運用於 {{ formatDate(card.usedAt) }}</span>
             </div>
             <div v-if="card.tags.length" class="card-tags">
               <el-tag v-for="tag in card.tags" :key="tag" size="small" effect="plain">
@@ -334,7 +334,7 @@ const resetCardSearch = () => {
               :loading="statusMutation.isPending.value"
               @click="statusMutation.mutate({ card, status: 'CANDIDATE' })"
             >
-              移回候選
+              移回素材池
             </el-button>
             <el-button
               type="danger"
@@ -367,7 +367,7 @@ const resetCardSearch = () => {
         :rows="5"
         maxlength="1000"
         show-word-limit
-        placeholder="記錄這張卡片在此作品中的用途、觀點或使用方式（選填）"
+        placeholder="記錄這張卡片對此培育計畫的用途、啟發或練習方式（選填）"
         @keydown.ctrl.enter="submitNote"
         @keydown.meta.enter="submitNote"
       />
@@ -385,12 +385,12 @@ const resetCardSearch = () => {
 
     <el-dialog
       v-model="addCardDialogVisible"
-      title="加入作品素材"
+      title="加入計畫素材"
       width="min(680px, calc(100vw - 32px))"
       destroy-on-close
       @closed="resetCardSearch"
     >
-      <p class="picker-description">選擇一張卡片加入候選素材；已加入此作品的卡片不會重複顯示。</p>
+      <p class="picker-description">選擇一張卡片加入素材池；已加入此培育計畫的卡片不會重複顯示。</p>
 
       <el-input
         v-model="searchInput"
@@ -444,7 +444,7 @@ const resetCardSearch = () => {
         <el-empty
           v-if="availableCards.length === 0"
           :image-size="72"
-          :description="hasNextPage ? '目前載入的卡片皆已加入作品，可繼續載入更多' : '沒有其他可加入的卡片'"
+          :description="hasNextPage ? '目前載入的卡片皆已加入培育計畫，可繼續載入更多' : '沒有其他可加入的卡片'"
         />
 
         <div v-if="hasNextPage" class="load-more-row">

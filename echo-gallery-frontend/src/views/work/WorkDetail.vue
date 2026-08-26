@@ -18,7 +18,7 @@ type WorkStatusTagType = 'primary' | 'success' | 'warning' | 'info'
 
 const workStatusMeta: Record<WorkStatus, { label: string; type: WorkStatusTagType }> = {
   IDEA: { label: '構想', type: 'info' },
-  DRAFT: { label: '草稿', type: 'warning' },
+  DRAFT: { label: '規劃中', type: 'warning' },
   ACTIVE: { label: '進行中', type: 'primary' },
   DONE: { label: '已完成', type: 'success' },
   ARCHIVED: { label: '已封存', type: 'info' },
@@ -26,11 +26,15 @@ const workStatusMeta: Record<WorkStatus, { label: string; type: WorkStatusTagTyp
 
 const workStatusOptions: Array<{ value: WorkStatus; label: string }> = [
   { value: 'IDEA', label: '構想' },
-  { value: 'DRAFT', label: '草稿' },
+  { value: 'DRAFT', label: '規劃中' },
   { value: 'ACTIVE', label: '進行中' },
   { value: 'DONE', label: '已完成' },
   { value: 'ARCHIVED', label: '已封存' },
 ]
+
+const projectDesignPlaceholder = `培育目標：想培養什麼能力或達成什麼目標？
+成果判準：如何知道這項計畫產生效果？
+可能產生的 Works：預期會形成哪些具體成果？`
 
 const editDialogVisible = ref(false)
 const editFormRef = ref<FormInstance>()
@@ -66,18 +70,18 @@ const validateOptionalUrl = (
 
 const editFormRules: FormRules<UpdateWorkRequest> = {
   title: [
-    { required: true, message: '請輸入作品名稱', trigger: 'blur' },
-    { max: 255, message: '作品名稱不可超過 255 個字', trigger: 'blur' },
+    { required: true, message: '請輸入計畫名稱', trigger: 'blur' },
+    { max: 255, message: '計畫名稱不可超過 255 個字', trigger: 'blur' },
   ],
   description: [
-    { max: 5000, message: '作品說明不可超過 5000 個字', trigger: 'blur' },
+    { max: 5000, message: '計畫設計不可超過 5000 個字', trigger: 'blur' },
   ],
   externalUrl: [
     { max: 2048, message: '外部連結不可超過 2048 個字', trigger: 'blur' },
     { validator: validateOptionalUrl, trigger: 'blur' },
   ],
   status: [
-    { required: true, message: '請選擇作品狀態', trigger: 'change' },
+    { required: true, message: '請選擇計畫狀態', trigger: 'change' },
   ],
 }
 
@@ -99,7 +103,7 @@ const updateMutation = useMutation({
       queryClient.invalidateQueries({ queryKey: ['works'] }),
       queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] }),
     ])
-    ElMessage.success('作品更新成功')
+    ElMessage.success('培育計畫更新成功')
     editDialogVisible.value = false
   },
 })
@@ -146,23 +150,23 @@ const submitUpdateWork = async () => {
   <section class="work-detail-page">
     <header class="detail-navigation">
       <el-button :icon="ArrowLeft" text @click="goBack">
-        返回作品列表
+        返回培育計畫列表
       </el-button>
       <el-button v-if="work" type="primary" plain :icon="Edit" @click="openEditDialog">
-        編輯作品
+        編輯培育計畫
       </el-button>
     </header>
 
     <div class="work-detail-surface">
-      <div v-if="isLoading" aria-label="作品詳情載入中">
+      <div v-if="isLoading" aria-label="培育計畫詳情載入中">
         <el-skeleton :rows="8" animated />
       </div>
 
       <el-result
         v-else-if="isError"
         icon="error"
-        title="無法載入作品"
-        sub-title="作品可能不存在，或目前無法連線"
+        title="無法載入培育計畫"
+        sub-title="培育計畫可能不存在，或目前無法連線"
       >
         <template #extra>
           <el-button @click="goBack">返回列表</el-button>
@@ -181,7 +185,7 @@ const submitUpdateWork = async () => {
         <p v-if="work.description" class="work-description">
           {{ work.description }}
         </p>
-        <p v-else class="empty-description">尚未填寫作品說明</p>
+        <p v-else class="empty-description">尚未填寫計畫設計</p>
 
         <a
           v-if="work.externalUrl"
@@ -191,7 +195,7 @@ const submitUpdateWork = async () => {
           class="external-link"
         >
           <el-icon><Link /></el-icon>
-          <span>開啟外部作品</span>
+          <span>開啟計畫連結</span>
         </a>
 
         <dl class="time-metadata">
@@ -215,7 +219,7 @@ const submitUpdateWork = async () => {
 
     <el-dialog
       v-model="editDialogVisible"
-      title="編輯作品"
+      title="編輯培育計畫"
       width="min(520px, calc(100vw - 32px))"
       destroy-on-close
       @closed="resetEditForm"
@@ -227,22 +231,22 @@ const submitUpdateWork = async () => {
         label-position="top"
         @submit.prevent="submitUpdateWork"
       >
-        <el-form-item label="作品名稱" prop="title">
+        <el-form-item label="計畫名稱" prop="title">
           <el-input v-model="editForm.title" maxlength="255" show-word-limit />
         </el-form-item>
 
-        <el-form-item label="作品說明" prop="description">
+        <el-form-item label="計畫設計" prop="description">
           <el-input
             v-model="editForm.description"
             type="textarea"
-            :rows="4"
+            :rows="6"
             maxlength="5000"
             show-word-limit
-            placeholder="這件作品想完成什麼？（選填）"
+            :placeholder="projectDesignPlaceholder"
           />
         </el-form-item>
 
-        <el-form-item label="外部連結" prop="externalUrl">
+        <el-form-item label="相關連結" prop="externalUrl">
           <el-input
             v-model="editForm.externalUrl"
             maxlength="2048"
@@ -250,7 +254,7 @@ const submitUpdateWork = async () => {
           />
         </el-form-item>
 
-        <el-form-item label="作品狀態" prop="status">
+        <el-form-item label="計畫狀態" prop="status">
           <el-select v-model="editForm.status" class="status-select">
             <el-option
               v-for="option in workStatusOptions"

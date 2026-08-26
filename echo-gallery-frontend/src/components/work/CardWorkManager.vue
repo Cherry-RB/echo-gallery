@@ -15,13 +15,13 @@ const addWorkDialogVisible = ref(false)
 type StatusTagType = 'primary' | 'success' | 'warning' | 'info'
 
 const relationStatusMeta: Record<WorkCardStatus, { label: string; type: StatusTagType }> = {
-  CANDIDATE: { label: '候選素材', type: 'info' },
-  USED: { label: '已採用', type: 'success' },
+  CANDIDATE: { label: '素材池', type: 'info' },
+  USED: { label: '已運用', type: 'success' },
 }
 
 const workStatusMeta: Record<WorkStatus, string> = {
   IDEA: '構想',
-  DRAFT: '草稿',
+  DRAFT: '規劃中',
   ACTIVE: '進行中',
   DONE: '已完成',
   ARCHIVED: '已封存',
@@ -81,10 +81,10 @@ const openWork = (workId: number) => {
     <header class="work-card-header">
       <div class="header-title">
         <el-icon><FolderOpened /></el-icon>
-        <span>所在作品</span>
+        <span>所在培育計畫</span>
       </div>
       <el-button type="primary" link size="small" :icon="Plus" @click="addWorkDialogVisible = true">
-        加入作品
+        加入培育計畫
       </el-button>
     </header>
 
@@ -92,7 +92,7 @@ const openWork = (workId: number) => {
 
     <el-alert
       v-else-if="areCardWorksError"
-      title="無法載入作品關聯"
+      title="無法載入培育計畫關聯"
       type="warning"
       :closable="false"
       show-icon
@@ -105,7 +105,7 @@ const openWork = (workId: number) => {
     <el-empty
       v-else-if="!cardWorks?.length"
       :image-size="56"
-      description="尚未加入任何作品"
+      description="尚未加入任何培育計畫"
     />
 
     <div v-else class="relation-list">
@@ -135,25 +135,25 @@ const openWork = (workId: number) => {
 
     <el-dialog
       v-model="addWorkDialogVisible"
-      title="將卡片加入作品"
+      title="將卡片加入培育計畫"
       width="min(560px, calc(100vw - 32px))"
       append-to-body
       destroy-on-close
     >
-      <p class="dialog-description">已加入的作品與封存作品不會出現在選項中。</p>
+      <p class="dialog-description">已加入與已封存的培育計畫不會出現在選項中。</p>
 
       <el-skeleton v-if="areWorksLoading" :rows="5" animated />
 
       <el-result
         v-else-if="areWorksError"
         icon="warning"
-        title="無法載入作品"
+        title="無法載入培育計畫"
       />
 
       <el-empty
         v-else-if="availableWorks.length === 0"
         :image-size="72"
-        description="沒有其他可加入的作品"
+        description="沒有其他可加入的培育計畫"
       />
 
       <div v-else class="work-option-list">
