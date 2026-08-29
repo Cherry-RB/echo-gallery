@@ -6,7 +6,7 @@
 |---|---|
 | 文件性質 | 持續維護的部署設計、執行手冊與進度追蹤文件（Current） |
 | 建立日期 | 2026-08-12 |
-| 目前階段 | 規劃完成，尚未開始建立 VPS |
+| 目前階段 | Phase 0 repository 部署準備進行中，尚未開始建立 VPS |
 | 主要目標 | 將 Echo Gallery 從 Render 代管部署，安全且可回復地演進為 VPS 自管部署 |
 | 第一版範圍 | VPS 主機上的 Nginx／Certbot、Vue 靜態檔案、Docker 化 Spring Boot、沿用 Supabase PostgreSQL |
 | 暫不包含 | 自管 PostgreSQL、完整 CI/CD、全服務容器化、零停機部署、高可用叢集 |
@@ -686,15 +686,15 @@ VPS reboot
 #### 預計工作
 
 - [ ] 重新盤點 Render 的 build、start、rewrite、environment 與 health check 設定。
-- [ ] 確認前端正式建置是否使用 `/api`，避免寫死 Render URL。
-- [ ] 設計後端 production profile。
-- [ ] 設計 VPS 後端 Compose。
-- [ ] 設計 Nginx HTTP 設定範本。
-- [ ] 加入 restart policy、health check 與 log rotation。
-- [ ] 建立不含秘密的 production 環境變數清單。
-- [ ] 建立部署、更新、rollback 與故障排查文件。
-- [ ] 建置後端 Docker image。
-- [ ] 執行前後端測試及前端 build。
+- [x] 確認前端正式建置使用同源 `/api`，未寫死 Render URL。
+- [x] 建立後端 production profile。
+- [x] 建立 VPS 後端 Compose。
+- [x] 建立 Nginx HTTP 設定範本。
+- [x] 加入 restart policy、health check 與 log rotation。
+- [x] 建立不含秘密的 production 環境變數清單。
+- [x] 建立部署、更新、rollback 與故障排查文件。
+- [x] 建置後端 Docker image。
+- [x] 執行前後端測試及前端 build。
 
 #### 完成條件
 
@@ -1252,12 +1252,12 @@ API endpoint、資料庫 schema、認證策略與正式 DNS 變更都必須先�
 | 編號 | 階段 | 工作 | 狀態 | 驗證證據／備註 |
 |---|---|---|---|---|
 | VPS-001 | Phase 0 | 盤點 Render 現有部署設定 | 待處理 | 不讀取或記錄秘密 |
-| VPS-002 | Phase 0 | 確認前端 production API path | 待處理 | 目標為同源 `/api` |
-| VPS-003 | Phase 0 | 設計後端 production profile | 待處理 | 關聯 CR-003 |
-| VPS-004 | Phase 0 | 建立 VPS backend Compose | 待處理 | backend 只綁 localhost |
-| VPS-005 | Phase 0 | 建立 Nginx 設定範本 | 待處理 | SPA + reverse proxy |
-| VPS-006 | Phase 0 | 建立部署與 rollback 手冊 | 待處理 | 指令需附預期結果與停止點 |
-| VPS-007 | Phase 0 | 驗證 image、測試與 build | 待處理 | 留存執行日期與結果 |
+| VPS-002 | Phase 0 | 確認前端 production API path | 已完成 | 2026-08-29：預設使用同源 `/api` |
+| VPS-003 | Phase 0 | 設計後端 production profile | 已完成 | 2026-08-29：已建立 `application-prod.yml`；真實 schema validation 待 VPS 隔離驗證 |
+| VPS-004 | Phase 0 | 建立 VPS backend Compose | 已完成 | 2026-08-29：backend 只綁 `127.0.0.1:8080` |
+| VPS-005 | Phase 0 | 建立 Nginx 設定範本 | 已完成 | 2026-08-29：已包含 SPA、靜態快取與 `/api` reverse proxy |
+| VPS-006 | Phase 0 | 建立部署與 rollback 手冊 | 已完成 | 2026-08-29：已建立 `deploy/README.md` |
+| VPS-007 | Phase 0 | 驗證 image、測試與 build | 已完成 | 2026-08-29：backend test、frontend test/build 與 Docker image build 通過 |
 | VPS-008 | 安全 | 驗收 CR-006 並更新追蹤建議 | 待處理 | 程式已有實作，文件未同步 |
 | VPS-009 | 安全 | 評估／處理 CR-001 | 待處理 | 正式切換前優先 |
 | VPS-010 | 安全 | 記錄 CR-002 JWT lifecycle 決策 | 待處理 | 正式切換前優先 |
