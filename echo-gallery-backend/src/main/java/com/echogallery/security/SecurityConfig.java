@@ -103,8 +103,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 允許你的前端 Vue 3 埠號存取
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", frontendUrl));
+        // 本地環境預設為 localhost；正式環境只允許 FRONTEND_URL 指定的來源。
+        configuration.setAllowedOrigins(List.of(frontendUrl));
 
         // 允許所有 HTTP 方法 (GET, POST, PUT, DELETE, OPTIONS)
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
