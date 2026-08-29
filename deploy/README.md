@@ -76,7 +76,9 @@ npm run build
 
 將 `dist/` 內容發布到以 commit SHA 命名的新 release 目錄，再把 `/var/www/echo-gallery/current` symlink 切向該版本。不要直接覆蓋目前 release，才能在前端異常時快速切回上一版。
 
-正式 build 不需要設定 `VITE_API_BASE_URL`；前端預設使用同源 `/api`。若設定該變數，必須確認它不是 localhost、Render URL 或 HTTP URL。
+Repository 的 `.env.production` 將 `VITE_API_BASE_URL` 設為同源 `/api`，因此 VPS 執行一般 production build 時不需額外覆蓋。Render Static Site 則由 Dashboard 的同名環境變數在 build 階段覆蓋為 Render 後端位置；兩邊都使用 `npm run build`，但部署平台負責提供不同設定。
+
+發布 VPS 產物前，必須確認 build 環境沒有殘留 Render 或 localhost 的 `VITE_API_BASE_URL`。部署後再從瀏覽器 Network 驗證 Request URL 使用目前 VPS 網域下的 `/api`，而不是直接呼叫 Render 後端。
 
 ## 七、設定 Nginx
 

@@ -6,7 +6,7 @@
 |---|---|
 | 文件性質 | 持續維護的部署設計、執行手冊與進度追蹤文件（Current） |
 | 建立日期 | 2026-08-12 |
-| 目前階段 | Phase 0 repository 部署準備進行中，尚未開始建立 VPS |
+| 目前階段 | Phase 0 repository 部署準備已完成，尚未開始建立 VPS |
 | 主要目標 | 將 Echo Gallery 從 Render 代管部署，安全且可回復地演進為 VPS 自管部署 |
 | 第一版範圍 | VPS 主機上的 Nginx／Certbot、Vue 靜態檔案、Docker 化 Spring Boot、沿用 Supabase PostgreSQL |
 | 暫不包含 | 自管 PostgreSQL、完整 CI/CD、全服務容器化、零停機部署、高可用叢集 |
@@ -61,7 +61,7 @@ Echo Gallery 已經部署於 Render，資料庫使用 Supabase PostgreSQL，並�
 ### 2.3 安全邊界
 
 - 禁止將真實密碼、JWT secret、資料庫連線字串或私鑰寫入本文件。
-- 禁止建立、修改或提交 `.env`。
+- 禁止在 `.env` 類檔案保存或提交秘密；代理仍不得建立或修改 `.env`。已追蹤的前端 `.env.production` 僅保存非敏感的同源 API 預設值，平台專屬設定由部署平台注入。
 - 禁止讀取 `credentials/` 或 `secrets/` 目錄。
 - 文件中的環境變數只列名稱與用途，不填入真實值。
 - DNS 切換、關閉 Render、資料庫匯入及刪除服務，都屬於需再次確認的正式環境操作。
@@ -96,7 +96,31 @@ Echo Gallery 已經部署於 Render，資料庫使用 Supabase PostgreSQL，並�
 - Vue SPA 重新整理時的 404 fallback。
 - 前後端跨域設定與 `FRONTEND_URL` 白名單。
 
-### 3.2 Repository 現況
+### 3.2 Render 非敏感設定盤點（VPS-001）
+
+2026-08-29 已由使用者在 Render Dashboard 完成盤點，未記錄任何環境變數值：
+
+| 服務 | 設定 | 目前內容 |
+|---|---|---|
+| 前端 | Service type | Static Site |
+| 前端 | Root directory | `echo-gallery-frontend` |
+| 前端 | Build command | `npm run build` |
+| 前端 | Publish directory | `dist` |
+| 前端 | SPA rewrite | `/*` rewrite 至 `/index.html` |
+| 前端 | Custom domain | 無；目前使用 Render 提供的子網域 |
+| 前端 | Build-time environment | `VITE_API_BASE_URL`；值只保存在 Render Dashboard，不寫入本文件 |
+| 後端 | Runtime | Docker；未自訂 Docker Command，使用 image 預設啟動命令 |
+| 後端 | Root directory | `echo-gallery-backend` |
+| 後端 | Pre-deploy command | 無 |
+| 後端 | Health check | 未設定 HTTP path，沿用平台預設檢查 |
+| 後端 | Region | Singapore (Southeast Asia) |
+| DNS | Custom DNS | 無；目前沒有自管 DNS record 或 TTL |
+
+後端環境變數名稱為 `DB_PASSWORD`、`DB_USERNAME`、`FRONTEND_URL`、`JDBC_DATABASE_URL`、`JWT_SECRET`。前端靜態快取規則為 `/index.html` 與 `/` 不快取、`/assets/*` 使用一年 immutable cache；VPS Nginx 範本已對齊這項行為。
+
+盤點時確認 Render 前端原先透過 repository 的 `.env.production` 取得 Render 後端位置。為避免同一檔案同時承擔「production」與「Render 平台」兩種語意，已先在 Render Dashboard 建立 `VITE_API_BASE_URL` 並重新部署驗證，再由使用者將 repository 的 production 預設改為同源 `/api`。Render 使用平台變數覆蓋，VPS 則直接使用同源預設。
+
+### 3.3 Repository 現況
 
 目前 repository 已具備：
 
@@ -104,25 +128,23 @@ Echo Gallery 已經部署於 Render，資料庫使用 Supabase PostgreSQL，並�
 - Spring Boot 4.x、Java 21 後端。
 - PostgreSQL 資料層。
 - Spring Security、JWT 與 BCrypt。
-- 後端 Dockerfile。
+- 非 root 使用者執行的後端 Dockerfile。
 - 本機 PostgreSQL 用 Docker Compose。
 - 前後端測試基礎。
 - `/actuator/health` 健康檢查端點。
-- 前端 API 預設路徑 `/api`。
+- 前端 production API 預設路徑 `/api`，Render 由 Dashboard 在 build 階段覆蓋。
 - CORS 前端網址環境變數 `FRONTEND_URL`。
+- 後端 production profile 與 VPS 專用 Compose。
+- Nginx SPA、靜態快取及 `/api` reverse proxy 範本。
+- VPS 發布、驗證、更新及 rollback 操作手冊。
 
-目前尚未具備完整 VPS 自管部署配置：
+目前仍未完成或不屬於 Phase 0 的項目：
 
-- 前端沒有 VPS 發布流程文件。
-- 沒有 Nginx 正式站台設定範本。
-- 沒有 VPS 專用後端 Compose。
-- 沒有 development／production profile 分離。
-- production 仍可能使用 `ddl-auto: update` 與 `show-sql: true`。
 - 沒有 Flyway 或其他 schema migration 工具。
-- 沒有 VPS 備份、還原與 rollback 手冊。
-- 沒有主機初始化、安全強化及監控流程。
+- 尚未在真實 VPS 執行主機初始化、防火牆、Nginx、TLS 與重啟驗證。
+- 尚未建立自動備份、完整監控或 CI/CD；這些不屬於 VPS v1 的本週末範圍。
 
-### 3.3 目前測試基線
+### 3.4 目前測試基線
 
 2026-08-12 規劃時重新驗證：
 
@@ -481,9 +503,9 @@ Docker 發布 port 可能影響主機防火牆行為，不能只依賴 UFW；Com
 
 ### 10.3 前端環境變數
 
-前端的 `VITE_*` 變數會被編入瀏覽器可下載的 JavaScript，因此不能放秘密。若採同源 `/api`，應避免把 Render 後端完整 URL 寫死於新的 VPS build。
+前端的 `VITE_*` 變數會被編入瀏覽器可下載的 JavaScript，因此不能放秘密。Repository 的 `.env.production` 只提供同源 `/api` 預設；Render 專屬 API 位置改由 Render Dashboard 的 `VITE_API_BASE_URL` 在 build 階段覆蓋，不寫入本文件。
 
-現有 `.env.production` 的實際內容必須由使用者自行確認或在明確授權下安全盤點；代理不得修改 `.env`。
+Render 與 VPS 都執行 `npm run build`：Render 使用 Dashboard 覆蓋值，VPS 不覆蓋而使用同源 `/api`。代理不得讀取或修改 `.env` 的實際值；每次部署仍應由使用者透過瀏覽器 Network 驗證最終 Request URL。
 
 ---
 
@@ -681,11 +703,11 @@ VPS reboot
 
 #### 目標
 
-在不碰 VPS、Render、Supabase 資料與正式 DNS 的前提下，讓 repository 具備可審查的 VPS 部署藍圖。
+在不建立 VPS、不變更 Supabase 資料與正式 DNS 的前提下，讓 repository 具備可審查的 VPS 部署藍圖。Render 僅進行已驗證且可回復的前端 build-time 設定調整，不關閉服務或切換流量。
 
 #### 預計工作
 
-- [ ] 重新盤點 Render 的 build、start、rewrite、environment 與 health check 設定。
+- [x] 重新盤點 Render 的 build、start、rewrite、environment 與 health check 設定。
 - [x] 確認前端正式建置使用同源 `/api`，未寫死 Render URL。
 - [x] 建立後端 production profile。
 - [x] 建立 VPS 後端 Compose。
@@ -1251,8 +1273,8 @@ API endpoint、資料庫 schema、認證策略與正式 DNS 變更都必須先�
 
 | 編號 | 階段 | 工作 | 狀態 | 驗證證據／備註 |
 |---|---|---|---|---|
-| VPS-001 | Phase 0 | 盤點 Render 現有部署設定 | 待處理 | 不讀取或記錄秘密 |
-| VPS-002 | Phase 0 | 確認前端 production API path | 已完成 | 2026-08-29：預設使用同源 `/api` |
+| VPS-001 | Phase 0 | 盤點 Render 現有部署設定 | 已完成 | 2026-08-29：已記錄前後端非敏感設定、環境變數名稱與無自管 DNS 現況 |
+| VPS-002 | Phase 0 | 確認前端 production API path | 已完成 | 2026-08-29：repository 預設同源 `/api`；Render 由 Dashboard build-time 變數覆蓋並重新部署驗證 |
 | VPS-003 | Phase 0 | 設計後端 production profile | 已完成 | 2026-08-29：已建立 `application-prod.yml`；真實 schema validation 待 VPS 隔離驗證 |
 | VPS-004 | Phase 0 | 建立 VPS backend Compose | 已完成 | 2026-08-29：backend 只綁 `127.0.0.1:8080` |
 | VPS-005 | Phase 0 | 建立 Nginx 設定範本 | 已完成 | 2026-08-29：已包含 SPA、靜態快取與 `/api` reverse proxy |
@@ -1381,21 +1403,10 @@ DNS resolver 可以快取 record 的時間。TTL 較長時，切換後不同使�
 | 2026-08-12 | PostgreSQL 暫留 Supabase | 將主機遷移與正式資料遷移拆開，降低資料風險 |
 | 2026-08-12 | Render 在觀察期保留 | 提供 DNS rollback 與既有 production 回退能力 |
 | 2026-08-12 | 不要求先建立完整本機 mock production | 現有 Render 已是真實 production；主機 Nginx、systemd、DNS、TLS 應於測試 VPS 驗證 |
+| 2026-08-29 | 前端 production 預設使用同源 `/api`，Render 由 Dashboard 覆蓋 | 避免將正式環境語意綁定單一平台，同時保留 Render 回退能力 |
 
 ---
 
 ## 二十七、下一步
 
-本文件建立後的下一個任務應為 **VPS-001：唯讀盤點 Render 現有部署設定**。
-
-該任務只記錄非敏感資訊，例如：
-
-- 前端服務類型。
-- 前端 build command 與 publish directory。
-- SPA rewrite 規則。
-- 後端 build command 與 start command。
-- health check path。
-- 使用到的環境變數名稱，不記錄值。
-- 正式網域與 DNS record 類型。
-
-盤點完成後，再針對 Phase 0 的 repository 修改提出具體檔案計畫，等待使用者確認後實作。不應直接跳到購買 VPS 或切換正式網域。
+VPS-001 至 VPS-007 均已完成，Phase 0 可在檢查本次差異並提交後結束。下一步為 **Phase 1：選擇 VPS 供應商、方案與區域**；選購前先確認預算、Linux 發行版、IPv4、記憶體、磁碟與備份選項，不直接進行 DNS 切換或關閉 Render。
