@@ -490,6 +490,8 @@ Docker 發布 port 可能影響主機防火牆行為，不能只依賴 UFW；Com
 | `DB_PASSWORD` | 資料庫密碼 | 是 |
 | `FRONTEND_URL` | 後端 CORS 允許的正式前端 URL | 否 |
 | `SPRING_PROFILES_ACTIVE` | 啟用 production profile | 否 |
+| `DB_POOL_MAX_SIZE` | 單一後端 instance 的 Hikari 最大連線數，預設 3 | 否 |
+| `DB_POOL_MIN_IDLE` | 單一後端 instance 保留的最少閒置連線數，預設 1 | 否 |
 
 可能需要新增的變數必須由實作計畫確認，不在本文件預先定案。
 
@@ -671,12 +673,16 @@ VPS reboot
 - PostgreSQL named volume、異機自動備份與還原演練。
 - Log rotation 與集中式日誌。
 - Monitoring 與磁碟容量告警。
+- GitHub Dependabot Alerts、Security Updates、Malware Alerts 與 Version Updates，並設定 Web／Email 或每週摘要通知。
+- 建立 npm、Gradle、Node LTS、Java、Docker、Nginx 與 Ubuntu 的定期受控更新流程；更新先在本機或分支完成測試，不直接在 VPS 修改依賴。
 - 進一步的 firewall 與 SSH hardening。
 - Docker image 與 JVM 資源最佳化。
 - Staging／production 環境分離。
 - 零停機部署、高可用與多主機架構。
 
 其中資料庫遷移必須另立執行計畫，至少涵蓋匯出、匯入、資料筆數與關聯驗證、短暫停止寫入、正式切換、異機備份、還原演練及 Supabase 觀察期。`docs/16_卡片花園培育方案與MVP觀察計畫.md` 與 `docs/17_Project語意原型與Work模型驗證計畫.md` 所規劃的文字欄位、生長紀錄與關聯資料不構成第一版容量阻礙，但不能取代上述資料保護措施。
+
+依賴安全 memo（2026-08-30）：前端 `npm audit` 發現 PostCSS 間接依賴的 `nanoid 3.3.17` 有一項 high severity 阻斷服務漏洞，修正版為 `3.3.18`。目前它只用於前端建置工具鏈，沒有以 Node 服務形式運行，因此不阻擋 VPS Deployment v1；仍須在本機或獨立分支更新 lockfile、重新執行前端測試與正式建置，確認差異後再提交。不得直接在 VPS 執行 `npm audit fix`，也不得未經審查使用 `npm audit fix --force`。
 
 #### 學習與故障處理規則
 
@@ -820,6 +826,7 @@ VPS reboot
 - [ ] 檢查容器狀態與 log。
 - [ ] 由 VPS 本機呼叫 `/actuator/health`。
 - [ ] 確認 Supabase 連線模式、TLS 與 IPv4 相容性。
+- [ ] 確認 Render 舊／新 instance、VPS 與其他 client 的合計連線數未超過 Supabase 限制。
 - [ ] 確認 8080 無法由外部直接連線。
 
 #### 驗證
@@ -833,6 +840,8 @@ VPS reboot
 #### 停止條件
 
 若 Hibernate 嘗試進行非預期 schema 修改、Supabase TLS 失敗、連線模式不明或 log 出現秘密，立即停止，不進入前端部署。
+
+連線額度事故 memo（2026-09-02）：VPS backend 與 Render backend 同時連線至 Supabase Session Pooler 後，Render 新部署在啟動階段收到 `EMAXCONNSESSION`，顯示 15 個 client 名額已滿；停止 VPS backend、等待連線釋放後，以相同 `main` commit 重新部署 Render 即成功。根因是應用程式原先未限制 HikariCP pool，並非 Hibernate dialect 或 JDBC URL 遺失。共用設定已採 `maximum-pool-size=3`、`minimum-idle=1` 作為保守預設；正式並行啟動前仍須驗證 Supabase 實際 client 數與兩端健康狀態。
 
 ### Phase 4：部署 Vue 與設定 Reverse Proxy
 
@@ -1061,6 +1070,7 @@ VPS reboot
 - [ ] 主機磁碟、記憶體與負載檢查。
 - [ ] Certbot timer 與到期日檢查。
 - [ ] Ubuntu 安全更新提醒。
+- [ ] GitHub Dependabot Alerts 與通知管道已啟用，並定期檢查 npm／Gradle 依賴及受支援 runtime 版本。
 - [ ] VPS provider 狀態與 console 存取方式。
 
 後續可再評估外部 uptime monitor、集中 log、告警與 metrics，不列為第一版阻塞條件。
@@ -1297,6 +1307,7 @@ API endpoint、資料庫 schema、認證策略與正式 DNS 變更都必須先�
 | VPS-022 | Phase 8 | 觀察與 Render 退場評估 | 待處理 | 不自動關閉 Render |
 | VPS-023 | 未來 | 評估自管 PostgreSQL | 暫緩 | 另立獨立計畫 |
 | VPS-024 | 未來 | 評估全容器化與 CI/CD | 暫緩 | VPS 第一版穩定後再做 |
+| VPS-025 | 未來 | 建立依賴漏洞通知與受控更新流程 | 待處理 | 啟用 Dependabot 與通知；追蹤 nanoid 3.3.18 修正；更新後執行測試與 build |
 
 ---
 
