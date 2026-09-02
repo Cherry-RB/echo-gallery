@@ -39,8 +39,12 @@ DB_USERNAME
 DB_PASSWORD
 JWT_SECRET
 FRONTEND_URL
+DB_POOL_MAX_SIZE
+DB_POOL_MIN_IDLE
 JAVA_TOOL_OPTIONS
 ```
+
+`DB_POOL_MAX_SIZE=3` 與 `DB_POOL_MIN_IDLE=1` 是共用 Supabase Session Pooler 時的保守起始值。若未設定，應用程式也會採用相同預設值；調高前必須把 Render 舊／新 instance、VPS 與其他資料庫 client 一併計入連線預算。
 
 完成後確認檔案只允許 root 與部署管理者讀取。不要把實際內容貼進 issue、聊天、log 或 commit。
 
