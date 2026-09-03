@@ -6,12 +6,12 @@
 |---|---|
 | 文件性質 | 持續維護的部署設計、執行手冊與進度追蹤文件（Current） |
 | 建立日期 | 2026-08-12 |
-| 目前階段 | Phase 0 repository 部署準備已完成，尚未開始建立 VPS |
+| 目前階段 | VPS Deployment v1 已完成主機、應用、DuckDNS、HTTPS、CRUD 與重啟驗收；Render 新版與雙端並行觀察待完成 |
 | 主要目標 | 將 Echo Gallery 從 Render 代管部署，安全且可回復地演進為 VPS 自管部署 |
 | 第一版範圍 | VPS 主機上的 Nginx／Certbot、Vue 靜態檔案、Docker 化 Spring Boot、沿用 Supabase PostgreSQL |
 | 暫不包含 | 自管 PostgreSQL、完整 CI/CD、全服務容器化、零停機部署、高可用叢集 |
 
-> 本文件記錄目前的部署設計與預定流程，不代表所有步驟均已執行。執行任何主機、DNS、正式環境或資料操作前，仍須重新核對當時的原始碼、平台設定與官方文件。
+> 本文件同時記錄部署設計與 2026-08-29～2026-09-03 的首次實際執行結果。未標示「已完成」的操作仍須重新核對當時的原始碼、平台設定與官方文件。
 
 ---
 
@@ -72,16 +72,17 @@ Echo Gallery 已經部署於 Render，資料庫使用 Supabase PostgreSQL，並�
 
 ### 3.1 現有線上架構
 
-依目前可取得資訊，正式環境為：
+依目前可取得資訊，Render 與 VPS 平行存在：
 
 ```text
 使用者瀏覽器
    │
    ├─ Render 前端服務：Vue 3 正式建置
-   │
-   └─ Render 後端服務：Spring Boot API
-                         │
-                         └─ Supabase PostgreSQL
+   │                    └─ Render 後端服務：Spring Boot API ─┐
+   │                                                         │
+   └─ DuckDNS HTTPS 網址 ── Nginx ── VPS Spring Boot ────────┤
+                                                             │
+                                             Supabase PostgreSQL
 ```
 
 這是一套真正運作中的 production 部署，不是 mock environment。過去已處理的實際部署問題包括：
@@ -138,11 +139,13 @@ Echo Gallery 已經部署於 Render，資料庫使用 Supabase PostgreSQL，並�
 - Nginx SPA、靜態快取及 `/api` reverse proxy 範本。
 - VPS 發布、驗證、更新及 rollback 操作手冊。
 
-目前仍未完成或不屬於 Phase 0 的項目：
+目前仍未完成或不屬於 VPS Deployment v1 的項目：
 
 - 沒有 Flyway 或其他 schema migration 工具。
-- 尚未在真實 VPS 執行主機初始化、防火牆、Nginx、TLS 與重啟驗證。
 - 尚未建立自動備份、完整監控或 CI/CD；這些不屬於 VPS v1 的本週末範圍。
+- 尚未購買自有作品集網域；目前使用免費 DuckDNS 子網域驗證 VPS。
+- 尚未執行真正的前後端版本 rollback；已完成 container 重建與 VPS reboot 復原。
+- Render 新版部署與 Render／VPS 雙端並行觀察仍須完成。
 
 ### 3.4 目前測試基線
 
@@ -154,6 +157,12 @@ Echo Gallery 已經部署於 Render，資料庫使用 Supabase PostgreSQL，並�
 - 前端建置有大型 chunk 警告，但目前不阻擋部署。
 
 這些結果只代表當時的程式碼基線。每次實際部署應重新執行並記錄結果。
+
+2026-09-02～2026-09-03 實際部署重新驗證：
+
+- 後端 `./gradlew test`：87 個測試通過；第一次因本機 Docker Desktop 未啟動而使 Testcontainers 初始化失敗，啟動 Docker 後重跑成功。
+- 前端以暫時性 Node container 執行：9 個測試檔、23 個測試通過，production build 成功。
+- 前端建置仍有大型 chunk 警告；不阻擋 VPS Deployment v1，列入後續最佳化。
 
 ---
 
@@ -649,22 +658,42 @@ VPS reboot
 
 #### Weekend Definition of Done
 
-- [ ] VPS 可以使用 SSH key 登入，且保留已驗證的安全登入方式。
-- [ ] Docker Engine 與 Docker Compose plugin 正常。
-- [ ] Spring Boot container 正常，且 8080 未公開至外網。
-- [ ] Spring Boot 可以正常讀寫既有 Supabase PostgreSQL 資料。
-- [ ] Vue 可由 Nginx 正常提供，巢狀路由重新整理不會 404。
-- [ ] 前端可透過同源 `/api` 呼叫後端，瀏覽器沒有 CORS 或 Mixed Content 錯誤。
-- [ ] Domain 正確指向 VPS。
-- [ ] HTTPS 憑證有效，HTTP 會轉向 HTTPS。
-- [ ] `docker compose down` 後重新 `docker compose up -d`，後端可恢復連線且既有資料仍可存取。
-- [ ] VPS reboot 後，Nginx、Docker 與應用服務可自動恢復。
-- [ ] 手機使用外部網路可完成登入與核心 Card CRUD。
-- [ ] Render 與原 DNS 設定仍可供回退，尚未刪除或停用。
+- [x] VPS 可以使用 SSH key 登入，且保留已驗證的安全登入方式。
+- [x] Docker Engine 與 Docker Compose plugin 正常。
+- [x] Spring Boot container 正常，且 8080 未公開至外網。
+- [x] Spring Boot 可以正常讀寫既有 Supabase PostgreSQL 資料。
+- [x] Vue 可由 Nginx 正常提供，巢狀路由重新整理不會 404。
+- [x] 前端可透過同源 `/api` 呼叫後端，瀏覽器沒有 CORS 或 Mixed Content 錯誤。
+- [x] Domain 正確指向 VPS。
+- [x] HTTPS 憑證有效，HTTP 會轉向 HTTPS。
+- [x] `docker compose down` 後重新 `docker compose up -d`，後端可恢復連線且既有資料仍可存取。
+- [x] VPS reboot 後，Nginx、Docker 與應用服務可自動恢復。
+- [x] 手機使用外部網路可完成登入與核心 Card CRUD。
+- [x] Render 既有網址仍可作為替代入口，尚未刪除或停用。
 
 此處的 `docker compose down`／`up -d` 驗證是確認應用容器可重建並重新連線 Supabase，不是驗證 VPS PostgreSQL volume。第一版不在 VPS 自管 PostgreSQL，也不執行正式資料搬遷。
 
 以上項目全部完成後，VPS Deployment v1 即可宣告完成。未完成的進階工作不得被重新定義成 v1 尚未部署完成。
+
+#### 首次實際部署結果（2026-08-29～2026-09-03）
+
+| 項目 | 實際結果 |
+|---|---|
+| VPS provider／region | DigitalOcean／Singapore（SGP1） |
+| 主機規格 | Basic、1 vCPU、2 GB RAM、50 GB SSD；月費以建立當時 Dashboard 顯示為準 |
+| 作業系統 | Ubuntu 24.04 LTS x86_64 |
+| 日常管理 | `deploy` sudo 使用者、SSH key 登入；root SSH 與密碼登入已停用 |
+| 主機基線 | Asia/Taipei、2 GB persistent swap、UFW 僅允許 22／80／443 TCP |
+| Runtime | Docker Engine、Docker Compose plugin；Spring Boot 以非 root container 執行 |
+| Backend | image 使用 commit SHA tag；只發布至 `127.0.0.1:8080`；health 為 healthy／UP |
+| Frontend | 暫時性 Node container 完成測試與 build；版本化 release 由 `current` symlink 指向 |
+| 公開入口 | `echo-gallery.duckdns.org` 指向 VPS；Nginx 提供 Vue 並代理同源 `/api` |
+| HTTPS | Certbot／Let’s Encrypt 憑證有效；HTTP 轉 HTTPS；renew dry-run 通過 |
+| Database | 沿用 Supabase PostgreSQL Session Pooler；JDBC 使用 TLS；不在 VPS 自管 PostgreSQL |
+| 穩定性 | container down／up、VPS reboot、外部網路登入與核心 CRUD 驗收通過 |
+| 回退 | Render 保留；真正的舊版 image／frontend release rollback 尚待另行演練 |
+
+上述版本與規格是首次部署的觀察紀錄，不是未來更新時必須固定沿用的版本。VPS Public IP、帳密、token、Email 與完整連線字串不得寫入 repository。
 
 #### VPS Deployment v2 backlog
 
@@ -759,18 +788,18 @@ VPS reboot
 
 #### 預計工作
 
-- [ ] 選擇供應商、區域、Ubuntu LTS 與規格。
-- [ ] 建立 SSH key 或確認既有 key 使用方式。
-- [ ] 建立 VPS。
-- [ ] 第一次登入並記錄主機資訊。
-- [ ] 建立非 root sudo 使用者。
-- [ ] 驗證新使用者可用 SSH key 登入。
-- [ ] 更新系統套件。
-- [ ] 設定主機時區與時間同步。
-- [ ] 設定 UFW 或等效防火牆。
-- [ ] 安裝 Docker Engine 與 Compose plugin。
-- [ ] 安裝 Nginx。
-- [ ] 確認服務狀態與開機自動啟動。
+- [x] 選擇供應商、區域、Ubuntu LTS 與規格。
+- [x] 建立 SSH key 或確認既有 key 使用方式。
+- [x] 建立 VPS。
+- [x] 第一次登入並記錄主機資訊。
+- [x] 建立非 root sudo 使用者。
+- [x] 驗證新使用者可用 SSH key 登入。
+- [x] 更新系統套件。
+- [x] 設定主機時區與時間同步。
+- [x] 設定 UFW 或等效防火牆。
+- [x] 安裝 Docker Engine 與 Compose plugin。
+- [x] 安裝 Nginx。
+- [x] 確認服務狀態與開機自動啟動。
 - [ ] 建立 provider snapshot（若方案支援）。
 
 #### 驗證
@@ -794,14 +823,14 @@ VPS reboot
 
 #### 預計工作
 
-- [ ] 盤點 DNS provider。
-- [ ] 建立測試子網域 A record。
-- [ ] 等待 DNS 生效。
-- [ ] 建立 Nginx server block。
-- [ ] 放置簡單測試頁。
-- [ ] 驗證 domain 與 Host routing。
-- [ ] 檢查 Nginx 設定語法。
-- [ ] reload Nginx。
+- [x] 盤點 DNS provider。
+- [x] 建立測試子網域 A record。
+- [x] 等待 DNS 生效。
+- [x] 建立 Nginx server block。
+- [x] 放置並驗證網站內容。
+- [x] 驗證 domain 與 Host routing。
+- [x] 檢查 Nginx 設定語法。
+- [x] reload Nginx。
 
 #### 驗證
 
@@ -818,16 +847,16 @@ VPS reboot
 
 #### 預計工作
 
-- [ ] 將指定 commit 部署至 VPS。
-- [ ] 建置或取得後端 image。
-- [ ] 在 VPS 安全建立 production secret 設定。
-- [ ] 啟用 production profile。
-- [ ] 啟動後端 Compose。
-- [ ] 檢查容器狀態與 log。
-- [ ] 由 VPS 本機呼叫 `/actuator/health`。
-- [ ] 確認 Supabase 連線模式、TLS 與 IPv4 相容性。
-- [ ] 確認 Render 舊／新 instance、VPS 與其他 client 的合計連線數未超過 Supabase 限制。
-- [ ] 確認 8080 無法由外部直接連線。
+- [x] 將指定 commit 部署至 VPS。
+- [x] 建置或取得後端 image。
+- [x] 在 VPS 安全建立 production secret 設定。
+- [x] 啟用 production profile。
+- [x] 啟動後端 Compose。
+- [x] 檢查容器狀態與 log。
+- [x] 由 VPS 本機呼叫 `/actuator/health`。
+- [x] 確認 Supabase 連線模式、TLS 與 IPv4 相容性。
+- [x] 確認 Render 舊／新 instance、VPS 與其他 client 的合計連線數未超過 Supabase 限制。
+- [x] 確認 8080 無法由外部直接連線。
 
 #### 驗證
 
@@ -843,6 +872,14 @@ VPS reboot
 
 連線額度事故 memo（2026-09-02）：VPS backend 與 Render backend 同時連線至 Supabase Session Pooler 後，Render 新部署在啟動階段收到 `EMAXCONNSESSION`，顯示 15 個 client 名額已滿；停止 VPS backend、等待連線釋放後，以相同 `main` commit 重新部署 Render 即成功。根因是應用程式原先未限制 HikariCP pool，並非 Hibernate dialect 或 JDBC URL 遺失。共用設定已採 `maximum-pool-size=3`、`minimum-idle=1` 作為保守預設；正式並行啟動前仍須驗證 Supabase 實際 client 數與兩端健康狀態。
 
+首次部署事故與處理摘要：
+
+- JDBC URL 曾將 username 與 password 放在 query parameter，Hibernate 啟動資訊因而把完整 URL 寫入 Docker log。處理方式是停止外部 database client、輪替 Supabase database password，並將 `JDBC_DATABASE_URL`、`DB_USERNAME`、`DB_PASSWORD` 分開注入；URL 僅保留 host、port、database 與 `sslmode=require`。重建 container 後，以只回報有無匹配、不輸出匹配行的方式確認新 log 不再含 `password=`。
+- HTTP 階段曾誤用測試帳號登入。處理方式是清除瀏覽器對 VPS IP 保存的 site data／JWT、更新測試帳號密碼，並在 HTTPS 完成前停止公開登入操作。任何重複部署都必須遵守「HTTP 僅供 ACME challenge 與轉址，不輸入憑證」原則。
+- Nginx 初次啟用時，Ubuntu `default` site 與 Echo Gallery 同時使用 catch-all `server_name`，產生 conflicting server name warning。移除 `sites-enabled/default` symlink、保留 Echo Gallery site 後，`nginx -t` 通過。
+- 公開網域的 `/actuator/health` 不會被 Nginx 代理，會落入 Vue SPA fallback 並回傳 `index.html`；這不能當作後端健康證據。後端 health 必須在 VPS 使用 `http://127.0.0.1:8080/actuator/health`，外部鏈路則以受保護 `/api` 回傳 401 或登入後功能操作驗證。
+- VPS 不永久安裝 Node。首次以 Node 24 container 執行 `npm ci` 時，因 npm 與既有 lockfile 的解析差異失敗；改用 Node 22.20.0 與 npm 11.6.1 的暫時 container 後，測試與 build 通過。這是首次部署的可重現基線，未來升級仍須在分支重新產生 lockfile 並測試。
+
 ### Phase 4：部署 Vue 與設定 Reverse Proxy
 
 #### 目標
@@ -851,15 +888,15 @@ VPS reboot
 
 #### 預計工作
 
-- [ ] 執行前端測試。
-- [ ] 執行 `npm run build`。
-- [ ] 將 `dist/` 發布至版本化或可回退的 VPS 目錄。
-- [ ] 將 Nginx root 指向當前版本。
-- [ ] 設定 SPA fallback。
-- [ ] 設定 `/api` reverse proxy。
-- [ ] 傳遞必要 forwarded headers。
-- [ ] 設定合理 timeout 與 request body 限制。
-- [ ] 檢查 Nginx 語法並 reload。
+- [x] 執行前端測試。
+- [x] 執行 `npm run build`。
+- [x] 將 `dist/` 發布至版本化或可回退的 VPS 目錄。
+- [x] 將 Nginx root 指向當前版本。
+- [x] 設定 SPA fallback。
+- [x] 設定 `/api` reverse proxy。
+- [x] 傳遞必要 forwarded headers。
+- [x] 設定合理 timeout 與 request body 限制。
+- [x] 檢查 Nginx 語法並 reload。
 
 #### 驗證
 
@@ -879,13 +916,13 @@ VPS reboot
 
 #### 預計工作
 
-- [ ] 確認 DNS、80 與 443 狀態。
-- [ ] 安裝官方建議的 Certbot 發行方式。
-- [ ] 使用 Nginx plugin 申請憑證。
-- [ ] 驗證 HTTP 轉 HTTPS。
-- [ ] 檢查瀏覽器憑證鏈。
-- [ ] 執行 `certbot renew --dry-run`。
-- [ ] 確認 systemd timer 或續期排程。
+- [x] 確認 DNS、80 與 443 狀態。
+- [x] 安裝官方建議的 Certbot 發行方式。
+- [x] 使用 Nginx plugin 申請憑證。
+- [x] 驗證 HTTP 轉 HTTPS。
+- [x] 檢查瀏覽器憑證鏈。
+- [x] 執行 `certbot renew --dry-run`。
+- [x] 確認 systemd timer 或續期排程。
 
 #### 驗證
 
@@ -903,15 +940,15 @@ VPS reboot
 
 #### 預計工作
 
-- [ ] 重開 VPS。
-- [ ] 驗證 Nginx、Docker 與 backend 自動恢復。
-- [ ] 模擬後端容器停止並重新啟動。
+- [x] 重開 VPS。
+- [x] 驗證 Nginx、Docker 與 backend 自動恢復。
+- [x] 模擬後端容器停止並重新啟動。
 - [ ] 驗證 Nginx 在後端失效時的行為與 log。
-- [ ] 部署一個無資料變更的測試版本。
+- [x] 部署一個無資料變更的測試版本。
 - [ ] 回退到前一版本。
-- [ ] 檢查磁碟、RAM 與 container log 增長。
-- [ ] 建立服務狀態檢查清單。
-- [ ] 建立緊急聯絡／供應商 console 登入方式。
+- [x] 檢查磁碟、RAM 與 container log 增長。
+- [x] 建立服務狀態檢查清單。
+- [x] 建立供應商 console 登入方式。
 
 #### 驗證
 
@@ -925,6 +962,8 @@ VPS reboot
 #### 目標
 
 將正式流量由 Render 切換至 VPS，同時保留可回復性。
+
+首次部署沒有既有自有網域可供切換，因此改採 `echo-gallery.duckdns.org` 作為 VPS 平行網址，Render 原網址保持不變。下列正式 DNS 遷移流程目前標記為暫緩；未來購買作品集網域後再重新執行，不把 DuckDNS 建立誤記為既有正式網域切換。
 
 #### 前置條件
 
@@ -946,7 +985,7 @@ VPS reboot
 - [ ] 從不同網路驗證 DNS 與 HTTPS。
 - [ ] 執行完整功能 smoke test。
 - [ ] 觀察 Nginx、backend 與 Supabase 指標。
-- [ ] 保留 Render，不立即刪除。
+- [x] 保留 Render，不立即刪除。
 
 #### Rollback 觸發條件
 
@@ -1285,26 +1324,26 @@ API endpoint、資料庫 schema、認證策略與正式 DNS 變更都必須先�
 |---|---|---|---|---|
 | VPS-001 | Phase 0 | 盤點 Render 現有部署設定 | 已完成 | 2026-08-29：已記錄前後端非敏感設定、環境變數名稱與無自管 DNS 現況 |
 | VPS-002 | Phase 0 | 確認前端 production API path | 已完成 | 2026-08-29：repository 預設同源 `/api`；Render 由 Dashboard build-time 變數覆蓋並重新部署驗證 |
-| VPS-003 | Phase 0 | 設計後端 production profile | 已完成 | 2026-08-29：已建立 `application-prod.yml`；真實 schema validation 待 VPS 隔離驗證 |
+| VPS-003 | Phase 0 | 設計後端 production profile | 已完成 | 2026-09-03：`application-prod.yml` 已在 VPS 通過真實 schema validation 與 health 驗證 |
 | VPS-004 | Phase 0 | 建立 VPS backend Compose | 已完成 | 2026-08-29：backend 只綁 `127.0.0.1:8080` |
 | VPS-005 | Phase 0 | 建立 Nginx 設定範本 | 已完成 | 2026-08-29：已包含 SPA、靜態快取與 `/api` reverse proxy |
 | VPS-006 | Phase 0 | 建立部署與 rollback 手冊 | 已完成 | 2026-08-29：已建立 `deploy/README.md` |
-| VPS-007 | Phase 0 | 驗證 image、測試與 build | 已完成 | 2026-08-29：backend test、frontend test/build 與 Docker image build 通過 |
+| VPS-007 | Phase 0 | 驗證 image、測試與 build | 已完成 | 2026-09-03：backend 87 tests、frontend 9 files／23 tests、frontend build 與 VPS image build 通過 |
 | VPS-008 | 安全 | 驗收 CR-006 並更新追蹤建議 | 待處理 | 程式已有實作，文件未同步 |
 | VPS-009 | 安全 | 評估／處理 CR-001 | 待處理 | 正式切換前優先 |
 | VPS-010 | 安全 | 記錄 CR-002 JWT lifecycle 決策 | 待處理 | 正式切換前優先 |
 | VPS-011 | 安全 | 處理 CR-003 | 待處理 | 與 migration 分階段 |
 | VPS-012 | 安全 | 處理 CR-007、008、012 | 待處理 | 逐項確認 commit 邊界 |
-| VPS-013 | Phase 1 | 選購 VPS | 待處理 | 當時重新查價格與規格 |
-| VPS-014 | Phase 1 | SSH 與主機安全初始化 | 待處理 | 第二條連線驗證後才收緊 |
-| VPS-015 | Phase 1 | 安裝 Docker 與 Nginx | 待處理 | 使用官方支援方式 |
-| VPS-016 | Phase 2 | 建立測試子網域 | 待處理 | 不影響正式網域 |
-| VPS-017 | Phase 3 | 部署 backend 並連 Supabase | 待處理 | 先做 read-only 驗證 |
-| VPS-018 | Phase 4 | 部署 Vue 與 `/api` proxy | 待處理 | 完成 smoke test |
-| VPS-019 | Phase 5 | 申請 HTTPS 與驗證續期 | 待處理 | `renew --dry-run` |
-| VPS-020 | Phase 6 | 重啟與 rollback 演練 | 待處理 | 切正式流量前必須完成 |
-| VPS-021 | Phase 7 | 正式 DNS 切換 | 待處理 | 需使用者再次明確確認 |
-| VPS-022 | Phase 8 | 觀察與 Render 退場評估 | 待處理 | 不自動關閉 Render |
+| VPS-013 | Phase 1 | 選購 VPS | 已完成 | 2026-08-30：DigitalOcean SGP1、Ubuntu 24.04 LTS、1 vCPU／2 GB／50 GB |
+| VPS-014 | Phase 1 | SSH 與主機安全初始化 | 已完成 | deploy sudo 與第二條 SSH 連線驗證通過；root SSH、password auth 已停用；UFW 僅開 22／80／443 |
+| VPS-015 | Phase 1 | 安裝 Docker 與 Nginx | 已完成 | Docker／Compose hello-world、Nginx、開機自動恢復與 VPS reboot 驗證通過 |
+| VPS-016 | Phase 2 | 建立測試子網域 | 已完成 | DuckDNS 平行網址解析至 VPS；Nginx Host routing 通過，不影響 Render 網址 |
+| VPS-017 | Phase 3 | 部署 backend 並連 Supabase | 已完成 | backend healthy、localhost health UP、8080 未公開、TLS 與既有資料讀寫通過 |
+| VPS-018 | Phase 4 | 部署 Vue 與 `/api` proxy | 已完成 | 版本化 frontend release、SPA fallback、同源 `/api`、桌面與手機 CRUD 通過 |
+| VPS-019 | Phase 5 | 申請 HTTPS 與驗證續期 | 已完成 | DuckDNS 憑證有效、HTTP 轉 HTTPS、`renew --dry-run` 通過 |
+| VPS-020 | Phase 6 | 重啟與 rollback 演練 | 待驗證 | container down／up 與 VPS reboot 已通過；真正切換舊 image／frontend release 尚未演練 |
+| VPS-021 | Phase 7 | 正式 DNS 切換 | 暫緩 | 目前沒有自有正式網域；以 DuckDNS 平行網址驗證，未改動 Render 網址 |
+| VPS-022 | Phase 8 | 觀察與 Render 退場評估 | 處理中 | main／Render 新版確認與雙端並行觀察待完成；不自動關閉 Render |
 | VPS-023 | 未來 | 評估自管 PostgreSQL | 暫緩 | 另立獨立計畫 |
 | VPS-024 | 未來 | 評估全容器化與 CI/CD | 暫緩 | VPS 第一版穩定後再做 |
 | VPS-025 | 未來 | 建立依賴漏洞通知與受控更新流程 | 待處理 | 啟用 Dependabot 與通知；追蹤 nanoid 3.3.18 修正；更新後執行測試與 build |
@@ -1415,9 +1454,21 @@ DNS resolver 可以快取 record 的時間。TTL 較長時，切換後不同使�
 | 2026-08-12 | Render 在觀察期保留 | 提供 DNS rollback 與既有 production 回退能力 |
 | 2026-08-12 | 不要求先建立完整本機 mock production | 現有 Render 已是真實 production；主機 Nginx、systemd、DNS、TLS 應於測試 VPS 驗證 |
 | 2026-08-29 | 前端 production 預設使用同源 `/api`，Render 由 Dashboard 覆蓋 | 避免將正式環境語意綁定單一平台，同時保留 Render 回退能力 |
+| 2026-08-30 | 第一台 VPS 選擇 DigitalOcean SGP1 的 2 GB Basic Droplet | 鄰近主要使用者、具 Public IPv4，且足以承載單人 MVP 的 Nginx 與 Spring Boot；資料庫仍外置 |
+| 2026-09-02 | 共用 Supabase 時將單一 Hikari pool 預設限制為最大 3、minimum idle 1 | 避免 Render 舊／新 instance 與 VPS 同時占滿 Session Pooler client 額度 |
+| 2026-09-02 | JDBC URL 不承載 username 或 password | Hibernate 可能輸出 JDBC URL；將帳密獨立注入並要求 TLS，降低 log 洩密風險 |
+| 2026-09-03 | 先使用 DuckDNS 平行網址完成 HTTPS 驗收 | 第一版零額外網域成本；未來購買自有作品集網域後再執行正式 DNS 遷移 |
+| 2026-09-03 | Actuator health 僅供 VPS localhost 檢查 | 不在 Nginx 公開 `/actuator`；外部鏈路以 `/api` 與功能 smoke test 驗證 |
+| 2026-09-03 | VPS 不永久安裝 Node | Vue 只需要 build 產物；以暫時 Node container 建置可減少主機 runtime 與維護面積 |
 
 ---
 
 ## 二十七、下一步
 
-VPS-001 至 VPS-007 均已完成，Phase 0 可在檢查本次差異並提交後結束。下一步為 **Phase 1：選擇 VPS 供應商、方案與區域**；選購前先確認預算、Linux 發行版、IPv4、記憶體、磁碟與備份選項，不直接進行 DNS 切換或關閉 Render。
+VPS Deployment v1 的主機、應用、DuckDNS、HTTPS、外部 CRUD、container 重建與 VPS reboot 驗收已完成。下一步依序為：
+
+1. 確認 commit `942f2e8` 的 Render backend／frontend 部署成功。
+2. 確認 Render 與 VPS backend 同時為 healthy／UP，且不再出現 `EMAXCONNSESSION`。
+3. 建立明確觀察期，期間保留 Render 作為回退服務。
+4. 另行演練一次舊 backend image 與 frontend release rollback，完成 VPS-020。
+5. 將自有作品集網域、異機資料備份、監控、Dependabot 與 CI/CD 留在 VPS Deployment v2，不回頭擴大 v1。
