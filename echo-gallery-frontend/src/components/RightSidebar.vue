@@ -81,11 +81,11 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
 
         <div class="stat-box">
           <span class="stat-value">{{ sidebarStats.unfinishedWorks ?? 0 }}</span>
-          <span class="stat-label">未完成計畫</span>
+          <span class="stat-label">未結案議題</span>
         </div>
         <div class="stat-box">
           <span class="stat-value">{{ sidebarStats.totalWorks ?? 0 }}</span>
-          <span class="stat-label">計畫總數</span>
+          <span class="stat-label">議題總數</span>
         </div>
       </div>
     </section>

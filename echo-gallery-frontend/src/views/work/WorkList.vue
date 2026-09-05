@@ -12,16 +12,17 @@ import { workApi } from '../../utils/api/workApi'
 type WorkStatusTagType = 'primary' | 'success' | 'warning' | 'info'
 
 const workStatusMeta: Record<WorkStatus, { label: string; type: WorkStatusTagType }> = {
-  IDEA: { label: '構想', type: 'info' },
-  DRAFT: { label: '規劃中', type: 'warning' },
-  ACTIVE: { label: '進行中', type: 'primary' },
-  DONE: { label: '已完成', type: 'success' },
+  IDEA: { label: '構想中', type: 'info' },
+  DRAFT: { label: '整理中', type: 'warning' },
+  ACTIVE: { label: '議事中', type: 'primary' },
+  DONE: { label: '已結案', type: 'success' },
   ARCHIVED: { label: '已封存', type: 'info' },
 }
 
-const projectDesignPlaceholder = `培育目標：想培養什麼能力或達成什麼目標？
-成果判準：如何知道這項計畫產生效果？
-可能產生的 Works：預期會形成哪些具體成果？`
+const projectDesignPlaceholder = `議事焦點：這次真正要回答或推進什麼？
+背景：為什麼出現這個議題？
+目前研判：根據目前掌握的內容，我怎麼看？
+結案／重議條件：何時算有結論，或何時重新評估？`
 
 const workStatusOptions = (Object.entries(workStatusMeta) as Array<
   [WorkStatus, { label: string; type: WorkStatusTagType }]
@@ -63,11 +64,11 @@ const validateOptionalUrl = (
 
 const createFormRules: FormRules<CreateWorkRequest> = {
   title: [
-    { required: true, message: '請輸入計畫名稱', trigger: 'blur' },
-    { max: 255, message: '計畫名稱不可超過 255 個字', trigger: 'blur' },
+    { required: true, message: '請輸入議題名稱', trigger: 'blur' },
+    { max: 255, message: '議題名稱不可超過 255 個字', trigger: 'blur' },
   ],
   description: [
-    { max: 5000, message: '計畫設計不可超過 5000 個字', trigger: 'blur' },
+    { max: 5000, message: '議題背景與研判不可超過 5000 個字', trigger: 'blur' },
   ],
   externalUrl: [
     { max: 2048, message: '外部連結不可超過 2048 個字', trigger: 'blur' },
@@ -99,7 +100,7 @@ const createMutation = useMutation({
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['works'] })
     await queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] })
-    ElMessage.success('培育計畫建立成功')
+    ElMessage.success('議題已發起')
     createDialogVisible.value = false
   },
 })
@@ -138,8 +139,8 @@ const submitCreateWork = async () => {
   <section class="work-list-page">
     <header class="page-header">
       <div>
-        <h1 class="page-title">培育計畫</h1>
-        <p class="page-description">組織素材與練習，逐步形成可檢視的具體成果</p>
+        <h1 class="page-title">議事廳</h1>
+        <p class="page-description">讓不同內容進入議事，持續形成自己的研判與決議</p>
       </div>
       <div class="page-actions">
         <el-select
@@ -150,7 +151,7 @@ const submitCreateWork = async () => {
           collapse-tags
           collapse-tags-tooltip
           placeholder="全部狀態"
-          aria-label="依培育計畫狀態篩選"
+          aria-label="依議題狀態篩選"
         >
           <el-option
             v-for="option in workStatusOptions"
@@ -160,13 +161,13 @@ const submitCreateWork = async () => {
           />
         </el-select>
         <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-          新增培育計畫
+          發起議題
         </el-button>
       </div>
     </header>
 
     <div class="work-content-surface">
-      <div v-if="isLoading" class="loading-grid" aria-label="培育計畫載入中">
+      <div v-if="isLoading" class="loading-grid" aria-label="議題載入中">
         <el-card v-for="index in 3" :key="index" shadow="never">
           <el-skeleton :rows="3" animated />
         </el-card>
@@ -175,7 +176,7 @@ const submitCreateWork = async () => {
       <el-result
         v-else-if="isError"
         icon="error"
-        title="無法載入培育計畫"
+        title="無法載入議題"
         sub-title="請確認網路連線後再試一次"
       >
         <template #extra>
@@ -183,15 +184,15 @@ const submitCreateWork = async () => {
         </template>
       </el-result>
 
-      <el-empty v-else-if="allWorks.length === 0" description="還沒有培育計畫，先建立一個想投入的方向吧">
+      <el-empty v-else-if="allWorks.length === 0" description="議事廳目前沒有議題，先從一件想理解或推進的事情開始吧">
         <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-          建立第一個培育計畫
+          發起第一個議題
         </el-button>
       </el-empty>
 
       <el-empty
         v-else-if="workList.length === 0"
-        description="沒有符合目前狀態篩選的培育計畫"
+        description="沒有符合目前狀態篩選的議題"
       >
         <el-button @click="selectedStatuses = []">清除篩選</el-button>
       </el-empty>
@@ -204,7 +205,7 @@ const submitCreateWork = async () => {
           class="work-card"
           role="link"
           tabindex="0"
-          :aria-label="`查看培育計畫：${work.title}`"
+          :aria-label="`查看議題：${work.title}`"
           @click="openWorkDetail(work.id)"
           @keydown.enter="openWorkDetail(work.id)"
           @keydown.space.prevent="openWorkDetail(work.id)"
@@ -221,7 +222,7 @@ const submitCreateWork = async () => {
             <el-tag :type="workStatusMeta[work.status].type" effect="plain" size="small">
               {{ workStatusMeta[work.status].label }}
             </el-tag>
-            <div class="material-summary" aria-label="計畫素材統計">
+            <div class="material-summary" aria-label="議題素材統計">
               <span class="material-info">
                 素材池 <strong>{{ work.candidateCount }}</strong>
               </span>
@@ -243,7 +244,7 @@ const submitCreateWork = async () => {
               @keydown.stop
             >
               <el-icon><Link /></el-icon>
-              <span>開啟計畫連結</span>
+              <span>開啟相關連結</span>
             </a>
             <span class="updated-at">最後更新：{{ formatDate(work.updatedAt) }}</span>
           </footer>
@@ -253,7 +254,7 @@ const submitCreateWork = async () => {
 
     <el-dialog
       v-model="createDialogVisible"
-      title="新增培育計畫"
+      title="發起議題"
       width="min(520px, calc(100vw - 32px))"
       destroy-on-close
       @closed="resetCreateForm"
@@ -265,16 +266,16 @@ const submitCreateWork = async () => {
         label-position="top"
         @submit.prevent="submitCreateWork"
       >
-        <el-form-item label="計畫名稱" prop="title">
+        <el-form-item label="議題名稱" prop="title">
           <el-input
             v-model="createForm.title"
             maxlength="255"
             show-word-limit
-            placeholder="例如：閱讀心得寫作"
+            placeholder="例如：Echo Gallery 下一階段應如何設計？"
           />
         </el-form-item>
 
-        <el-form-item label="計畫設計" prop="description">
+        <el-form-item label="議題背景與目前研判" prop="description">
           <el-input
             v-model="createForm.description"
             type="textarea"
@@ -306,7 +307,7 @@ const submitCreateWork = async () => {
           :loading="createMutation.isPending.value"
           @click="submitCreateWork"
         >
-          建立培育計畫
+          發起議題
         </el-button>
       </template>
     </el-dialog>

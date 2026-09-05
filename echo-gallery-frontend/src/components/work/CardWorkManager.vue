@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { FolderOpened, Plus } from '@element-plus/icons-vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ElMessage } from 'element-plus'
+import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
-import type { WorkCardStatus, WorkStatus, WorkSummary } from '../../types/work'
+import type { WorkCardStatus, WorkStatus } from '../../types/work'
 import { workApi } from '../../utils/api/workApi'
+import AddCardToIssueDialog from './AddCardToIssueDialog.vue'
 
 const props = defineProps<{ cardId: string }>()
 const router = useRouter()
-const queryClient = useQueryClient()
-const addWorkDialogVisible = ref(false)
+const addIssueDialogVisible = ref(false)
 
 type StatusTagType = 'primary' | 'success' | 'warning' | 'info'
 
@@ -20,10 +19,10 @@ const relationStatusMeta: Record<WorkCardStatus, { label: string; type: StatusTa
 }
 
 const workStatusMeta: Record<WorkStatus, string> = {
-  IDEA: '構想',
-  DRAFT: '規劃中',
-  ACTIVE: '進行中',
-  DONE: '已完成',
+  IDEA: '構想中',
+  DRAFT: '整理中',
+  ACTIVE: '議事中',
+  DONE: '已結案',
   ARCHIVED: '已封存',
 }
 
@@ -37,40 +36,6 @@ const {
   queryFn: () => workApi.getCardWorks(props.cardId),
 })
 
-const {
-  data: works,
-  isLoading: areWorksLoading,
-  isError: areWorksError,
-} = useQuery({
-  queryKey: ['works'],
-  queryFn: workApi.getWorks,
-  enabled: computed(() => addWorkDialogVisible.value),
-})
-
-const linkedWorkIds = computed(() =>
-  new Set((cardWorks.value ?? []).map((relation) => String(relation.workId))),
-)
-
-const availableWorks = computed(() =>
-  (works.value ?? []).filter((work) =>
-    work.status !== 'ARCHIVED' && !linkedWorkIds.value.has(String(work.id)),
-  ),
-)
-
-const addWorkMutation = useMutation({
-  mutationFn: (work: WorkSummary) =>
-    workApi.addWorkCard(work.id, { cardId: Number(props.cardId) }),
-  onSuccess: async (_relation, work) => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['cardWorks', String(props.cardId)] }),
-      queryClient.invalidateQueries({ queryKey: ['workCards', String(work.id)] }),
-      queryClient.invalidateQueries({ queryKey: ['works'] }),
-    ])
-    ElMessage.success(`已加入「${work.title}」`)
-    addWorkDialogVisible.value = false
-  },
-})
-
 const openWork = (workId: number) => {
   router.push({ name: 'WorkDetail', params: { id: workId } })
 }
@@ -81,10 +46,10 @@ const openWork = (workId: number) => {
     <header class="work-card-header">
       <div class="header-title">
         <el-icon><FolderOpened /></el-icon>
-        <span>所在培育計畫</span>
+        <span>所在議題</span>
       </div>
-      <el-button type="primary" link size="small" :icon="Plus" @click="addWorkDialogVisible = true">
-        加入培育計畫
+      <el-button type="primary" link size="small" :icon="Plus" @click="addIssueDialogVisible = true">
+        加入議題
       </el-button>
     </header>
 
@@ -92,7 +57,7 @@ const openWork = (workId: number) => {
 
     <el-alert
       v-else-if="areCardWorksError"
-      title="無法載入培育計畫關聯"
+      title="無法載入議題關聯"
       type="warning"
       :closable="false"
       show-icon
@@ -105,7 +70,7 @@ const openWork = (workId: number) => {
     <el-empty
       v-else-if="!cardWorks?.length"
       :image-size="56"
-      description="尚未加入任何培育計畫"
+      description="尚未加入任何議題"
     />
 
     <div v-else class="relation-list">
@@ -133,47 +98,11 @@ const openWork = (workId: number) => {
       </button>
     </div>
 
-    <el-dialog
-      v-model="addWorkDialogVisible"
-      title="將卡片加入培育計畫"
-      width="min(560px, calc(100vw - 32px))"
-      append-to-body
-      destroy-on-close
-    >
-      <p class="dialog-description">已加入與已封存的培育計畫不會出現在選項中。</p>
-
-      <el-skeleton v-if="areWorksLoading" :rows="5" animated />
-
-      <el-result
-        v-else-if="areWorksError"
-        icon="warning"
-        title="無法載入培育計畫"
-      />
-
-      <el-empty
-        v-else-if="availableWorks.length === 0"
-        :image-size="72"
-        description="沒有其他可加入的培育計畫"
-      />
-
-      <div v-else class="work-option-list">
-        <div v-for="work in availableWorks" :key="work.id" class="work-option">
-          <div class="work-option-content">
-            <strong>{{ work.title }}</strong>
-            <span>{{ workStatusMeta[work.status] }}</span>
-          </div>
-          <el-button
-            type="primary"
-            plain
-            size="small"
-            :loading="addWorkMutation.isPending.value"
-            @click="addWorkMutation.mutate(work)"
-          >
-            加入
-          </el-button>
-        </div>
-      </div>
-    </el-dialog>
+    <AddCardToIssueDialog
+      v-if="addIssueDialogVisible"
+      v-model="addIssueDialogVisible"
+      :card-id="props.cardId"
+    />
   </el-card>
 </template>
 
@@ -184,14 +113,12 @@ const openWork = (workId: number) => {
 
 .work-card-header,
 .header-title,
-.relation-metadata,
-.work-option {
+.relation-metadata {
   display: flex;
   align-items: center;
 }
 
-.work-card-header,
-.work-option {
+.work-card-header {
   justify-content: space-between;
   gap: 12px;
 }
@@ -248,9 +175,7 @@ const openWork = (workId: number) => {
 }
 
 .archived-label,
-.relation-note,
-.dialog-description,
-.work-option-content span {
+.relation-note {
   color: var(--el-text-color-secondary);
   font-size: 12px;
 }
@@ -261,29 +186,4 @@ const openWork = (workId: number) => {
   white-space: pre-wrap;
 }
 
-.dialog-description {
-  margin: -8px 0 14px;
-}
-
-.work-option-list {
-  max-height: min(56vh, 480px);
-  overflow-y: auto;
-}
-
-.work-option {
-  padding: 12px 4px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.work-option-content {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.work-option-content strong {
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
 </style>

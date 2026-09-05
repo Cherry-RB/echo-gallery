@@ -17,24 +17,25 @@ const queryClient = useQueryClient()
 type WorkStatusTagType = 'primary' | 'success' | 'warning' | 'info'
 
 const workStatusMeta: Record<WorkStatus, { label: string; type: WorkStatusTagType }> = {
-  IDEA: { label: '構想', type: 'info' },
-  DRAFT: { label: '規劃中', type: 'warning' },
-  ACTIVE: { label: '進行中', type: 'primary' },
-  DONE: { label: '已完成', type: 'success' },
+  IDEA: { label: '構想中', type: 'info' },
+  DRAFT: { label: '整理中', type: 'warning' },
+  ACTIVE: { label: '議事中', type: 'primary' },
+  DONE: { label: '已結案', type: 'success' },
   ARCHIVED: { label: '已封存', type: 'info' },
 }
 
 const workStatusOptions: Array<{ value: WorkStatus; label: string }> = [
-  { value: 'IDEA', label: '構想' },
-  { value: 'DRAFT', label: '規劃中' },
-  { value: 'ACTIVE', label: '進行中' },
-  { value: 'DONE', label: '已完成' },
+  { value: 'IDEA', label: '構想中' },
+  { value: 'DRAFT', label: '整理中' },
+  { value: 'ACTIVE', label: '議事中' },
+  { value: 'DONE', label: '已結案' },
   { value: 'ARCHIVED', label: '已封存' },
 ]
 
-const projectDesignPlaceholder = `培育目標：想培養什麼能力或達成什麼目標？
-成果判準：如何知道這項計畫產生效果？
-可能產生的 Works：預期會形成哪些具體成果？`
+const projectDesignPlaceholder = `議事焦點：這次真正要回答或推進什麼？
+背景：為什麼出現這個議題？
+目前研判：根據目前掌握的內容，我怎麼看？
+結案／重議條件：何時算有結論，或何時重新評估？`
 
 const editDialogVisible = ref(false)
 const editFormRef = ref<FormInstance>()
@@ -70,18 +71,18 @@ const validateOptionalUrl = (
 
 const editFormRules: FormRules<UpdateWorkRequest> = {
   title: [
-    { required: true, message: '請輸入計畫名稱', trigger: 'blur' },
-    { max: 255, message: '計畫名稱不可超過 255 個字', trigger: 'blur' },
+    { required: true, message: '請輸入議題名稱', trigger: 'blur' },
+    { max: 255, message: '議題名稱不可超過 255 個字', trigger: 'blur' },
   ],
   description: [
-    { max: 5000, message: '計畫設計不可超過 5000 個字', trigger: 'blur' },
+    { max: 5000, message: '議題背景與研判不可超過 5000 個字', trigger: 'blur' },
   ],
   externalUrl: [
     { max: 2048, message: '外部連結不可超過 2048 個字', trigger: 'blur' },
     { validator: validateOptionalUrl, trigger: 'blur' },
   ],
   status: [
-    { required: true, message: '請選擇計畫狀態', trigger: 'change' },
+    { required: true, message: '請選擇議題狀態', trigger: 'change' },
   ],
 }
 
@@ -103,7 +104,7 @@ const updateMutation = useMutation({
       queryClient.invalidateQueries({ queryKey: ['works'] }),
       queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] }),
     ])
-    ElMessage.success('培育計畫更新成功')
+    ElMessage.success('議題更新成功')
     editDialogVisible.value = false
   },
 })
@@ -150,23 +151,23 @@ const submitUpdateWork = async () => {
   <section class="work-detail-page">
     <header class="detail-navigation">
       <el-button :icon="ArrowLeft" text @click="goBack">
-        返回培育計畫列表
+        返回議事廳
       </el-button>
       <el-button v-if="work" type="primary" plain :icon="Edit" @click="openEditDialog">
-        編輯培育計畫
+        編輯議題
       </el-button>
     </header>
 
     <div class="work-detail-surface">
-      <div v-if="isLoading" aria-label="培育計畫詳情載入中">
+      <div v-if="isLoading" aria-label="議題詳情載入中">
         <el-skeleton :rows="8" animated />
       </div>
 
       <el-result
         v-else-if="isError"
         icon="error"
-        title="無法載入培育計畫"
-        sub-title="培育計畫可能不存在，或目前無法連線"
+        title="無法載入議題"
+        sub-title="議題可能不存在，或目前無法連線"
       >
         <template #extra>
           <el-button @click="goBack">返回列表</el-button>
@@ -185,7 +186,7 @@ const submitUpdateWork = async () => {
         <p v-if="work.description" class="work-description">
           {{ work.description }}
         </p>
-        <p v-else class="empty-description">尚未填寫計畫設計</p>
+        <p v-else class="empty-description">尚未填寫議題背景與目前研判</p>
 
         <a
           v-if="work.externalUrl"
@@ -195,7 +196,7 @@ const submitUpdateWork = async () => {
           class="external-link"
         >
           <el-icon><Link /></el-icon>
-          <span>開啟計畫連結</span>
+          <span>開啟相關連結</span>
         </a>
 
         <dl class="time-metadata">
@@ -219,7 +220,7 @@ const submitUpdateWork = async () => {
 
     <el-dialog
       v-model="editDialogVisible"
-      title="編輯培育計畫"
+      title="編輯議題"
       width="min(520px, calc(100vw - 32px))"
       destroy-on-close
       @closed="resetEditForm"
@@ -231,11 +232,11 @@ const submitUpdateWork = async () => {
         label-position="top"
         @submit.prevent="submitUpdateWork"
       >
-        <el-form-item label="計畫名稱" prop="title">
+        <el-form-item label="議題名稱" prop="title">
           <el-input v-model="editForm.title" maxlength="255" show-word-limit />
         </el-form-item>
 
-        <el-form-item label="計畫設計" prop="description">
+        <el-form-item label="議題背景與目前研判" prop="description">
           <el-input
             v-model="editForm.description"
             type="textarea"
@@ -254,7 +255,7 @@ const submitUpdateWork = async () => {
           />
         </el-form-item>
 
-        <el-form-item label="計畫狀態" prop="status">
+        <el-form-item label="議題狀態" prop="status">
           <el-select v-model="editForm.status" class="status-select">
             <el-option
               v-for="option in workStatusOptions"

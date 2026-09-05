@@ -107,7 +107,7 @@ const addCardMutation = useMutation({
   mutationFn: (card: CardDto) => workApi.addWorkCard(props.workId, { cardId: Number(card.id) }),
   onSuccess: async () => {
     await refreshMaterialQueries()
-    ElMessage.success('卡片已加入素材池')
+    ElMessage.success('卡片已加入議題素材池')
     addCardDialogVisible.value = false
   },
 })
@@ -138,7 +138,7 @@ const removeCardMutation = useMutation({
   mutationFn: (card: WorkCard) => workApi.removeWorkCard(props.workId, card.cardId),
   onSuccess: async () => {
     await refreshMaterialQueries()
-    ElMessage.success('已解除卡片與培育計畫的關聯')
+    ElMessage.success('已解除卡片與議題的關聯')
   },
 })
 
@@ -169,7 +169,7 @@ const resetNoteDialog = () => {
 const confirmRemoveCard = async (card: WorkCard) => {
   try {
     await ElMessageBox.confirm(
-      `確定要從培育計畫中移除「${card.cardTitle}」嗎？卡片本身不會被刪除。`,
+      `確定要從議題中移除「${card.cardTitle}」嗎？卡片本身不會被刪除。`,
       '解除素材關聯',
       {
         confirmButtonText: '解除關聯',
@@ -194,22 +194,22 @@ const resetCardSearch = () => {
   <section class="material-surface" aria-labelledby="material-heading">
     <header class="material-heading-row">
       <div>
-        <h2 id="material-heading">計畫素材</h2>
-        <p>整理參考資料與已在培育過程中實際運用的卡片</p>
+        <h2 id="material-heading">參考素材</h2>
+        <p>整理與這個議題有關，以及已在議事過程中實際運用的卡片</p>
       </div>
       <el-button type="primary" :icon="Plus" @click="addCardDialogVisible = true">
         加入卡片
       </el-button>
     </header>
 
-    <div v-if="areWorkCardsLoading" aria-label="計畫素材載入中">
+    <div v-if="areWorkCardsLoading" aria-label="議題素材載入中">
       <el-skeleton :rows="5" animated />
     </div>
 
     <el-result
       v-else-if="areWorkCardsError"
       icon="warning"
-      title="無法載入計畫素材"
+      title="無法載入議題素材"
     >
       <template #extra>
         <el-button type="primary" @click="refetchWorkCards()">重新載入</el-button>
@@ -226,7 +226,7 @@ const resetCardSearch = () => {
         <el-empty
           v-if="candidateCards.length === 0"
           :image-size="72"
-          description="目前沒有計畫素材"
+          description="目前沒有議題素材"
         />
 
         <article v-for="card in candidateCards" :key="card.id" class="material-card">
@@ -367,7 +367,7 @@ const resetCardSearch = () => {
         :rows="5"
         maxlength="1000"
         show-word-limit
-        placeholder="記錄這張卡片對此培育計畫的用途、啟發或練習方式（選填）"
+        placeholder="記錄這張卡片對此議題的用途、啟發或可能支持的判斷（選填）"
         @keydown.ctrl.enter="submitNote"
         @keydown.meta.enter="submitNote"
       />
@@ -385,12 +385,12 @@ const resetCardSearch = () => {
 
     <el-dialog
       v-model="addCardDialogVisible"
-      title="加入計畫素材"
+      title="加入議題素材"
       width="min(680px, calc(100vw - 32px))"
       destroy-on-close
       @closed="resetCardSearch"
     >
-      <p class="picker-description">選擇一張卡片加入素材池；已加入此培育計畫的卡片不會重複顯示。</p>
+      <p class="picker-description">選擇一張卡片加入素材池；已加入此議題的卡片不會重複顯示。</p>
 
       <el-input
         v-model="searchInput"
@@ -444,7 +444,7 @@ const resetCardSearch = () => {
         <el-empty
           v-if="availableCards.length === 0"
           :image-size="72"
-          :description="hasNextPage ? '目前載入的卡片皆已加入培育計畫，可繼續載入更多' : '沒有其他可加入的卡片'"
+          :description="hasNextPage ? '目前載入的卡片皆已加入議題，可繼續載入更多' : '沒有其他可加入的卡片'"
         />
 
         <div v-if="hasNextPage" class="load-more-row">
