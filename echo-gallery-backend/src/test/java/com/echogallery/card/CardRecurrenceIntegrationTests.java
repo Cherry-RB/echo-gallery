@@ -147,6 +147,38 @@ class CardRecurrenceIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void updateRecurrenceChangesActiveIntervalAndReschedulesFromToday() throws Exception {
+        String token = register("update-recurrence", "update-recurrence@example.com");
+        long cardId = createCard(token, "調整週期", 10);
+
+        updateRecurrence(token, cardId, "{\"intervalDays\":40}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.intervalDays").value(40))
+                .andExpect(jsonPath("$.nextShowAt").value("2026-10-03T00:00:00+08:00"));
+
+        Card updated = cardRepository.findById(cardId).orElseThrow();
+        assertThat(updated.getIntervalDays()).isEqualTo(40);
+        assertThat(updated.getNextShowAt()).isEqualTo(ZonedDateTime.parse("2026-10-03T00:00:00+08:00"));
+    }
+
+    @Test
+    void updateRecurrenceRejectsInvalidIntervalsArchivedCardsAndOtherUsers() throws Exception {
+        String ownerToken = register("update-owner", "update-owner@example.com");
+        String otherToken = register("update-other", "update-other@example.com");
+        long cardId = createCard(ownerToken, "週期限制", 10);
+
+        for (String body : List.of("{}", "{\"intervalDays\":0}", "{\"intervalDays\":366}")) {
+            updateRecurrence(ownerToken, cardId, body).andExpect(status().isBadRequest());
+        }
+        updateRecurrence(otherToken, cardId, "{\"intervalDays\":20}")
+                .andExpect(status().isForbidden());
+
+        archive(ownerToken, cardId, true).andExpect(status().isOk());
+        updateRecurrence(ownerToken, cardId, "{\"intervalDays\":20}")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void pauseAndResumeRejectAnotherUsersCard() throws Exception {
         String ownerToken = register("recurrence-owner", "recurrence-owner@example.com");
         String otherToken = register("recurrence-other", "recurrence-other@example.com");
@@ -236,6 +268,16 @@ class CardRecurrenceIntegrationTests extends IntegrationTestBase {
 
     private org.springframework.test.web.servlet.ResultActions resume(String token, long cardId, String body) throws Exception {
         return mockMvc.perform(put("/api/cards/{id}/resume", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions updateRecurrence(
+            String token,
+            long cardId,
+            String body) throws Exception {
+        return mockMvc.perform(put("/api/cards/{id}/recurrence", cardId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));

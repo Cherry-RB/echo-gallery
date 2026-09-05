@@ -119,6 +119,53 @@ class CardSearchIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void filtersRecurrenceStatusAndInclusiveIntervalRange() throws Exception {
+        String token = register("recurrence-search", "recurrence-search@example.com");
+        long shortId = createCard(token, "短週期", List.of());
+        long mediumId = createCard(token, "中週期", List.of());
+        long pausedId = createCard(token, "暫停週期", List.of());
+
+        Card mediumCard = cardRepository.findById(mediumId).orElseThrow();
+        mediumCard.setIntervalDays(45);
+        cardRepository.saveAndFlush(mediumCard);
+        mockMvc.perform(put("/api/cards/{id}/pause", pausedId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk());
+
+        search(token, "recurrenceStatus", "PAUSED")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(pausedId));
+
+        MvcResult ranged = search(token,
+                "recurrenceStatus", "ACTIVE",
+                "minIntervalDays", "11",
+                "maxIntervalDays", "60",
+                "sortBy", "ID",
+                "direction", "ASC")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andReturn();
+        assertThat(ids(ranged)).containsExactly(mediumId);
+
+        search(token, "maxIntervalDays", "10")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(shortId));
+    }
+
+    @Test
+    void rejectsInvalidRecurrenceSearchRanges() throws Exception {
+        String token = register("recurrence-validation", "recurrence-validation@example.com");
+
+        search(token, "minIntervalDays", "31", "maxIntervalDays", "30")
+                .andExpect(status().isBadRequest());
+        search(token, "minIntervalDays", "0").andExpect(status().isBadRequest());
+        search(token, "maxIntervalDays", "366").andExpect(status().isBadRequest());
+        search(token, "recurrenceStatus", "PAUSED", "minIntervalDays", "7")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void supportsTagOrAndWithoutDuplicatesAndNormalizesDuplicateIds() throws Exception {
         String token = register("tag-owner", "tag-owner@example.com");
         long bothId = createCard(token, "兩個標籤", List.of("Java", "Vue"));

@@ -4,6 +4,7 @@ export type CardGrowthStatus = "UNMARKED" | "SEED" | "GROWING" | "MATURE";
 
 export type CardSearchTagMode = "AND" | "OR";
 export type CardSearchArchiveStatus = "ACTIVE" | "ARCHIVED" | "ALL";
+export type CardSearchRecurrenceStatus = "ACTIVE" | "PAUSED" | "ALL";
 export type CardSearchSortBy = "UPDATED_AT" | "CREATED_AT" | "NEXT_SHOW_AT" | "ID";
 export type CardSearchDirection = "ASC" | "DESC";
 
@@ -14,6 +15,9 @@ export interface CardSearchParams {
     tagMode?: CardSearchTagMode;
     growthStatuses?: CardGrowthStatus[];
     archiveStatus?: CardSearchArchiveStatus;
+    recurrenceStatus?: CardSearchRecurrenceStatus;
+    minIntervalDays?: number;
+    maxIntervalDays?: number;
     sortBy?: CardSearchSortBy;
     direction?: CardSearchDirection;
     page?: number;

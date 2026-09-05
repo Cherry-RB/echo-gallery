@@ -100,6 +100,13 @@ public class CardController {
         return ResponseEntity.ok(cardService.resumeCard(id, request));
     }
 
+    @PutMapping("/{id}/recurrence")
+    public ResponseEntity<CardDetailResponse> updateRecurrence(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody ResumeCardRequest request) {
+        return ResponseEntity.ok(cardService.updateRecurrence(id, request));
+    }
+
     @PutMapping("/{id}/snooze")
     public ResponseEntity<CardDetailResponse> snoozeCard(@PathVariable("id") Long id, @RequestBody CardStatusRequest request) {
         CardDetailResponse response = cardService.snoozeCard(id, request);

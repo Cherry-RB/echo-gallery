@@ -250,6 +250,20 @@ export const useCardStatus = () => {
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
     });
 
+    const recurrenceMutation = useMutation({
+        mutationFn: ({ id, intervalDays }: { id: string | number; intervalDays: number }) =>
+            cardApi.updateRecurrence(id, intervalDays),
+        onMutate: async ({ id }) => prepareSnapshot(id),
+        onSuccess: (updatedCard, variables) => {
+            updateLocalCache(variables.id, updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['cards'] });
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+            queryClient.invalidateQueries({ queryKey: ['workCards'] });
+            ElMessage.success(`已調整為每 ${updatedCard.intervalDays} 天回流`);
+        },
+        onError: (err, variables, context) => handleMutationError(err, variables.id, context)
+    });
+
     // =====================================================
     // 🚀 功能 4. 稍後再看 Mutation (樂觀更新：立刻變灰)
     // =====================================================
@@ -441,6 +455,7 @@ export const useCardStatus = () => {
         handleToggleArchive: archiveMutation.mutate,
         handlePauseCard: pauseMutation.mutate,
         handleResumeCard: resumeMutation.mutate,
+        handleUpdateRecurrence: recurrenceMutation.mutate,
         handleSnoozeCard: snoozeMutation.mutate,
         handleReadCard: readMutation.mutate,
         handleCreateCard: createCardMutation.mutate,
@@ -453,6 +468,7 @@ export const useCardStatus = () => {
         isArchivePending: archiveMutation.isPending,
         isPausePending: pauseMutation.isPending,
         isResumePending: resumeMutation.isPending,
+        isRecurrencePending: recurrenceMutation.isPending,
         isSnoozePending: snoozeMutation.isPending,
         isReadPending: readMutation.isPending,
         isCreatePending: createCardMutation.isPending,

@@ -18,6 +18,7 @@ import CardWorkManager from '../components/work/CardWorkManager.vue';
 import { createCardFormRules, toCardContentRequest } from '../utils/cardForm';
 import { cardTextFieldCopy } from '../utils/cardTextFieldCopy';
 import { cardDetailQueryKey } from '../utils/cardDetailQuery';
+import RecurrenceIntervalPicker from '../components/RecurrenceIntervalPicker.vue';
 
 const props = defineProps<{ id: string }>();
 const route = useRoute();
@@ -102,6 +103,10 @@ const {
 const isRecurrencePaused = computed(() =>
   cardData.value.intervalDays === null && cardData.value.nextShowAt === null
 );
+
+const selectDraftRecurrence = (intervalDays: number) => {
+  cardData.value.intervalDays = intervalDays;
+};
 
 // 如果你喜歡用監聽的方式同步：
 watch(fetchedCard, (newCard) => {
@@ -551,22 +556,20 @@ const {
               {{ isRecurrencePaused ? '恢復回流' : '暫停回流' }}
             </el-button>
           </div>
-          <el-descriptions :column="1" border size="small" class="clean-desc">
+          <div v-if="isEditMode && !isRecurrencePaused" class="detail-recurrence-editor">
+            <RecurrenceIntervalPicker
+              :model-value="cardData.intervalDays"
+              @select="selectDraftRecurrence"
+            />
+            <span class="recurrence-save-hint">儲存卡片後才會套用新的回流週期</span>
+          </div>
+          <el-descriptions v-else :column="1" border size="small" class="clean-desc">
             <el-descriptions-item label="回流頻率 (天)">
 
               <span v-if="!isEditMode">
                 {{ isRecurrencePaused ? '已暫停' : cardData.intervalDays ? `${cardData.intervalDays} 天一次` : '未設定' }}
               </span>
-              <span v-else-if="isRecurrencePaused" class="paused-edit-hint">已暫停，請先恢復回流</span>
-              <el-input-number
-                v-else
-                v-model="cardData.intervalDays"
-                :min="1"
-                :max="365"
-                size="small"
-                controls-position="right"
-                style="width: 100%;"
-              />
+              <span v-else class="paused-edit-hint">已暫停，請先恢復回流</span>
             </el-descriptions-item>
             <el-descriptions-item label="下次看見" v-if="!isEditMode">
               <el-icon class="icon-align"><Calendar /></el-icon>
@@ -704,6 +707,15 @@ const {
   color: var(--el-text-color-secondary);
   font-size: 13px;
 }
+.detail-recurrence-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.recurrence-save-hint {
+  color: var(--el-text-color-placeholder);
+  font-size: 11px;
+}
 .page-header-wrapper { margin-bottom: 20px; }
 .page-header-inner {
   display: flex;
@@ -738,6 +750,7 @@ const {
 .paragraph-text.main-content { background-color: transparent; padding: 0; color: var(--el-text-color-primary); font-size: 15px; }
 .icon-align { vertical-align: middle; margin-right: 4px; color: var(--el-text-color-secondary); }
 .star-interaction { display: inline-flex; align-items: center; gap: 6px; user-select: none; }
+.star-icon { color: var(--el-color-warning); }
 .active-star { animation: pop 0.3s ease; }
 @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
 

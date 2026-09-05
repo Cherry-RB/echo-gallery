@@ -11,6 +11,7 @@ import type {
   CardSearchArchiveStatus,
   CardSearchDirection,
   CardSearchParams,
+  CardSearchRecurrenceStatus,
   CardSearchSortBy,
   CardSearchTagMode,
 } from '../types/card'
@@ -29,6 +30,9 @@ interface SearchForm {
   tagMode: CardSearchTagMode
   growthStatuses: CardGrowthStatus[]
   archiveStatus: CardSearchArchiveStatus
+  recurrenceStatus: CardSearchRecurrenceStatus
+  minIntervalDays?: number
+  maxIntervalDays?: number
   sortBy: CardSearchSortBy
   direction: CardSearchDirection
 }
@@ -40,6 +44,9 @@ const defaultForm = (): SearchForm => ({
   tagMode: 'OR',
   growthStatuses: [],
   archiveStatus: 'ACTIVE',
+  recurrenceStatus: 'ALL',
+  minIntervalDays: undefined,
+  maxIntervalDays: undefined,
   sortBy: 'UPDATED_AT',
   direction: 'DESC',
 })
@@ -95,6 +102,15 @@ const applySearch = () => {
     ElMessage.warning('Card ID 必須是大於 0 的整數')
     return
   }
+  if (
+    form.recurrenceStatus !== 'PAUSED'
+    && form.minIntervalDays !== undefined
+    && form.maxIntervalDays !== undefined
+    && form.minIntervalDays > form.maxIntervalDays
+  ) {
+    ElMessage.warning('最少回流天數不可大於最多回流天數')
+    return
+  }
   appliedFilters.value = {
     id: normalizedId,
     title: form.title.trim() || undefined,
@@ -102,6 +118,9 @@ const applySearch = () => {
     tagMode: form.tagMode,
     growthStatuses: [...new Set(form.growthStatuses)],
     archiveStatus: form.archiveStatus,
+    recurrenceStatus: form.recurrenceStatus,
+    minIntervalDays: form.recurrenceStatus === 'PAUSED' ? undefined : form.minIntervalDays,
+    maxIntervalDays: form.recurrenceStatus === 'PAUSED' ? undefined : form.maxIntervalDays,
     sortBy: form.sortBy,
     direction: form.direction,
   }
@@ -143,7 +162,6 @@ const openDetail = (cardId: string) => {
             <span>多個標籤</span>
             <el-segmented v-model="form.tagMode" :options="[{ label: '符合任一', value: 'OR' }, { label: '符合全部', value: 'AND' }]" />
           </div>
-          <el-button class="search-button" type="primary" native-type="submit" :loading="isFetching">查詢</el-button>
         </div>
 
         <div class="secondary-filter-row">
@@ -164,23 +182,61 @@ const openDetail = (cardId: string) => {
               <el-option label="全部" value="ALL" />
             </el-select>
           </label>
-          <label class="compact-field sort-field">
-            <span>排序依據</span>
-            <el-select v-model="form.sortBy">
-              <el-option label="最近更新" value="UPDATED_AT" />
-              <el-option label="建立時間" value="CREATED_AT" />
-              <el-option label="下次回流" value="NEXT_SHOW_AT" />
-              <el-option label="Card ID" value="ID" />
+          <label class="compact-field recurrence-status-field">
+            <span>回流狀態</span>
+            <el-select v-model="form.recurrenceStatus">
+              <el-option label="全部" value="ALL" />
+              <el-option label="回流中" value="ACTIVE" />
+              <el-option label="已暫停" value="PAUSED" />
             </el-select>
           </label>
-          <label class="compact-field direction-field">
-            <span>排序方向</span>
-            <el-select v-model="form.direction">
-              <el-option label="降冪" value="DESC" />
-              <el-option label="升冪" value="ASC" />
-            </el-select>
-          </label>
-          <el-button class="clear-button" @click="clearSearch">清除條件</el-button>
+          <div class="compact-field interval-field">
+            <span>回流週期</span>
+            <div class="interval-range">
+              <el-input-number
+                v-model="form.minIntervalDays"
+                :min="1"
+                :max="365"
+                :controls="false"
+                :disabled="form.recurrenceStatus === 'PAUSED'"
+                placeholder="最少"
+                aria-label="最少回流天數"
+              />
+              <span>至</span>
+              <el-input-number
+                v-model="form.maxIntervalDays"
+                :min="1"
+                :max="365"
+                :controls="false"
+                :disabled="form.recurrenceStatus === 'PAUSED'"
+                placeholder="最多"
+                aria-label="最多回流天數"
+              />
+              <span>天</span>
+            </div>
+          </div>
+          <div class="sort-control-group">
+            <label class="compact-field sort-field">
+              <span>排序依據</span>
+              <el-select v-model="form.sortBy">
+                <el-option label="最近更新" value="UPDATED_AT" />
+                <el-option label="建立時間" value="CREATED_AT" />
+                <el-option label="下次回流" value="NEXT_SHOW_AT" />
+                <el-option label="Card ID" value="ID" />
+              </el-select>
+            </label>
+            <label class="compact-field direction-field">
+              <span>排序方向</span>
+              <el-select v-model="form.direction">
+                <el-option label="降冪" value="DESC" />
+                <el-option label="升冪" value="ASC" />
+              </el-select>
+            </label>
+          </div>
+          <div class="search-actions">
+            <el-button class="clear-button" @click="clearSearch">清除條件</el-button>
+            <el-button class="search-button" type="primary" native-type="submit" :loading="isFetching">查詢</el-button>
+          </div>
         </div>
       </el-form>
     </el-card>
@@ -241,10 +297,16 @@ const openDetail = (cardId: string) => {
 .tag-mode-field { min-width: 200px; }
 .growth-field { width: 220px; }
 .archive-field { width: 140px; }
+.recurrence-status-field { width: 140px; }
+.interval-field { width: 240px; }
+.interval-range { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: 6px; color: var(--el-text-color-secondary); font-size: 12px; }
+.interval-range :deep(.el-input-number) { width: 100%; }
 .sort-field { width: 160px; }
 .direction-field { width: 120px; }
+.sort-control-group,
+.search-actions { display: flex; flex: 0 0 auto; align-items: flex-end; gap: 8px; }
 .search-button, .clear-button { min-width: 88px; }
-.clear-button { margin-left: auto; }
+.search-actions { margin-left: auto; }
 .results { margin-top: 28px; }
 .result-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
 .result-summary { display: flex; align-items: center; gap: 10px; color: var(--el-text-color-secondary); }
@@ -253,6 +315,6 @@ const openDetail = (cardId: string) => {
 .card-grid.fetching { opacity: .65; }
 .pagination-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; color: var(--el-text-color-secondary); font-size: 13px; }
 @media (max-width: 1100px) { .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .secondary-filter-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .growth-field, .archive-field, .sort-field, .direction-field { width: auto; } .clear-button { grid-column: 2; justify-self: end; } }
-@media (max-width: 640px) { .search-page { padding: 16px; } .primary-filter-row, .secondary-filter-row { display: grid; grid-template-columns: 1fr; } .id-field, .title-field, .tag-field, .tag-mode-field { width: auto; } .search-button, .clear-button { grid-column: auto; width: 100%; margin-left: 0; } .card-grid { grid-template-columns: 1fr; } .result-heading { align-items: flex-start; gap: 8px; } .result-summary { flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; } .pagination-row { flex-direction: column; gap: 6px; } }
+@media (max-width: 720px) { .secondary-filter-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .growth-field, .archive-field, .recurrence-status-field, .interval-field { width: auto; } .sort-control-group, .search-actions { width: 100%; margin-left: 0; } .sort-control-group .compact-field { flex: 1; width: auto; } .search-actions { justify-content: flex-end; } }
+@media (max-width: 640px) { .search-page { padding: 16px; } .primary-filter-row, .secondary-filter-row { display: grid; grid-template-columns: 1fr; } .id-field, .title-field, .tag-field, .tag-mode-field { width: auto; } .sort-control-group { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .75fr); } .search-actions { display: grid; grid-template-columns: 1fr 1fr; } .search-button, .clear-button { width: 100%; } .card-grid { grid-template-columns: 1fr; } .result-heading { align-items: flex-start; gap: 8px; } .result-summary { flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; } .pagination-row { flex-direction: column; gap: 6px; } }
 </style>

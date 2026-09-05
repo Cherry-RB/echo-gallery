@@ -95,6 +95,13 @@ export const cardApi = {
             data: { intervalDays }
         })
     },
+    updateRecurrence(id: string | number, intervalDays: number): Promise<CardDto> {
+        return request({
+            url: `/cards/${id}/recurrence`,
+            method: "PUT",
+            data: { intervalDays }
+        })
+    },
     snoozeCard(id: string | number, data: { nextIntervalDays: number | 0 }): Promise<any>{
         return request({
             url: `/cards/${id}/snooze`,

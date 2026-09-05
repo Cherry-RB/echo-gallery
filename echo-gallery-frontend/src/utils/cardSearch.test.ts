@@ -17,6 +17,9 @@ describe('卡片搜尋工具', () => {
       tagIds: [3, 1],
       growthStatuses: ['SEED', 'UNMARKED'],
       archiveStatus: 'ACTIVE',
+      recurrenceStatus: 'ACTIVE',
+      minIntervalDays: 15,
+      maxIntervalDays: 60,
       page: 2,
     })).toEqual([
       'cards',
@@ -25,6 +28,9 @@ describe('卡片搜尋工具', () => {
         tagIds: [1, 3],
         growthStatuses: ['SEED', 'UNMARKED'],
         archiveStatus: 'ACTIVE',
+        recurrenceStatus: 'ACTIVE',
+        minIntervalDays: 15,
+        maxIntervalDays: 60,
         page: 2,
       },
     ])

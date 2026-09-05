@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
@@ -32,6 +33,16 @@ public class CardSearchRequest {
 
     private CardSearchArchiveStatus archiveStatus = CardSearchArchiveStatus.ACTIVE;
 
+    private CardSearchRecurrenceStatus recurrenceStatus = CardSearchRecurrenceStatus.ALL;
+
+    @Min(value = 1, message = "最短回流週期不可小於 1 天")
+    @Max(value = 365, message = "最短回流週期不可超過 365 天")
+    private Integer minIntervalDays;
+
+    @Min(value = 1, message = "最長回流週期不可小於 1 天")
+    @Max(value = 365, message = "最長回流週期不可超過 365 天")
+    private Integer maxIntervalDays;
+
     private CardSearchSortBy sortBy = CardSearchSortBy.UPDATED_AT;
 
     private CardSearchDirection direction = CardSearchDirection.DESC;
@@ -42,4 +53,17 @@ public class CardSearchRequest {
     @Min(value = 1, message = "每頁筆數至少為 1")
     @Max(value = 100, message = "每頁筆數不可超過 100")
     private int size = 20;
+
+    @AssertTrue(message = "最短回流週期不可大於最長回流週期")
+    public boolean isIntervalRangeValid() {
+        return minIntervalDays == null
+                || maxIntervalDays == null
+                || minIntervalDays <= maxIntervalDays;
+    }
+
+    @AssertTrue(message = "已暫停回流不可搭配回流週期範圍")
+    public boolean isPausedRecurrenceFilterValid() {
+        return recurrenceStatus != CardSearchRecurrenceStatus.PAUSED
+                || (minIntervalDays == null && maxIntervalDays == null);
+    }
 }

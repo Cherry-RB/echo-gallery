@@ -113,6 +113,13 @@ const openWorkDetail = (workId: number) => {
   router.push({ name: 'WorkDetail', params: { id: workId } })
 }
 
+const formatUpdatedAt = (value: string) => {
+  const currentYear = formatDate(new Date().toISOString(), 'YYYY')
+  const updatedYear = formatDate(value, 'YYYY')
+  const date = formatDate(value, updatedYear === currentYear ? 'MM/DD' : 'YYYY/MM/DD')
+  return `${date} 更新`
+}
+
 const resetCreateForm = () => {
   createForm.title = ''
   createForm.description = ''
@@ -246,7 +253,7 @@ const submitCreateWork = async () => {
               <el-icon><Link /></el-icon>
               <span>開啟相關連結</span>
             </a>
-            <span class="updated-at">最後更新：{{ formatDate(work.updatedAt) }}</span>
+            <span class="updated-at">{{ formatUpdatedAt(work.updatedAt) }}</span>
           </footer>
         </el-card>
       </div>
@@ -411,7 +418,7 @@ const submitCreateWork = async () => {
   line-height: 1.6;
   overflow-wrap: break-word;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 5;
 }
 
 .work-meta-row {
@@ -444,11 +451,6 @@ const submitCreateWork = async () => {
 
 .material-divider {
   color: var(--el-border-color-darker);
-}
-
-.used-material-info,
-.used-material-info strong {
-  color: var(--el-color-primary);
 }
 
 .work-card-footer {

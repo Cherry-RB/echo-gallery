@@ -456,6 +456,24 @@ public class CardService {
         return convertToDetailResponse(card);
     }
 
+    @Transactional
+    public CardDetailResponse updateRecurrence(Long cardId, ResumeCardRequest request) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Card card = cardRepository.findByIdForUpdate(cardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
+
+        if (!card.getUser().getId().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權調整此卡片的回流週期");
+        }
+        if (card.isArchived()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "封存中的卡片不可調整回流週期");
+        }
+
+        card.setIntervalDays(request.getIntervalDays());
+        card.setNextShowAt(getStartOfTodayTaipei().plusDays(request.getIntervalDays()));
+        return convertToDetailResponse(card);
+    }
+
     // ==================== 4. 稍後再看（延遲回流）功能 ====================
     @Transactional
     public CardDetailResponse snoozeCard(Long cardId, CardStatusRequest request) {

@@ -5,7 +5,7 @@ import CardTextMode from './CardTextMode.vue'
 import type { CardDto } from '../types/card'
 
 describe('CardTextMode', () => {
-  it('全部卡片顯示來源、回流狀態與內容語意', () => {
+  it('全部卡片顯示來源、內容預覽與可調整的回流週期', () => {
     const card: CardDto = {
       id: '1', type: 'note', title: '測試卡片', tags: [], showContentPreview: false,
       reason: '這是留下卡片的原因',
@@ -22,17 +22,19 @@ describe('CardTextMode', () => {
           'el-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
           'el-dropdown-menu': { template: '<div><slot /></div>' },
           'el-dropdown-item': { template: '<button><slot /></button>' },
+          'el-popover': { template: '<div><slot name="reference" /><slot /></div>' },
           'el-tag': { template: '<span><slot /></span>' },
           'el-tooltip': { template: '<span><slot /></span>' },
           'el-icon': { template: '<span><slot /></span>' },
         },
       },
     })
-    expect(wrapper.text()).toContain('筆記')
-    expect(wrapper.text()).toContain('我思我長')
+    expect(wrapper.text()).not.toContain('筆記')
+    expect(wrapper.text()).not.toContain('我思我長')
+    expect(wrapper.text()).not.toContain('內容重點')
     expect(wrapper.text()).toContain('這是留下卡片的原因')
-    expect(wrapper.text()).toContain('每 10 天回流')
-    expect(wrapper.text()).toContain('2099/12/31')
+    expect(wrapper.text()).toContain('每 10 天')
+    expect(wrapper.text()).toContain('+100 天')
     expect(wrapper.text()).toContain('加入議題')
     expect(wrapper.text()).toContain('暫停回流')
   })
@@ -53,6 +55,7 @@ describe('CardTextMode', () => {
           'el-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
           'el-dropdown-menu': { template: '<div><slot /></div>' },
           'el-dropdown-item': { template: '<button><slot /></button>' },
+          'el-popover': { template: '<div><slot name="reference" /><slot /></div>' },
           'el-tag': { template: '<span><slot /></span>' },
           'el-tooltip': { template: '<span><slot /></span>' },
           'el-icon': { template: '<span><slot /></span>' },
@@ -61,7 +64,8 @@ describe('CardTextMode', () => {
     })
     expect(wrapper.text()).toContain('example.com')
     expect(wrapper.text()).toContain('稍後再看')
-    expect(wrapper.text()).toContain('本次已到期')
+    expect(wrapper.text()).toContain('↻ 每 7 天')
+    expect(wrapper.text()).not.toContain('本次已到期')
   })
 
   it('稍後再看看板顯示延後次數並提供調整入口', () => {
@@ -80,13 +84,14 @@ describe('CardTextMode', () => {
           'el-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
           'el-dropdown-menu': { template: '<div><slot /></div>' },
           'el-dropdown-item': { template: '<button><slot /></button>' },
+          'el-popover': { template: '<div><slot name="reference" /><slot /></div>' },
           'el-tag': { template: '<span><slot /></span>' },
           'el-tooltip': { template: '<span><slot /></span>' },
           'el-icon': { template: '<span><slot /></span>' },
         },
       },
     })
-    expect(wrapper.text()).toContain('已稍後再看 12 次')
-    expect(wrapper.text()).toContain('調整回流')
+    expect(wrapper.text()).toContain('已延後 12 次')
+    expect(wrapper.text()).toContain('↻ 每 14 天')
   })
 })

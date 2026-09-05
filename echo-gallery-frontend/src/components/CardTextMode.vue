@@ -1,12 +1,12 @@
 <script setup lang="ts">
 
 import { computed, defineAsyncComponent, ref } from 'vue';
-import { Calendar, Link, Star, StarFilled, MoreFilled } from '@element-plus/icons-vue'
+import { Link, Star, StarFilled, MoreFilled } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { useCardStatus } from '../utils/useCardStatus';
 import type { CardDto } from '../types/card';
 import { getBoardCapabilities, type BoardType } from '../types/board';
-import { formatDate } from '../utils/formatDate';
+import RecurrenceIntervalPicker from './RecurrenceIntervalPicker.vue';
 
 const AddCardToIssueDialog = defineAsyncComponent(() => import('./work/AddCardToIssueDialog.vue'));
 
@@ -17,6 +17,7 @@ const props = defineProps<{
 
 const capabilities = computed(() => getBoardCapabilities(props.boardType));
 const addIssueDialogVisible = ref(false);
+const recurrencePopoverVisible = ref(false);
 
 const growthTag = computed(() => {
   if (props.data.growthStatus === 'SEED') {
@@ -41,11 +42,13 @@ const {
   handleSnoozeCard,
   handlePauseCard,
   handleResumeCard,
+  handleUpdateRecurrence,
   handleUpdateGrowthStatus,
   handleDeleteCard,
   isGrowthStatusPending,
   isPausePending,
   isResumePending,
+  isRecurrencePending,
   isSnoozePending,
   isArchivePending,
 } = useCardStatus();
@@ -55,28 +58,22 @@ const isRecurrencePaused = computed(() =>
 );
 
 const sourceLabel = computed(() => {
-  if (props.data.type === 'note') return '筆記';
-  return props.data.url ? getUrlDomain(props.data.url) : '連結';
+  return props.data.url ? getUrlDomain(props.data.url) : '';
 });
 
 const boardContextLabel = computed(() => {
-  if (props.boardType === 'snoozed') {
-    const nextDate = formatDate(props.data.nextShowAt, 'YYYY/MM/DD');
-    return `已稍後再看 ${props.data.snoozeCount ?? 0} 次${nextDate ? ` · 下次 ${nextDate}` : ''}`;
-  }
-  if (props.boardType === 'hot') {
-    return `累積星標 ${props.data.likeCount} 次`;
-  }
   if (isRecurrencePaused.value) {
     return props.data.isArchived ? '封存前已暫停' : '已暫停回流';
   }
 
   const interval = props.data.intervalDays ? `每 ${props.data.intervalDays} 天` : '已設定';
-  const nextDate = formatDate(props.data.nextShowAt, 'YYYY/MM/DD');
-  if (props.data.isArchived) return `封存前${interval}回流${nextDate ? ` · ${nextDate}` : ''}`;
-  if (props.boardType === 'today') return `${interval}回流 · 本次已到期`;
-  return `${interval}回流${nextDate ? ` · 下次 ${nextDate}` : ''}`;
+  if (props.data.isArchived) return `封存前${interval}`;
+  return interval;
 });
+
+const snoozeContextLabel = computed(() =>
+  props.boardType === 'snoozed' ? `已延後 ${props.data.snoozeCount ?? 0} 次` : null,
+);
 
 // =====================================================
 // 💡 關鍵：判定卡片是否處於「灰掉狀態 (Muted)」
@@ -93,7 +90,7 @@ const getUrlDomain = (url:string)=>{
     const domain = new URL(url).hostname;
     return domain.replace('www.', '')
   } catch(e) {
-    return url
+    return '來源連結'
   }
 }
 
@@ -179,6 +176,16 @@ const resumeRecurrence = async () => {
   }
 };
 
+const selectRecurrence = (intervalDays: number) => {
+  recurrencePopoverVisible.value = false;
+  handleUpdateRecurrence({ id: props.data.id, intervalDays });
+};
+
+const pauseFromPicker = () => {
+  recurrencePopoverVisible.value = false;
+  pauseRecurrence();
+};
+
 const markAsSeed = () => {
   handleUpdateGrowthStatus({ id: props.data.id, growthStatus: 'SEED' });
 };
@@ -238,8 +245,16 @@ const deleteCard = async () => {
         <!-- 標題 -->
         <h4 class="title-text">{{ data.title }}</h4>
       </div>
-      <div class="card-source-row">
-        <span>{{ sourceLabel }}</span>
+      <div v-if="data.url" class="card-source-row">
+        <el-button
+          link
+          class="source-link"
+          :title="data.url"
+          @click.stop="openSourceUrl(data.url)"
+        >
+          <el-icon><Link /></el-icon>
+          <span>{{ sourceLabel }}</span>
+        </el-button>
       </div>
     </div>
 
@@ -247,7 +262,6 @@ const deleteCard = async () => {
     <div class="card-body">
       <!-- 內文 -->
       <div v-if="getCardShowInfo" class="card-preview">
-        <span class="preview-label">{{ data.reason ? '我思我長' : '內容重點' }}</span>
         <p class="card-body-content">{{ getCardShowInfo }}</p>
       </div>
       <!-- 標籤 -->
@@ -283,19 +297,40 @@ const deleteCard = async () => {
         <span class="like-count">{{ data.likeCount }}</span>
       </div>
 
-        <!-- 連結 -->
-          <el-button v-if="data.url" @click.stop="openSourceUrl(data.url)" size="small" link class="link-btn" :title="getUrlDomain(data.url)">
-          <el-icon :size="16" style="margin-right: 3px;">
-            <Link />
-          </el-icon>
-          <!-- {{ getUrlDomain(data.url) }} -->
-            來源
-            <!-- (GO?GO DETAIL?ORIGINAL?) -->
-        </el-button>
-
         </div>
 
         <div class="card-footer-side footer-actions">
+          <el-popover
+            v-if="!data.isArchived && !isRecurrencePaused"
+            v-model:visible="recurrencePopoverVisible"
+            trigger="click"
+            placement="bottom-start"
+            :width="288"
+          >
+            <template #reference>
+              <button class="recurrence-trigger" type="button" :disabled="isRecurrencePending" @click.stop>
+                ↻ {{ boardContextLabel }}
+              </button>
+            </template>
+            <RecurrenceIntervalPicker
+              :model-value="data.intervalDays"
+              :loading="isRecurrencePending"
+              show-pause
+              @select="selectRecurrence"
+              @pause="pauseFromPicker"
+            />
+          </el-popover>
+          <button
+            v-else-if="!data.isArchived"
+            type="button"
+            class="recurrence-trigger paused-trigger"
+            :disabled="isResumePending"
+            @click.stop="resumeRecurrence"
+          >
+            ↻ {{ boardContextLabel }}
+          </button>
+          <span v-else class="recurrence-static">↻ {{ boardContextLabel }}</span>
+          <span v-if="snoozeContextLabel" class="recurrence-exception">{{ snoozeContextLabel }}</span>
           <el-button
             v-if="boardType === 'today'"
             size="small"
@@ -315,15 +350,6 @@ const deleteCard = async () => {
             @click.stop="toggleArchive"
           >
             還原
-          </el-button>
-          <el-button
-            v-if="boardType === 'snoozed'"
-            size="small"
-            type="primary"
-            plain
-            @click.stop="goToDetail"
-          >
-            調整回流
           </el-button>
           <!-- 下次回流 -->
           <span class="card-id" @click.stop>#{{ data.id }}</span>
@@ -369,11 +395,6 @@ const deleteCard = async () => {
 
     </div>
 
-    <div class="recurrence-row">
-      <el-icon><Calendar /></el-icon>
-      <span>{{ boardContextLabel }}</span>
-    </div>
-
     </div>
     <!-- 底部：來源、按讚數 -->
     <!-- <template #footer>
@@ -400,9 +421,11 @@ const deleteCard = async () => {
 .card-footer-side{
   display: flex;
   align-items: center;
-  gap: 15px
+  gap: 10px
 }
 .card-source-row {
+  display: flex;
+  min-width: 0;
   margin: -5px 0 8px;
   color: var(--el-text-color-placeholder);
   font-size: 11px;
@@ -410,30 +433,45 @@ const deleteCard = async () => {
 .card-preview {
   min-width: 0;
 }
-.preview-label {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--el-text-color-placeholder);
-  font-size: 11px;
-  font-weight: 600;
-}
-.recurrence-row {
-  display: flex;
+.recurrence-trigger {
+  display: inline-flex;
+  min-width: 0;
   align-items: center;
-  gap: 5px;
-  margin-top: 8px;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.recurrence-trigger:hover {
+  color: var(--el-color-primary);
+}
+.recurrence-trigger:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.paused-trigger {
+  color: var(--el-text-color-secondary);
+}
+.recurrence-static {
   color: var(--el-text-color-secondary);
   font-size: 11px;
+  white-space: nowrap;
+}
+.recurrence-exception {
+  color: var(--el-color-warning-dark-2);
+  font-size: 11px;
+  white-space: nowrap;
 }
 .tag-container{
   display: flex;
-  gap: 0;
-  overflow: hidden;    /* 隱藏超出寬度的標籤 */
-  white-space: nowrap; /* 強制不換行（若想換行則改用 flex-wrap: wrap） */
-  flex: 1;             /* 讓標籤區塊自動伸縮 */
-  /* 選配：加上漸層遮罩，讓標籤末端看起來是淡出的，比較美觀 */
-  mask-image: linear-gradient(to right, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  max-height: 52px;
+  gap: 4px;
+  overflow: hidden;
+  flex: 1;
+  flex-wrap: wrap;
 }
 .growth-status-tag {
   flex: 0 0 auto;
@@ -451,6 +489,7 @@ const deleteCard = async () => {
   overflow: hidden; /* 防止標題把標籤擠掉 */
 }
 .card-id {
+  margin-left: auto;
   color: var(--el-text-color-placeholder);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -479,14 +518,23 @@ const deleteCard = async () => {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 5;
   white-space: pre-wrap;
 }
-.link-btn{
-  color: var(--el-text-color-secondary);
-  /* transition: transform 0.5s; */
+.source-link {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  color: var(--el-text-color-placeholder);
+  font-size: 13px;
 }
-.link-btn:hover{
+.source-link :deep(span) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.source-link:hover{
   color: var(--el-color-primary-light-3);
 }
 .rotate-icon{
@@ -509,7 +557,7 @@ const deleteCard = async () => {
 
   /* 🌟 限制 3 行並顯示省略號的關鍵 CSS */
   display: -webkit-box;
-  -webkit-line-clamp: 5;    /* 這裡寫幾，就是限制最多幾行 */
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 
@@ -541,8 +589,8 @@ const deleteCard = async () => {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .card-clickable:hover{
-  transform: translateY(-5px);
-  box-shadow: var(--el-box-shadow-light);
+  transform: translateY(-2px);
+  box-shadow: var(--el-box-shadow-lighter);
 }
 /* --- 修改後建議 --- */
 .star-clickable {
@@ -550,7 +598,7 @@ const deleteCard = async () => {
   cursor: pointer;
 }
 .star-clickable:hover {
-  transform: translateY(-5px);
+  transform: translateY(-2px);
 }
 .active-star {
   animation: pop 0.3s ease;

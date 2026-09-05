@@ -33,6 +33,21 @@ final class CardSearchSpecifications {
             } else if (request.getArchiveStatus() == CardSearchArchiveStatus.ARCHIVED) {
                 predicates.add(criteriaBuilder.isTrue(root.get("isArchived")));
             }
+            if (request.getRecurrenceStatus() == CardSearchRecurrenceStatus.ACTIVE) {
+                predicates.add(criteriaBuilder.isNotNull(root.get("intervalDays")));
+                predicates.add(criteriaBuilder.isNotNull(root.get("nextShowAt")));
+            } else if (request.getRecurrenceStatus() == CardSearchRecurrenceStatus.PAUSED) {
+                predicates.add(criteriaBuilder.isNull(root.get("intervalDays")));
+                predicates.add(criteriaBuilder.isNull(root.get("nextShowAt")));
+            }
+            if (request.getMinIntervalDays() != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(
+                        root.get("intervalDays"), request.getMinIntervalDays()));
+            }
+            if (request.getMaxIntervalDays() != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(
+                        root.get("intervalDays"), request.getMaxIntervalDays()));
+            }
             if (request.getId() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("id"), request.getId()));
             }

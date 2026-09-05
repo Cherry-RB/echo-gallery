@@ -11,6 +11,7 @@ vi.mock('./api/cardApi', () => ({
   cardApi: {
     pauseCard: vi.fn(),
     resumeCard: vi.fn(),
+    updateRecurrence: vi.fn(),
     snoozeCard: vi.fn(),
   },
 }))
@@ -132,6 +133,25 @@ describe('useCardStatus recurrence cache', () => {
     expect(cardApi.resumeCard).toHaveBeenCalledWith('1', 14)
     expect(queryClient.getQueryData<CardDto>(['card', '1']))
       .toMatchObject({ intervalDays: 14, nextShowAt: '2026-09-07T00:00:00+08:00' })
+    expect(queryClient.getQueryState(['cards', 'all'])?.isInvalidated).toBe(true)
+  })
+
+  it('調整週期時以後端結果同步列表與詳情快取', async () => {
+    const { queryClient, status } = setup()
+    const original = { ...card('1'), intervalDays: 10, nextShowAt: '2026-09-03T00:00:00+08:00' }
+    const updated = { ...original, intervalDays: 40, nextShowAt: '2026-10-03T00:00:00+08:00' }
+    const infinite: InfiniteData<CardDto[]> = { pages: [[original]], pageParams: [1] }
+
+    queryClient.setQueryData(['cards', 'all'], infinite)
+    queryClient.setQueryData(['card', '1'], original)
+    vi.mocked(cardApi.updateRecurrence).mockResolvedValue(updated)
+
+    status.handleUpdateRecurrence({ id: '1', intervalDays: 40 })
+    await flushPromises()
+
+    expect(cardApi.updateRecurrence).toHaveBeenCalledWith('1', 40)
+    expect(queryClient.getQueryData<CardDto>(['card', '1']))
+      .toMatchObject({ intervalDays: 40, nextShowAt: '2026-10-03T00:00:00+08:00' })
     expect(queryClient.getQueryState(['cards', 'all'])?.isInvalidated).toBe(true)
   })
 })
