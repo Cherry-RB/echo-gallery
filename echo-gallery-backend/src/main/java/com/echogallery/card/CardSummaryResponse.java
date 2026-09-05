@@ -18,6 +18,7 @@ public class CardSummaryResponse {
     private Integer likeCount;
     private String url;
     private ZonedDateTime nextShowAt;
+    private Integer snoozeCount;
     private ZonedDateTime createdAt;
     @JsonProperty("isArchived")
     private Boolean isArchived;

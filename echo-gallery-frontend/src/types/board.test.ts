@@ -9,9 +9,9 @@ describe('board 規則', () => {
     expect(shouldMarkReviewedOnOpenDetail('search')).toBe(false)
   })
 
-  it('封存看板不提供稍後再看操作', () => {
+  it('封存看板只保留還原與清理操作', () => {
     expect(getBoardCapabilities('archived')).toEqual({
-      canStar: true,
+      canStar: false,
       canArchive: true,
       canSnooze: false,
     })

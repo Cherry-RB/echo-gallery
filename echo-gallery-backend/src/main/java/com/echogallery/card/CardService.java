@@ -297,6 +297,7 @@ public class CardService {
         response.setLikeCount(card.getLikeCount());
         response.setUrl(card.getUrl());
         response.setNextShowAt(card.getNextShowAt());
+        response.setSnoozeCount(card.getSnoozeCount());
         response.setCreatedAt(card.getCreatedAt());
         response.setIsArchived(card.isArchived());
         response.setIntervalDays(card.getIntervalDays());

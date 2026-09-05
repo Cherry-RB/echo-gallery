@@ -25,7 +25,7 @@ const boardCapabilityMap: Record<BoardType, BoardCapabilities> = {
   hot:      { canStar: true, canArchive: true, canSnooze: true },
   random:   { canStar: true, canArchive: true, canSnooze: true },
   snoozed:  { canStar: true, canArchive: true, canSnooze: true },
-  archived: { canStar: true, canArchive: true, canSnooze: false },
+  archived: { canStar: false, canArchive: true, canSnooze: false },
   search:   { canStar: true, canArchive: true, canSnooze: true },
   tag:      { canStar: true, canArchive: true, canSnooze: true }
 };

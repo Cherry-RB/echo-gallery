@@ -1,10 +1,14 @@
 <script setup lang="ts">
 
-import { computed } from 'vue';
-import { Link, Star, StarFilled, MoreFilled } from '@element-plus/icons-vue'
+import { computed, defineAsyncComponent, ref } from 'vue';
+import { Calendar, Link, Star, StarFilled, MoreFilled } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import { useCardStatus } from '../utils/useCardStatus';
 import type { CardDto } from '../types/card';
 import { getBoardCapabilities, type BoardType } from '../types/board';
+import { formatDate } from '../utils/formatDate';
+
+const AddCardToIssueDialog = defineAsyncComponent(() => import('./work/AddCardToIssueDialog.vue'));
 
 const props = defineProps<{
   data: CardDto;
@@ -12,6 +16,7 @@ const props = defineProps<{
 }>();
 
 const capabilities = computed(() => getBoardCapabilities(props.boardType));
+const addIssueDialogVisible = ref(false);
 
 const growthTag = computed(() => {
   if (props.data.growthStatus === 'SEED') {
@@ -34,10 +39,44 @@ const {
   handleToggleStar,
   handleToggleArchive,
   handleSnoozeCard,
+  handlePauseCard,
+  handleResumeCard,
   handleUpdateGrowthStatus,
   handleDeleteCard,
   isGrowthStatusPending,
+  isPausePending,
+  isResumePending,
+  isSnoozePending,
+  isArchivePending,
 } = useCardStatus();
+
+const isRecurrencePaused = computed(() =>
+  props.data.intervalDays == null && props.data.nextShowAt == null,
+);
+
+const sourceLabel = computed(() => {
+  if (props.data.type === 'note') return '筆記';
+  return props.data.url ? getUrlDomain(props.data.url) : '連結';
+});
+
+const boardContextLabel = computed(() => {
+  if (props.boardType === 'snoozed') {
+    const nextDate = formatDate(props.data.nextShowAt, 'YYYY/MM/DD');
+    return `已稍後再看 ${props.data.snoozeCount ?? 0} 次${nextDate ? ` · 下次 ${nextDate}` : ''}`;
+  }
+  if (props.boardType === 'hot') {
+    return `累積星標 ${props.data.likeCount} 次`;
+  }
+  if (isRecurrencePaused.value) {
+    return props.data.isArchived ? '封存前已暫停' : '已暫停回流';
+  }
+
+  const interval = props.data.intervalDays ? `每 ${props.data.intervalDays} 天` : '已設定';
+  const nextDate = formatDate(props.data.nextShowAt, 'YYYY/MM/DD');
+  if (props.data.isArchived) return `封存前${interval}回流${nextDate ? ` · ${nextDate}` : ''}`;
+  if (props.boardType === 'today') return `${interval}回流 · 本次已到期`;
+  return `${interval}回流${nextDate ? ` · 下次 ${nextDate}` : ''}`;
+});
 
 // =====================================================
 // 💡 關鍵：判定卡片是否處於「灰掉狀態 (Muted)」
@@ -104,6 +143,42 @@ const triggerSnooze = () => {
   handleSnoozeCard({ id: props.data.id, nextIntervalDays: days });
 };
 
+const pauseRecurrence = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '暫停後，這張卡片仍可搜尋、查看及加入議題，但不會再出現在 Today。',
+      '暫停回流',
+      {
+        confirmButtonText: '暫停回流',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+    handlePauseCard({ id: props.data.id });
+  } catch {
+    // 使用者取消時不需要額外提示。
+  }
+};
+
+const resumeRecurrence = async () => {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      '請設定恢復後的回流間隔（1～365 天）。',
+      '恢復回流',
+      {
+        confirmButtonText: '恢復回流',
+        cancelButtonText: '取消',
+        inputValue: '10',
+        inputPattern: /^(?:[1-9]|[1-9]\d|[12]\d{2}|3[0-5]\d|36[0-5])$/,
+        inputErrorMessage: '請輸入 1～365 的整數',
+      },
+    );
+    handleResumeCard({ id: props.data.id, intervalDays: Number(value) });
+  } catch {
+    // 使用者取消時不需要額外提示。
+  }
+};
+
 const markAsSeed = () => {
   handleUpdateGrowthStatus({ id: props.data.id, growthStatus: 'SEED' });
 };
@@ -126,8 +201,21 @@ const openSourceUrl = (sourceUrl:string) => {
   // });
 }
 
-const deleteCard = () => {
-  handleDeleteCard({ id: props.data.id });
+const deleteCard = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `確定要永久刪除「${props.data.title}」嗎？此操作無法復原。`,
+      '刪除卡片',
+      {
+        confirmButtonText: '確定刪除',
+        cancelButtonText: '取消',
+        type: 'error',
+      },
+    );
+    await handleDeleteCard({ id: props.data.id });
+  } catch {
+    // 使用者取消或刪除失敗時，由既有 mutation 統一處理提示。
+  }
 }
 
 </script>
@@ -150,12 +238,18 @@ const deleteCard = () => {
         <!-- 標題 -->
         <h4 class="title-text">{{ data.title }}</h4>
       </div>
+      <div class="card-source-row">
+        <span>{{ sourceLabel }}</span>
+      </div>
     </div>
 
     <!-- body -->
     <div class="card-body">
       <!-- 內文 -->
-      <p class="card-body-content" v-if="getCardShowInfo">{{ getCardShowInfo }}</p>
+      <div v-if="getCardShowInfo" class="card-preview">
+        <span class="preview-label">{{ data.reason ? '我思我長' : '內容重點' }}</span>
+        <p class="card-body-content">{{ getCardShowInfo }}</p>
+      </div>
       <!-- 標籤 -->
       <div class="tag-container">
         <el-tooltip v-if="growthTag" :content="growthTag.label" placement="top">
@@ -175,7 +269,7 @@ const deleteCard = () => {
 
       <div class="card-footer">
 
-        <div class="card-footer-side">
+        <div class="card-footer-side footer-actions">
 
         <!-- 星數 -->
         <div class="status star-clickable" v-if="capabilities.canStar" @click.stop="toggleStar">
@@ -190,18 +284,47 @@ const deleteCard = () => {
       </div>
 
         <!-- 連結 -->
-        <el-button v-if="data.url" @click.stop="openSourceUrl(data.url)" size="small" link class="link-btn" :title="getUrlDomain(data.url)">
+          <el-button v-if="data.url" @click.stop="openSourceUrl(data.url)" size="small" link class="link-btn" :title="getUrlDomain(data.url)">
           <el-icon :size="16" style="margin-right: 3px;">
             <Link />
           </el-icon>
           <!-- {{ getUrlDomain(data.url) }} -->
-            連結
+            來源
             <!-- (GO?GO DETAIL?ORIGINAL?) -->
         </el-button>
 
         </div>
 
-        <div class="card-footer-side">
+        <div class="card-footer-side footer-actions">
+          <el-button
+            v-if="boardType === 'today'"
+            size="small"
+            type="primary"
+            plain
+            :loading="isSnoozePending"
+            @click.stop="triggerSnooze"
+          >
+            稍後再看
+          </el-button>
+          <el-button
+            v-if="boardType === 'archived'"
+            size="small"
+            type="primary"
+            plain
+            :loading="isArchivePending"
+            @click.stop="toggleArchive"
+          >
+            還原
+          </el-button>
+          <el-button
+            v-if="boardType === 'snoozed'"
+            size="small"
+            type="primary"
+            plain
+            @click.stop="goToDetail"
+          >
+            調整回流
+          </el-button>
           <!-- 下次回流 -->
           <span class="card-id" @click.stop>#{{ data.id }}</span>
           <!-- </div> -->
@@ -210,6 +333,9 @@ const deleteCard = () => {
     <el-icon :size="16" class="rotate-icon" @click.stop><MoreFilled /></el-icon>
     <template #dropdown>
       <el-dropdown-menu>
+        <el-dropdown-item v-if="!data.isArchived" @click.stop="addIssueDialogVisible = true">
+          加入議題
+        </el-dropdown-item>
         <!-- <el-dropdown-item @click="goToDetail()">編輯</el-dropdown-item> -->
         <el-dropdown-item
           v-if="!isMuted && data.growthStatus !== 'SEED'"
@@ -218,10 +344,17 @@ const deleteCard = () => {
         >
           標記種子
         </el-dropdown-item>
-        <el-dropdown-item v-if="!isMuted&&capabilities.canSnooze" @click.stop="triggerSnooze">
+        <el-dropdown-item v-if="!isMuted && capabilities.canSnooze && boardType !== 'today' && boardType !== 'snoozed' && !isRecurrencePaused" @click.stop="triggerSnooze">
           稍後再看
         </el-dropdown-item>
-        <el-dropdown-item @click.stop="toggleArchive">
+        <el-dropdown-item
+          v-if="!data.isArchived"
+          :disabled="isPausePending || isResumePending"
+          @click.stop="isRecurrencePaused ? resumeRecurrence() : pauseRecurrence()"
+        >
+          {{ isRecurrencePaused ? '恢復回流' : '暫停回流' }}
+        </el-dropdown-item>
+        <el-dropdown-item v-if="boardType !== 'archived'" @click.stop="toggleArchive">
           {{ data.isArchived ? '還原卡片' : '封存卡片' }}
         </el-dropdown-item>
         <el-dropdown-item divided>
@@ -236,11 +369,21 @@ const deleteCard = () => {
 
     </div>
 
+    <div class="recurrence-row">
+      <el-icon><Calendar /></el-icon>
+      <span>{{ boardContextLabel }}</span>
+    </div>
+
     </div>
     <!-- 底部：來源、按讚數 -->
     <!-- <template #footer>
     </template> -->
   </el-card>
+  <AddCardToIssueDialog
+    v-if="addIssueDialogVisible"
+    v-model="addIssueDialogVisible"
+    :card-id="data.id"
+  />
 </template>
 
 <style scoped>
@@ -258,6 +401,29 @@ const deleteCard = () => {
   display: flex;
   align-items: center;
   gap: 15px
+}
+.card-source-row {
+  margin: -5px 0 8px;
+  color: var(--el-text-color-placeholder);
+  font-size: 11px;
+}
+.card-preview {
+  min-width: 0;
+}
+.preview-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--el-text-color-placeholder);
+  font-size: 11px;
+  font-weight: 600;
+}
+.recurrence-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
 }
 .tag-container{
   display: flex;
@@ -310,6 +476,10 @@ const deleteCard = () => {
   overflow-wrap: break-word;
   /* 強制所有字符在邊界斷開 */
   /* word-break: break-all;  */
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
   white-space: pre-wrap;
 }
 .link-btn{
@@ -419,5 +589,16 @@ const deleteCard = () => {
 }
 .star-icon {
   color: var(--el-color-warning);
+}
+@media (max-width: 420px) {
+  .card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .footer-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 </style>

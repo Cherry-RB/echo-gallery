@@ -226,7 +226,9 @@ class TodayCardIntegrationTests extends IntegrationTestBase {
         sidebar(token).andExpect(jsonPath("$.highSnoozeCards").value(0));
 
         snooze(token, cardId, 1).andExpect(jsonPath("$.snoozeCount").value(11));
-        cardList(token, "snoozed").andExpect(jsonPath("$[0].id").value(cardId));
+        cardList(token, "snoozed")
+                .andExpect(jsonPath("$[0].id").value(cardId))
+                .andExpect(jsonPath("$[0].snoozeCount").value(11));
         sidebar(token).andExpect(jsonPath("$.highSnoozeCards").value(1));
 
         mockMvc.perform(put("/api/cards/{id}/archive", cardId)
