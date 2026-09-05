@@ -82,6 +82,19 @@ export const cardApi = {
             data
         })
     },
+    pauseCard(id: string | number): Promise<CardDto> {
+        return request({
+            url: `/cards/${id}/pause`,
+            method: "PUT"
+        })
+    },
+    resumeCard(id: string | number, intervalDays: number): Promise<CardDto> {
+        return request({
+            url: `/cards/${id}/resume`,
+            method: "PUT",
+            data: { intervalDays }
+        })
+    },
     snoozeCard(id: string | number, data: { nextIntervalDays: number | 0 }): Promise<any>{
         return request({
             url: `/cards/${id}/snooze`,

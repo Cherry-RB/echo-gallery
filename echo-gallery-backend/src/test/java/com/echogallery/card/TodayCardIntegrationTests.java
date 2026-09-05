@@ -179,7 +179,7 @@ class TodayCardIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
-    void snoozeUsesIntervalAndDefaultDaysWhenRequestIsNotPositive() throws Exception {
+    void snoozeUsesCardIntervalWhenRequestIsNotPositive() throws Exception {
         String token = register("snooze-fallback", "snooze-fallback@example.com");
         long cardId = createCard(token, "fallback-card");
         Card card = cardRepository.findById(cardId).orElseThrow();
@@ -187,14 +187,8 @@ class TodayCardIntegrationTests extends IntegrationTestBase {
         cardRepository.saveAndFlush(card);
 
         snooze(token, cardId, 0)
-                .andExpect(jsonPath("$.nextShowAt").value("2026-08-28T00:00:00+08:00"));
-
-        card = cardRepository.findById(cardId).orElseThrow();
-        card.setIntervalDays(null);
-        cardRepository.saveAndFlush(card);
-        snooze(token, cardId, -1)
-                .andExpect(jsonPath("$.nextShowAt").value("2026-09-03T00:00:00+08:00"))
-                .andExpect(jsonPath("$.snoozeCount").value(2));
+                .andExpect(jsonPath("$.nextShowAt").value("2026-08-28T00:00:00+08:00"))
+                .andExpect(jsonPath("$.snoozeCount").value(1));
     }
 
     @Test

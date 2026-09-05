@@ -88,6 +88,18 @@ public class CardController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{id}/pause")
+    public ResponseEntity<CardDetailResponse> pauseCard(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(cardService.pauseCard(id));
+    }
+
+    @PutMapping("/{id}/resume")
+    public ResponseEntity<CardDetailResponse> resumeCard(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody ResumeCardRequest request) {
+        return ResponseEntity.ok(cardService.resumeCard(id, request));
+    }
+
     @PutMapping("/{id}/snooze")
     public ResponseEntity<CardDetailResponse> snoozeCard(@PathVariable("id") Long id, @RequestBody CardStatusRequest request) {
         CardDetailResponse response = cardService.snoozeCard(id, request);

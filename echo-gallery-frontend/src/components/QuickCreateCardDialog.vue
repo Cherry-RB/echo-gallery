@@ -4,6 +4,7 @@ import type { FormInstance } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getDefaultCardData } from '../mock-data/card-default-new'
 import { createCardFormRules, toCardContentRequest } from '../utils/cardForm'
+import { cardTextFieldCopy } from '../utils/cardTextFieldCopy'
 import { useTags } from '../utils/composables/useTags'
 import { useCardStatus } from '../utils/useCardStatus'
 
@@ -30,9 +31,9 @@ const { existingTags, isTagsLoading } = useTags(cardData)
 const { handleCreateCard, isCreatePending } = useCardStatus()
 
 const optionalFields: Array<{ key: OptionalField; label: string }> = [
-  { key: 'reason', label: '收藏原因' },
-  { key: 'summary', label: '摘要' },
-  { key: 'content', label: '完整內容' },
+  { key: 'reason', label: cardTextFieldCopy.reason.label },
+  { key: 'summary', label: cardTextFieldCopy.summary.label },
+  { key: 'content', label: cardTextFieldCopy.content.label },
   { key: 'coverImageUrl', label: '封面圖片' },
 ]
 
@@ -159,7 +160,7 @@ const submit = async () => {
 
       <el-form-item
         v-if="visibleOptionalFields.includes('reason')"
-        label="收藏原因"
+        :label="cardTextFieldCopy.reason.label"
         prop="reason"
       >
         <el-input
@@ -168,13 +169,13 @@ const submit = async () => {
           :rows="2"
           maxlength="300"
           show-word-limit
-          placeholder="為什麼值得留下這項內容？"
+          :placeholder="cardTextFieldCopy.reason.placeholder"
         />
       </el-form-item>
 
       <el-form-item
         v-if="visibleOptionalFields.includes('summary')"
-        label="摘要"
+        :label="cardTextFieldCopy.summary.label"
         prop="summary"
       >
         <el-input
@@ -183,20 +184,20 @@ const submit = async () => {
           :rows="3"
           maxlength="600"
           show-word-limit
-          placeholder="簡短整理重點"
+          :placeholder="cardTextFieldCopy.summary.placeholder"
         />
       </el-form-item>
 
       <el-form-item
         v-if="visibleOptionalFields.includes('content')"
-        label="完整內容"
+        :label="cardTextFieldCopy.content.label"
         prop="content"
       >
         <el-input
           v-model="cardData.content"
           type="textarea"
           :rows="6"
-          placeholder="記錄完整內容、行動或覆盤"
+          :placeholder="cardTextFieldCopy.content.placeholder"
         />
       </el-form-item>
 

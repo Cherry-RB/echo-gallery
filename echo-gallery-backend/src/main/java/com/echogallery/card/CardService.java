@@ -216,7 +216,9 @@ public class CardService {
                 .reason(request.getReason())
                 .tags(associatedTags) // 關聯安全的標籤庫
                 .intervalDays(request.getIntervalDays())
-                .nextShowAt(getStartOfTodayTaipei().plusDays(request.getIntervalDays()!=null ? request.getIntervalDays():10)) // 預設 10 天後回流
+                .nextShowAt(request.getIntervalDays() == null
+                        ? null
+                        : getStartOfTodayTaipei().plusDays(request.getIntervalDays()))
                 .isArchived(false)
                 .build();
 
@@ -417,7 +419,43 @@ public class CardService {
         return convertToDetailResponse(card);
     }
 
-    // ==================== 3. 稍後再看（延遲回流）功能 ====================
+    // ==================== 3. 暫停 / 恢復回流 ====================
+    @Transactional
+    public CardDetailResponse pauseCard(Long cardId) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Card card = cardRepository.findByIdForUpdate(cardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
+
+        if (!card.getUser().getId().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權暫停此卡片的回流");
+        }
+
+        card.setIntervalDays(null);
+        card.setNextShowAt(null);
+        return convertToDetailResponse(card);
+    }
+
+    @Transactional
+    public CardDetailResponse resumeCard(Long cardId, ResumeCardRequest request) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Card card = cardRepository.findByIdForUpdate(cardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
+
+        if (!card.getUser().getId().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權恢復此卡片的回流");
+        }
+
+        if (java.util.Objects.equals(card.getIntervalDays(), request.getIntervalDays())
+                && card.getNextShowAt() != null) {
+            return convertToDetailResponse(card);
+        }
+
+        card.setIntervalDays(request.getIntervalDays());
+        card.setNextShowAt(getStartOfTodayTaipei().plusDays(request.getIntervalDays()));
+        return convertToDetailResponse(card);
+    }
+
+    // ==================== 4. 稍後再看（延遲回流）功能 ====================
     @Transactional
     public CardDetailResponse snoozeCard(Long cardId, CardStatusRequest request) {
         // 1. 安全地從安全上下文取得目前登入的 userId（防範前端越權傳參）
@@ -432,8 +470,11 @@ public class CardService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權延遲此卡片");
         }
 
-        // 4. 更新下次回流日期
-        // 優先讀取 request -> 再讀取卡片本身的設定 -> 預設為 10 天
+        if (card.getIntervalDays() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "卡片回流已暫停，請先恢復回流");
+        }
+
+        // 4. 更新下次回流日期：未指定正數時沿用 Card 本身的回流間隔。
         int daysToPlus = request.getNextIntervalDays();
         if(daysToPlus <= 0){
             daysToPlus = (card.getIntervalDays() != null) ? card.getIntervalDays() : 10;
@@ -469,9 +510,12 @@ public class CardService {
         card.setLastOpenAt(now);
         card.setLastInteractionAt(now);
 
-        // 推進回流時間：若有設定天數就用卡片的，否則預設 10 天
-        int days = card.getIntervalDays() != null ? card.getIntervalDays() : 10;
-        card.setNextShowAt(getStartOfTodayTaipei().plusDays(days));
+        // 暫停中的 Card 不會因直接呼叫 read API 而偷偷恢復排程。
+        if (card.getIntervalDays() != null) {
+            card.setNextShowAt(getStartOfTodayTaipei().plusDays(card.getIntervalDays()));
+        } else {
+            card.setNextShowAt(null);
+        }
 
         // 如果這張卡之前一直被稍後再看，現在終於被打開詳情，可重置 snoozeCount。
         card.setSnoozeCount(0);

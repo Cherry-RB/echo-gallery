@@ -12,9 +12,11 @@ import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';
 import { useRoute } from 'vue-router';
 import type { FormInstance } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useTags } from '../utils/composables/useTags';
 import CardWorkManager from '../components/work/CardWorkManager.vue';
 import { createCardFormRules, toCardContentRequest } from '../utils/cardForm';
+import { cardTextFieldCopy } from '../utils/cardTextFieldCopy';
 import { cardDetailQueryKey } from '../utils/cardDetailQuery';
 
 const props = defineProps<{ id: string }>();
@@ -88,10 +90,18 @@ const { data: fetchedCard, isLoading, isError } = useQuery({
 const {
   handleToggleStar,
   handleToggleArchive,
+  handlePauseCard,
+  handleResumeCard,
   handleCreateCard,
   handleUpdateCard,
-  handleDeleteCard
+  handleDeleteCard,
+  isPausePending,
+  isResumePending
 } = useCardStatus();
+
+const isRecurrencePaused = computed(() =>
+  cardData.value.intervalDays === null && cardData.value.nextShowAt === null
+);
 
 // 如果你喜歡用監聽的方式同步：
 watch(fetchedCard, (newCard) => {
@@ -113,6 +123,11 @@ watch(isEditMode, (newVal) => {
 // 💡 5. 儲存與取消的路由導向
 const handleSave = async () => {
   if (!cardFormRef.value) return;
+
+  if (!isCreateMode.value && cardData.value.intervalDays === null && cardData.value.nextShowAt !== null) {
+    ElMessage.warning('若要停止排程，請先取消編輯並使用「暫停回流」');
+    return;
+  }
 
   // 執行前端欄位校驗
   await cardFormRef.value.validate(async (valid) => {
@@ -187,6 +202,51 @@ const toggleArchive = () => {
     id: props.id,
     archivedStatus: !cardData.value.isArchived
   });
+}
+
+const pauseRecurrence = async () => {
+  if (isEditMode.value || isPausePending.value) return;
+
+  try {
+    await ElMessageBox.confirm(
+      '暫停後，這張卡片仍可搜尋、查看及加入議題，但不會再出現在 Today。',
+      '暫停回流',
+      {
+        confirmButtonText: '確認暫停',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    );
+    handlePauseCard({ id: props.id });
+  } catch {
+    // 使用者取消操作時不需顯示錯誤。
+  }
+}
+
+const resumeRecurrence = async () => {
+  if (isEditMode.value || isResumePending.value) return;
+
+  try {
+    const { value } = await ElMessageBox.prompt(
+      '請設定新的回流間隔；排程會從今天起重新計算。',
+      '恢復回流',
+      {
+        confirmButtonText: '確認恢復',
+        cancelButtonText: '取消',
+        inputValue: '10',
+        inputPlaceholder: '1–365 天',
+        inputValidator: input => {
+          const days = Number(input);
+          return Number.isInteger(days) && days >= 1 && days <= 365
+            ? true
+            : '回流間隔必須介於 1 到 365 天';
+        }
+      }
+    );
+    handleResumeCard({ id: props.id, intervalDays: Number(value) });
+  } catch {
+    // 使用者取消操作時不需顯示錯誤。
+  }
 }
 
 const getLikeAvailableStatus = (likeAvailableAt: string | undefined | null) => {
@@ -399,14 +459,14 @@ const {
 
           <div class="content-section">
             <div class="info-paragraph" v-if="cardData.reason || isEditMode">
-              <h3 class="paragraph-title reason"><span class="title-marker reason"></span>我思我長/金句</h3>
+              <h3 class="paragraph-title reason"><span class="title-marker reason"></span>{{ cardTextFieldCopy.reason.label }}</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.reason }}</p>
               <el-form-item v-else prop="reason">
                 <el-input
                   v-model="cardData.reason"
                   type="textarea"
                   :rows="3"
-                  placeholder="請輸入這張卡片的收藏理由..."
+                  :placeholder="cardTextFieldCopy.reason.placeholder"
                 />
                 <div class="word-count-hint" :class="{ 'over-limit': (cardData.reason?.length || 0) > 300 }">總字數：
                   {{ cardData.reason?.length || 0 }} / 300
@@ -415,14 +475,14 @@ const {
             </div>
 
             <div class="info-paragraph" v-if="cardData.summary || isEditMode">
-              <h3 class="paragraph-title summary"><span class="title-marker summary"></span>我見我聞</h3>
+              <h3 class="paragraph-title summary"><span class="title-marker summary"></span>{{ cardTextFieldCopy.summary.label }}</h3>
               <p v-if="!isEditMode" class="paragraph-text">{{ cardData.summary }}</p>
               <el-form-item v-else prop="summary">
                 <el-input
                   v-model="cardData.summary"
                   type="textarea"
                   :rows="5"
-                  placeholder="請輸入內容摘要..."
+                  :placeholder="cardTextFieldCopy.summary.placeholder"
                 />
                 <div class="word-count-hint" :class="{ 'over-limit': (cardData.summary?.length || 0) > 600 }">總字數：
                   {{ cardData.summary?.length || 0 }} / 600
@@ -431,14 +491,14 @@ const {
             </div>
 
             <div class="info-paragraph" v-if="cardData.content || isEditMode">
-              <h3 class="paragraph-title content"><span class="title-marker content"></span>Plan/Review/Content</h3>
+              <h3 class="paragraph-title content"><span class="title-marker content"></span>{{ cardTextFieldCopy.content.label }}</h3>
               <p v-if="!isEditMode" class="paragraph-text main-content">{{ cardData.content }}</p>
               <el-form-item v-else prop="content">
                 <el-input
                   v-model="cardData.content"
                   type="textarea"
                   :rows="10"
-                  placeholder="請輸入詳細內容..."
+                  :placeholder="cardTextFieldCopy.content.placeholder"
                 />
                 <div class="word-count-hint">
                   總字數：{{ cardData.content?.length || 0 }} 字
@@ -477,12 +537,27 @@ const {
             <el-icon><Clock /></el-icon>
             <span>記憶回流設定</span>
           </div>
+          <div v-if="!isCreateMode && !isEditMode" class="recurrence-status-row">
+            <el-tag :type="isRecurrencePaused ? 'info' : 'success'" size="small" effect="light">
+              {{ isRecurrencePaused ? '已暫停' : '回流中' }}
+            </el-tag>
+            <el-button
+              type="primary"
+              link
+              size="small"
+              :loading="isPausePending || isResumePending"
+              @click="isRecurrencePaused ? resumeRecurrence() : pauseRecurrence()"
+            >
+              {{ isRecurrencePaused ? '恢復回流' : '暫停回流' }}
+            </el-button>
+          </div>
           <el-descriptions :column="1" border size="small" class="clean-desc">
             <el-descriptions-item label="回流頻率 (天)">
 
               <span v-if="!isEditMode">
-                {{ cardData.intervalDays ? `${cardData.intervalDays} 天一次` : '未設定' }}
+                {{ isRecurrencePaused ? '已暫停' : cardData.intervalDays ? `${cardData.intervalDays} 天一次` : '未設定' }}
               </span>
+              <span v-else-if="isRecurrencePaused" class="paused-edit-hint">已暫停，請先恢復回流</span>
               <el-input-number
                 v-else
                 v-model="cardData.intervalDays"
@@ -495,7 +570,7 @@ const {
             </el-descriptions-item>
             <el-descriptions-item label="下次看見" v-if="!isEditMode">
               <el-icon class="icon-align"><Calendar /></el-icon>
-              {{ formatDate(cardData.nextShowAt || '') || '-' }}
+              {{ isRecurrencePaused ? '暫停期間不排程' : formatDate(cardData.nextShowAt || '') || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="最近出現在 Today" v-if="!isEditMode">
               {{ formatDate(cardData.lastOfferedAt || '') || '尚未出現' }}
@@ -616,6 +691,18 @@ const {
 .detail-container {
   padding: 20px;
   max-width: 1300px;
+}
+
+.recurrence-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.paused-edit-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 .page-header-wrapper { margin-bottom: 20px; }
 .page-header-inner {

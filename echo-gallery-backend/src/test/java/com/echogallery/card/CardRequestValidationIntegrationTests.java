@@ -92,11 +92,17 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
-    void createAllowsNullIntervalForFuturePauseRecurrenceSemantics() throws Exception {
+    void createWithNullIntervalStartsPaused() throws Exception {
         Map<String, Object> request = validRequest();
         request.put("intervalDays", null);
 
-        performCreate(request).andExpect(status().isOk());
+        MvcResult result = performCreate(request)
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(response.get("intervalDays").isNull()).isTrue();
+        assertThat(response.get("nextShowAt").isNull()).isTrue();
     }
 
     @Test

@@ -8,7 +8,11 @@ import { todayBatchQueryKey } from './todayBatchCache'
 import { useCardStatus } from './useCardStatus'
 
 vi.mock('./api/cardApi', () => ({
-  cardApi: { snoozeCard: vi.fn() },
+  cardApi: {
+    pauseCard: vi.fn(),
+    resumeCard: vi.fn(),
+    snoozeCard: vi.fn(),
+  },
 }))
 
 vi.mock('element-plus', () => ({
@@ -83,5 +87,51 @@ describe('useCardStatus snooze cache', () => {
     await flushPromises()
 
     expect(queryClient.getQueryData(todayBatchQueryKey)).toEqual(batch)
+  })
+})
+
+describe('useCardStatus recurrence cache', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('暫停時清除回流設定並從 Today 移除', async () => {
+    const { queryClient, status } = setup()
+    const original = { ...card('1'), nextShowAt: '2026-09-03T00:00:00+08:00' }
+    const paused = { ...original, intervalDays: null, nextShowAt: null }
+    const infinite: InfiniteData<CardDto[]> = { pages: [[original]], pageParams: [1] }
+
+    queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, {
+      cards: [original], batchOfferedAt: '2026-08-24T12:00:00+08:00',
+    })
+    queryClient.setQueryData(['cards', 'all'], infinite)
+    queryClient.setQueryData(['card', '1'], original)
+    vi.mocked(cardApi.pauseCard).mockResolvedValue(paused)
+
+    status.handlePauseCard({ id: '1' })
+    await flushPromises()
+
+    expect(cardApi.pauseCard).toHaveBeenCalledWith('1')
+    expect(queryClient.getQueryData<TodayBatchResponse>(todayBatchQueryKey)?.cards).toEqual([])
+    expect(queryClient.getQueryData<CardDto>(['card', '1']))
+      .toMatchObject({ intervalDays: null, nextShowAt: null })
+    expect(queryClient.getQueryState(['cards', 'all'])?.isInvalidated).toBe(true)
+  })
+
+  it('恢復時以後端排程更新詳情與列表快取', async () => {
+    const { queryClient, status } = setup()
+    const paused = { ...card('1'), intervalDays: null, nextShowAt: null }
+    const resumed = { ...paused, intervalDays: 14, nextShowAt: '2026-09-07T00:00:00+08:00' }
+    const infinite: InfiniteData<CardDto[]> = { pages: [[paused]], pageParams: [1] }
+
+    queryClient.setQueryData(['cards', 'all'], infinite)
+    queryClient.setQueryData(['card', '1'], paused)
+    vi.mocked(cardApi.resumeCard).mockResolvedValue(resumed)
+
+    status.handleResumeCard({ id: '1', intervalDays: 14 })
+    await flushPromises()
+
+    expect(cardApi.resumeCard).toHaveBeenCalledWith('1', 14)
+    expect(queryClient.getQueryData<CardDto>(['card', '1']))
+      .toMatchObject({ intervalDays: 14, nextShowAt: '2026-09-07T00:00:00+08:00' })
+    expect(queryClient.getQueryState(['cards', 'all'])?.isInvalidated).toBe(true)
   })
 })

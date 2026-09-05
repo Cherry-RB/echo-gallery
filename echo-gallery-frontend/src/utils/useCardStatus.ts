@@ -214,8 +214,44 @@ export const useCardStatus = () => {
         // 【後端失敗時執行】
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
     });
+
     // =====================================================
-    // 🚀 功能 3. 稍後再看 Mutation (樂觀更新：立刻變灰)
+    // 🚀 功能 3. 暫停 / 恢復回流 Mutation
+    // =====================================================
+    const pauseMutation = useMutation({
+        mutationFn: ({ id }: { id: string | number }) => cardApi.pauseCard(id),
+        onMutate: async ({ id }) => {
+            const snapshot = await prepareSnapshot(id);
+            updateLocalCache(id, { intervalDays: null, nextShowAt: null });
+            queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old => removeTodayCard(old, id));
+            return snapshot;
+        },
+        onSuccess: (updatedCard, variables) => {
+            updateLocalCache(variables.id, updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['cards'] });
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+            queryClient.invalidateQueries({ queryKey: ['workCards'] });
+            ElMessage.success('卡片回流已暫停');
+        },
+        onError: (err, variables, context) => handleMutationError(err, variables.id, context)
+    });
+
+    const resumeMutation = useMutation({
+        mutationFn: ({ id, intervalDays }: { id: string | number; intervalDays: number }) =>
+            cardApi.resumeCard(id, intervalDays),
+        onMutate: async ({ id }) => prepareSnapshot(id),
+        onSuccess: (updatedCard, variables) => {
+            updateLocalCache(variables.id, updatedCard);
+            queryClient.invalidateQueries({ queryKey: ['cards'] });
+            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+            queryClient.invalidateQueries({ queryKey: ['workCards'] });
+            ElMessage.success(`已恢復每 ${updatedCard.intervalDays} 天回流`);
+        },
+        onError: (err, variables, context) => handleMutationError(err, variables.id, context)
+    });
+
+    // =====================================================
+    // 🚀 功能 4. 稍後再看 Mutation (樂觀更新：立刻變灰)
     // =====================================================
     const snoozeMutation = useMutation({
         // 【打後端】
@@ -246,7 +282,7 @@ export const useCardStatus = () => {
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
     });
     // =====================================================
-    // 🚀 功能 4. 已讀(進入卡片詳情/打開卡片連結) Mutation
+    // 🚀 功能 5. 已讀(進入卡片詳情/打開卡片連結) Mutation
     // =====================================================
     const readMutation = useMutation({
         // 【打後端】
@@ -285,7 +321,7 @@ export const useCardStatus = () => {
             handleMutationError(err, variables.id, context)
     });
     // =====================================================
-    // 🚀 功能 5. 新建卡片 Mutation
+    // 🚀 功能 6. 新建卡片 Mutation
     // =====================================================
     const createCardMutation = useMutation({
         mutationFn: cardApi.createCard,
@@ -307,7 +343,7 @@ export const useCardStatus = () => {
     });
 
     // =====================================================
-    // 🚀 功能 6. 更新卡片 Mutation
+    // 🚀 功能 7. 更新卡片 Mutation
     // =====================================================
     // 💡 注意：因為 useMutation 的 mutationFn 只能接收一個參數，
     //    所以我們用解構賦值包成一個物件傳入 { id, data }
@@ -333,7 +369,7 @@ export const useCardStatus = () => {
     });
 
     // =====================================================
-    // 🚀 功能 7. 更新卡片成長狀態 Mutation
+    // 🚀 功能 8. 更新卡片成長狀態 Mutation
     // =====================================================
     const growthStatusMutation = useMutation({
         mutationFn: ({ id, growthStatus }: { id: string | number; growthStatus: CardGrowthStatus }) =>
@@ -352,7 +388,7 @@ export const useCardStatus = () => {
     });
 
     // =====================================================
-    // 🚀 功能 8. 刪除卡片 Mutation
+    // 🚀 功能 9. 刪除卡片 Mutation
     // =====================================================
     const deleteCardMutation = useMutation({
       mutationFn: ({ id }: { id: string | number }) =>
@@ -403,6 +439,8 @@ export const useCardStatus = () => {
     return {
         handleToggleStar: starMutation.mutate,
         handleToggleArchive: archiveMutation.mutate,
+        handlePauseCard: pauseMutation.mutate,
+        handleResumeCard: resumeMutation.mutate,
         handleSnoozeCard: snoozeMutation.mutate,
         handleReadCard: readMutation.mutate,
         handleCreateCard: createCardMutation.mutate,
@@ -413,6 +451,8 @@ export const useCardStatus = () => {
         // 如果你有需要按鈕讀條(Loading) 狀態也可以順便拿出去
         isStarPending: starMutation.isPending,
         isArchivePending: archiveMutation.isPending,
+        isPausePending: pauseMutation.isPending,
+        isResumePending: resumeMutation.isPending,
         isSnoozePending: snoozeMutation.isPending,
         isReadPending: readMutation.isPending,
         isCreatePending: createCardMutation.isPending,
