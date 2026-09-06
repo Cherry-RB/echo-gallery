@@ -62,12 +62,63 @@ class WorkManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(workId))
                 .andExpect(jsonPath("$.title").value("第一篇作品"))
+                .andExpect(jsonPath("$.objective").doesNotExist())
                 .andExpect(jsonPath("$.description").value("初稿說明"))
+                .andExpect(jsonPath("$.currentAssessment").doesNotExist())
+                .andExpect(jsonPath("$.outcomeCriteria").doesNotExist())
                 .andExpect(jsonPath("$.status").value("IDEA"))
                 .andExpect(jsonPath("$.externalUrl").value("https://example.com/draft"))
                 .andExpect(jsonPath("$.completedAt").doesNotExist())
                 .andExpect(jsonPath("$.createdAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists());
+    }
+
+    @Test
+    void createAndUpdateWorkPreservesStructuredIssueBoardFields() throws Exception {
+        String token = register("issue-board", "issue-board@example.com");
+        MvcResult createResult = mockMvc.perform(post("/api/works")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateWorkPayload(
+                        "Echo Gallery 下一階段",
+                        "釐清回流內容如何進入判斷",
+                        "卡片目前以外部收藏素材為主",
+                        "目前缺少素材與決議之間的推演層",
+                        "完成兩個真實議題的使用觀察",
+                        null))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.objective").value("釐清回流內容如何進入判斷"))
+                .andExpect(jsonPath("$.description").value("卡片目前以外部收藏素材為主"))
+                .andExpect(jsonPath("$.currentAssessment").value("目前缺少素材與決議之間的推演層"))
+                .andExpect(jsonPath("$.outcomeCriteria").value("完成兩個真實議題的使用觀察"))
+                .andReturn();
+
+        long workId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(put("/api/works/{id}", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new UpdateWorkPayload(
+                        "Echo Gallery 下一階段",
+                        "驗證議題盤面是否值得保留",
+                        "舊背景仍需完整保留",
+                        "已具備最小可用的結構化盤面",
+                        "使用四週後重新評估",
+                        "ACTIVE",
+                        null))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.objective").value("驗證議題盤面是否值得保留"))
+                .andExpect(jsonPath("$.description").value("舊背景仍需完整保留"))
+                .andExpect(jsonPath("$.currentAssessment").value("已具備最小可用的結構化盤面"))
+                .andExpect(jsonPath("$.outcomeCriteria").value("使用四週後重新評估"));
+
+        mockMvc.perform(get("/api/works")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].objective").value("驗證議題盤面是否值得保留"))
+                .andExpect(jsonPath("$[0].description").value("舊背景仍需完整保留"))
+                .andExpect(jsonPath("$[0].currentAssessment").value("已具備最小可用的結構化盤面"))
+                .andExpect(jsonPath("$[0].outcomeCriteria").value("使用四週後重新評估"));
     }
 
     @Test
@@ -147,6 +198,18 @@ class WorkManagementIntegrationTests extends IntegrationTestBase {
                 .content(workCreateJson("無效連結", null, "ftp://example.com/file")))
                 .andExpect(status().isBadRequest());
 
+        mockMvc.perform(post("/api/works")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateWorkPayload(
+                        "內容過長",
+                        "a".repeat(50001),
+                        null,
+                        null,
+                        null,
+                        null))))
+                .andExpect(status().isBadRequest());
+
         mockMvc.perform(get("/api/works")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
@@ -177,11 +240,13 @@ class WorkManagementIntegrationTests extends IntegrationTestBase {
     }
 
     private String workCreateJson(String title, String description, String externalUrl) throws Exception {
-        return objectMapper.writeValueAsString(new CreateWorkPayload(title, description, externalUrl));
+        return objectMapper.writeValueAsString(
+                new CreateWorkPayload(title, null, description, null, null, externalUrl));
     }
 
     private String workUpdateJson(String title, String status) throws Exception {
-        return objectMapper.writeValueAsString(new UpdateWorkPayload(title, null, status, null));
+        return objectMapper.writeValueAsString(
+                new UpdateWorkPayload(title, null, null, null, null, status, null));
     }
 
     private String bearer(String token) {
@@ -190,7 +255,20 @@ class WorkManagementIntegrationTests extends IntegrationTestBase {
 
     private record RegistrationRequest(String username, String email, String password) {}
 
-    private record CreateWorkPayload(String title, String description, String externalUrl) {}
+    private record CreateWorkPayload(
+            String title,
+            String objective,
+            String description,
+            String currentAssessment,
+            String outcomeCriteria,
+            String externalUrl) {}
 
-    private record UpdateWorkPayload(String title, String description, String status, String externalUrl) {}
+    private record UpdateWorkPayload(
+            String title,
+            String objective,
+            String description,
+            String currentAssessment,
+            String outcomeCriteria,
+            String status,
+            String externalUrl) {}
 }

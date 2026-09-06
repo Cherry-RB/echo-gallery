@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -23,9 +24,12 @@ public class WorkCardController {
     private final WorkCardService workCardService;
 
     @GetMapping
-    public ResponseEntity<List<WorkCardResponse>> getCards(
-            @PathVariable("workId") Long workId) {
-        return ResponseEntity.ok(workCardService.getCards(workId));
+    public ResponseEntity<WorkCardPageResponse> getCards(
+            @PathVariable("workId") Long workId,
+            @RequestParam(name = "status", defaultValue = "CANDIDATE") WorkCardStatus status,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
+        return ResponseEntity.ok(workCardService.getCards(workId, status, page, size));
     }
 
     @PostMapping

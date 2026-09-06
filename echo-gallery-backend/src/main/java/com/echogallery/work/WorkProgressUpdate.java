@@ -3,14 +3,12 @@ package com.echogallery.work;
 import java.time.ZonedDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import com.echogallery.user.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -27,10 +25,13 @@ import lombok.Setter;
 
 @Entity
 @Table(
-    name = "works",
+    name = "work_progress_updates",
     indexes = {
-        @Index(name = "idx_works_user_status", columnList = "user_id, status"),
-        @Index(name = "idx_works_user_updated_at", columnList = "user_id, updated_at")
+        @Index(
+            name = "idx_work_progress_updates_work_created",
+            columnList = "work_id, created_at, id"
+        ),
+        @Index(name = "idx_work_progress_updates_created", columnList = "created_at, id")
     }
 )
 @Getter
@@ -38,41 +39,25 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Work {
+public class WorkProgressUpdate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "work_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private Work work;
 
-    @Column(nullable = false, length = 255)
-    private String title;
-
-    @Column(columnDefinition = "TEXT")
-    private String objective;
+    @Column(name = "change_summary", columnDefinition = "TEXT")
+    private String changeSummary;
 
     @Column(columnDefinition = "TEXT")
-    private String description;
+    private String assessment;
 
-    @Column(name = "current_assessment", columnDefinition = "TEXT")
-    private String currentAssessment;
-
-    @Column(name = "outcome_criteria", columnDefinition = "TEXT")
-    private String outcomeCriteria;
-
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    @Column(nullable = false, length = 20)
-    private WorkStatus status = WorkStatus.IDEA;
-
-    @Column(name = "external_url", length = 2048)
-    private String externalUrl;
-
-    @Column(name = "completed_at")
-    private ZonedDateTime completedAt;
+    @Column(name = "next_step", columnDefinition = "TEXT")
+    private String nextStep;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

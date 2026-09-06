@@ -1,7 +1,11 @@
 package com.echogallery.work;
 
 import java.time.ZonedDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,15 +23,33 @@ import lombok.RequiredArgsConstructor;
 public class WorkService {
 
     private final WorkRepository workRepository;
+    private final WorkProgressUpdateRepository progressUpdateRepository;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<WorkSummaryResponse> getWorks() {
         Long userId = SecurityUtil.getCurrentUserId();
-        return workRepository.findSummariesByUserId(
+        List<WorkSummaryResponse> summaries = workRepository.findSummariesByUserId(
                 userId,
                 WorkCardStatus.CANDIDATE,
                 WorkCardStatus.USED);
+        Map<Long, WorkProgressUpdate> latestUpdates = progressUpdateRepository
+                .findLatestByUserId(userId)
+                .stream()
+                .collect(Collectors.toMap(update -> update.getWork().getId(), Function.identity()));
+
+        summaries.forEach(summary -> {
+            WorkProgressUpdate latest = latestUpdates.get(summary.getId());
+            if (latest == null) return;
+
+            summary.setLatestProgressAt(latest.getCreatedAt());
+            summary.setLatestProgressChangeSummary(latest.getChangeSummary());
+            summary.setLatestProgressAssessment(latest.getAssessment());
+            summary.setLatestProgressNextStep(latest.getNextStep());
+        });
+        return summaries.stream()
+                .sorted(Comparator.comparing(this::latestActivityAt).reversed())
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -44,7 +66,10 @@ public class WorkService {
         Work work = Work.builder()
                 .user(user)
                 .title(request.getTitle().trim())
+                .objective(normalizeOptionalText(request.getObjective()))
                 .description(request.getDescription())
+                .currentAssessment(normalizeOptionalText(request.getCurrentAssessment()))
+                .outcomeCriteria(normalizeOptionalText(request.getOutcomeCriteria()))
                 .externalUrl(normalizeOptionalText(request.getExternalUrl()))
                 .build();
 
@@ -57,7 +82,10 @@ public class WorkService {
         Work work = getOwnedWork(workId, userId);
 
         work.setTitle(request.getTitle().trim());
+        work.setObjective(normalizeOptionalText(request.getObjective()));
         work.setDescription(request.getDescription());
+        work.setCurrentAssessment(normalizeOptionalText(request.getCurrentAssessment()));
+        work.setOutcomeCriteria(normalizeOptionalText(request.getOutcomeCriteria()));
         work.setExternalUrl(normalizeOptionalText(request.getExternalUrl()));
         updateStatus(work, request.getStatus());
 
@@ -89,11 +117,22 @@ public class WorkService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private ZonedDateTime latestActivityAt(WorkSummaryResponse summary) {
+        ZonedDateTime latestProgressAt = summary.getLatestProgressAt();
+        if (latestProgressAt != null && latestProgressAt.isAfter(summary.getUpdatedAt())) {
+            return latestProgressAt;
+        }
+        return summary.getUpdatedAt();
+    }
+
     private WorkDetailResponse toDetailResponse(Work work) {
         WorkDetailResponse response = new WorkDetailResponse();
         response.setId(work.getId());
         response.setTitle(work.getTitle());
+        response.setObjective(work.getObjective());
         response.setDescription(work.getDescription());
+        response.setCurrentAssessment(work.getCurrentAssessment());
+        response.setOutcomeCriteria(work.getOutcomeCriteria());
         response.setStatus(work.getStatus());
         response.setExternalUrl(work.getExternalUrl());
         response.setCompletedAt(work.getCompletedAt());

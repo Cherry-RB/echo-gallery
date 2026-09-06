@@ -3,6 +3,8 @@ package com.echogallery.work;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,17 +20,32 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class WorkCardService {
 
+    private static final int MAX_WORK_CARD_PAGE_SIZE = 20;
+
     private final WorkCardRepository workCardRepository;
     private final WorkRepository workRepository;
     private final CardRepository cardRepository;
 
     @Transactional(readOnly = true)
-    public List<WorkCardResponse> getCards(Long workId) {
+    public WorkCardPageResponse getCards(
+            Long workId,
+            WorkCardStatus status,
+            int requestedPage,
+            int requestedSize) {
         Long userId = SecurityUtil.getCurrentUserId();
         getOwnedWork(workId, userId);
-        return workCardRepository.findByWorkIdOrderByLinkedAtDesc(workId).stream()
-                .map(this::toResponse)
-                .toList();
+        int page = Math.max(0, requestedPage);
+        int size = Math.max(1, Math.min(requestedSize, MAX_WORK_CARD_PAGE_SIZE));
+        Page<WorkCard> cardPage = workCardRepository.findByWorkIdAndStatusOrderByLinkedAtDescIdDesc(
+                workId,
+                status,
+                PageRequest.of(page, size));
+        return new WorkCardPageResponse(
+                cardPage.getContent().stream().map(this::toResponse).toList(),
+                page,
+                size,
+                cardPage.getTotalElements(),
+                cardPage.getTotalPages());
     }
 
     @Transactional(readOnly = true)

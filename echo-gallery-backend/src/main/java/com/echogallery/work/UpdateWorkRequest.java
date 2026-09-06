@@ -8,6 +8,6 @@ import lombok.Setter;
 @Setter
 public class UpdateWorkRequest extends WorkContentRequest {
 
-    @NotNull(message = "作品狀態不可為空")
+    @NotNull(message = "議題狀態不可為空")
     private WorkStatus status;
 }

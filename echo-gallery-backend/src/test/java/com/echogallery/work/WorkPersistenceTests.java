@@ -30,6 +30,9 @@ class WorkPersistenceTests extends IntegrationTestBase {
         User user = createUser("default");
         Work work = Work.builder()
                 .user(user)
+                .objective("驗證議題盤面欄位")
+                .currentAssessment("目前需要最小結構化")
+                .outcomeCriteria("所有欄位可正確保存")
                 .title("作品資料模型")
                 .description("確認 Work 的基本欄位能正確持久化")
                 .externalUrl("https://example.com/works/domain-model")
@@ -40,6 +43,9 @@ class WorkPersistenceTests extends IntegrationTestBase {
 
         Work persistedWork = workRepository.findById(workId).orElseThrow();
         assertThat(persistedWork.getUser().getId()).isEqualTo(user.getId());
+        assertThat(persistedWork.getObjective()).isEqualTo("驗證議題盤面欄位");
+        assertThat(persistedWork.getCurrentAssessment()).isEqualTo("目前需要最小結構化");
+        assertThat(persistedWork.getOutcomeCriteria()).isEqualTo("所有欄位可正確保存");
         assertThat(persistedWork.getTitle()).isEqualTo("作品資料模型");
         assertThat(persistedWork.getDescription()).isEqualTo("確認 Work 的基本欄位能正確持久化");
         assertThat(persistedWork.getStatus()).isEqualTo(WorkStatus.IDEA);

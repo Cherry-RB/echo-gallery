@@ -309,14 +309,19 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
         addCard(token, workId, usedCardId);
         updateStatus(token, workId, usedCardId, "USED");
 
-        MvcResult result = mockMvc.perform(get("/api/works/{workId}/cards", workId)
+        MvcResult candidateResult = mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .param("status", "CANDIDATE")
+                .param("page", "0")
+                .param("size", "10")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
                 .andReturn();
 
-        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
-        JsonNode candidate = findRelation(response, candidateCardId);
+        JsonNode candidateResponse = objectMapper.readTree(candidateResult.getResponse().getContentAsString());
+        JsonNode candidate = findRelation(candidateResponse.get("items"), candidateCardId);
         assertThat(candidate.get("cardTitle").asText()).isEqualTo("候選卡片");
         assertThat(candidate.get("cardType").asText()).isEqualTo("note");
         assertThat(candidate.get("cardGrowthStatus").asText()).isEqualTo("UNMARKED");
@@ -324,20 +329,62 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
         assertThat(candidate.get("tags").get(0).asText()).isEqualTo("AI");
         assertThat(candidate.get("tags").get(1).asText()).isEqualTo("Java");
 
-        JsonNode used = findRelation(response, usedCardId);
+        MvcResult usedResult = mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .param("status", "USED")
+                .param("page", "0")
+                .param("size", "10")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andReturn();
+        JsonNode usedResponse = objectMapper.readTree(usedResult.getResponse().getContentAsString());
+        JsonNode used = findRelation(usedResponse.get("items"), usedCardId);
         assertThat(used.get("status").asText()).isEqualTo("USED");
         assertThat(used.get("usedAt").isNull()).isFalse();
     }
 
     @Test
-    void workCardListReturnsEmptyArrayWhenWorkHasNoCards() throws Exception {
+    void workCardListReturnsEmptyPageWhenWorkHasNoCards() throws Exception {
         String token = register("empty-list-owner", "empty-list-owner@example.com");
         long workId = createWork(token, "空素材作品");
 
         mockMvc.perform(get("/api/works/{workId}/cards", workId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
+    }
+
+    @Test
+    void workCardListPaginatesWithinEachStatus() throws Exception {
+        String token = register("paged-list-owner", "paged-list-owner@example.com");
+        long workId = createWork(token, "分頁素材作品");
+        addCard(token, workId, createCard(token, "素材一"));
+        addCard(token, workId, createCard(token, "素材二"));
+        addCard(token, workId, createCard(token, "素材三"));
+
+        mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .param("status", "CANDIDATE")
+                .param("page", "0")
+                .param("size", "2")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2));
+
+        mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .param("status", "CANDIDATE")
+                .param("page", "1")
+                .param("size", "2")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.page").value(1));
     }
 
     @Test
@@ -496,12 +543,13 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.status").value("ARCHIVED"));
 
         mockMvc.perform(get("/api/works/{workId}/cards", workId)
+                .param("status", "CANDIDATE")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].cardId").value(cardId))
-                .andExpect(jsonPath("$[0].status").value("CANDIDATE"))
-                .andExpect(jsonPath("$[0].cardGrowthStatus").value("UNMARKED"));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].cardId").value(cardId))
+                .andExpect(jsonPath("$.items[0].status").value("CANDIDATE"))
+                .andExpect(jsonPath("$.items[0].cardGrowthStatus").value("UNMARKED"));
 
         assertThat(cardRepository.existsById(cardId)).isTrue();
         assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId)).isPresent();
