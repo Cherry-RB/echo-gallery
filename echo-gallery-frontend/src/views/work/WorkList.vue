@@ -1245,8 +1245,8 @@ const submitCreateWork = async () => {
 
 @media (max-width: 600px) {
   .work-list-page {
-    width: calc(100% - 16px);
-    margin-left: 0;
+    width: 100%;
+    margin: 0;
   }
 
   .page-header {
@@ -1297,6 +1297,11 @@ const submitCreateWork = async () => {
 
   .work-card :deep(.el-card__body) {
     padding: 18px;
+  }
+
+  .work-dashboard {
+    margin-inline: -16px;
+    padding: 12px 16px;
   }
 
   .external-link {

@@ -228,7 +228,7 @@ const resetCardSearch = () => {
         <h2 id="material-heading">參考素材</h2>
         <p>讓曾經留下的內容進入這個議題；真正影響思考、創作或行動後，再標記為已運用。</p>
       </div>
-      <el-button type="primary" :icon="Plus" @click="addCardDialogVisible = true">
+      <el-button type="primary" plain :icon="Plus" @click="addCardDialogVisible = true">
         加入卡片
       </el-button>
     </header>

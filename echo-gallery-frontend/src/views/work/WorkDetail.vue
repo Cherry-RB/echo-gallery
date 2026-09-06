@@ -963,7 +963,9 @@ const submitUpdateWork = async () => {
 
 @media (max-width: 900px) {
   .work-detail-page {
+    width: calc(100% + 32px);
     height: auto;
+    margin: -16px;
     min-height: calc(100dvh - 56px);
     overflow: visible;
   }
@@ -1001,11 +1003,39 @@ const submitUpdateWork = async () => {
 
   .detail-navigation {
     align-items: center;
+    flex-wrap: wrap;
     padding: 14px 16px;
   }
 
+  .detail-navigation > :first-child {
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+
   .detail-actions {
-    gap: 6px;
+    width: auto;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .detail-actions,
+  .detail-edit-actions {
+    min-width: 0;
+  }
+
+  .detail-edit-actions {
+    gap: 8px;
+  }
+
+  .status-trigger {
+    width: 96px;
+    padding-inline: 6px;
+  }
+
+  .detail-actions :deep(.el-button) {
+    min-width: 104px;
+    padding-inline: 6px;
+    font-size: 13px;
   }
 
   .updates-side-card,

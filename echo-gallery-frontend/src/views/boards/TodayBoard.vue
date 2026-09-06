@@ -170,12 +170,17 @@ function requestNextBatch() {
   text-align: center;
 }
 @media (max-width: 768px) {
+  .today-board {
+    max-width: none;
+  }
+
   .today-page-header {
     margin-bottom: 16px;
   }
   .board-surface {
     min-height: calc(100dvh - 140px);
-    padding: 12px;
+    margin-inline: -16px;
+    padding: 12px 16px;
   }
 }
 </style>

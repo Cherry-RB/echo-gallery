@@ -232,13 +232,18 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .board-page {
+    max-width: none;
+  }
+
   .board-page-header {
     margin-bottom: 16px;
   }
 
   .board-workspace {
     min-height: calc(100dvh - 140px);
-    padding: 12px;
+    margin-inline: -16px;
+    padding: 12px 16px;
   }
 }
 </style>
