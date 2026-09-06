@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { Check, Delete, Edit, Plus, RefreshLeft, Search } from '@element-plus/icons-vue'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import type { CardDto, CardGrowthStatus, CardType } from '../../types/card'
@@ -21,6 +21,7 @@ const noteInput = ref('')
 const searchInput = ref('')
 const searchKeyword = ref('')
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+const materialPageSize = 10
 
 const cardTypeMeta: Record<CardType, string> = {
   note: '筆記',
@@ -35,23 +36,49 @@ const growthStatusMeta: Record<CardGrowthStatus, { icon: string; label: string }
 }
 
 const {
-  data: workCards,
-  isLoading: areWorkCardsLoading,
-  isError: areWorkCardsError,
-  refetch: refetchWorkCards,
-} = useQuery({
-  queryKey: computed(() => ['workCards', String(props.workId)]),
-  queryFn: () => workApi.getWorkCards(props.workId),
+  data: candidateCardPages,
+  isLoading: areCandidateCardsLoading,
+  isError: areCandidateCardsError,
+  hasNextPage: candidateHasNextPage,
+  isFetchingNextPage: isFetchingCandidateNextPage,
+  fetchNextPage: fetchNextCandidatePage,
+  refetch: refetchCandidateCards,
+} = useInfiniteQuery({
+  queryKey: computed(() => ['workCards', String(props.workId), 'CANDIDATE']),
+  queryFn: ({ pageParam }) => workApi.getWorkCards(props.workId, 'CANDIDATE', pageParam, materialPageSize),
+  initialPageParam: 0,
+  getNextPageParam: (lastPage) =>
+    lastPage.page + 1 < lastPage.totalPages ? lastPage.page + 1 : undefined,
+})
+
+const {
+  data: usedCardPages,
+  isLoading: areUsedCardsLoading,
+  isError: areUsedCardsError,
+  hasNextPage: usedHasNextPage,
+  isFetchingNextPage: isFetchingUsedNextPage,
+  fetchNextPage: fetchNextUsedPage,
+  refetch: refetchUsedCards,
+} = useInfiniteQuery({
+  queryKey: computed(() => ['workCards', String(props.workId), 'USED']),
+  queryFn: ({ pageParam }) => workApi.getWorkCards(props.workId, 'USED', pageParam, materialPageSize),
+  initialPageParam: 0,
+  getNextPageParam: (lastPage) =>
+    lastPage.page + 1 < lastPage.totalPages ? lastPage.page + 1 : undefined,
 })
 
 const candidateCards = computed(() =>
-  (workCards.value ?? []).filter((item) => item.status === 'CANDIDATE'),
+  (candidateCardPages.value?.pages ?? []).flatMap((page) => page.items),
 )
 const usedCards = computed(() =>
-  (workCards.value ?? []).filter((item) => item.status === 'USED'),
+  (usedCardPages.value?.pages ?? []).flatMap((page) => page.items),
 )
+const candidateTotal = computed(() => candidateCardPages.value?.pages[0]?.totalElements ?? 0)
+const usedTotal = computed(() => usedCardPages.value?.pages[0]?.totalElements ?? 0)
+const areWorkCardsLoading = computed(() => areCandidateCardsLoading.value || areUsedCardsLoading.value)
+const areWorkCardsError = computed(() => areCandidateCardsError.value || areUsedCardsError.value)
 const linkedCardIds = computed(() =>
-  new Set((workCards.value ?? []).map((item) => String(item.cardId))),
+  new Set([...candidateCards.value, ...usedCards.value].map((item) => String(item.cardId))),
 )
 
 watch(searchInput, (value) => {
@@ -101,6 +128,10 @@ const refreshMaterialQueries = async () => {
     queryClient.invalidateQueries({ queryKey: ['workCards', String(props.workId)] }),
     queryClient.invalidateQueries({ queryKey: ['works'] }),
   ])
+}
+
+const refetchWorkCards = async () => {
+  await Promise.all([refetchCandidateCards(), refetchUsedCards()])
 }
 
 const addCardMutation = useMutation({
@@ -195,7 +226,7 @@ const resetCardSearch = () => {
     <header class="material-heading-row">
       <div>
         <h2 id="material-heading">參考素材</h2>
-        <p>整理與這個議題有關，以及已在議事過程中實際運用的卡片</p>
+        <p>讓曾經留下的內容進入這個議題；真正影響思考、創作或行動後，再標記為已運用。</p>
       </div>
       <el-button type="primary" :icon="Plus" @click="addCardDialogVisible = true">
         加入卡片
@@ -220,13 +251,13 @@ const resetCardSearch = () => {
       <section class="material-column" aria-labelledby="candidate-heading">
         <header class="column-heading">
           <h3 id="candidate-heading">素材池</h3>
-          <el-tag type="info" round>{{ candidateCards.length }}</el-tag>
+          <el-tag type="info" round>{{ candidateTotal }}</el-tag>
         </header>
 
         <el-empty
           v-if="candidateCards.length === 0"
           :image-size="72"
-          description="目前沒有議題素材"
+          description="還沒有參考素材。可從曾經收藏的卡片中帶入不同觀點。"
         />
 
         <article v-for="card in candidateCards" :key="card.id" class="material-card">
@@ -282,18 +313,24 @@ const resetCardSearch = () => {
             </el-button>
           </div>
         </article>
+
+        <div v-if="candidateHasNextPage" class="material-load-more-row">
+          <el-button :loading="isFetchingCandidateNextPage" @click="fetchNextCandidatePage()">
+            載入更多素材
+          </el-button>
+        </div>
       </section>
 
       <section class="material-column used-column" aria-labelledby="used-heading">
         <header class="column-heading">
           <h3 id="used-heading">已運用</h3>
-          <el-tag type="success" round>{{ usedCards.length }}</el-tag>
+          <el-tag type="success" round>{{ usedTotal }}</el-tag>
         </header>
 
         <el-empty
           v-if="usedCards.length === 0"
           :image-size="72"
-          description="目前沒有已運用素材"
+          description="當一張卡片真的影響研判、決議或成果，再把它標記為已運用。"
         />
 
         <article v-for="card in usedCards" :key="card.id" class="material-card">
@@ -348,6 +385,12 @@ const resetCardSearch = () => {
             </el-button>
           </div>
         </article>
+
+        <div v-if="usedHasNextPage" class="material-load-more-row">
+          <el-button :loading="isFetchingUsedNextPage" @click="fetchNextUsedPage()">
+            載入更多已運用素材
+          </el-button>
+        </div>
       </section>
     </div>
 
@@ -390,7 +433,9 @@ const resetCardSearch = () => {
       destroy-on-close
       @closed="resetCardSearch"
     >
-      <p class="picker-description">選擇一張卡片加入素材池；已加入此議題的卡片不會重複顯示。</p>
+      <p class="picker-description">
+        從曾經保存的卡片中，選擇與這個議題相關、值得一起考慮的內容。已加入的卡片不會重複顯示。
+      </p>
 
       <el-input
         v-model="searchInput"
@@ -488,14 +533,15 @@ const resetCardSearch = () => {
 }
 
 .material-heading-row h2 {
-  font-size: 21px;
+  font-size: var(--type-section-title);
+  line-height: var(--leading-section);
 }
 
 .material-heading-row p,
 .picker-description {
   margin: 6px 0 0;
   color: var(--el-text-color-secondary);
-  font-size: 13px;
+  font-size: var(--type-caption);
 }
 
 .material-columns {
@@ -523,7 +569,7 @@ const resetCardSearch = () => {
 }
 
 .column-heading h3 {
-  font-size: 16px;
+  font-size: var(--type-card-title);
 }
 
 .material-card {
@@ -571,7 +617,7 @@ const resetCardSearch = () => {
   gap: 6px 10px;
   margin-top: 7px;
   color: var(--el-text-color-placeholder);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .growth-icon {
@@ -588,8 +634,8 @@ const resetCardSearch = () => {
 .material-note {
   margin: 10px 0 0;
   color: var(--el-text-color-secondary);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--type-caption);
+  line-height: var(--leading-ui);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -605,7 +651,7 @@ const resetCardSearch = () => {
 .note-dialog-hint {
   margin: 8px 0 0;
   color: var(--el-text-color-placeholder);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .material-actions {
@@ -654,6 +700,12 @@ const resetCardSearch = () => {
   display: flex;
   justify-content: center;
   padding-top: 18px;
+}
+
+.material-load-more-row {
+  display: flex;
+  justify-content: center;
+  padding-top: 14px;
 }
 
 @media (max-width: 800px) {

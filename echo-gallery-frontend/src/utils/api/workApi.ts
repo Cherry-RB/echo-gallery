@@ -6,7 +6,12 @@ import type {
   UpdateWorkCardNoteRequest,
   UpdateWorkRequest,
   WorkCard,
+  WorkCardPage,
+  WorkCardStatus,
   WorkDetail,
+  WorkProgressUpdate,
+  WorkProgressUpdatePage,
+  WorkProgressUpdateRequest,
   WorkSummary,
 } from '../../types/work'
 import request from './request'
@@ -44,10 +49,62 @@ export const workApi = {
     })
   },
 
-  getWorkCards(workId: ResourceId): Promise<WorkCard[]> {
+  getWorkUpdates(workId: ResourceId, page = 0, size = 5): Promise<WorkProgressUpdatePage> {
+    return request({
+      url: `/works/${workId}/updates`,
+      method: 'GET',
+      params: { page, size },
+    })
+  },
+
+  getRecentWorkUpdates(limit = 12): Promise<WorkProgressUpdate[]> {
+    return request({
+      url: '/work-updates/recent',
+      method: 'GET',
+      params: { limit },
+    })
+  },
+
+  createWorkUpdate(
+    workId: ResourceId,
+    data: WorkProgressUpdateRequest,
+  ): Promise<WorkProgressUpdate> {
+    return request({
+      url: `/works/${workId}/updates`,
+      method: 'POST',
+      data,
+    })
+  },
+
+  updateWorkUpdate(
+    workId: ResourceId,
+    updateId: ResourceId,
+    data: WorkProgressUpdateRequest,
+  ): Promise<WorkProgressUpdate> {
+    return request({
+      url: `/works/${workId}/updates/${updateId}`,
+      method: 'PUT',
+      data,
+    })
+  },
+
+  deleteWorkUpdate(workId: ResourceId, updateId: ResourceId): Promise<void> {
+    return request({
+      url: `/works/${workId}/updates/${updateId}`,
+      method: 'DELETE',
+    })
+  },
+
+  getWorkCards(
+    workId: ResourceId,
+    status: WorkCardStatus,
+    page = 0,
+    size = 10,
+  ): Promise<WorkCardPage> {
     return request({
       url: `/works/${workId}/cards`,
       method: 'GET',
+      params: { status, page, size },
     })
   },
 

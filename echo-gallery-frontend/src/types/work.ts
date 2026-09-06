@@ -6,7 +6,10 @@ export type WorkCardStatus = 'CANDIDATE' | 'USED'
 
 export interface WorkContentRequest {
   title: string
+  objective?: string | null
   description?: string | null
+  currentAssessment?: string | null
+  outcomeCriteria?: string | null
   externalUrl?: string | null
 }
 
@@ -32,19 +35,53 @@ export interface UpdateWorkCardNoteRequest {
 export interface WorkSummary {
   id: number
   title: string
+  objective: string | null
   description: string | null
+  currentAssessment: string | null
+  outcomeCriteria: string | null
   externalUrl: string | null
   status: WorkStatus
   completedAt: string | null
   updatedAt: string
+  latestProgressAt: string | null
+  latestProgressChangeSummary: string | null
+  latestProgressAssessment: string | null
+  latestProgressNextStep: string | null
   candidateCount: number
   usedCount: number
+}
+
+export interface WorkProgressUpdateRequest {
+  changeSummary?: string | null
+  assessment?: string | null
+  nextStep?: string | null
+}
+
+export interface WorkProgressUpdate {
+  id: number
+  workId: number
+  workTitle: string
+  changeSummary: string | null
+  assessment: string | null
+  nextStep: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WorkProgressUpdatePage {
+  items: WorkProgressUpdate[]
+  page: number
+  size: number
+  hasNext: boolean
 }
 
 export interface WorkDetail {
   id: number
   title: string
+  objective: string | null
   description: string | null
+  currentAssessment: string | null
+  outcomeCriteria: string | null
   status: WorkStatus
   externalUrl: string | null
   completedAt: string | null
@@ -64,6 +101,14 @@ export interface WorkCard {
   note: string | null
   linkedAt: string
   usedAt: string | null
+}
+
+export interface WorkCardPage {
+  items: WorkCard[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
 }
 
 export interface CardWork {
