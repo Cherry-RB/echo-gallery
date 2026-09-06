@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class WorkService {
 
     private final WorkRepository workRepository;
+    private final WorkCardRepository workCardRepository;
     private final WorkProgressUpdateRepository progressUpdateRepository;
     private final UserRepository userRepository;
 
@@ -90,6 +91,17 @@ public class WorkService {
         updateStatus(work, request.getStatus());
 
         return toDetailResponse(work);
+    }
+
+    @Transactional
+    public void deleteWork(Long workId) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        Work work = getOwnedWork(workId, userId);
+
+        // 議題刪除只清除其更新與素材關聯，原始卡片仍保留在收藏庫。
+        progressUpdateRepository.deleteByWorkId(workId);
+        workCardRepository.deleteByWorkId(workId);
+        workRepository.delete(work);
     }
 
     private Work getOwnedWork(Long workId, Long userId) {

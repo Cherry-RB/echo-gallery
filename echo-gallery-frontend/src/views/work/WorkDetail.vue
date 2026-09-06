@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { ArrowDown, ArrowLeft, Edit, Link } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowLeft, Delete, Edit, Link } from '@element-plus/icons-vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { FormInstance, FormRules } from 'element-plus'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import CurrentAssessmentGuide from '../../components/work/CurrentAssessmentGuide.vue'
 import ExpandableText from '../../components/work/ExpandableText.vue'
@@ -169,6 +169,22 @@ const statusMutation = useMutation({
   },
 })
 
+const deleteMutation = useMutation({
+  mutationFn: () => workApi.deleteWork(props.id),
+  onSuccess: async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['works'] }),
+      queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] }),
+      queryClient.invalidateQueries({ queryKey: ['recent-work-progress-updates'] }),
+    ])
+    ElMessage.success('議題已永久刪除')
+    router.replace({ name: 'WorkList' })
+  },
+  onError: () => {
+    ElMessage.error('刪除議題失敗，請稍後再試')
+  },
+})
+
 const changeWorkStatus = (status: WorkStatus) => {
   if (!work.value || status === work.value.status || statusMutation.isPending.value) return
   statusMutation.mutate(status)
@@ -180,6 +196,25 @@ const goBack = () => {
     return
   }
   router.push({ name: 'WorkList' })
+}
+
+const confirmDeleteWork = async () => {
+  if (!work.value || deleteMutation.isPending.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      `「${work.value.title}」及其所有議題更新、素材關聯都會永久刪除；原始卡片不會被刪除。`,
+      '永久刪除議題',
+      {
+        confirmButtonText: '永久刪除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+    deleteMutation.mutate()
+  } catch {
+    // 使用者取消刪除，不需顯示訊息。
+  }
 }
 
 const openEditDialog = (section: EditSection = 'all') => {
@@ -247,9 +282,20 @@ const submitUpdateWork = async () => {
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <el-button type="primary" plain :icon="Edit" @click="openEditDialog('all')">
-          編輯議題
-        </el-button>
+        <div class="detail-edit-actions">
+          <el-button
+            type="danger"
+            plain
+            :icon="Delete"
+            :loading="deleteMutation.isPending.value"
+            @click="confirmDeleteWork"
+          >
+            刪除議題
+          </el-button>
+          <el-button type="primary" plain :icon="Edit" @click="openEditDialog('all')">
+            編輯議題
+          </el-button>
+        </div>
       </div>
     </header>
 
@@ -531,11 +577,16 @@ const submitUpdateWork = async () => {
 .detail-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
 }
 
 .detail-actions :deep(.el-button) {
   min-width: 120px;
+}
+
+.detail-edit-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .status-select {

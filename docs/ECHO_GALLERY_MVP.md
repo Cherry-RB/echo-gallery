@@ -821,7 +821,7 @@ Work status：
 IDEA / DRAFT / ACTIVE / DONE / ARCHIVED
 ```
 
-新 Work 預設為 `IDEA`。進入 `DONE` 時記錄 `completedAt`；回到進行中的狀態時清除。第一版不提供 hard delete，以 `ARCHIVED` 表示封存。作品內容可繼續寫在 HackMD、Notion、GitHub 或其他外部工具，Echo Gallery 透過 `externalUrl` 保存入口。
+新 Work 預設為 `IDEA`。進入 `DONE` 時記錄 `completedAt`；回到進行中的狀態時清除。`ARCHIVED` 表示保留資料的封存；低頻的永久刪除會刪除 Work、其更新與素材關聯，但不刪除原始 Card。作品內容可繼續寫在 HackMD、Notion、GitHub 或其他外部工具，Echo Gallery 透過 `externalUrl` 保存入口。
 
 ##### WorkCard：Card 與 Work 的顯式關聯
 
@@ -896,6 +896,7 @@ GET  /api/works
 POST /api/works
 GET  /api/works/{id}
 PUT  /api/works/{id}
+DELETE /api/works/{id}
 
 GET    /api/works/{workId}/cards?status=CANDIDATE&page=0&size=10
 POST   /api/works/{workId}/cards
@@ -1314,6 +1315,8 @@ outcomeCriteria
 議題篩選使用兩層結構：第一層為「進行中／已完成／已封存／全部」生命週期範圍；點擊進行中時，第二層才以 Popover 顯示「所有階段／探索中／已釐清／推進中」。列表不再顯示「議題總覽」與「範圍」等可由畫面位置理解的提示文字。
 
 議題詳情桌面版平均分成兩欄。左欄以白底連續面板承擔議題整體資訊：名稱、階段軌跡、議題焦點、整體研判、背景與脈絡、結案／重議條件、相關連結與時間資訊，並以分隔線建立閱讀層級。右欄使用灰底工作區，將「最近推進」與「參考素材」各自放入白色卡片；兩欄在桌面版可獨立捲動。可直接修改的階段下拉移至頁首，與「編輯議題」並列；左側軌跡負責理解整體進程。行動版才改為上下排列，不使用不適合探索型議題的百分比進度。
+
+議題詳情頁提供低頻的「刪除議題」操作，必須先經確認對話框。`DELETE /api/works/{id}` 會永久刪除該議題、全部議題更新與 WorkCard 素材關聯，但不會刪除原始 Card；需要保留議題資料時應使用 `ARCHIVED` 封存狀態。
 
 參考素材依 `CANDIDATE` 與 `USED` 分成兩個獨立分頁來源。每欄初始取得 10 筆，可各自載入更多；單次 `size` 最多 20。API 回傳 `items`、`page`、`size`、`totalElements` 與 `totalPages`，讓畫面顯示完整數量而不一次渲染全部素材。
 

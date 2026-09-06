@@ -49,6 +49,13 @@ export const workApi = {
     })
   },
 
+  deleteWork(workId: ResourceId): Promise<void> {
+    return request({
+      url: `/works/${workId}`,
+      method: 'DELETE',
+    })
+  },
+
   getWorkUpdates(workId: ResourceId, page = 0, size = 5): Promise<WorkProgressUpdatePage> {
     return request({
       url: `/works/${workId}/updates`,

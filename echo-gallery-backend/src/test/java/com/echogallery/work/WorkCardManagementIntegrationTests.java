@@ -141,6 +141,22 @@ class WorkCardManagementIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void deleteWorkRemovesMaterialRelationsButKeepsOriginalCards() throws Exception {
+        String token = register("delete-work-card-owner", "delete-work-card-owner@example.com");
+        long workId = createWork(token, "待刪除議題");
+        long cardId = createCard(token, "仍應保留的卡片");
+        addCard(token, workId, cardId);
+
+        mockMvc.perform(delete("/api/works/{workId}", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isNoContent());
+
+        assertThat(workRepository.findById(workId)).isEmpty();
+        assertThat(workCardRepository.findByWorkIdAndCardId(workId, cardId)).isEmpty();
+        assertThat(cardRepository.findById(cardId)).isPresent();
+    }
+
+    @Test
     void anotherUserCannotRemoveRelation() throws Exception {
         String ownerToken = register("unlink-relation-owner", "unlink-relation-owner@example.com");
         String otherToken = register("unlink-relation-other", "unlink-relation-other@example.com");

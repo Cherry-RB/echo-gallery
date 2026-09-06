@@ -15,6 +15,8 @@ public interface WorkProgressUpdateRepository extends JpaRepository<WorkProgress
 
     Optional<WorkProgressUpdate> findByIdAndWorkId(Long id, Long workId);
 
+    void deleteByWorkId(Long workId);
+
     @Query("""
             SELECT progressUpdate
             FROM WorkProgressUpdate progressUpdate

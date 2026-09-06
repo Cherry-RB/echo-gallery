@@ -15,6 +15,8 @@ public interface WorkCardRepository extends JpaRepository<WorkCard, Long> {
 
     Optional<WorkCard> findByWorkIdAndCardId(Long workId, Long cardId);
 
+    void deleteByWorkId(Long workId);
+
     @EntityGraph(attributePaths = { "card", "card.tags" })
     Page<WorkCard> findByWorkIdAndStatusOrderByLinkedAtDescIdDesc(
             Long workId,

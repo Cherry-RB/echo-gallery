@@ -1,5 +1,7 @@
 package com.echogallery.work;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -34,6 +36,9 @@ class WorkManagementIntegrationTests extends IntegrationTestBase {
 
     @Autowired
     private WorkRepository workRepository;
+
+    @Autowired
+    private WorkProgressUpdateRepository progressUpdateRepository;
 
     @Autowired
     private CardRepository cardRepository;
@@ -180,6 +185,42 @@ class WorkManagementIntegrationTests extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(workUpdateJson("越權修改", "DRAFT")))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteWorkRemovesItsProgressUpdatesButKeepsOtherWorks() throws Exception {
+        String ownerToken = register("delete-work-owner", "delete-work-owner@example.com");
+        long deletedWorkId = createWork(ownerToken, "待刪除議題", null, null);
+        long retainedWorkId = createWork(ownerToken, "保留議題", null, null);
+
+        mockMvc.perform(post("/api/works/{workId}/updates", deletedWorkId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"changeSummary\":\"待移除的近況\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/works/{id}", deletedWorkId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isNoContent());
+
+        assertThat(workRepository.findById(deletedWorkId)).isEmpty();
+        assertThat(progressUpdateRepository.findByWorkIdOrderByCreatedAtDescIdDesc(
+                deletedWorkId,
+                org.springframework.data.domain.PageRequest.of(0, 1)).getContent()).isEmpty();
+        assertThat(workRepository.findById(retainedWorkId)).isPresent();
+    }
+
+    @Test
+    void anotherUserCannotDeleteWork() throws Exception {
+        String ownerToken = register("delete-owner", "delete-owner@example.com");
+        String otherToken = register("delete-other", "delete-other@example.com");
+        long workId = createWork(ownerToken, "私人議題", null, null);
+
+        mockMvc.perform(delete("/api/works/{id}", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(otherToken)))
+                .andExpect(status().isForbidden());
+
+        assertThat(workRepository.findById(workId)).isPresent();
     }
 
     @Test
