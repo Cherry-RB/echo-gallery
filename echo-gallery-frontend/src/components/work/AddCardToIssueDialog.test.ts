@@ -27,11 +27,18 @@ describe('AddCardToIssueDialog', () => {
       {
         id: 10,
         title: 'Echo Gallery 下一階段',
+        objective: null,
         description: null,
+        currentAssessment: null,
+        outcomeCriteria: null,
         externalUrl: null,
         status: 'ACTIVE',
         completedAt: null,
         updatedAt: '2026-09-05T00:00:00Z',
+        latestProgressAt: null,
+        latestProgressChangeSummary: null,
+        latestProgressAssessment: null,
+        latestProgressNextStep: null,
         candidateCount: 0,
         usedCount: 0,
       },
@@ -57,7 +64,7 @@ describe('AddCardToIssueDialog', () => {
 
     await flushPromises()
     expect(wrapper.text()).toContain('Echo Gallery 下一階段')
-    expect(wrapper.text()).toContain('議事中')
+    expect(wrapper.text()).toContain('推進中')
 
     await wrapper.find('button').trigger('click')
     await flushPromises()

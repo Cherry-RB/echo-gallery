@@ -17,10 +17,10 @@ const emit = defineEmits<{
 const queryClient = useQueryClient()
 
 const workStatusMeta: Record<WorkStatus, string> = {
-  IDEA: '構想中',
-  DRAFT: '整理中',
-  ACTIVE: '議事中',
-  DONE: '已結案',
+  IDEA: '探索中',
+  DRAFT: '已釐清',
+  ACTIVE: '推進中',
+  DONE: '已完成',
   ARCHIVED: '已封存',
 }
 
@@ -81,7 +81,9 @@ const addIssueMutation = useMutation({
     append-to-body
     destroy-on-close
   >
-    <p class="dialog-description">已加入與已封存的議題不會出現在選項中。</p>
+    <p class="dialog-description">
+      讓這張卡片進入一個正在思考的議題，成為後續研判、創作或行動的參考。已加入與已封存的議題不會重複顯示。
+    </p>
 
     <el-skeleton v-if="areIssuesLoading || areRelationsLoading" :rows="5" animated />
 
@@ -94,7 +96,7 @@ const addIssueMutation = useMutation({
     <el-empty
       v-else-if="availableIssues.length === 0"
       :image-size="72"
-      description="沒有其他可加入的議題"
+      description="目前沒有可加入的議題；可以先到議事廳發起一件正在思考的事情。"
     />
 
     <div v-else class="issue-option-list">
@@ -121,7 +123,7 @@ const addIssueMutation = useMutation({
 .dialog-description {
   margin: -8px 0 14px;
   color: var(--el-text-color-secondary);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .issue-option-list {
@@ -152,6 +154,6 @@ const addIssueMutation = useMutation({
 
 .issue-option-content span {
   color: var(--el-text-color-secondary);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 </style>

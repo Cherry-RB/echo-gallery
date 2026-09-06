@@ -19,10 +19,10 @@ const relationStatusMeta: Record<WorkCardStatus, { label: string; type: StatusTa
 }
 
 const workStatusMeta: Record<WorkStatus, string> = {
-  IDEA: '構想中',
-  DRAFT: '整理中',
-  ACTIVE: '議事中',
-  DONE: '已結案',
+  IDEA: '探索中',
+  DRAFT: '已釐清',
+  ACTIVE: '推進中',
+  DONE: '已完成',
   ARCHIVED: '已封存',
 }
 
@@ -70,7 +70,7 @@ const openWork = (workId: number) => {
     <el-empty
       v-else-if="!cardWorks?.length"
       :image-size="56"
-      description="尚未加入任何議題"
+      description="這張卡片還沒有進入任何議題"
     />
 
     <div v-else class="relation-list">
@@ -130,7 +130,7 @@ const openWork = (workId: number) => {
 .header-title {
   gap: 8px;
   color: var(--el-text-color-primary);
-  font-size: 14px;
+  font-size: var(--type-ui);
   font-weight: 600;
 }
 
@@ -164,7 +164,7 @@ const openWork = (workId: number) => {
 
 .relation-title {
   max-width: 100%;
-  font-size: 13px;
+  font-size: var(--type-caption);
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -177,7 +177,7 @@ const openWork = (workId: number) => {
 .archived-label,
 .relation-note {
   color: var(--el-text-color-secondary);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .relation-note {
