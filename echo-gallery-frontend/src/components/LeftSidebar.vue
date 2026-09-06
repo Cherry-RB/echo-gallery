@@ -13,7 +13,7 @@ import {
   Plus,
   RemoveFilled,
   CollectionTag,
-  Briefcase
+  Filter
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';
 import { storeToRefs } from 'pinia';
@@ -36,7 +36,7 @@ const userProfile = ref({
 const menuItems = [
   { name: '今日', path: '/board/today', icon: Calendar },
   { name: '全部卡片', path: '/board/all', icon: Clock },
-  { name: '議事廳', path: '/works', icon: Briefcase },
+  { name: '議事廳', path: '/works', icon: Filter },
   { name: '標籤管理', path: '/center/tag', icon: CollectionTag },
   { name: '熱門', path: '/board/hot', icon: Star },
   { name: '隨機', path: '/board/random', icon: Refresh },
@@ -63,7 +63,7 @@ const openQuickCreate = () => {
       <h2 class="brand-title">EchoGallery</h2>
     </div>
 
-    <el-button type="primary" size="large" :icon="Plus" class="create-card-btn" style="font-size: 20px;height: 50px;" @click="openQuickCreate">
+    <el-button type="primary" size="large" :icon="Plus" class="create-card-btn" @click="openQuickCreate">
       新建卡片
     </el-button>
 
@@ -82,7 +82,7 @@ const openQuickCreate = () => {
           <component :is="item.icon"/>
         </el-icon>
         <template #title>
-          <span style="font-size: 18px; margin-left: 10px;">{{ item.name }}</span>
+          <span class="menu-label">{{ item.name }}</span>
         </template>
       </el-menu-item>
     </el-menu>
@@ -171,7 +171,7 @@ const openQuickCreate = () => {
   margin-bottom: 20px;
 }
 .brand-title {
-  font-size: 20px;
+  font-size: var(--type-section-title);
   margin: 0;
   font-weight: 600;
 }
@@ -216,7 +216,7 @@ const openQuickCreate = () => {
   min-width: 0;
 }
 .username {
-  font-size: 14px;
+  font-size: var(--type-ui);
   font-weight: 600;
   color: var(--el-text-color-primary);
   display: block;
@@ -226,7 +226,7 @@ const openQuickCreate = () => {
   white-space: nowrap;
 }
 .user-title {
-  font-size: 11px;
+  font-size: var(--type-meta);
   color: var(--el-text-color-placeholder);
   margin-top: 1px;
 }
@@ -240,10 +240,17 @@ const openQuickCreate = () => {
 /* 新建卡片按鈕樣式 */
 .create-card-btn {
   width: 100%;
+  height: 44px;
+  font-size: var(--type-ui);
   font-weight: 600;
   letter-spacing: 1px;
   box-shadow: var(--el-box-shadow-light);
   margin-bottom: 12px;
+}
+
+.menu-label {
+  margin-left: 10px;
+  font-size: var(--type-body);
 }
 
 .sidebar-menu-el {
@@ -260,7 +267,7 @@ const openQuickCreate = () => {
   text-align: center;
 }
 .version-text {
-  font-size: 12px;
+  font-size: var(--type-meta);
   color: var(--el-text-color-secondary);
 }
 </style>

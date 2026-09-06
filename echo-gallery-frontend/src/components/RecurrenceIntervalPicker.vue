@@ -107,7 +107,7 @@ const applyCustomInterval = () => {
   flex-direction: column;
   gap: 14px;
   font-family: var(--el-font-family);
-  font-size: 14px;
+  font-size: var(--type-ui);
 }
 
 .picker-section {
@@ -118,7 +118,7 @@ const applyCustomInterval = () => {
 
 .section-label {
   color: var(--el-text-color-secondary);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .interval-grid,
@@ -136,7 +136,7 @@ const applyCustomInterval = () => {
   background: var(--el-bg-color);
   color: var(--el-text-color-regular);
   font-family: var(--el-font-family);
-  font-size: 14px;
+  font-size: var(--type-ui);
   line-height: 1.4;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
@@ -169,7 +169,7 @@ const applyCustomInterval = () => {
   width: 100%;
 }
 .custom-row :deep(.el-input__inner) {
-  font-size: 14px;
+  font-size: var(--type-ui);
 }
 
 .pause-action {

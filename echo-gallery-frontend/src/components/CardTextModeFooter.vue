@@ -132,7 +132,7 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
   display: flex;
   justify-content: space-between;
   color: var(--el-text-color-secondary);
-  font-size: 12px;
+  font-size: var(--type-meta);
   gap: 20px; /* 確保左右區塊中間至少有間距 */
 }
 .tag-container{
@@ -160,8 +160,8 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
 }
 .card-body-content {
   color: var(--el-text-color-regular);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
   /* 即使不顯示圖片，也可以限制文字行數，讓卡片整齊 */
   /* display: -webkit-box; */
   /* -webkit-line-clamp: 3;  */
@@ -173,6 +173,8 @@ const getLikeAvailableStatus = (likeAvailableAt: string) => {
   /* word-break: break-all;  */
 }
 .title-text{
+  font-size: var(--type-card-title);
+  line-height: var(--leading-section);
   font-weight: 600;
   text-align: left;
   color: var(--el-text-color-primary);

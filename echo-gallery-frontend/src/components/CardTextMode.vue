@@ -414,7 +414,7 @@ const deleteCard = async () => {
   justify-content: space-between;
   align-items: center;
   color: var(--el-text-color-secondary);
-  font-size: 12px;
+  font-size: var(--type-meta);
   gap: 20px; /* 確保左右區塊中間至少有間距 */
   /* margin-top: 15px; */
 }
@@ -428,7 +428,7 @@ const deleteCard = async () => {
   min-width: 0;
   margin: -5px 0 8px;
   color: var(--el-text-color-placeholder);
-  font-size: 11px;
+  font-size: var(--type-meta);
 }
 .card-preview {
   min-width: 0;
@@ -442,7 +442,7 @@ const deleteCard = async () => {
   border: 0;
   background: transparent;
   color: inherit;
-  font-size: 11px;
+  font-size: var(--type-meta);
   cursor: pointer;
 }
 .recurrence-trigger:hover {
@@ -457,12 +457,12 @@ const deleteCard = async () => {
 }
 .recurrence-static {
   color: var(--el-text-color-secondary);
-  font-size: 11px;
+  font-size: var(--type-meta);
   white-space: nowrap;
 }
 .recurrence-exception {
   color: var(--el-color-warning-dark-2);
-  font-size: 11px;
+  font-size: var(--type-meta);
   white-space: nowrap;
 }
 .tag-container{
@@ -491,7 +491,7 @@ const deleteCard = async () => {
 .card-id {
   margin-left: auto;
   color: var(--el-text-color-placeholder);
-  font-size: 11px;
+  font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
   line-height: 16px;
   white-space: nowrap;
@@ -504,7 +504,8 @@ const deleteCard = async () => {
 }
 .card-body-content {
   color: var(--el-text-color-regular);
-  font-size: 14px;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
   /* line-height: 1.5; */
   /* 即使不顯示圖片，也可以限制文字行數，讓卡片整齊 */
   /* display: -webkit-box; */
@@ -526,7 +527,7 @@ const deleteCard = async () => {
   max-width: 100%;
   padding: 0;
   color: var(--el-text-color-placeholder);
-  font-size: 13px;
+  font-size: var(--type-caption);
 }
 .source-link :deep(span) {
   min-width: 0;
@@ -543,6 +544,8 @@ const deleteCard = async () => {
   outline: none; /* 關鍵：移除點擊或聚焦時的黑色外框 */
 }
 .title-text{
+  font-size: var(--type-card-title);
+  line-height: var(--leading-section);
   font-weight: 600;
   text-align: left;
   color: var(--el-text-color-primary);
@@ -625,8 +628,8 @@ const deleteCard = async () => {
   background: color-mix(in srgb, var(--el-bg-color-overlay) 62%, transparent);
   backdrop-filter: blur(1px);
 
-  font-size: 18px;
-  font-weight: bold;
+  font-size: var(--type-prominent);
+  font-weight: 600;
 
   z-index: 20;
 

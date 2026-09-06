@@ -120,45 +120,46 @@ onUnmounted(() => {
         <!-- <el-switch v-model="isTextMode" active-text="Text" inactive-text="Gallery" /> -->
     <!-- </div> -->
 
-  <section>
-    <header class="board-header">
-      <h1 style="text-align: center;margin: 10px;">{{ title }}</h1>
+  <section class="board-page">
+    <header class="board-page-header">
+      <h1 class="board-page-title">{{ title }}</h1>
       <p v-if="description" class="board-description">{{ description }}</p>
     </header>
 
-    <div v-if="isLoading && cardList.length === 0">
-      載入中...
-    </div>
+    <div class="board-workspace">
+      <div v-if="isLoading && cardList.length === 0" class="board-state">
+        載入中...
+      </div>
 
-    <div v-else-if="error">
-      載入失敗，請稍後再試
-    </div>
+      <div v-else-if="error" class="board-state">
+        載入失敗，請稍後再試
+      </div>
 
-    <div v-else-if="cardList.length === 0">
-      目前沒有卡片
-    </div>
+      <div v-else-if="cardList.length === 0" class="board-state">
+        目前沒有卡片
+      </div>
 
-
-    <div class="feed-container" v-else>
-      <masonry-wall
-      :items="cardList"
-      :column-width="270"
-      :gap="20">
-        <template #default="{item}">
-          <CardItem
-          :data="item"
-          :viewMode="viewMode"
-          :board-type="boardType"
-          @open-detail="handleOpenDetail"
-          ></CardItem>
-        </template>
-      </masonry-wall>
-    </div>
-    <!-- 載入中提示 -->
-    <div ref="triggerRef" class="loading-trigger">
-        <p v-if="isLoading" class="loading-text">正在初始化卡片...</p>
-        <p v-else-if="isFetchingNextPage" class="loading-text">更多卡片載入中...</p>
-        <p v-else-if="!hasNextPage && cardList.length > 0" class="loading-text">🎉 已經看完全部卡片囉！</p>
+      <div class="feed-container" v-else>
+        <masonry-wall
+        :items="cardList"
+        :column-width="270"
+        :gap="12">
+          <template #default="{item}">
+            <CardItem
+            :data="item"
+            :viewMode="viewMode"
+            :board-type="boardType"
+            @open-detail="handleOpenDetail"
+            ></CardItem>
+          </template>
+        </masonry-wall>
+      </div>
+      <!-- 載入中提示 -->
+      <div ref="triggerRef" class="loading-trigger">
+          <p v-if="isLoading" class="loading-text">正在初始化卡片...</p>
+          <p v-else-if="isFetchingNextPage" class="loading-text">更多卡片載入中...</p>
+          <p v-else-if="!hasNextPage && cardList.length > 0" class="loading-text">🎉 已經看完全部卡片囉！</p>
+      </div>
     </div>
 
     <!-- 置頂按鈕 -->
@@ -168,10 +169,37 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.feed-container{
-    padding: 20px;
-    background-color: var(--el-bg-color-page);
-    min-height: 100vh;
+.board-page {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.board-page-header {
+  margin-bottom: 24px;
+}
+
+.board-page-title {
+  margin: 0;
+  font-size: var(--type-page-title);
+  line-height: 1.35;
+}
+
+.board-description {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-ui);
+  line-height: var(--leading-ui);
+}
+
+.board-workspace {
+  min-height: calc(100dvh - 160px);
+  padding: 12px;
+  background: var(--el-bg-color-page);
+}
+
+.feed-container {
+    min-width: 0;
 }
 
 /* 💡 5. 瀑布流單欄：直向排列卡片 */
@@ -179,7 +207,7 @@ onUnmounted(() => {
     flex: 1;           /* 讓每一欄平均分配寬度 */
     display: flex;
     flex-direction: column;
-    gap: 20px;         /* 卡片與卡片之間的上下間距 */
+    gap: 12px;         /* 卡片與卡片之間的上下間距 */
     min-width: 0;      /* 防止內容意外撐開 Flex 項目 */
 }
 .loading-text {
@@ -187,8 +215,11 @@ onUnmounted(() => {
   padding: 20px;
   color: var(--el-text-color-secondary);
 }
-.board-description {
-  margin: 15px;
+.board-state {
+  display: flex;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
   color: var(--el-text-color-secondary);
   text-align: center;
 }
@@ -198,5 +229,16 @@ onUnmounted(() => {
     width: 100%;
     display: flex;
     justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .board-page-header {
+    margin-bottom: 16px;
+  }
+
+  .board-workspace {
+    min-height: calc(100dvh - 140px);
+    padding: 12px;
+  }
 }
 </style>

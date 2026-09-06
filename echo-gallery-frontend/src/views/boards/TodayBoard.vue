@@ -74,9 +74,9 @@ function requestNextBatch() {
 
 <template>
   <section class="today-board">
-    <header class="board-header">
-      <h1>今日回流</h1>
-      <p>看看今天與哪些卡片再次相遇。</p>
+    <header class="today-page-header">
+      <h1 class="today-page-title">今日回流</h1>
+      <p class="today-page-description">看看今天與哪些卡片再次相遇。</p>
     </header>
 
     <div class="board-surface">
@@ -92,7 +92,7 @@ function requestNextBatch() {
       </el-result>
 
       <template v-else>
-        <masonry-wall v-if="cards.length" :items="cards" :column-width="270" :gap="20">
+        <masonry-wall v-if="cards.length" :items="cards" :column-width="270" :gap="12">
           <template #default="{ item }">
             <CardItem
               :data="item"
@@ -129,22 +129,27 @@ function requestNextBatch() {
 <style scoped>
 .today-board {
   width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
 }
-.board-header {
-  padding: 10px 16px 18px;
-  text-align: center;
+.today-page-header {
+  margin-bottom: 24px;
 }
-.board-header h1 {
-  margin: 0 0 10px;
-}
-.board-header p {
+.today-page-title {
   margin: 0;
+  font-size: var(--type-page-title);
+  line-height: 1.35;
+}
+.today-page-description {
+  margin: 8px 0 0;
   color: var(--el-text-color-secondary);
+  font-size: var(--type-ui);
+  line-height: var(--leading-ui);
 }
 .board-surface {
-  padding: 20px;
-  border-radius: 12px;
-  background: var(--el-fill-color-extra-light);
+  min-height: calc(100dvh - 160px);
+  padding: 12px;
+  background: var(--el-bg-color-page);
 }
 .state-message {
   display: flex;
@@ -165,10 +170,11 @@ function requestNextBatch() {
   text-align: center;
 }
 @media (max-width: 768px) {
-  .board-header {
-    padding-inline: 8px;
+  .today-page-header {
+    margin-bottom: 16px;
   }
   .board-surface {
+    min-height: calc(100dvh - 140px);
     padding: 12px;
   }
 }

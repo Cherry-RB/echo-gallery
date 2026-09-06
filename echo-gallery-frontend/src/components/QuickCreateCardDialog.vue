@@ -223,7 +223,7 @@ const submit = async () => {
 .dialog-description {
   margin: -8px 0 20px;
   color: var(--el-text-color-secondary);
-  font-size: 14px;
+  font-size: var(--type-ui);
   line-height: 1.6;
 }
 
@@ -268,7 +268,7 @@ const submit = async () => {
 
 .optional-label {
   margin-right: 6px;
-  font-size: 13px;
+  font-size: var(--type-caption);
   color: var(--el-text-color-secondary);
 }
 

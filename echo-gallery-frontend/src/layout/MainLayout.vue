@@ -171,7 +171,7 @@ watch(() => route.path, () => {
     justify-self: end;
   }
   .mobile-brand .brand-title {
-    font-size: 18px;
+    font-size: var(--type-section-title);
     margin: 0;
     font-weight: 600;
     color: var(--el-text-color-primary);

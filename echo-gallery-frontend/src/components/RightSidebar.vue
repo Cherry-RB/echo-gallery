@@ -135,13 +135,13 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--type-ui);
   color: var(--el-text-color-regular);
   margin: 0 0 16px 4px;
   font-weight: 600;
 }
 .section-title .el-icon {
-  font-size: 16px;
+  font-size: var(--type-prominent);
   color: var(--el-text-color-secondary);
 }
 
@@ -167,7 +167,7 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
 
 .overview-label {
   margin-bottom: 8px;
-  font-size: 11px;
+  font-size: var(--type-meta);
   color: var(--el-text-color-secondary);
 }
 
@@ -184,7 +184,7 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
   gap: 2px;
   padding: 6px 4px;
   border-radius: 6px;
-  font-size: 18px;
+  font-size: var(--type-prominent);
   font-weight: 700;
   line-height: 1.2;
   outline: none;
@@ -207,13 +207,13 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
 }
 
 .stat-value {
-  font-size: 22px;
+  font-size: var(--type-section-title);
   font-weight: 700;
   color: var(--el-text-color-primary);
   line-height: 1.2;
 }
 .stat-label {
-  font-size: 11px;
+  font-size: var(--type-meta);
   color: var(--el-text-color-secondary);
   margin-top: 4px;
 }
@@ -241,7 +241,7 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
   justify-content: center;
   width: 20px;
   height: 20px;
-  font-size: 11px;
+  font-size: var(--type-meta);
   font-weight: bold;
   border-radius: 50%;
   background: var(--el-fill-color-darker);
@@ -258,7 +258,7 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
   font-weight: 500;
 }
 .tag-count-text {
-  font-size: 13px;
+  font-size: var(--type-caption);
   color: var(--el-text-color-secondary);
 }
 

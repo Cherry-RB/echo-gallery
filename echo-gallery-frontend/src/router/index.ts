@@ -97,12 +97,12 @@ const routes = [
       component: () => import('../views/center/TagCenter.vue')
     },
     {
-      path: 'works', // 作品列表
+      path: 'works', // 議事廳（技術路由暫時沿用 works）
       name: 'WorkList',
       component: () => import('../views/work/WorkList.vue')
     },
     {
-      path: 'works/:id', // 作品詳情
+      path: 'works/:id', // 議題詳情（技術路由暫時沿用 works）
       name: 'WorkDetail',
       component: () => import('../views/work/WorkDetail.vue'),
       props: true

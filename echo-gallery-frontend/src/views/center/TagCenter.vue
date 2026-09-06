@@ -382,7 +382,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--el-text-color-primary);
   margin: 0;
@@ -407,7 +407,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 }
 .divider {
   color: var(--el-border-color);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 /* 標籤清單與滾動條 */
@@ -453,14 +453,14 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 }
 .tag-name {
   color: var(--el-text-color-regular);
-  font-size: 13px;
+  font-size: var(--type-caption);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tag-count {
   color: var(--el-text-color-secondary);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .more-action-btn {
@@ -482,7 +482,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 .empty-tip {
   text-align: center;
   color: var(--el-text-color-secondary);
-  font-size: 13px;
+  font-size: var(--type-caption);
   margin-top: 24px;
 }
 
@@ -512,19 +512,19 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   flex-wrap: wrap;
 }
 .status-label {
-  font-size: 13px;
+  font-size: var(--type-caption);
   color: var(--el-text-color-secondary);
   font-weight: 500;
 }
 .no-selection-text {
-  font-size: 13px;
+  font-size: var(--type-caption);
   color: var(--el-text-color-placeholder);
 }
 .active-filter-tag {
   font-weight: 500;
 }
 .operator-badge {
-  font-size: 12px;
+  font-size: var(--type-meta);
   font-weight: bold;
   color: var(--el-color-primary);
   background: var(--el-color-primary-light-9);
@@ -532,7 +532,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   border-radius: 4px;
 }
 .result-count {
-  font-size: 13px;
+  font-size: var(--type-caption);
   color: var(--el-text-color-secondary);
 }
 
@@ -569,7 +569,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 }
 .dialog-tip {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--type-caption);
   color: var(--el-text-color-secondary);
 }
 
