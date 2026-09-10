@@ -5,9 +5,11 @@ const props = withDefaults(defineProps<{
   modelValue: number | null
   loading?: boolean
   showPause?: boolean
+  showIncrements?: boolean
 }>(), {
   loading: false,
   showPause: false,
+  showIncrements: true,
 })
 
 const emit = defineEmits<{
@@ -58,7 +60,7 @@ const applyCustomInterval = () => {
       </div>
     </section>
 
-    <section class="picker-section">
+    <section v-if="showIncrements" class="picker-section">
       <span class="section-label">延長目前週期</span>
       <div class="increment-grid">
         <button

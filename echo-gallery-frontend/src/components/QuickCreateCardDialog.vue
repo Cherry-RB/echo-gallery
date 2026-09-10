@@ -1,33 +1,39 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import type { FormInstance } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import { getDefaultCardData } from '../mock-data/card-default-new'
 import { createCardFormRules, toCardContentRequest } from '../utils/cardForm'
 import { cardTextFieldCopy } from '../utils/cardTextFieldCopy'
 import { useTags } from '../utils/composables/useTags'
 import { useCardStatus } from '../utils/useCardStatus'
+import RecurrenceIntervalPicker from './RecurrenceIntervalPicker.vue'
 
-const props = defineProps<{
-  modelValue: boolean
-}>()
-
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-}>()
-
+const props = defineProps<{ modelValue: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 type OptionalField = 'reason' | 'summary' | 'content' | 'coverImageUrl'
 
 const cardFormRef = ref<FormInstance>()
 const cardData = ref(getDefaultCardData())
 const visibleOptionalFields = ref<OptionalField[]>([])
 const titleInputRef = ref<{ focus: () => void }>()
+const createdCardId = ref<string | null>(null)
+const router = useRouter()
 const dialogVisible = computed({
   get: () => props.modelValue,
   set: value => emit('update:modelValue', value),
 })
 const rules = createCardFormRules(cardData)
-const { existingTags, isTagsLoading } = useTags(cardData)
+const {
+  tagPopoverVisible,
+  tagSearchQuery,
+  filteredExistingTags,
+  handleToggleSelectTag,
+  handleCloseTag,
+  handleConfirmAddTag,
+} = useTags(cardData)
 const { handleCreateCard, isCreatePending } = useCardStatus()
 
 const optionalFields: Array<{ key: OptionalField; label: string }> = [
@@ -38,31 +44,103 @@ const optionalFields: Array<{ key: OptionalField; label: string }> = [
 ]
 
 const showOptionalField = (field: OptionalField) => {
-  if (!visibleOptionalFields.value.includes(field)) {
-    visibleOptionalFields.value.push(field)
-  }
+  if (!visibleOptionalFields.value.includes(field)) visibleOptionalFields.value.push(field)
 }
 
 const resetForm = () => {
   cardData.value = getDefaultCardData()
   visibleOptionalFields.value = []
+  tagPopoverVisible.value = false
+  tagSearchQuery.value = ''
+  createdCardId.value = null
   cardFormRef.value?.clearValidate()
 }
 
-const handleOpened = () => {
+const handleOpened = () => nextTick(() => titleInputRef.value?.focus())
+
+const isHttpUrl = (value: string) => {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+const handleTitlePaste = (event: ClipboardEvent) => {
+  const pastedText = event.clipboardData?.getData('text/plain').trim() ?? ''
+  if (!isHttpUrl(pastedText)) return
+  event.preventDefault()
+  cardData.value.type = 'link'
+  cardData.value.url = pastedText
+}
+
+const selectRecurrence = (intervalDays: number) => {
+  cardData.value.intervalDays = intervalDays
+}
+
+const pauseRecurrence = () => {
+  cardData.value.intervalDays = null
+}
+
+const hasUnsavedChanges = computed(() => {
+  const defaultCard = getDefaultCardData()
+  return cardData.value.type !== defaultCard.type
+    || cardData.value.title.trim() !== ''
+    || cardData.value.url?.trim() !== ''
+    || cardData.value.reason?.trim() !== ''
+    || cardData.value.summary?.trim() !== ''
+    || cardData.value.content?.trim() !== ''
+    || cardData.value.coverImageUrl?.trim() !== ''
+    || cardData.value.intervalDays !== defaultCard.intervalDays
+    || cardData.value.tags.length > 0
+})
+
+const confirmDiscard = () => ElMessageBox.confirm(
+  '尚有未建立的卡片內容，確定要放棄嗎？',
+  '放棄新增',
+  { confirmButtonText: '放棄內容', cancelButtonText: '繼續編輯', type: 'warning' },
+)
+
+const requestClose = async () => {
+  if (isCreatePending.value || createdCardId.value || !hasUnsavedChanges.value) {
+    dialogVisible.value = false
+    return
+  }
+  try {
+    await confirmDiscard()
+    dialogVisible.value = false
+  } catch {
+    // 使用者選擇繼續編輯時維持彈窗開啟。
+  }
+}
+
+const handleBeforeClose = (done: () => void) => {
+  if (isCreatePending.value || createdCardId.value || !hasUnsavedChanges.value) {
+    done()
+    return
+  }
+  confirmDiscard().then(() => done()).catch(() => undefined)
+}
+
+const createAnother = () => {
+  resetForm()
   nextTick(() => titleInputRef.value?.focus())
+}
+
+const viewCreatedCard = () => {
+  if (!createdCardId.value) return
+  const cardId = createdCardId.value
+  dialogVisible.value = false
+  router.push({ name: 'CardDetail', params: { id: cardId } })
 }
 
 const submit = async () => {
   if (!cardFormRef.value) return
-
   const valid = await cardFormRef.value.validate().catch(() => false)
   if (!valid) return
-
   handleCreateCard(toCardContentRequest(cardData.value), {
-    onSuccess: () => {
-      dialogVisible.value = false
-    },
+    onSuccess: card => { createdCardId.value = card.id },
   })
 }
 </script>
@@ -71,219 +149,159 @@ const submit = async () => {
   <el-dialog
     v-model="dialogVisible"
     title="快速新增卡片"
-    width="min(680px, calc(100vw - 32px))"
+    width="min(620px, calc(100vw - 32px))"
     class="quick-create-dialog"
     destroy-on-close
     append-to-body
+    :before-close="handleBeforeClose"
     @opened="handleOpened"
     @closed="resetForm"
   >
-    <p class="dialog-description">
-      先留下最重要的內容，其餘資訊可以現在補充，也可以之後再慢慢完善。
-    </p>
+    <template v-if="createdCardId">
+      <div class="create-success">
+        <h3>卡片已建立</h3>
+        <p>你可以立即查看卡片，或繼續記下下一則內容。</p>
+      </div>
+    </template>
 
-    <el-form
-      ref="cardFormRef"
-      :model="cardData"
-      :rules="rules"
-      label-position="top"
-      @submit.prevent
-    >
-      <div class="identity-row">
-        <el-form-item label="卡片類型" prop="type" class="type-field">
+    <template v-else>
+      <p class="dialog-description">先留下最重要的內容，其餘資訊可以現在補充，也可以之後再慢慢完善。</p>
+      <el-form
+        ref="cardFormRef"
+        :model="cardData"
+        :rules="rules"
+        label-position="top"
+        @submit.prevent
+        @keydown.ctrl.enter.prevent="submit"
+        @keydown.meta.enter.prevent="submit"
+      >
+        <el-form-item label="卡片類型" prop="type">
           <el-radio-group v-model="cardData.type">
             <el-radio-button label="note">筆記</el-radio-button>
             <el-radio-button label="link">連結</el-radio-button>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="回流週期" prop="intervalDays" class="interval-field">
-          <el-input-number
-            v-model="cardData.intervalDays"
-            :min="1"
-            :max="365"
-            controls-position="right"
+        <el-form-item label="回流安排" prop="intervalDays" class="recurrence-field">
+          <RecurrenceIntervalPicker
+            :model-value="cardData.intervalDays"
+            :show-increments="false"
+            show-pause
+            @select="selectRecurrence"
+            @pause="pauseRecurrence"
           />
-          <span class="interval-unit">天</span>
         </el-form-item>
-      </div>
 
-      <el-form-item label="標題" prop="title">
-        <el-input
-          ref="titleInputRef"
-          v-model="cardData.title"
-          maxlength="255"
-          show-word-limit
-          placeholder="先記下這張卡片的核心想法"
-        />
-      </el-form-item>
-
-      <el-form-item v-if="cardData.type === 'link'" label="來源網址" prop="url">
-        <el-input v-model="cardData.url" placeholder="https://..." clearable />
-      </el-form-item>
-
-      <el-form-item label="標籤" prop="tags">
-        <el-select
-          v-model="cardData.tags"
-          multiple
-          filterable
-          allow-create
-          default-first-option
-          :multiple-limit="10"
-          :loading="isTagsLoading"
-          placeholder="選擇既有標籤，或直接輸入新標籤"
-          class="tag-select"
-        >
-          <el-option
-            v-for="tag in existingTags ?? []"
-            :key="tag.id"
-            :label="tag.name"
-            :value="tag.name"
+        <el-form-item label="標題" prop="title">
+          <el-input
+            ref="titleInputRef"
+            v-model="cardData.title"
+            maxlength="255"
+            show-word-limit
+            placeholder="先記下這張卡片的核心想法"
+            @paste="handleTitlePaste"
           />
-        </el-select>
-      </el-form-item>
+        </el-form-item>
 
-      <div class="optional-field-actions">
-        <span class="optional-label">按需補充</span>
-        <el-button
-          v-for="field in optionalFields"
-          v-show="!visibleOptionalFields.includes(field.key)"
-          :key="field.key"
-          text
-          type="primary"
-          :icon="Plus"
-          @click="showOptionalField(field.key)"
-        >
-          {{ field.label }}
-        </el-button>
-      </div>
+        <el-form-item v-if="cardData.type === 'link'" label="來源連結" prop="url">
+          <el-input v-model="cardData.url" placeholder="https://..." clearable />
+        </el-form-item>
 
-      <el-form-item
-        v-if="visibleOptionalFields.includes('reason')"
-        :label="cardTextFieldCopy.reason.label"
-        prop="reason"
-      >
-        <el-input
-          v-model="cardData.reason"
-          type="textarea"
-          :rows="2"
-          maxlength="300"
-          show-word-limit
-          :placeholder="cardTextFieldCopy.reason.placeholder"
-        />
-      </el-form-item>
+        <el-form-item label="標籤" prop="tags" class="tags-field">
+          <div class="tag-editor">
+            <el-tag v-for="tag in cardData.tags" :key="tag" type="info" size="small" effect="plain" closable @close="handleCloseTag(tag)">
+              #{{ tag }}
+            </el-tag>
+            <el-popover v-model:visible="tagPopoverVisible" placement="bottom-start" :width="280" trigger="click">
+              <template #reference>
+                <el-button size="small" class="button-new-tag"><el-icon><Plus /></el-icon> 新增標籤</el-button>
+              </template>
+              <div class="tag-popover-content">
+                <div class="tag-input-group">
+                  <el-input v-model="tagSearchQuery" placeholder="加上標籤或搜尋..." size="small" clearable @keyup.enter="handleConfirmAddTag" />
+                  <el-button type="primary" size="small" @click="handleConfirmAddTag">新增</el-button>
+                </div>
+                <div class="existing-tags-section">
+                  <div class="popover-subtitle">既有標籤（點選切換）</div>
+                  <div class="popover-tags-list">
+                    <el-tag
+                      v-for="tag in filteredExistingTags"
+                      :key="tag.id"
+                      size="small"
+                      :effect="cardData.tags.includes(tag.name) ? 'dark' : 'plain'"
+                      class="clickable-popover-tag"
+                      @click="handleToggleSelectTag(tag.name)"
+                    >{{ tag.name }}</el-tag>
+                    <div v-if="filteredExistingTags.length === 0" class="no-tag-tip">尚無符合的既有標籤</div>
+                  </div>
+                </div>
+              </div>
+            </el-popover>
+          </div>
+        </el-form-item>
 
-      <el-form-item
-        v-if="visibleOptionalFields.includes('summary')"
-        :label="cardTextFieldCopy.summary.label"
-        prop="summary"
-      >
-        <el-input
-          v-model="cardData.summary"
-          type="textarea"
-          :rows="3"
-          maxlength="600"
-          show-word-limit
-          :placeholder="cardTextFieldCopy.summary.placeholder"
-        />
-      </el-form-item>
+        <div class="optional-field-actions">
+          <span class="optional-label">按需補充</span>
+          <el-button
+            v-for="field in optionalFields"
+            v-show="!visibleOptionalFields.includes(field.key)"
+            :key="field.key"
+            text type="primary" :icon="Plus" @click="showOptionalField(field.key)"
+          >{{ field.label }}</el-button>
+        </div>
 
-      <el-form-item
-        v-if="visibleOptionalFields.includes('content')"
-        :label="cardTextFieldCopy.content.label"
-        prop="content"
-      >
-        <el-input
-          v-model="cardData.content"
-          type="textarea"
-          :rows="6"
-          :placeholder="cardTextFieldCopy.content.placeholder"
-        />
-      </el-form-item>
-
-      <el-form-item
-        v-if="visibleOptionalFields.includes('coverImageUrl')"
-        label="封面圖片網址"
-        prop="coverImageUrl"
-      >
-        <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
-      </el-form-item>
-    </el-form>
+        <el-form-item v-if="visibleOptionalFields.includes('reason')" :label="cardTextFieldCopy.reason.label" prop="reason">
+          <el-input v-model="cardData.reason" type="textarea" :rows="2" maxlength="300" show-word-limit :placeholder="cardTextFieldCopy.reason.placeholder" />
+        </el-form-item>
+        <el-form-item v-if="visibleOptionalFields.includes('summary')" :label="cardTextFieldCopy.summary.label" prop="summary">
+          <el-input v-model="cardData.summary" type="textarea" :rows="3" maxlength="600" show-word-limit :placeholder="cardTextFieldCopy.summary.placeholder" />
+        </el-form-item>
+        <el-form-item v-if="visibleOptionalFields.includes('content')" :label="cardTextFieldCopy.content.label" prop="content">
+          <el-input v-model="cardData.content" type="textarea" :rows="6" :placeholder="cardTextFieldCopy.content.placeholder" />
+        </el-form-item>
+        <el-form-item v-if="visibleOptionalFields.includes('coverImageUrl')" label="封面圖片來源連結" prop="coverImageUrl">
+          <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
+        </el-form-item>
+      </el-form>
+    </template>
 
     <template #footer>
-      <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="isCreatePending" @click="submit">
-        建立卡片
-      </el-button>
+      <template v-if="createdCardId">
+        <el-button @click="createAnother">繼續新增</el-button>
+        <el-button type="primary" @click="viewCreatedCard">查看卡片</el-button>
+      </template>
+      <template v-else>
+        <el-button @click="requestClose">取消</el-button>
+        <el-button type="primary" :loading="isCreatePending" @click="submit">建立卡片</el-button>
+      </template>
     </template>
   </el-dialog>
 </template>
 
 <style scoped>
-.dialog-description {
-  margin: -8px 0 20px;
-  color: var(--el-text-color-secondary);
-  font-size: var(--type-ui);
-  line-height: 1.6;
-}
-
-.identity-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.type-field {
-  flex: 1;
-}
-
-.interval-field {
-  width: 170px;
-}
-
-.interval-field :deep(.el-form-item__content) {
-  flex-wrap: nowrap;
-}
-
-.interval-unit {
-  margin-left: 8px;
-  color: var(--el-text-color-secondary);
-}
-
-.tag-select {
-  width: 100%;
-}
-
-.optional-field-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px 4px;
-  padding: 10px 12px;
-  margin-bottom: 18px;
-  border-radius: 8px;
-  background: var(--el-fill-color-light);
-}
-
-.optional-label {
-  margin-right: 6px;
-  font-size: var(--type-caption);
-  color: var(--el-text-color-secondary);
-}
-
+.dialog-description { margin: -8px 0 20px; color: var(--el-text-color-secondary); font-size: var(--type-ui); line-height: 1.6; }
+.recurrence-field :deep(.el-form-item__content) { display: block; }
+.recurrence-field :deep(.recurrence-picker) { width: 100%; }
+.tags-field :deep(.el-form-item__content) { display: block; }
+.tag-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 28px; }
+.button-new-tag { height: 24px; padding-top: 0; padding-bottom: 0; }
+.tag-input-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; width: 100%; }
+.tag-input-group :deep(.el-input) { min-width: 0; }
+.tag-input-group :deep(.el-button) { white-space: nowrap; }
+.existing-tags-section { margin-top: 12px; }
+.popover-subtitle, .no-tag-tip { color: var(--el-text-color-secondary); font-size: var(--type-caption); }
+.popover-tags-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.clickable-popover-tag { cursor: pointer; }
+.optional-field-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 4px; padding: 10px 12px; margin-bottom: 18px; border-radius: 8px; background: var(--el-fill-color-light); }
+.optional-label { margin-right: 6px; font-size: var(--type-caption); color: var(--el-text-color-secondary); }
+.create-success { padding: 12px 0 4px; }
+.create-success h3 { margin: 0 0 8px; color: var(--el-text-color-primary); font-size: var(--type-title-sm); }
+.create-success p { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); }
+:global(.quick-create-dialog.el-dialog) { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+:global(.quick-create-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
+:global(.quick-create-dialog .el-dialog__footer) { flex: 0 0 auto; padding-top: 14px; border-top: 1px solid var(--el-border-color-lighter); }
 @media (max-width: 560px) {
-  .identity-row {
-    display: block;
-  }
-
-  .interval-field {
-    width: 100%;
-  }
-
-  .optional-field-actions {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+  :global(.quick-create-dialog.el-dialog) { width: calc(100vw - 24px) !important; max-height: calc(100dvh - 24px); }
+  .optional-field-actions { align-items: flex-start; flex-direction: column; }
 }
 </style>
