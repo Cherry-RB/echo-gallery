@@ -6,6 +6,8 @@ const authApiMock = vi.hoisted(() => ({
   login: vi.fn(),
   register: vi.fn(),
   logout: vi.fn(),
+  createDemoSession: vi.fn(),
+  resetDemoSession: vi.fn(),
 }))
 
 vi.mock('../utils/api/authApi', () => ({
@@ -54,5 +56,19 @@ describe('authStore', () => {
     expect(store.username).toBe('訪客')
     expect(localStorage.getItem('token')).toBeNull()
     expect(localStorage.getItem('username')).toBeNull()
+  })
+
+  it('Demo 建立與重設會保存新的認證資訊並標記展示工作階段', async () => {
+    authApiMock.createDemoSession.mockResolvedValue({ id: 7, token: 'demo-token', username: 'Demo' })
+    authApiMock.resetDemoSession.mockResolvedValue({ id: 7, token: 'reset-token', username: 'Demo' })
+
+    const store = useAuthStore()
+    await store.startDemo('tech')
+    expect(localStorage.getItem('demoSession')).toBe('true')
+    expect(store.token).toBe('demo-token')
+
+    await store.resetDemo()
+    expect(store.token).toBe('reset-token')
+    expect(localStorage.getItem('demoSession')).toBe('true')
   })
 })

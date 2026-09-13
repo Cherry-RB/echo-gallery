@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 // 🌟 引入原有與新加入的 Element Plus 官方圖示
 import {
   Calendar,
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const { isAuthenticated, username } = storeToRefs(authStore)
+const isDemoSession = computed(() => localStorage.getItem('demoSession') === 'true')
 
 const userProfile = ref({
   name: username,
@@ -53,6 +55,17 @@ const openQuickCreate = () => {
     return
   }
   emit('open-quick-create')
+}
+
+const resetDemo = async () => {
+  await ElMessageBox.confirm(
+    '這會清除本次展示中的操作，並恢復為內容庫的初始資料。',
+    '重新開始此展示',
+    { confirmButtonText: '重新開始', cancelButtonText: '取消', type: 'warning' }
+  )
+  await authStore.resetDemo()
+  ElMessage.success('展示資料已恢復初始狀態')
+  window.location.assign('/board/today')
 }
 </script>
 
@@ -100,6 +113,12 @@ const openQuickCreate = () => {
 
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item v-if="isDemoSession" :icon="Refresh" @click="resetDemo">
+                重新開始此展示
+              </el-dropdown-item>
+              <el-dropdown-item v-if="isDemoSession" disabled>
+                會清除本次展示中的操作
+              </el-dropdown-item>
               <!-- <el-dropdown-item :icon="User">個人資料</el-dropdown-item>
               <el-dropdown-item :icon="Setting">偏好設定</el-dropdown-item>
               <el-dropdown-item divided :icon="RemoveFilled" @click="router.push('/logout')">

@@ -20,5 +20,14 @@ export const authApi = {
             url: "/auth/logout",
             method: "post"
         });
+    },
+    demoFeatureStatus(): Promise<{ enabled: boolean }> {
+        return request({ url: "/auth/demo-sessions/feature-status", method: "post" });
+    },
+    createDemoSession(library: string): Promise<any> {
+        return request({ url: "/auth/demo-sessions", method: "post", data: { library } });
+    },
+    resetDemoSession(): Promise<any> {
+        return request({ url: "/auth/demo-sessions/reset", method: "post" });
     }
 }

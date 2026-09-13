@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive, computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAsync } from '../utils/api/useAsync'
 import { Lock, Message } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '../stores/authStore'
 import ThemeSwitcher from '../components/ThemeSwitcher.vue'
+import { authApi } from '../utils/api/authApi'
 
 const router = useRouter()
 const form = reactive({ email: '', password: '' })
@@ -40,6 +41,37 @@ const validateForm = () => {
 
 const authStore = useAuthStore();
 const { loading, execute: handleLogin } = useAsync(authStore.login)
+const { loading: demoLoading, execute: startDemo } = useAsync(authStore.startDemo)
+const demoEnabled = ref(false)
+const selectedDemoLibrary = ref('')
+const demoOptions = [
+  {
+    value: 'tech',
+    label: '技術與學習收藏',
+    description: '以官方技術文件與原創學習註記為主，看看收藏理由與回流間隔如何把知識帶回自己的學習節奏。'
+  },
+  {
+    value: 'visual',
+    label: '視覺靈感與創作素材',
+    description: '從大型文化機構公開頁面與原創觀察出發，看看保留過的素材如何再次成為正在進行的創作起點。'
+  },
+  {
+    value: 'writing',
+    label: '文字片段與生活觀察',
+    description: '以原創筆記 Card 為主，重新遇見曾經想留下的句子，並自行決定要稍後再看、暫停或封存。'
+  }
+]
+const selectedDemoOption = computed(() =>
+  demoOptions.find((option) => option.value === selectedDemoLibrary.value)
+)
+
+onMounted(async () => {
+  try {
+    demoEnabled.value = (await authApi.demoFeatureStatus()).enabled
+  } catch {
+    demoEnabled.value = false
+  }
+})
 
 const onSubmit = async () => {
   if (!validateForm()){
@@ -54,6 +86,18 @@ const onSubmit = async () => {
     }
   } catch (err: any) {
     console.error('API 呼叫失敗:', err);
+  }
+}
+
+const onStartDemo = async (library: string) => {
+  try {
+    const res = await startDemo(library)
+    if (res?.token) {
+      ElMessage.success('已建立獨立 Demo 體驗')
+      router.push('/board/today')
+    }
+  } catch (err) {
+    console.error('Demo 工作階段建立失敗:', err)
   }
 }
 
@@ -92,10 +136,82 @@ const isFormValid = computed(() => {
           <router-link to="/register">還沒有帳號？立即註冊</router-link>
         </div>
       </el-form>
+
+      <template v-if="demoEnabled">
+        <el-divider class="demo-divider">或快速體驗</el-divider>
+        <section class="demo-entry" aria-label="Demo 快速體驗">
+          <p class="demo-entry-prompt">想先看看不同內容如何回流？選擇展示內容庫，立即體驗可操作資料。</p>
+          <el-select v-model="selectedDemoLibrary" placeholder="選擇展示內容庫" class="demo-library-select">
+            <el-option
+              v-for="option in demoOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+          <div v-if="selectedDemoOption" class="demo-selection">
+            <p class="demo-selection-title">已選擇：{{ selectedDemoOption.label }}</p>
+            <p>{{ selectedDemoOption.description }}</p>
+            <el-button type="primary" plain :loading="demoLoading" @click="onStartDemo(selectedDemoOption.value)">
+              以此內容庫開始體驗
+            </el-button>
+          </div>
+        </section>
+      </template>
     </el-card>
   </div>
 </template>
 
 <style scoped>
 @import '../assets/auth.css'; /* 引入共用樣式 */
+
+.demo-entry {
+  display: grid;
+  gap: 12px;
+}
+
+.demo-entry-prompt {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-ui);
+  line-height: var(--leading-ui);
+}
+
+.demo-library-select {
+  width: 100%;
+}
+
+.demo-selection {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--el-color-primary-light-5);
+  background: var(--el-fill-color-lighter);
+}
+
+.demo-selection-title {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: var(--type-ui);
+  font-weight: 600;
+  line-height: var(--leading-ui);
+}
+
+.demo-selection > p:not(.demo-selection-title) {
+  margin: 0;
+  color: var(--el-text-color-regular);
+  font-size: var(--type-caption);
+  line-height: var(--leading-ui);
+}
+
+.demo-selection .el-button {
+  justify-self: start;
+  margin-top: 2px;
+}
+
+:deep(.demo-divider .el-divider__text) {
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-caption);
+  font-weight: 500;
+}
 </style>

@@ -20,7 +20,23 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await authApi.login(loginForm)
     if (res?.token) {
       setAuth(res.token, res.username, res.id);
+      localStorage.removeItem('demoSession')
     }
+    return res
+  }
+
+  const startDemo = async (library: string) => {
+    const res = await authApi.createDemoSession(library)
+    if (res?.token) {
+      setAuth(res.token, res.username, res.id)
+      localStorage.setItem('demoSession', 'true')
+    }
+    return res
+  }
+
+  const resetDemo = async () => {
+    const res = await authApi.resetDemoSession()
+    if (res?.token) setAuth(res.token, res.username, res.id)
     return res
   }
 
@@ -52,7 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
     id.value = inputUserId
     localStorage.setItem('token', userToken)
     localStorage.setItem('username', name)
-    localStorage.setItem('userId', inputUserId.toString())
+    localStorage.setItem('id', inputUserId.toString())
   }
 
   // 內部輔助函式：清除憑證
@@ -63,6 +79,8 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
     localStorage.removeItem('username')
     localStorage.removeItem('id')
+    localStorage.removeItem('userId')
+    localStorage.removeItem('demoSession')
   }
 
   return {
@@ -71,6 +89,8 @@ export const useAuthStore = defineStore('auth', () => {
     id,
     isAuthenticated,
     login,
+    startDemo,
+    resetDemo,
     register,
     logout
   }
