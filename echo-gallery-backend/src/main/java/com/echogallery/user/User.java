@@ -4,7 +4,9 @@ import lombok.*;
 import java.time.ZonedDateTime;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+    @Index(name = "idx_users_demo_expiry", columnList = "is_demo_session, demo_expires_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -32,4 +34,14 @@ public class User {
 
     @Column(name = "show_content_preview")
     private Boolean showContentPreview;
+
+    @Builder.Default
+    @Column(name = "is_demo_session", nullable = false)
+    private boolean demoSession = false;
+
+    @Column(name = "demo_library", length = 40)
+    private String demoLibrary;
+
+    @Column(name = "demo_expires_at")
+    private ZonedDateTime demoExpiresAt;
 }

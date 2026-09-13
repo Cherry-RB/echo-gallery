@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WorkRepository extends JpaRepository<Work, Long> {
+    List<Work> findAllByUserId(Long userId);
     @Query("""
             SELECT
                 COUNT(w) AS totalWorks,

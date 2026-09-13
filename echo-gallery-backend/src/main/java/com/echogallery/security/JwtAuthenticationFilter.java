@@ -16,17 +16,27 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.ZonedDateTime;
+
+import com.echogallery.user.User;
+import com.echogallery.demo.DemoProperties;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final DemoProperties demoProperties;
+    private final Clock clock;
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
-    public JwtAuthenticationFilter(JwtService jwtService, CustomUserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService, CustomUserDetailsService userDetailsService,
+            DemoProperties demoProperties, Clock clock) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.demoProperties = demoProperties;
+        this.clock = clock;
     }
 
     @Override
@@ -50,6 +60,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 2. 當 Token 有抓到使用者，且目前 Security 內還沒有這個人的驗證狀態
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
+                if (userDetails instanceof CustomUserDetails customUserDetails) {
+                    User user = customUserDetails.getUser();
+                    if (user.isDemoSession() && (!demoProperties.isEnabled() || user.getDemoExpiresAt() == null
+                            || !user.getDemoExpiresAt().isAfter(ZonedDateTime.now(clock)))) {
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                }
 
                 // 3. 驗證 Token 簽章是否正確
                 if (jwtService.isTokenValid(jwt, userDetails)) {

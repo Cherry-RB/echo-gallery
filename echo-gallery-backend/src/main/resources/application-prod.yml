@@ -5,6 +5,10 @@ spring:
     show-sql: false
     open-in-view: false
 
+app:
+  demo:
+    enabled: ${DEMO_ENABLED:true}
+
 server:
   forward-headers-strategy: framework
 

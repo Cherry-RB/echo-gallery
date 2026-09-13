@@ -81,7 +81,7 @@ public class AuthService {
     }
 
     // 共用方法：封裝 Token 產生邏輯
-    private AuthDto.AuthResponse generateAuthResponse(User user){
+    public AuthDto.AuthResponse generateAuthResponse(User user){
             CustomUserDetails userDetails = new CustomUserDetails(user);
         String jwtToken = jwtService.generateToken(userDetails);
 

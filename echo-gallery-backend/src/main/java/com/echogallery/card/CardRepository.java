@@ -69,6 +69,8 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
     // 透過 Spring Data JPA 命名規範，直接建立限定用戶且支援分頁的查詢
     Page<Card> findByUserId(Long userId, Pageable pageable);
 
+    List<Card> findAllByUserId(Long userId);
+
     @Query("""
             SELECT DISTINCT c
             FROM Card c

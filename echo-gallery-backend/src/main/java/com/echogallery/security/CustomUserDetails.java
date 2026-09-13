@@ -19,6 +19,10 @@ public class CustomUserDetails implements UserDetails {
         return user.getId(); // 讓 SecurityContext 可以直接抓到 userId 💡
     }
 
+    public User getUser() {
+        return user;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // 暫時給予預設 ROLE_USER 權限，後續可從資料庫動態讀取

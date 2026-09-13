@@ -1,5 +1,7 @@
 package com.echogallery.user;
 
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +18,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByIdForUpdate(@Param("id") Long id);
 
     Optional<User> findByEmail(String email);
+    List<User> findByDemoSessionTrueAndDemoExpiresAtBefore(ZonedDateTime expiresAt);
     boolean existsByEmail(String email);boolean existsByUsername(String username);
 
 }

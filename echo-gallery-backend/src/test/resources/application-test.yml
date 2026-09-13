@@ -9,3 +9,5 @@ spring:
 
 app:
   frontend-url: http://localhost:5173
+  demo:
+    enabled: true

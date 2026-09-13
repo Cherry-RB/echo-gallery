@@ -15,6 +15,8 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     // 關鍵：只找該使用者底下的特定名稱標籤
     Optional<Tag> findByUserIdAndName(Long userId, String name);
 
+    List<Tag> findAllByUserId(Long userId);
+
     @Query("""
         SELECT new com.echogallery.tag.TagDto(t.id, t.name, COUNT(c.id))
         FROM Tag t
