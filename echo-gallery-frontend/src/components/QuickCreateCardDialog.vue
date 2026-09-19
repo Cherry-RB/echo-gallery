@@ -229,10 +229,10 @@ const submit = async () => {
             ref="titleInputRef"
             v-model="cardData.title"
             maxlength="255"
-            show-word-limit
             placeholder="先記下這張卡片的核心想法"
             @paste="handleTitlePaste"
           />
+          <div class="word-count-hint">總字數：{{ cardData.title.length }} / 255</div>
         </el-form-item>
 
         <el-form-item v-if="cardData.type === 'link'" label="來源連結" prop="url">
@@ -241,6 +241,7 @@ const submit = async () => {
 
         <el-form-item :label="cardTextFieldCopy.content.label" prop="content">
           <el-input v-model="cardData.content" type="textarea" :rows="4" :placeholder="cardTextFieldCopy.content.placeholder" />
+          <div class="word-count-hint">總字數：{{ cardData.content?.length || 0 }} 字</div>
         </el-form-item>
 
         <el-form-item label="標籤" prop="tags" class="tags-field">
@@ -287,10 +288,12 @@ const submit = async () => {
         </div>
 
         <el-form-item v-if="visibleOptionalFields.includes('reason')" :label="cardTextFieldCopy.reason.label" prop="reason">
-          <el-input v-model="cardData.reason" type="textarea" :rows="2" maxlength="300" show-word-limit :placeholder="cardTextFieldCopy.reason.placeholder" />
+          <el-input v-model="cardData.reason" type="textarea" :rows="2" maxlength="300" :placeholder="cardTextFieldCopy.reason.placeholder" />
+          <div class="word-count-hint">總字數：{{ cardData.reason?.length || 0 }} / 300</div>
         </el-form-item>
         <el-form-item v-if="visibleOptionalFields.includes('summary')" :label="cardTextFieldCopy.summary.label" prop="summary">
-          <el-input v-model="cardData.summary" type="textarea" :rows="3" maxlength="600" show-word-limit :placeholder="cardTextFieldCopy.summary.placeholder" />
+          <el-input v-model="cardData.summary" type="textarea" :rows="3" maxlength="600" :placeholder="cardTextFieldCopy.summary.placeholder" />
+          <div class="word-count-hint">總字數：{{ cardData.summary?.length || 0 }} / 600</div>
         </el-form-item>
         <el-form-item v-if="visibleOptionalFields.includes('coverImageUrl')" label="封面圖片來源連結" prop="coverImageUrl">
           <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
@@ -337,6 +340,7 @@ const submit = async () => {
 .clickable-popover-tag { cursor: pointer; }
 .optional-field-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 4px; padding: 10px 12px; margin-bottom: 18px; border-radius: 8px; background: var(--el-fill-color-light); }
 .optional-label { margin-right: 6px; font-size: var(--type-caption); color: var(--el-text-color-secondary); }
+.word-count-hint { width: 100%; margin-top: 5px; color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: 1.2; }
 .create-success { padding: 12px 0 4px; }
 .create-success h3 { margin: 0 0 8px; color: var(--el-text-color-primary); font-size: var(--type-title-sm); }
 .create-success p { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); }

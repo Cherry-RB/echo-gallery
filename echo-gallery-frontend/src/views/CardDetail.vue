@@ -649,7 +649,8 @@ const {
               </el-tag>
             </div>
             <el-form-item label="標題" prop="title">
-              <el-input v-model="cardData.title" maxlength="255" show-word-limit />
+              <el-input v-model="cardData.title" maxlength="255" />
+              <div class="word-count-hint">總字數：{{ cardData.title?.length || 0 }} / 255</div>
             </el-form-item>
             <el-form-item label="標籤" prop="tags" class="tags-field">
               <div class="tag-editor">
@@ -696,7 +697,8 @@ const {
             :label="cardTextFieldCopy.reason.label"
             prop="reason"
           >
-            <el-input v-model="cardData.reason" type="textarea" :rows="3" maxlength="300" show-word-limit :placeholder="cardTextFieldCopy.reason.placeholder" />
+            <el-input v-model="cardData.reason" type="textarea" :rows="3" maxlength="300" :placeholder="cardTextFieldCopy.reason.placeholder" />
+            <div class="word-count-hint">總字數：{{ cardData.reason?.length || 0 }} / 300</div>
           </el-form-item>
 
           <el-form-item
@@ -704,7 +706,8 @@ const {
             :label="cardTextFieldCopy.summary.label"
             prop="summary"
           >
-            <el-input v-model="cardData.summary" type="textarea" :rows="5" maxlength="600" show-word-limit :placeholder="cardTextFieldCopy.summary.placeholder" />
+            <el-input v-model="cardData.summary" type="textarea" :rows="5" maxlength="600" :placeholder="cardTextFieldCopy.summary.placeholder" />
+            <div class="word-count-hint">總字數：{{ cardData.summary?.length || 0 }} / 600</div>
           </el-form-item>
 
           <el-form-item
@@ -713,6 +716,7 @@ const {
             prop="content"
           >
             <el-input v-model="cardData.content" type="textarea" :rows="12" :placeholder="cardTextFieldCopy.content.placeholder" />
+            <div class="word-count-hint">總字數：{{ cardData.content?.length || 0 }} 字</div>
           </el-form-item>
 
           <template v-if="editSection === 'all' || editSection === 'source'">
@@ -1269,7 +1273,8 @@ const {
   padding-bottom: 0;
 }
 .word-count-hint {
-  text-align: right;
+  width: 100%;
+  text-align: left;
   font-size: var(--type-meta);
   color: var(--el-text-color-secondary);
   margin-top: 4px;
