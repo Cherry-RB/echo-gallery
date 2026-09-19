@@ -251,15 +251,30 @@ export const useCardStatus = () => {
     });
 
     const recurrenceMutation = useMutation({
-        mutationFn: ({ id, intervalDays }: { id: string | number; intervalDays: number }) =>
-            cardApi.updateRecurrence(id, intervalDays),
-        onMutate: async ({ id }) => prepareSnapshot(id),
+        mutationFn: ({ id, intervalDays, deferCurrentOccurrence = false }: {
+            id: string | number;
+            intervalDays: number;
+            deferCurrentOccurrence?: boolean;
+        }) => cardApi.updateRecurrence(id, intervalDays, deferCurrentOccurrence),
+        onMutate: async ({ id, deferCurrentOccurrence = false }) => {
+            const snapshot = await prepareSnapshot(id);
+            if (deferCurrentOccurrence) {
+                queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old => removeTodayCard(old, id));
+            }
+            return snapshot;
+        },
         onSuccess: (updatedCard, variables) => {
             updateLocalCache(variables.id, updatedCard);
+            if (variables.deferCurrentOccurrence) {
+                queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old =>
+                    removeTodayCard(old, variables.id));
+            }
             queryClient.invalidateQueries({ queryKey: ['cards'] });
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
             queryClient.invalidateQueries({ queryKey: ['workCards'] });
-            ElMessage.success(`已調整為每 ${updatedCard.intervalDays} 天回流`);
+            ElMessage.success(variables.deferCurrentOccurrence
+                ? `已稍後再看，將於 ${updatedCard.intervalDays} 天後回流`
+                : `已調整為每 ${updatedCard.intervalDays} 天回流`);
         },
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
     });

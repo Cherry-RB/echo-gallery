@@ -457,7 +457,7 @@ public class CardService {
     }
 
     @Transactional
-    public CardDetailResponse updateRecurrence(Long cardId, ResumeCardRequest request) {
+    public CardDetailResponse updateRecurrence(Long cardId, UpdateRecurrenceRequest request) {
         Long currentUserId = SecurityUtil.getCurrentUserId();
         Card card = cardRepository.findByIdForUpdate(cardId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
@@ -471,6 +471,9 @@ public class CardService {
 
         card.setIntervalDays(request.getIntervalDays());
         card.setNextShowAt(getStartOfTodayTaipei().plusDays(request.getIntervalDays()));
+        if (request.isDeferCurrentOccurrence()) {
+            card.setSnoozeCount(card.getSnoozeCount() + 1);
+        }
         return convertToDetailResponse(card);
     }
 

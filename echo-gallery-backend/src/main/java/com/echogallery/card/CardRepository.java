@@ -32,6 +32,13 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
             @Param("startOfTomorrow") ZonedDateTime startOfTomorrow);
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.lastOfferedAt = :batchOfferedAt AND c.isArchived = false AND c.nextShowAt IS NOT NULL AND c.nextShowAt < :startOfTomorrow ORDER BY c.nextShowAt ASC, c.id ASC")
+    List<Card> findVisibleBatchCardsForUpdate(
+            @Param("userId") Long userId,
+            @Param("batchOfferedAt") ZonedDateTime batchOfferedAt,
+            @Param("startOfTomorrow") ZonedDateTime startOfTomorrow);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false AND c.nextShowAt IS NOT NULL AND c.nextShowAt < :startOfTomorrow AND (c.lastOfferedAt IS NULL OR c.lastOfferedAt < :startOfToday) ORDER BY CASE WHEN c.lastOfferedAt IS NULL THEN 0 ELSE 1 END ASC, c.lastOfferedAt ASC, c.nextShowAt ASC, c.id ASC")
     List<Card> findTodayCandidatesForUpdate(
             @Param("userId") Long userId,

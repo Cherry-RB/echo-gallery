@@ -178,7 +178,11 @@ const resumeRecurrence = async () => {
 
 const selectRecurrence = (intervalDays: number) => {
   recurrencePopoverVisible.value = false;
-  handleUpdateRecurrence({ id: props.data.id, intervalDays });
+  handleUpdateRecurrence({
+    id: props.data.id,
+    intervalDays,
+    deferCurrentOccurrence: props.boardType === 'today',
+  });
 };
 
 const pauseFromPicker = () => {

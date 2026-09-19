@@ -113,6 +113,14 @@ class TodayCardIntegrationTests extends IntegrationTestBase {
         String secondBatch = batchTime(next);
         assertThat(ZonedDateTime.parse(secondBatch).toInstant())
                 .isAfter(ZonedDateTime.parse(firstBatch).toInstant());
+        assertThat(cardRepository.findAll().stream()
+                .filter(card -> card.getLastOfferedAt().toInstant()
+                        .equals(ZonedDateTime.parse(firstBatch).toInstant())))
+                .allSatisfy(card -> {
+                    assertThat(card.getSnoozeCount()).isEqualTo(1);
+                    assertThat(card.getNextShowAt())
+                            .isEqualTo(ZonedDateTime.parse("2026-09-03T00:00:00+08:00"));
+                });
 
         mockMvc.perform(post("/api/cards/today/next")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token))
@@ -120,6 +128,8 @@ class TodayCardIntegrationTests extends IntegrationTestBase {
                         .content("{\"currentBatchOfferedAt\":\"" + firstBatch + "\"}"))
                 .andExpect(status().isConflict());
         assertThat(cardRepository.findAll().stream().filter(card -> card.getLastOfferedAt() != null)).hasSize(8);
+        assertThat(cardRepository.findAll()).extracting(Card::getSnoozeCount)
+                .containsExactlyInAnyOrder(1, 1, 1, 1, 1, 0, 0, 0);
     }
 
     @Test
@@ -300,12 +310,11 @@ class TodayCardIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
-    void exhaustedNextKeepsCurrentBatchAndChangesNothing() throws Exception {
+    void exhaustedNextDefersRemainingCardsEvenWithoutANextBatch() throws Exception {
         String token = register("exhausted-owner", "exhausted-owner@example.com");
         long cardId = createCard(token, "only-card");
         makeDue(cardId);
         Card beforeOffer = cardRepository.findById(cardId).orElseThrow();
-        ZonedDateTime originalNextShowAt = beforeOffer.getNextShowAt();
         String batch = batchTime(prepare(token).andExpect(status().isOk()).andReturn());
 
         mockMvc.perform(post("/api/cards/today/next")
@@ -317,10 +326,35 @@ class TodayCardIntegrationTests extends IntegrationTestBase {
 
         Card after = cardRepository.findById(cardId).orElseThrow();
         assertThat(after.getLastOfferedAt().toInstant()).isEqualTo(ZonedDateTime.parse(batch).toInstant());
-        assertThat(after.getNextShowAt()).isEqualTo(originalNextShowAt);
+        assertThat(after.getNextShowAt()).isEqualTo(ZonedDateTime.parse("2026-09-03T00:00:00+08:00"));
+        assertThat(after.getSnoozeCount()).isEqualTo(1);
         assertThat(after.getOpenCount()).isZero();
         assertThat(after.getLastOpenAt()).isNull();
         assertThat(after.getLastInteractionAt()).isNull();
+    }
+
+    @Test
+    void nextDefersOnlyCardsStillVisibleInTheCurrentBatch() throws Exception {
+        String token = register("partial-next-owner", "partial-next-owner@example.com");
+        long readCardId = createCard(token, "read-card");
+        long remainingCardId = createCard(token, "remaining-card");
+        makeDue(readCardId);
+        makeDue(remainingCardId);
+        String batch = batchTime(prepare(token).andExpect(status().isOk()).andReturn());
+
+        mockMvc.perform(put("/api/cards/{id}/read", readCardId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/cards/today/next")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentBatchOfferedAt\":\"" + batch + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.length()").value(0));
+
+        assertThat(cardRepository.findById(readCardId).orElseThrow().getSnoozeCount()).isZero();
+        assertThat(cardRepository.findById(remainingCardId).orElseThrow().getSnoozeCount()).isEqualTo(1);
     }
 
     @Test

@@ -50,6 +50,8 @@ describe('TodayBoard', () => {
     const wrapper = mountBoard()
     await flushPromises()
     expect(wrapper.text()).toContain('今日卡片')
+    expect(wrapper.text()).toContain('略過這批，再看一批')
+    expect(wrapper.text()).toContain('尚未查看的卡片會依各自的回流天數重新安排')
   })
 
   it('沒有候選時顯示初始空狀態且沒有換批按鈕', async () => {
@@ -57,7 +59,7 @@ describe('TodayBoard', () => {
     const wrapper = mountBoard()
     await flushPromises()
     expect(wrapper.text()).toContain('今天目前沒有需要回流的卡片')
-    expect(wrapper.text()).not.toContain('今天想多看一批')
+    expect(wrapper.text()).not.toContain('再看一批')
   })
 
   it('批次完成後仍可要求下一批', async () => {
@@ -67,7 +69,7 @@ describe('TodayBoard', () => {
     const wrapper = mountBoard()
     await flushPromises()
     expect(wrapper.text()).toContain('目前這批已完成')
-    expect(wrapper.text()).toContain('今天想多看一批')
+    expect(wrapper.text()).toContain('再看一批')
   })
 
   it('prepare 失敗時顯示重新載入', async () => {
@@ -91,6 +93,7 @@ describe('TodayBoard', () => {
     await wrapper.find('button').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('今天沒有更多新卡片了')
+    expect(wrapper.text()).not.toContain('card-1')
 
     await wrapper.find('button').trigger('click')
     await flushPromises()

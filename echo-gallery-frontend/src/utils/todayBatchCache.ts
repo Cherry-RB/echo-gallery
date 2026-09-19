@@ -18,9 +18,6 @@ export function removeTodayCard(batch: TodayBatchResponse | undefined, id: strin
   }
 }
 
-export function resolveNextBatch(current: TodayBatchResponse, next: TodayBatchResponse) {
-  if (next.cards.length === 0) {
-    return { batch: current, noMoreCards: true }
-  }
-  return { batch: next, noMoreCards: false }
+export function resolveNextBatch(next: TodayBatchResponse) {
+  return { batch: next, noMoreCards: next.cards.length === 0 }
 }

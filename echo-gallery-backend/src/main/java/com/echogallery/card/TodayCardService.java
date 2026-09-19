@@ -49,7 +49,21 @@ public class TodayCardService {
         if (!latestBatch.toInstant().equals(request.currentBatchOfferedAt().toInstant())) {
             throw staleBatch();
         }
+        deferRemainingBatch(userId, latestBatch, window);
         return createBatch(userId, latestBatch, window);
+    }
+
+    private void deferRemainingBatch(Long userId, ZonedDateTime batchTime, TimeWindow window) {
+        List<Card> remainingCards = cardRepository.findVisibleBatchCardsForUpdate(
+                userId, batchTime, window.end());
+        remainingCards.forEach(card -> {
+            if (card.getIntervalDays() == null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "目前批次包含未設定回流週期的卡片");
+            }
+            card.setNextShowAt(window.start().plusDays(card.getIntervalDays()));
+            card.setSnoozeCount(card.getSnoozeCount() + 1);
+        });
+        cardRepository.flush();
     }
 
     private TodayBatchResponse existingBatch(Long userId, ZonedDateTime batchTime, ZonedDateTime tomorrow) {

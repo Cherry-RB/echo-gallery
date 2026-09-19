@@ -159,6 +159,24 @@ class CardRecurrenceIntegrationTests extends IntegrationTestBase {
         Card updated = cardRepository.findById(cardId).orElseThrow();
         assertThat(updated.getIntervalDays()).isEqualTo(40);
         assertThat(updated.getNextShowAt()).isEqualTo(ZonedDateTime.parse("2026-10-03T00:00:00+08:00"));
+        assertThat(updated.getSnoozeCount()).isZero();
+    }
+
+    @Test
+    void updateRecurrenceCanDeferCurrentTodayOccurrence() throws Exception {
+        String token = register("defer-recurrence", "defer-recurrence@example.com");
+        long cardId = createCard(token, "今日調整週期", 10);
+
+        updateRecurrence(token, cardId, "{\"intervalDays\":40,\"deferCurrentOccurrence\":true}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.intervalDays").value(40))
+                .andExpect(jsonPath("$.nextShowAt").value("2026-10-03T00:00:00+08:00"))
+                .andExpect(jsonPath("$.snoozeCount").value(1));
+
+        Card updated = cardRepository.findById(cardId).orElseThrow();
+        assertThat(updated.getOpenCount()).isZero();
+        assertThat(updated.getLastOpenAt()).isNull();
+        assertThat(updated.getLastInteractionAt()).isNull();
     }
 
     @Test

@@ -149,9 +149,48 @@ describe('useCardStatus recurrence cache', () => {
     status.handleUpdateRecurrence({ id: '1', intervalDays: 40 })
     await flushPromises()
 
-    expect(cardApi.updateRecurrence).toHaveBeenCalledWith('1', 40)
+    expect(cardApi.updateRecurrence).toHaveBeenCalledWith('1', 40, false)
     expect(queryClient.getQueryData<CardDto>(['card', '1']))
       .toMatchObject({ intervalDays: 40, nextShowAt: '2026-10-03T00:00:00+08:00' })
     expect(queryClient.getQueryState(['cards', 'all'])?.isInvalidated).toBe(true)
+  })
+
+  it('從 Today 調整週期時視為稍後再看並立即移除', async () => {
+    const { queryClient, status } = setup()
+    const original = { ...card('1'), intervalDays: 10, nextShowAt: '2026-09-03T00:00:00+08:00' }
+    const updated = {
+      ...original,
+      intervalDays: 40,
+      nextShowAt: '2026-10-03T00:00:00+08:00',
+      snoozeCount: 11,
+    }
+    queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, {
+      cards: [original], batchOfferedAt: '2026-08-24T12:00:00+08:00',
+    })
+    queryClient.setQueryData(['card', '1'], original)
+    vi.mocked(cardApi.updateRecurrence).mockResolvedValue(updated)
+
+    status.handleUpdateRecurrence({ id: '1', intervalDays: 40, deferCurrentOccurrence: true })
+    await flushPromises()
+
+    expect(cardApi.updateRecurrence).toHaveBeenCalledWith('1', 40, true)
+    expect(queryClient.getQueryData<TodayBatchResponse>(todayBatchQueryKey)?.cards).toEqual([])
+    expect(queryClient.getQueryData<CardDto>(['card', '1']))
+      .toMatchObject({ intervalDays: 40, snoozeCount: 11 })
+  })
+
+  it('從 Today 調整週期失敗時還原批次', async () => {
+    const { queryClient, status } = setup()
+    const original = card('1')
+    const batch: TodayBatchResponse = {
+      cards: [original], batchOfferedAt: '2026-08-24T12:00:00+08:00',
+    }
+    queryClient.setQueryData(todayBatchQueryKey, batch)
+    vi.mocked(cardApi.updateRecurrence).mockRejectedValue(new Error('failed'))
+
+    status.handleUpdateRecurrence({ id: '1', intervalDays: 40, deferCurrentOccurrence: true })
+    await flushPromises()
+
+    expect(queryClient.getQueryData(todayBatchQueryKey)).toEqual(batch)
   })
 })

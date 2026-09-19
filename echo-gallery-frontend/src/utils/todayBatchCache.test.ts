@@ -26,12 +26,12 @@ describe('Today batch cache', () => {
 
   it('下一批有內容時取代目前批次', () => {
     const next = { cards: [card('3')], batchOfferedAt: '2026-08-24T13:00:00+08:00' }
-    expect(resolveNextBatch(batch(), next)).toEqual({ batch: next, noMoreCards: false })
+    expect(resolveNextBatch(next)).toEqual({ batch: next, noMoreCards: false })
   })
 
-  it('下一批為空時保留目前批次', () => {
+  it('下一批為空時清空目前批次', () => {
     const current = batch()
     const empty = { cards: [], batchOfferedAt: current.batchOfferedAt }
-    expect(resolveNextBatch(current, empty)).toEqual({ batch: current, noMoreCards: true })
+    expect(resolveNextBatch(empty)).toEqual({ batch: empty, noMoreCards: true })
   })
 })

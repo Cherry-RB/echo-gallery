@@ -103,7 +103,7 @@ public class CardController {
     @PutMapping("/{id}/recurrence")
     public ResponseEntity<CardDetailResponse> updateRecurrence(
             @PathVariable("id") Long id,
-            @Valid @RequestBody ResumeCardRequest request) {
+            @Valid @RequestBody UpdateRecurrenceRequest request) {
         return ResponseEntity.ok(cardService.updateRecurrence(id, request));
     }
 

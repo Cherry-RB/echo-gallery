@@ -24,26 +24,42 @@ const { data, isLoading, isError, refetch } = useQuery({
 
 const cards = computed(() => data.value?.cards ?? [])
 const hasBatch = computed(() => Boolean(data.value?.batchOfferedAt))
+const hasRemainingCards = computed(() => cards.value.length > 0)
 
 const nextMutation = useMutation({
   mutationFn: (batchOfferedAt: string) => cardApi.nextToday(batchOfferedAt),
-  onMutate: () => {
+  onMutate: async () => {
     actionError.value = ''
+    await queryClient.cancelQueries({ queryKey: todayBatchQueryKey })
+    const previousBatch = queryClient.getQueryData<TodayBatchResponse>(todayBatchQueryKey)
+    if (previousBatch) {
+      queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, {
+        ...previousBatch,
+        cards: [],
+      })
+    }
+    return { previousBatch }
   },
-  onSuccess: nextBatch => {
-    const current = data.value
-    if (!current) return
-    const result = resolveNextBatch(current, nextBatch)
+  onSuccess: (nextBatch, _batchOfferedAt, context) => {
+    const result = resolveNextBatch(nextBatch)
     queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, result.batch)
     noMoreCards.value = result.noMoreCards
+    context?.previousBatch?.cards.forEach(card => {
+      queryClient.invalidateQueries({ queryKey: ['card', String(card.id)] })
+    })
+    queryClient.invalidateQueries({ queryKey: ['cards'] })
+    queryClient.invalidateQueries({ queryKey: ['sidebar'] })
   },
-  onError: async (error: unknown) => {
+  onError: async (error: unknown, _batchOfferedAt, context) => {
     const status = (error as { response?: { status?: number } }).response?.status
     if (status === 409) {
       noMoreCards.value = false
       actionError.value = '批次已更新，已為你恢復目前內容'
       await refetch()
       return
+    }
+    if (context?.previousBatch) {
+      queryClient.setQueryData(todayBatchQueryKey, context.previousBatch)
     }
     actionError.value = '無法取得下一批，請稍後再試'
   },
@@ -118,8 +134,11 @@ function requestNextBatch() {
             :disabled="isNextPending || isReadPending"
             @click="requestNextBatch"
           >
-            今天想多看一批
+            {{ hasRemainingCards ? '略過這批，再看一批' : '再看一批' }}
           </el-button>
+          <p v-if="hasRemainingCards" class="batch-action-hint">
+            尚未查看的卡片會依各自的回流天數重新安排。
+          </p>
         </div>
       </template>
     </div>
@@ -161,8 +180,16 @@ function requestNextBatch() {
 }
 .batch-actions {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   padding-top: 24px;
+}
+.batch-action-hint {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-caption);
+  text-align: center;
 }
 .notice {
   margin: 20px 0 0;
