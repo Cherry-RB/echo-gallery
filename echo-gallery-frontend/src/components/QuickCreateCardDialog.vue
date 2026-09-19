@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import type { FormInstance } from 'element-plus'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { getDefaultCardData } from '../mock-data/card-default-new'
@@ -9,11 +9,10 @@ import { createCardFormRules, toCardContentRequest } from '../utils/cardForm'
 import { cardTextFieldCopy } from '../utils/cardTextFieldCopy'
 import { useTags } from '../utils/composables/useTags'
 import { useCardStatus } from '../utils/useCardStatus'
-import RecurrenceIntervalPicker from './RecurrenceIntervalPicker.vue'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
-type OptionalField = 'reason' | 'summary' | 'content' | 'coverImageUrl'
+type OptionalField = 'reason' | 'summary' | 'coverImageUrl'
 
 const cardFormRef = ref<FormInstance>()
 const cardData = ref(getDefaultCardData())
@@ -39,9 +38,9 @@ const { handleCreateCard, isCreatePending } = useCardStatus()
 const optionalFields: Array<{ key: OptionalField; label: string }> = [
   { key: 'reason', label: cardTextFieldCopy.reason.label },
   { key: 'summary', label: cardTextFieldCopy.summary.label },
-  { key: 'content', label: cardTextFieldCopy.content.label },
   { key: 'coverImageUrl', label: '封面圖片' },
 ]
+const quickRecurrenceOptions = [7, 10, 30]
 
 const showOptionalField = (field: OptionalField) => {
   if (!visibleOptionalFields.value.includes(field)) visibleOptionalFields.value.push(field)
@@ -73,10 +72,16 @@ const handleTitlePaste = (event: ClipboardEvent) => {
   event.preventDefault()
   cardData.value.type = 'link'
   cardData.value.url = pastedText
+  ElMessage.success('已辨識為連結，請補上卡片標題')
 }
 
 const selectRecurrence = (intervalDays: number) => {
   cardData.value.intervalDays = intervalDays
+}
+
+const selectCustomRecurrence = (intervalDays: number | undefined) => {
+  if (intervalDays == null) return
+  selectRecurrence(intervalDays)
 }
 
 const pauseRecurrence = () => {
@@ -175,22 +180,49 @@ const submit = async () => {
         @keydown.ctrl.enter.prevent="submit"
         @keydown.meta.enter.prevent="submit"
       >
-        <el-form-item label="卡片類型" prop="type">
-          <el-radio-group v-model="cardData.type">
-            <el-radio-button label="note">筆記</el-radio-button>
-            <el-radio-button label="link">連結</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
+        <div class="quick-settings-grid">
+          <el-form-item label="卡片類型" prop="type" class="quick-setting-field">
+            <el-radio-group v-model="cardData.type">
+              <el-radio-button label="note">筆記</el-radio-button>
+              <el-radio-button label="link">連結</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
 
-        <el-form-item label="回流安排" prop="intervalDays" class="recurrence-field">
-          <RecurrenceIntervalPicker
-            :model-value="cardData.intervalDays"
-            :show-increments="false"
-            show-pause
-            @select="selectRecurrence"
-            @pause="pauseRecurrence"
-          />
-        </el-form-item>
+          <el-form-item label="回流天數" prop="intervalDays" class="quick-setting-field">
+            <div class="quick-recurrence-control">
+              <button
+                v-for="days in quickRecurrenceOptions"
+                :key="days"
+                type="button"
+                class="quick-interval-button"
+                :class="{ active: cardData.intervalDays === days }"
+                :aria-pressed="cardData.intervalDays === days"
+                @click="selectRecurrence(days)"
+              >{{ days }} 天</button>
+              <div class="custom-interval-input">
+                <el-input-number
+                  :model-value="cardData.intervalDays ?? undefined"
+                  :min="1"
+                  :max="365"
+                  :controls="false"
+                  aria-label="自訂回流天數"
+                  placeholder="自訂"
+                  @change="selectCustomRecurrence"
+                />
+                <span>天</span>
+              </div>
+              <button
+                type="button"
+                class="pause-recurrence-button"
+                :class="{ active: cardData.intervalDays === null }"
+                :aria-pressed="cardData.intervalDays === null"
+                @click="pauseRecurrence"
+              >
+                {{ cardData.intervalDays === null ? '已暫停' : '暫停' }}
+              </button>
+            </div>
+          </el-form-item>
+        </div>
 
         <el-form-item label="標題" prop="title">
           <el-input
@@ -205,6 +237,10 @@ const submit = async () => {
 
         <el-form-item v-if="cardData.type === 'link'" label="來源連結" prop="url">
           <el-input v-model="cardData.url" placeholder="https://..." clearable />
+        </el-form-item>
+
+        <el-form-item :label="cardTextFieldCopy.content.label" prop="content">
+          <el-input v-model="cardData.content" type="textarea" :rows="4" :placeholder="cardTextFieldCopy.content.placeholder" />
         </el-form-item>
 
         <el-form-item label="標籤" prop="tags" class="tags-field">
@@ -256,9 +292,6 @@ const submit = async () => {
         <el-form-item v-if="visibleOptionalFields.includes('summary')" :label="cardTextFieldCopy.summary.label" prop="summary">
           <el-input v-model="cardData.summary" type="textarea" :rows="3" maxlength="600" show-word-limit :placeholder="cardTextFieldCopy.summary.placeholder" />
         </el-form-item>
-        <el-form-item v-if="visibleOptionalFields.includes('content')" :label="cardTextFieldCopy.content.label" prop="content">
-          <el-input v-model="cardData.content" type="textarea" :rows="6" :placeholder="cardTextFieldCopy.content.placeholder" />
-        </el-form-item>
         <el-form-item v-if="visibleOptionalFields.includes('coverImageUrl')" label="封面圖片來源連結" prop="coverImageUrl">
           <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
         </el-form-item>
@@ -279,9 +312,19 @@ const submit = async () => {
 </template>
 
 <style scoped>
-.dialog-description { margin: -8px 0 20px; color: var(--el-text-color-secondary); font-size: var(--type-ui); line-height: 1.6; }
-.recurrence-field :deep(.el-form-item__content) { display: block; }
-.recurrence-field :deep(.recurrence-picker) { width: 100%; }
+.dialog-description { display: block; margin: 0 0 18px; padding-top: 2px; color: var(--el-text-color-secondary); font-size: var(--type-ui); line-height: 1.65; }
+.quick-settings-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; padding: 14px; margin-bottom: 18px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-lighter); }
+.quick-setting-field { margin-bottom: 0; }
+.quick-setting-field :deep(.el-form-item__content) { display: block; }
+.quick-recurrence-control { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.quick-interval-button { min-height: 36px; padding: 5px 10px; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-bg-color); color: var(--el-text-color-regular); font: inherit; font-size: var(--type-ui); cursor: pointer; }
+.quick-interval-button:hover, .quick-interval-button:focus-visible { border-color: var(--el-color-primary-light-5); color: var(--el-color-primary); }
+.quick-interval-button.active { border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
+.custom-interval-input { display: flex; align-items: center; gap: 5px; color: var(--el-text-color-secondary); font-size: var(--type-caption); }
+.custom-interval-input :deep(.el-input-number) { width: 76px; }
+.pause-recurrence-button { min-height: 36px; padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--el-text-color-secondary); font: inherit; font-size: var(--type-caption); cursor: pointer; }
+.pause-recurrence-button:hover, .pause-recurrence-button:focus-visible { color: var(--el-color-danger); }
+.pause-recurrence-button.active { border-color: var(--el-color-info-light-5); background: var(--el-color-info-light-9); color: var(--el-text-color-regular); }
 .tags-field :deep(.el-form-item__content) { display: block; }
 .tag-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 28px; }
 .button-new-tag { height: 24px; padding-top: 0; padding-bottom: 0; }
@@ -302,6 +345,8 @@ const submit = async () => {
 :global(.quick-create-dialog .el-dialog__footer) { flex: 0 0 auto; padding-top: 14px; border-top: 1px solid var(--el-border-color-lighter); }
 @media (max-width: 560px) {
   :global(.quick-create-dialog.el-dialog) { width: calc(100vw - 24px) !important; max-height: calc(100dvh - 24px); }
+  .quick-settings-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .quick-interval-button, .pause-recurrence-button { min-height: 40px; }
   .optional-field-actions { align-items: flex-start; flex-direction: column; }
 }
 </style>

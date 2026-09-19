@@ -472,6 +472,8 @@ export const useCardStatus = () => {
         isSnoozePending: snoozeMutation.isPending,
         isReadPending: readMutation.isPending,
         isCreatePending: createCardMutation.isPending,
+        isUpdatePending: updateCardMutation.isPending,
+        isDeletePending: deleteCardMutation.isPending,
         isGrowthStatusPending: growthStatusMutation.isPending,
     };
 };
