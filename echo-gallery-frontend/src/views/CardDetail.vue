@@ -19,6 +19,7 @@ import { createCardFormRules, toCardContentRequest } from '../utils/cardForm';
 import { cardTextFieldCopy } from '../utils/cardTextFieldCopy';
 import { cardDetailQueryKey } from '../utils/cardDetailQuery';
 import RecurrenceIntervalPicker from '../components/RecurrenceIntervalPicker.vue';
+import { getTextLength, trimToTextLength } from '../utils/textLength';
 
 const props = defineProps<{ id: string }>();
 const route = useRoute();
@@ -46,6 +47,7 @@ const goBack = () => {
 const isCreateMode = computed(() => props.id === 'new' || !props.id)
 // 💡 2. 如果是創建模式，預設就必須是編輯狀態
 const isEditMode = ref(isCreateMode.value)
+const isClosingAfterSave = ref(false)
 type EditSection = 'all' | 'basic' | 'reason' | 'summary' | 'content' | 'source'
 const editSection = ref<EditSection>('all')
 
@@ -146,6 +148,7 @@ const hasUnsavedEdit = computed(() => Boolean(backupData) && backupData !== JSON
 
 const openEditDialog = (section: EditSection = 'all') => {
   editSection.value = section;
+  isClosingAfterSave.value = false;
   backupData = JSON.stringify(cardData.value);
   isEditMode.value = true;
 };
@@ -193,6 +196,8 @@ const handleSave = async () => {
       handleUpdateCard({ id: props.id, data: request }, {
         // 💡 後端儲存成功且快取重整後，才執行 UI 狀態切換
         onSuccess: () => {
+          backupData = JSON.stringify(cardData.value);
+          isClosingAfterSave.value = true;
           isEditMode.value = false;
         }
       });
@@ -229,6 +234,25 @@ const requestCancelEdit = async () => {
   } catch {
     // 使用者選擇繼續編輯時維持對話框開啟。
   }
+};
+
+const handleEditDialogVisibilityChange = (visible: boolean) => {
+  if (visible) {
+    isEditMode.value = true;
+    return;
+  }
+
+  if (isClosingAfterSave.value) {
+    isClosingAfterSave.value = false;
+    return;
+  }
+
+  requestCancelEdit();
+};
+
+const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number) => {
+  const value = cardData.value[field] ?? '';
+  cardData.value[field] = trimToTextLength(value, maximum);
 };
 
 onBeforeRouteLeave(async () => {
@@ -575,6 +599,7 @@ const {
                   <dd>
                     <el-select
                       :model-value="cardData.growthStatus"
+                      class="growth-status-select"
                       size="small"
                       :loading="isGrowthStatusPending"
                       @change="changeGrowthStatus"
@@ -632,7 +657,7 @@ const {
         destroy-on-close
         :close-on-click-modal="false"
         :close-on-press-escape="false"
-        @update:model-value="(value: boolean) => { if (!value) requestCancelEdit() }"
+        @update:model-value="handleEditDialogVisibilityChange"
       >
         <el-form
           ref="cardFormRef"
@@ -649,8 +674,8 @@ const {
               </el-tag>
             </div>
             <el-form-item label="標題" prop="title">
-              <el-input v-model="cardData.title" maxlength="255" />
-              <div class="word-count-hint">總字數：{{ cardData.title?.length || 0 }} / 255</div>
+              <el-input v-model="cardData.title" @update:model-value="limitTextLength('title', 255)" />
+              <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.title) >= 230 }">字數：{{ getTextLength(cardData.title) }} / 255</div>
             </el-form-item>
             <el-form-item label="標籤" prop="tags" class="tags-field">
               <div class="tag-editor">
@@ -697,8 +722,8 @@ const {
             :label="cardTextFieldCopy.reason.label"
             prop="reason"
           >
-            <el-input v-model="cardData.reason" type="textarea" :rows="3" maxlength="300" :placeholder="cardTextFieldCopy.reason.placeholder" />
-            <div class="word-count-hint">總字數：{{ cardData.reason?.length || 0 }} / 300</div>
+            <el-input v-model="cardData.reason" type="textarea" :rows="3" :placeholder="cardTextFieldCopy.reason.placeholder" @update:model-value="limitTextLength('reason', 300)" />
+            <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.reason) >= 270 }">字數：{{ getTextLength(cardData.reason) }} / 300</div>
           </el-form-item>
 
           <el-form-item
@@ -706,8 +731,8 @@ const {
             :label="cardTextFieldCopy.summary.label"
             prop="summary"
           >
-            <el-input v-model="cardData.summary" type="textarea" :rows="5" maxlength="600" :placeholder="cardTextFieldCopy.summary.placeholder" />
-            <div class="word-count-hint">總字數：{{ cardData.summary?.length || 0 }} / 600</div>
+            <el-input v-model="cardData.summary" type="textarea" :rows="5" :placeholder="cardTextFieldCopy.summary.placeholder" @update:model-value="limitTextLength('summary', 600)" />
+            <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.summary) >= 540 }">字數：{{ getTextLength(cardData.summary) }} / 600</div>
           </el-form-item>
 
           <el-form-item
@@ -1282,6 +1307,9 @@ const {
 .word-count-hint.over-limit {
   color: var(--el-color-danger);
 }
+.word-count-hint.near-limit {
+  color: var(--el-color-warning);
+}
 .create-header {
   display: flex;
   justify-content: space-between;
@@ -1556,6 +1584,11 @@ const {
   margin: 0;
   color: var(--el-text-color-primary);
   font-size: var(--type-ui);
+}
+
+.growth-status-select {
+  width: 132px;
+  flex: 0 0 132px;
 }
 
 .star-button {

@@ -106,6 +106,22 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void createAcceptsTitleAtUnicodeCharacterLimit() throws Exception {
+        Map<String, Object> request = validRequest();
+        request.put("title", "🙂".repeat(255));
+
+        performCreate(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void createRejectsTitleBeyondUnicodeCharacterLimit() throws Exception {
+        Map<String, Object> request = validRequest();
+        request.put("title", "🙂".repeat(256));
+
+        performCreate(request).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void createRejectsLinkWithoutUrl() throws Exception {
         Map<String, Object> request = validRequest();
         request.put("type", "link");

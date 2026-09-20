@@ -9,6 +9,7 @@ import { createCardFormRules, toCardContentRequest } from '../utils/cardForm'
 import { cardTextFieldCopy } from '../utils/cardTextFieldCopy'
 import { useTags } from '../utils/composables/useTags'
 import { useCardStatus } from '../utils/useCardStatus'
+import { getTextLength, trimToTextLength } from '../utils/textLength'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -148,6 +149,11 @@ const submit = async () => {
     onSuccess: card => { createdCardId.value = card.id },
   })
 }
+
+const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number) => {
+  const value = cardData.value[field] ?? ''
+  cardData.value[field] = trimToTextLength(value, maximum)
+}
 </script>
 
 <template>
@@ -228,11 +234,11 @@ const submit = async () => {
           <el-input
             ref="titleInputRef"
             v-model="cardData.title"
-            maxlength="255"
             placeholder="先記下這張卡片的核心想法"
             @paste="handleTitlePaste"
+            @update:model-value="limitTextLength('title', 255)"
           />
-          <div class="word-count-hint">總字數：{{ cardData.title.length }} / 255</div>
+          <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.title) >= 230 }">字數：{{ getTextLength(cardData.title) }} / 255</div>
         </el-form-item>
 
         <el-form-item v-if="cardData.type === 'link'" label="來源連結" prop="url">
@@ -288,12 +294,12 @@ const submit = async () => {
         </div>
 
         <el-form-item v-if="visibleOptionalFields.includes('reason')" :label="cardTextFieldCopy.reason.label" prop="reason">
-          <el-input v-model="cardData.reason" type="textarea" :rows="2" maxlength="300" :placeholder="cardTextFieldCopy.reason.placeholder" />
-          <div class="word-count-hint">總字數：{{ cardData.reason?.length || 0 }} / 300</div>
+          <el-input v-model="cardData.reason" type="textarea" :rows="2" :placeholder="cardTextFieldCopy.reason.placeholder" @update:model-value="limitTextLength('reason', 300)" />
+          <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.reason) >= 270 }">字數：{{ getTextLength(cardData.reason) }} / 300</div>
         </el-form-item>
         <el-form-item v-if="visibleOptionalFields.includes('summary')" :label="cardTextFieldCopy.summary.label" prop="summary">
-          <el-input v-model="cardData.summary" type="textarea" :rows="3" maxlength="600" :placeholder="cardTextFieldCopy.summary.placeholder" />
-          <div class="word-count-hint">總字數：{{ cardData.summary?.length || 0 }} / 600</div>
+          <el-input v-model="cardData.summary" type="textarea" :rows="3" :placeholder="cardTextFieldCopy.summary.placeholder" @update:model-value="limitTextLength('summary', 600)" />
+          <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.summary) >= 540 }">字數：{{ getTextLength(cardData.summary) }} / 600</div>
         </el-form-item>
         <el-form-item v-if="visibleOptionalFields.includes('coverImageUrl')" label="封面圖片來源連結" prop="coverImageUrl">
           <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
@@ -341,6 +347,7 @@ const submit = async () => {
 .optional-field-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 4px; padding: 10px 12px; margin-bottom: 18px; border-radius: 8px; background: var(--el-fill-color-light); }
 .optional-label { margin-right: 6px; font-size: var(--type-caption); color: var(--el-text-color-secondary); }
 .word-count-hint { width: 100%; margin-top: 5px; color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: 1.2; }
+.word-count-hint.near-limit { color: var(--el-color-warning); }
 .create-success { padding: 12px 0 4px; }
 .create-success h3 { margin: 0 0 8px; color: var(--el-text-color-primary); font-size: var(--type-title-sm); }
 .create-success p { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); }
