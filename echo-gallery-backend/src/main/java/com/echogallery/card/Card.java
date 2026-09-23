@@ -97,6 +97,10 @@ public class Card {
     @Column(name = "growth_status", nullable = false, length = 20)
     private CardGrowthStatus growthStatus = CardGrowthStatus.UNMARKED;
 
+    @Builder.Default
+    @Column(name = "needs_processing", nullable = false)
+    private boolean needsProcessing = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp
     private ZonedDateTime createdAt;

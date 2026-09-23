@@ -62,6 +62,13 @@ public class CardController {
         return ResponseEntity.ok(cardService.updateGrowthStatus(cardId, request));
     }
 
+    @PutMapping("/{id}/processing-status")
+    public ResponseEntity<CardDetailResponse> updateProcessingStatus(
+            @PathVariable("id") Long cardId,
+            @Valid @RequestBody CardProcessingStatusRequest request) {
+        return ResponseEntity.ok(cardService.updateProcessingStatus(cardId, request));
+    }
+
     @PostMapping
     public ResponseEntity<CardDetailResponse> createCard(@Valid @RequestBody CreateCardRequest request) {
         // @RequestBody 會自動把 Vue 傳來的 JSON 轉成 Java 的建立請求

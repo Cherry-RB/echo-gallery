@@ -24,4 +24,5 @@ public class CardSummaryResponse {
     private Boolean isArchived;
     private Integer intervalDays;
     private CardGrowthStatus growthStatus;
+    private Boolean needsProcessing;
 }

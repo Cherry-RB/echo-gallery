@@ -14,6 +14,7 @@ export interface CardSearchParams {
     tagIds?: number[];
     tagMode?: CardSearchTagMode;
     growthStatuses?: CardGrowthStatus[];
+    needsProcessing?: boolean;
     archiveStatus?: CardSearchArchiveStatus;
     recurrenceStatus?: CardSearchRecurrenceStatus;
     minIntervalDays?: number;
@@ -57,6 +58,7 @@ export interface CardContentRequest {
     coverImageUrl?: string;
     tags: string[];
     intervalDays: number | null;
+    needsProcessing?: boolean;
 }
 
 export type CreateCardRequest = CardContentRequest;
@@ -115,6 +117,7 @@ export interface CardDto {
     isArchived: boolean;
 
     growthStatus: CardGrowthStatus;
+    needsProcessing?: boolean;
 
     isShowContentPreview?: boolean| null;
 

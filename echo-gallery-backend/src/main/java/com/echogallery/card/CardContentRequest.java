@@ -39,4 +39,6 @@ public abstract class CardContentRequest {
     @Min(value = 1, message = "回流天數至少為 1 天")
     @Max(value = 365, message = "回流天數最多為 365 天")
     private Integer intervalDays;
+
+    private Boolean needsProcessing;
 }

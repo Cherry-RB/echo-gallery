@@ -29,6 +29,7 @@ interface SearchForm {
   tagIds: number[]
   tagMode: CardSearchTagMode
   growthStatuses: CardGrowthStatus[]
+  needsProcessing: boolean
   archiveStatus: CardSearchArchiveStatus
   recurrenceStatus: CardSearchRecurrenceStatus
   minIntervalDays?: number
@@ -43,6 +44,7 @@ const defaultForm = (): SearchForm => ({
   tagIds: [],
   tagMode: 'OR',
   growthStatuses: [],
+  needsProcessing: false,
   archiveStatus: 'ACTIVE',
   recurrenceStatus: 'ALL',
   minIntervalDays: undefined,
@@ -57,6 +59,7 @@ const toSearchFilters = (source: SearchForm): CardSearchParams => ({
   tagIds: [...new Set(source.tagIds)],
   tagMode: source.tagIds.length >= 2 ? source.tagMode : 'OR',
   growthStatuses: [...new Set(source.growthStatuses)],
+  needsProcessing: source.needsProcessing || undefined,
   archiveStatus: source.archiveStatus,
   recurrenceStatus: source.recurrenceStatus,
   minIntervalDays: source.recurrenceStatus === 'PAUSED' ? undefined : source.minIntervalDays,
@@ -115,6 +118,7 @@ const activeFilterLabels = computed(() => {
   if (filters.growthStatuses?.length) {
     labels.push(`成長狀態：${filters.growthStatuses.map(status => growthStatusLabels[status]).join('、')}`)
   }
+  if (filters.needsProcessing) labels.push('待整理')
   if (filters.archiveStatus && filters.archiveStatus !== 'ACTIVE') {
     labels.push(`使用狀態：${filters.archiveStatus === 'ARCHIVED' ? '已封存' : '全部'}`)
   }
@@ -155,7 +159,7 @@ const selectedGrowthStatuses = computed(() => growthStatusOptions.filter(option 
 const sameValues = <T,>(left: T[] = [], right: T[] = []) =>
   left.length === right.length && [...left].sort().every((value, index) => value === [...right].sort()[index])
 
-type SearchField = 'id' | 'title' | 'tags' | 'growth' | 'archive' | 'recurrence' | 'interval' | 'sort' | 'direction'
+type SearchField = 'id' | 'title' | 'tags' | 'growth' | 'processing' | 'archive' | 'recurrence' | 'interval' | 'sort' | 'direction'
 
 const fieldMatchesApplied = (field: SearchField) => {
   const applied = appliedFilters.value
@@ -165,6 +169,7 @@ const fieldMatchesApplied = (field: SearchField) => {
     case 'tags': return sameValues(form.tagIds, applied.tagIds)
       && (form.tagIds.length < 2 || form.tagMode === (applied.tagMode ?? 'OR'))
     case 'growth': return sameValues(form.growthStatuses, applied.growthStatuses)
+    case 'processing': return form.needsProcessing === Boolean(applied.needsProcessing)
     case 'archive': return form.archiveStatus === (applied.archiveStatus ?? 'ACTIVE')
     case 'recurrence': return form.recurrenceStatus === (applied.recurrenceStatus ?? 'ALL')
     case 'interval': return (form.recurrenceStatus === 'PAUSED' ? undefined : form.minIntervalDays) === applied.minIntervalDays
@@ -181,6 +186,7 @@ const fieldIsActive = (field: SearchField) => {
     case 'title': return Boolean(applied.title)
     case 'tags': return Boolean(applied.tagIds?.length)
     case 'growth': return Boolean(applied.growthStatuses?.length)
+    case 'processing': return Boolean(applied.needsProcessing)
     case 'archive': return applied.archiveStatus !== 'ACTIVE'
     case 'recurrence': return applied.recurrenceStatus !== 'ALL'
     case 'interval': return applied.minIntervalDays !== undefined || applied.maxIntervalDays !== undefined
@@ -195,7 +201,7 @@ const fieldClass = (field: SearchField) => ({
 })
 
 const hasPendingChanges = computed(() => [
-  'id', 'title', 'tags', 'growth', 'archive', 'recurrence', 'interval', 'sort', 'direction',
+  'id', 'title', 'tags', 'growth', 'processing', 'archive', 'recurrence', 'interval', 'sort', 'direction',
 ].some(field => !fieldMatchesApplied(field as SearchField)))
 
 const toggleTag = (tagId: number) => {
@@ -373,6 +379,10 @@ const openDetail = (cardId: string) => {
               </el-popover>
             </div>
           </div>
+          <label class="compact-field processing-field" :class="fieldClass('processing')">
+            <span>整理狀態</span>
+            <el-checkbox v-model="form.needsProcessing">只看待整理</el-checkbox>
+          </label>
           <label class="compact-field archive-field" :class="fieldClass('archive')">
             <span>使用狀態</span>
             <el-select v-model="form.archiveStatus">

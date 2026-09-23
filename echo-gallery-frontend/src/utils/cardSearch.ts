@@ -17,5 +17,6 @@ export const cardSearchQueryKey = (params: CardSearchParams) => [
     ...params,
     tagIds: [...(params.tagIds ?? [])].sort((a, b) => a - b),
     growthStatuses: [...(params.growthStatuses ?? [])].sort(),
+    needsProcessing: params.needsProcessing,
   },
 ] as const

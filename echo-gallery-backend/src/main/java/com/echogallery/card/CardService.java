@@ -160,6 +160,9 @@ public class CardService {
         if (request.getGrowthStatus() != null) {
             card.setGrowthStatus(request.getGrowthStatus());
         }
+        if (request.getNeedsProcessing() != null) {
+            card.setNeedsProcessing(request.getNeedsProcessing());
+        }
         // 透過 clear() 與 addAll() 保持 PersistentSet 的引用，讓 Hibernate 聰明地只做差集 SQL 更新
         card.updateTags(associatedTags);
         // 只有當前端有傳入新的 intervalDays 且跟原本不同時，才重新計算時間
@@ -191,7 +194,27 @@ public class CardService {
     }
 
     @Transactional
+    public CardDetailResponse updateProcessingStatus(Long cardId, CardProcessingStatusRequest request) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到卡片"));
+        if (!card.getUser().getId().equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "沒有權限調整這張卡片");
+        }
+        card.setNeedsProcessing(request.getNeedsProcessing());
+        return convertToDetailResponse(card);
+    }
+
+    @Transactional
     public CardDetailResponse createCard(CreateCardRequest request) {
+        return convertToDetailResponse(createCardEntity(request));
+    }
+
+    /**
+     * 供實驗場「長出新卡」共用，確保不同入口遵守同一套建立卡片規則。
+     */
+    @Transactional
+    public Card createCardEntity(CardContentRequest request) {
 
         // 1. 安全地從安全上下文取得目前登入的 userId（防範前端越權傳參）
         Long userId = SecurityUtil.getCurrentUserId();
@@ -220,13 +243,14 @@ public class CardService {
                         ? null
                         : getStartOfTodayTaipei().plusDays(request.getIntervalDays()))
                 .isArchived(false)
+                .needsProcessing(Boolean.TRUE.equals(request.getNeedsProcessing()))
                 .build();
 
         // 3. 存入資料庫
         Card savedCard = cardRepository.save(card);
 
         // 4. 將結果包裝成 Response DTO 回傳
-        return convertToDetailResponse(savedCard);
+        return savedCard;
     }
 
     @Transactional
@@ -302,10 +326,11 @@ public class CardService {
         response.setIsArchived(card.isArchived());
         response.setIntervalDays(card.getIntervalDays());
         response.setGrowthStatus(card.getGrowthStatus());
+        response.setNeedsProcessing(card.isNeedsProcessing());
         return response;
     }
 
-    CardDetailResponse convertToDetailResponse(Card card) {
+    public CardDetailResponse convertToDetailResponse(Card card) {
         CardDetailResponse response = new CardDetailResponse();
         response.setId(card.getId());
         response.setType(card.getType());
@@ -328,6 +353,7 @@ public class CardService {
         response.setLastOfferedAt(card.getLastOfferedAt());
         response.setLastInteractionAt(card.getLastInteractionAt());
         response.setGrowthStatus(card.getGrowthStatus());
+        response.setNeedsProcessing(card.isNeedsProcessing());
         response.setCreatedAt(card.getCreatedAt());
         response.setUpdatedAt(card.getUpdatedAt());
         response.setSourceType(card.getSourceType());

@@ -31,6 +31,8 @@ public class CardSearchRequest {
     @Size(max = 4, message = "成長狀態不可超過 4 種")
     private List<CardGrowthStatus> growthStatuses = new ArrayList<>();
 
+    private Boolean needsProcessing;
+
     private CardSearchArchiveStatus archiveStatus = CardSearchArchiveStatus.ACTIVE;
 
     private CardSearchRecurrenceStatus recurrenceStatus = CardSearchRecurrenceStatus.ALL;

@@ -30,6 +30,7 @@ public class CardDetailResponse {
     private ZonedDateTime lastOfferedAt;
     private ZonedDateTime lastInteractionAt;
     private CardGrowthStatus growthStatus;
+    private Boolean needsProcessing;
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;
     private String sourceType;

@@ -28,6 +28,7 @@ export const toCardContentRequest = (card: CardDto): CardContentRequest => ({
   coverImageUrl: card.coverImageUrl?.trim() || undefined,
   tags: card.tags.map(tag => tag.trim()),
   intervalDays: card.intervalDays,
+  needsProcessing: Boolean(card.needsProcessing),
 })
 
 export const createCardFormRules = (cardData: Ref<CardDto>): FormRules<CardDto> => ({

@@ -64,6 +64,9 @@ final class CardSearchSpecifications {
             if (!growthStatuses.isEmpty()) {
                 predicates.add(root.get("growthStatus").in(growthStatuses));
             }
+            if (request.getNeedsProcessing() != null) {
+                predicates.add(criteriaBuilder.equal(root.get("needsProcessing"), request.getNeedsProcessing()));
+            }
             if (!tagIds.isEmpty()) {
                 predicates.add(request.getTagMode() == CardSearchTagMode.AND
                         ? hasAllTags(root, query.subquery(Long.class), criteriaBuilder, tagIds)

@@ -60,6 +60,13 @@ export const cardApi = {
             data: { growthStatus }
         })
     },
+    updateProcessingStatus(id: string | number, needsProcessing: boolean): Promise<CardDto> {
+        return request({
+            url: `/cards/${id}/processing-status`,
+            method: "PUT",
+            data: { needsProcessing }
+        })
+    },
     // 刪除卡片
     deleteCard(id: string | number): Promise<any>{
         return request({
