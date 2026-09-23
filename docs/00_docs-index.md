@@ -125,3 +125,33 @@
 * **屬性**：持續維護的部署設計、執行手冊與進度追蹤文件（Current）。
 * **內容**：記錄 Echo Gallery 從 Render／Supabase 演進至 VPS 自管部署的架構選型、Nginx／Certbot 設計、分階段執行流程、安全與驗證清單、rollback、資料庫遷移前置條件及總待辦。
 * **Agent 讀取時機**：規劃或執行 VPS、Nginx、HTTPS、DNS、production profile、部署回退或資料庫遷移時讀取；實際操作前仍須核對目前程式碼、平台設定與官方文件。
+
+### 16. [16_卡片花園培育方案與MVP觀察計畫.md](./16_卡片花園培育方案與MVP觀察計畫.md)
+
+* **屬性**：卡片花園早期產品假設與單人研究計畫（Historical）。
+* **內容**：保存以單一卡片持續培育為核心的混合式花園方案、CardGrowthEntry、培育方向、成熟依據、七項假設與數週觀察方法。
+* **Agent 讀取時機**：追溯 growthStatus、CardGrowthEntry、早期 Garden 假設或產品研究方法時讀取；本文件中的 Garden／花園是歷史名稱，不得視為目前實驗場規格，最新 bottom-up Experiment 決策以第 20 份文件為準。
+
+### 17. [17_Project語意原型與Work模型驗證計畫.md](./17_Project語意原型與Work模型驗證計畫.md)
+
+* **屬性**：Project／Work 產品語意實驗紀錄（Historical）。
+* **內容**：保存 Work 曾被假設為培育 Project、Card／GrowthEntry／成果分工及 UI-only 語意驗證方式，並記錄正式 domain migration 的判斷門檻。
+* **Agent 讀取時機**：追溯 Work、Project、培育計畫與成果模型的語意演進時讀取；現行議事廳設計以第 18 份文件及目前程式碼為準。
+
+### 18. [18_議事廳與議題推演產品設計暨實作追蹤.md](./18_議事廳與議題推演產品設計暨實作追蹤.md)
+
+* **屬性**：議事廳產品設計與分階段實作追蹤文件（Current）。
+* **內容**：定義議事廳／議題的 top-down 推演模型、Card 與 WorkCard 邊界、議題整體欄位、最新近況、更新歷程、UX、API、migration、任務拆分與去留條件。
+* **Agent 讀取時機**：設計或修改議事廳、議題列表／詳情、WorkProgressUpdate、議題素材與回流後推進出口時讀取；實際行為仍須核對目前程式碼與測試。
+
+### 19. [19_Demo功能規格與實作方案.md](./19_Demo功能規格與實作方案.md)
+
+* **屬性**：Demo 功能唯一規格、資料設計與展示驗收文件（Current）。
+* **內容**：整併 Demo 使用者故事、快速體驗流程、三個內容庫、測資初始化、匿名工作階段、重設與清理、API、migration、部署順序、展示腳本及驗收條件。
+* **Agent 讀取時機**：修改 Demo 登入入口、展示內容庫、demo-libraries、工作階段生命週期、重設／清理、production 開關或展示驗收時讀取；實際行為以程式碼、設定與自動測試為準。
+
+### 20. [20_實驗場與卡片衍生模型產品設計暨實作追蹤.md](./20_實驗場與卡片衍生模型產品設計暨實作追蹤.md)
+
+* **屬性**：產品設計、資料遷移與分階段實作追蹤文件（Current）。
+* **內容**：記錄實驗場需求變更、Experiment／ExperimentCard／CardRelation／needsProcessing 模型、現行 UX 與 API contract、Garden → Experiment schema rename、舊 growthStatus 相容退場、效能原則、測試策略、任務進度與產品去留條件。
+* **Agent 讀取時機**：設計或實作實驗場、卡片衍生關係、待整理查詢、Card Detail 思想脈絡，或規劃 schema rename、Garden alias 與 growthStatus 退場時讀取；實作前仍須核對目前程式碼、正式 schema 與使用者最新確認。

@@ -19,6 +19,8 @@
 | 6 | 2026.09.04 | 議事廳、議題推演與回流出口待驗證提案 | 補充：<br>1. 統一 Card 三個文字欄位的產品語意<br>2. 確認暫停／恢復回流與取消封存的排程規則<br>3. 記錄現有 Work 作為議事廳／議題原型的待驗證方向<br>4. 提出議題整體欄位與議題更新的最小實驗模型<br>5. 明確區分已確認需求、實驗功能與暫不實作項目 |
 | 7 | 2026.09.05 | 看板卡片情境資訊與議題入口 | 補充：<br>1. 卡片表面顯示來源、內容語意與看板情境狀態<br>2. Today 直接提供稍後再看，已封存看板直接提供還原<br>3. 稍後再看看板顯示累積延後次數並引導調整回流<br>4. 共用選單補上暫停／恢復回流與刪除確認<br>5. 啟用議事廳／議題候選文案，並讓 Card 可直接加入議題 |
 | 8 | 2026.09.06 | 議題概覽與議題更新模型收斂 | 補充：<br>1. 將議題的整體說明與時間性更新明確分離<br>2. 將分類式議事紀錄收斂為不需選類型的議題更新<br>3. 最新更新直接顯示於議題首頁，不回寫或覆蓋議題欄位<br>4. 將下一步保留為更新中的方向提示，不建立 Todo 行為<br>5. 同步重寫議事廳入口、議題概覽、更新 CRUD 與時間軸任務 |
+| 9 | 2026.09.20 | 實驗場與卡片衍生模型 | 補充：<br>1. 暫停並撤回未通過使用者驗收的儀表板原型<br>2. 將實驗場定位為由下而上的材料聚類、關聯觀察與新卡片生成空間<br>3. 將成長階段由 Card 全域屬性改為 Card 在特定 Experiment 中的角色<br>4. 新增 Experiment、含情境 note 的 ExperimentCard、CardRelation 與待整理欄位目標模型<br>5. 記錄既有 growthStatus 的相容遷移、功能影響、第一版範圍與驗證假設 |
+| 10 | 2026.09.23 | 實驗場實作現況對齊 | 更新：<br>1. 將 Garden／花園正式領域命名統一為 Experiment／實驗場<br>2. 補記假設、識別色、永久刪除與目前 API contract<br>3. 對齊實驗場列表、詳情、卡片脈絡、共用彈窗與 RWD 實作<br>4. 明確記錄舊 growthStatus 與 Garden API 相容層仍未退場<br>5. 區分已完成程式碼與尚待完成的資料庫部署驗證 |
 
 ---
 
@@ -218,6 +220,8 @@ Echo Gallery 的技術選型以完成 MVP 核心閉環為優先。第一版先�
 | 5 | 2026.08.16 | [從內容回流走向作品孵化的最小垂直切片](#5-20260816-從內容回流走向作品孵化的最小垂直切片) | 決議重點：新增 Work 與 WorkCard；讓 Card 可被一個或多個作品作為候選或已採用素材；Card growthStatus 與 WorkCard status 保持獨立。 |
 | 6 | 2026.08.23 | [卡片成長語意、主動查詢與限量回流調整](#6-20260823-卡片成長語意主動查詢與限量回流調整) | 決議重點：新增 `UNMARKED` 預設狀態；Today 改為每批最多 5 張的主動批次；曝光只更新 `lastOfferedAt`，完成回顧才推進 `nextShowAt`；補齊綜合查詢、snoozeCount、Clock 與側邊欄調整。 |
 | 7 | 2026.09.04／2026.09.06 | [議事廳、議題推演與回流出口](#7-20260904-議事廳議題推演與回流出口) | 決議重點：Card 清理欄位語意；確認暫停／恢復與取消封存規則；以現有 Work 試作議事廳／議題，分離議題的整體說明與時間性更新，並以最新更新、單一下一步及更新歷程驗證回流後的推進出口。 |
+| 8 | 2026.09.05 | [看板卡片情境資訊與議題入口](#8-20260905-看板卡片情境資訊與議題入口) | 決議重點：依看板目的補充情境資訊與主要操作；讓 Card 可從共用選單加入議題；保持看板共用骨架並避免所有情境顯示相同資訊。 |
+| 9 | 2026.09.20 | [實驗場與卡片衍生模型](#9-20260920-實驗場與卡片衍生模型) | 決議重點：實驗場承擔由下而上的思考；成長階段改為 Card 在 Experiment 中的關係屬性；ExperimentCard 保存情境 note，CardRelation 保存卡片衍生來源；待整理改由 Card.needsProcessing 與 Search 承接；回流、封存、議題與 Experiment 保持正交。 |
 
 ### 1. 2026.05.08 瀑布流卡片顯示資訊與排版
 
@@ -1424,3 +1428,482 @@ WorkProgressUpdate
 4. 從 Card 直接加入議題是否比先進入詳情頁自然。
 5. 已封存卡片停用星標，是否符合實際管理習慣。
 6. 手機寬度下主要操作、Card ID 與更多選單是否仍能清楚排列。
+
+---
+
+### 9. 2026.09.20 實驗場與卡片衍生模型
+
+#### 決策狀態與現行實作邊界
+
+截至 2026.09.23，Experiment／ExperimentCard／CardRelation、`needsProcessing`、實驗場列表與詳情、種入卡片、長出新卡，以及 Card Detail 實驗脈絡皆已完成程式碼實作。正式領域命名為「實驗場／實驗主題／Experiment」，前端主要路由為 `/experiments`，後端主要 API 為 `/api/experiments`，資料庫目標名稱為 `experiments`、`experiment_cards` 與 `experiment_id`。
+
+目前仍處於相容與部署驗證階段：`cards.growth_status`、`CardGrowthStatus`、舊查詢與操作仍存在；後端也暫時接受 `/api/gardens`、`/api/cards/{cardId}/gardens` 及舊 `garden*` response 欄位。資料庫 rename migration 必須在既有環境完成備份、執行與筆數核對後，才可視為完成上線。開發環境不可依賴 Hibernate `ddl-auto=update` 自動推斷 rename，否則可能同時產生新舊資料表。
+
+2026.09.20 同時決定暫停並完整撤回尚未提交的回流與成長儀表板原型。撤回原因不是統計永遠沒有價值，而是該原型仍以資料庫存量與回流異常為主要組織方式，沒有充分協助使用者理解內容如何轉化、此刻為何值得注意，以及下一步可以做什麼。未來若重新設計監控或統計，必須建立在真實事件資料與已驗證的 Card、Experiment、議題使用流程上，不沿用本次畫面與指標設計。
+
+#### 真實使用證據與待解決問題
+
+議事廳已在求職心理卡點與策略調整的真實情境中產生以下行為：
+
+1. 從一個明確議題出發，更新整體進度、最新近況與研判。
+2. 基於新的醒悟建立心得 Card。
+3. 將 Card 引用回議題素材池，保存推演依據。
+
+這證明議事廳能承擔由上而下的思考：
+
+```text
+Question → Material → Reasoning → Judgment / Action
+```
+
+另一方面，現有 `growthStatus` 長期未能自然使用。實際被標記為 `SEED` 的 Card 主要來自兩種不同需求：
+
+1. 來源可能失效，之後想把影片或文章內容完整整理進 Card。這是保存或整理尚未完成。
+2. 內容令人心動，可能想模仿、擴寫、實踐或持續吸收。這是材料可能長出新理解或行動。
+
+兩者不應繼續共用同一個 `SEED` 語意。前者描述 Card 本身是否待整理；後者描述 Card 在某個思考主題中是否具有發展潛力。
+
+#### 核心產品決策
+
+舊模型把一張 Card 視為一株植物：
+
+```text
+Card A：SEED → GROWING → MATURE
+```
+
+新模型改為讓成長主要發生在 Card 之間：
+
+```text
+Card A ─┐
+Card B ─┼─→ Card D
+Card C ─┘
+```
+
+Card A、B、C 可以繼續保留原始材料與當時理解；Card D 則保存它們共同促成的新想法、行動方法或較穩定理解。使用者仍可修正 Card 的錯誤或補充內容，但實驗場不要求透過反覆改寫同一張 Card 來證明它已升級。
+
+因此，新的核心原則是：
+
+> Card 是可回流、可重複利用的知識與經驗原子；實驗場讓多張 Card 在特定主題中被放在一起，觀察關聯，並長出新的 Card。
+
+`SEED / GROWING / MATURE` 不再描述 Card 的全域成熟度，而改為描述：
+
+> Card 在某一座 Experiment 中，目前扮演什麼培育角色。
+
+#### 與其他模組的責任邊界
+
+| 模組 | 起點 | 核心問題 | 主要結果 |
+|---|---|---|---|
+| Card | 一份外部內容、經驗或想法 | 什麼值得保存與再次遇見？ | 可回流的知識原子 |
+| Today／看板 | 到期或主動探索的 Card | 現在要重新看見什麼？ | 注意力重新分配 |
+| Tag | 分類需求 | 如何橫向找回相似內容？ | 查詢與分類 |
+| 實驗場 | 一組令人心動或彼此相關的材料 | 這些東西放在一起會長出什麼？ | 新 Card、理解或行動線索 |
+| 議事廳 | 一個需要理解或推進的問題 | 這件事現在怎麼看、怎麼辦？ | 研判、決議、下一步與更新歷程 |
+| Work／未來成果模型 | 一個需要落地的產出 | 如何形成作品或實際成果？ | 可交付成果或外部行動 |
+
+實驗場承擔由下而上的思考：
+
+```text
+Material → Pattern → Synthesis
+```
+
+議事廳承擔由上而下的思考：
+
+```text
+Question → Material → Reasoning
+```
+
+兩者都可以引用 Card，也都可能促成新 Card，但起點、使用動機與資訊組織方式不同，不應合併成同一個容器。
+
+#### Experiment：實驗主題
+
+Experiment 是一個由使用者建立、具有假設的實驗主題，例如「求職中的自我信任」、「生活幸福感」、「故事創作」或「手機與注意力」。它不是標籤的視覺替代品，也不是必須完成的 Project。
+
+現行資料模型：
+
+```text
+Experiment
+- id
+- userId
+- title
+- hypothesis        optional at API level; current UI requires it
+- description       optional
+- themeColor        LEAF / LAKE / AMBER / LAVENDER / CORAL / MIST
+- isArchived
+- createdAt
+- updatedAt
+```
+
+第一版規則：
+
+- Experiment 必須屬於登入使用者。
+- Experiment 可封存，封存只代表暫時不在主要列表出現，不刪除 ExperimentCard 或 CardRelation。
+- Experiment 詳情提供永久刪除；刪除前必須確認，並移除該實驗主題的 ExperimentCard 與 CardRelation，但不刪除任何 Card 本體。
+- Experiment 不設定完成率、截止日期、產量目標或健康分數。
+- Experiment title 不作為 Tag，也不自動建立同名 Tag。
+- 後端限制 title 255 字、hypothesis 2,000 字、description 5,000 字；空白選填文字正規化為 `null`。
+- 使用者從六個預設色盤選擇識別色，不自由輸入 HEX，也不替三塊土壤分別選色。
+
+現行索引：
+
+```text
+INDEX (user_id, is_archived, updated_at)
+```
+
+#### ExperimentCard：Card 在 Experiment 中的角色
+
+Experiment 與 Card 是多對多關係，由顯式關聯實體 ExperimentCard 表示：
+
+```text
+Experiment   N <------> N   Card
+             ExperimentCard
+```
+
+現行資料模型：
+
+```text
+ExperimentCard
+- id
+- experimentId
+- cardId
+- stage
+- note              optional
+- addedAt
+```
+
+`stage` 第一版沿用既有 enum 值以降低遷移成本，但 UI 語意調整為三塊可獨立存在的土壤：
+
+| stage | UI 顯示 | 語意 |
+|---|---|---|
+| `SEED` | 種子土壤 | 令人心動、值得持續接觸，或可能成為新想法來源的材料。 |
+| `GROWING` | 茁壯土壤 | 已由材料長出的新連結、暫時理解、方法或正在驗證的想法。 |
+| `MATURE` | 成熟土壤 | 目前相對穩定、可說明、可使用或已形成明確影響的理解。 |
+
+此欄位是 ExperimentCard 的情境角色，不是狀態機：
+
+- 不要求一張 Card 依序走過三個 stage。
+- 原始種子可以永久留在種子土壤。
+- 新 Card 可以直接放入茁壯或成熟土壤。
+- 同一張 Card 在不同 Experiment 可以具有不同 stage。
+- 同一張 Card 在同一座 Experiment 第一版只能出現一次。
+- 使用者可透過明確的「重新分類」修正 stage，但第一版不以拖曳升級作為主要互動。
+
+`note` 用來記錄 Card 與特定 Experiment 之間的情境說明，例如「為什麼把它種在這裡」、「希望從它長出什麼」，或「它目前在這個主題中扮演什麼角色」。它不是 Card 內容或 Experiment description 的複本。
+
+- `note` 使用 nullable `TEXT`，前後端限制 1,000 字。
+- 使用者可新增、編輯或清空 note。
+- ExperimentCard 重新分類時保留原 note。
+- 同一張 Card 在不同 Experiment 可有不同 note。
+- note 顯示於 Experiment 與 Card Detail 的實驗關係區，不顯示於一般 Card 看板。
+
+現行約束與索引：
+
+```text
+UNIQUE (experiment_id, card_id)
+INDEX (experiment_id, stage, added_at)
+INDEX (card_id)
+```
+
+第一版不加入 `position`。手動排序只有在實際使用出現反覆需求後再加入。
+
+#### CardRelation：保存新 Card 的思想來源
+
+第一版只需要一種關係：
+
+```text
+DERIVED_FROM
+```
+
+現行資料模型：
+
+```text
+CardRelation
+- id
+- experimentId
+- sourceCardId
+- derivedCardId
+- relationType       DERIVED_FROM
+- createdAt
+```
+
+語意為：`derivedCardId` 是在指定 Experiment 中，由 `sourceCardId` 促成或衍生的新 Card。一張新 Card 可同時擁有多個來源，因此「從 A、B、C 長出 D」會建立三筆 CardRelation。
+
+第一版規則：
+
+- 來源與新 Card 都必須屬於目前登入使用者。
+- 來源 Card 必須已在該 Experiment 中。
+- `sourceCardId` 不得等於 `derivedCardId`。
+- 建立新 Card、ExperimentCard 與全部 CardRelation 必須在同一個 transaction 完成。
+- Experiment 封存、Card 暫停回流或 Card 封存都不刪除關係。
+- 永久刪除 Card 時，相關 ExperimentCard 與 CardRelation 隨 Card 一併移除；刪除確認需清楚告知思想關係也會失去。
+
+現行約束與索引：
+
+```text
+UNIQUE (experiment_id, source_card_id, derived_card_id, relation_type)
+CHECK (source_card_id <> derived_card_id)
+INDEX (source_card_id)
+INDEX (derived_card_id)
+```
+
+第一版不為 CardRelation 增加 note，也不建立 `INSPIRED`、`EXPANDED_FROM`、`VALIDATED_BY`、`CONTRADICTS` 或 `APPLIED_FROM` 等分類。CardRelation 只保存可驗證的衍生來源，避免和 ExperimentCard.note 重複；只有當使用者確實需要區分關係，而且分類摩擦低於理解收益時才擴充。
+
+#### 「待整理」與 ExperimentCard SEED 必須分開
+
+「來源可能失效，之後想補完整內容」描述的是 Capture 尚未完成，不是思想種子。第一版以 Card 自身的輕量欄位承接：
+
+```text
+needsProcessing BOOLEAN NOT NULL DEFAULT false
+```
+
+UI 顯示為「待整理」。它與 Experiment 的差異如下：
+
+| 維度 | 回答的問題 |
+|---|---|
+| `Card.needsProcessing` | 這張 Card 的保存或整理是否尚未完成？ |
+| `ExperimentCard.stage = SEED` | 這張 Card 在這個主題中是否可能長出新的理解？ |
+
+`needsProcessing` 正式納入第一個垂直切片：
+
+- 新建 Card 預設為 `false`，不替使用者產生整理債務。
+- 建立或編輯 Card 時可主動設定「待整理」。
+- Card Detail 與適合的 Card 快捷操作可切換此狀態。
+- Card Search 已新增「只看待整理」條件；舊的全域 growthStatuses 篩選暫留相容，待資料遷移與使用驗證完成後移除。
+- Search API 以 nullable boolean query parameter 表示；未傳入時不限制，`needsProcessing=true` 時只回傳待整理 Card。
+- 此欄位不影響 Experiment membership、ExperimentCard.stage、回流排程、封存或 WorkCard status。
+- 既有 `SEED` 混有「待整理」與「思想種子」兩種意圖，migration 不可自動推斷哪些項目應轉為 `needsProcessing = true`；既有 Card 一律先採 `false`，由使用者重新標記真正待整理的項目。
+
+#### 實驗場第一版資訊架構
+
+第一版只建立兩層主要畫面：
+
+```text
+實驗場列表
+└── 實驗場詳情
+    ├── 種子土壤
+    ├── 茁壯土壤
+    └── 成熟土壤
+```
+
+實驗場列表提供：
+
+- 建立實驗主題。
+- 以名稱與假設為主要文字資訊；假設缺省時才回退顯示說明。
+- 查看三個 stage 的 Card 數量與最近更新時間；統計膠囊使用實驗主題色盤，並支援亮色與暗色模式。
+- 進入 Experiment 詳情。
+- 透過「觀察中／已封存」篩選器切換範圍；列表卡片不重複顯示狀態 badge。
+- 透過卡片右上角更多操作編輯及封存／恢復 Experiment。
+- 桌面版每列兩張、窄螢幕與手機版改為單欄，避免橫向捲動。
+
+Experiment 詳情提供：
+
+- 將既有 Card 種入指定土壤。
+- 檢視三塊土壤中的 Card。
+- 顯示並編輯 ExperimentCard.note。
+- 明確重新分類放錯的 ExperimentCard。
+- 將 Card 從 Experiment 移除，但不刪除原始 Card。
+- 選擇一張或多張 Card 執行「長出新卡」。
+- 從新 Card 查看它長自哪些來源；從來源 Card 查看在這座 Experiment 中長出的 Card。
+- 顯示假設與說明，只有內容超出預覽高度時才提供展開／收起。
+- 操作列提供狀態切換、永久刪除與編輯，手機版採與議題詳情一致的滿寬狀態列加雙欄操作。
+
+三塊土壤在視覺上應能清楚辨識，但不可設計成待辦 Kanban。畫面不使用進度箭頭、完成百分比、逾期顏色或「尚有 N 顆未成熟」等債務文案。
+
+Card Detail 將 ExperimentCard 與 CardRelation 收在同一張「實驗主題與思想脈絡」資訊卡中，並以兩個語意獨立的子區段避免混淆：
+
+```text
+所在實驗主題
+├── Experiment 名稱
+├── stage
+└── ExperimentCard.note
+
+思想脈絡
+├── 這張卡長自：source Cards
+└── 這張卡長出了：derived Cards
+```
+
+「所在實驗主題」回答 Card 被放在哪個假設下觀察、扮演什麼角色以及為什麼放在這裡；「思想脈絡」回答 Card 從哪些來源長出，以及後來促成哪些新 Card。Card 可以只有 ExperimentCard 而沒有 CardRelation，例如單純放入種子土壤的外部文章；沒有任何衍生關係時不顯示空的思想脈絡區塊。
+
+「種入卡片」與議題詳情的素材選擇流程共用 `CardPickerDialog`；「長出新卡」與全站快速新增共用 `QuickCreateCardDialog` 的卡片表單，並以左右分欄補上實驗場來源、土壤與備註設定。各彈窗由 `AppDialog` 統一處理水平／垂直置中、最大高度、單一內容捲動區與手機版滿寬收斂，避免視窗與彈窗同時出現不必要的雙重捲軸。
+
+#### 「長出新卡」核心流程
+
+1. 使用者在 Experiment 中選擇一張或多張來源 Card。
+2. 點選「長出新卡」。
+3. 建立畫面持續顯示來源 Card 的標題與必要摘要，協助使用者形成新內容，但不自動拼接來源全文。
+4. 使用既有 Card 建立欄位填寫新 Card。
+5. 選擇新 Card 要放入茁壯或成熟土壤，預設為 `GROWING`。
+6. 儲存時以單一 transaction 建立 Card、ExperimentCard 與全部 `DERIVED_FROM`。
+7. 原始來源 Card 保持原 stage，不因產生新 Card 而自動移動。
+
+失敗時不得留下只有 Card、沒有 ExperimentCard，或只有部分 CardRelation 的半套資料。目前後端以單一 transaction 保證原子性，前端也會在 request pending 時停用重複提交；但 API 尚未提供 idempotency key，使用者若在前一個 request 完成後再次送出，仍會建立另一張新 Card。若未來需要網路重試保證，必須另行設計 request idempotency。
+
+#### Archive、暫停回流與 Experiment 的正交關係
+
+實驗場是思想關係與培育情境；Today 與其他看板是注意力配送。兩者不可互相推導。
+
+| Card 狀態 | 是否留在 Experiment | Experiment 顯示方式 |
+|---|---|---|
+| 正常回流 | 是 | 正常顯示，可輔助顯示下次回流日。 |
+| 暫停回流 | 是 | 顯示「已暫停回流」badge。 |
+| 已封存 | 是 | 視覺稍微淡化並顯示「已封存」badge。 |
+| 永久刪除 | 否 | 移除 ExperimentCard 與相關 CardRelation。 |
+
+Experiment 查詢不得預設加上 `Card.isArchived = false`，也不得因 `intervalDays` 或 `nextShowAt` 為 `null` 排除 Card。Experiment 中的檢視、重新分類與長出新卡也不更新 `nextShowAt`、`lastOfferedAt`、`lastOpenAt`、`openCount` 或 `snoozeCount`。
+
+#### 既有 growthStatus 的相容遷移
+
+目前正式資料仍將 `growth_status` 存在 `cards`，而正式環境使用 `ddl-auto=validate`。新模型必須採 additive migration，不可只修改 Entity 或依賴本機 `ddl-auto=update`。
+
+建議部署順序：
+
+1. 備份正式資料庫，記錄 Card 總數與各 growth status 筆數。
+2. 歷史 additive migration 在 `cards` 新增 `needs_processing BOOLEAN NOT NULL DEFAULT false`，並以當時的 Garden 命名建立主題、membership、`card_relations`、foreign key、unique constraint 與索引。
+3. 對每位至少有一張非 `UNMARKED` Card 的使用者，建立一座「待重新整理（舊成長狀態）」Experiment。
+4. 將該使用者的 `SEED / GROWING / MATURE` Card 依原值建立 ExperimentCard。
+5. `UNMARKED` 不建立 ExperimentCard，因為它表示使用者沒有賦予額外培育意圖。
+6. 以 unique constraint 與存在性檢查確保 migration 可重複執行。
+7. 比對 migration 前後各使用者與各 stage 筆數，確認沒有遺失或重複。
+8. 停止後端，執行 Garden → Experiment rename migration，將資料表、關聯欄位、索引與約束改為 `experiments`、`experiment_cards`、`experiment_id`。
+9. 核對 rename 前後筆數，再部署以 `/api/experiments` 為正式 contract、同時保留舊 Garden alias 的相容後端。
+10. 完成前端切換後停止新增舊流程資料；經過實際資料驗證與回退觀察期，再以獨立 migration／任務移除 growthStatus 與 Garden 相容層。
+
+遷移 Experiment 的名稱必須清楚表達它只是舊資料入口，不代表系統已正確判斷每張 Card 的主題。使用者可之後把 Card 種入真正 Experiment，再從遷移 Experiment 移除。系統不可將舊 `SEED` 自動轉為 `needsProcessing`，也不可自行替 Card 建立主題 Experiment。
+
+#### API 現行範圍
+
+目前已實作的第一版範圍如下：
+
+```text
+GET    /api/experiments
+POST   /api/experiments
+GET    /api/experiments/{experimentId}
+PUT    /api/experiments/{experimentId}
+PUT    /api/experiments/{experimentId}/archive
+PUT    /api/experiments/{experimentId}/restore
+DELETE /api/experiments/{experimentId}
+
+GET    /api/experiments/{experimentId}/cards?stage=SEED&page=0&size=10
+POST   /api/experiments/{experimentId}/cards
+PUT    /api/experiments/{experimentId}/cards/{cardId}/stage
+PUT    /api/experiments/{experimentId}/cards/{cardId}/note
+DELETE /api/experiments/{experimentId}/cards/{cardId}
+
+POST   /api/experiments/{experimentId}/grow
+
+PUT    /api/cards/{cardId}/processing-status
+GET    /api/cards/search?needsProcessing=true
+GET    /api/cards/{cardId}/experiments
+GET    /api/cards/{cardId}/relations
+GET    /api/cards/{cardId}/experiment-context
+```
+
+`POST /api/experiments/{experimentId}/grow` 的 request 至少包含：
+
+```text
+sourceCardIds
+stage
+Card 建立所需欄位
+```
+
+此 API 必須完成 ownership 驗證、來源 membership 驗證、Card 建立、ExperimentCard 建立與 CardRelation 建立。第一版不讓前端以多次獨立 request 拼裝流程。
+
+ExperimentCard.note 的更新 request 使用 nullable／可空白的 `note`，後端正規化空白內容為 `null`；`processing-status` 使用明確 boolean request，避免以一般 Card update 的欄位缺省語意猜測使用者是否要清除待整理狀態。Card Detail 使用獨立的 `experiment-context` 唯讀查詢一次取得 memberships 與雙向 relations，避免一般 Card detail response 永遠載入不需要的關聯資料；原本分開的 experiments／relations endpoint 暫時保留。
+
+命名相容期間，`/api/gardens/**` 與 `/api/cards/{cardId}/gardens` 對應至相同服務，response 也暫時保留 `gardenId`、`gardenTitle`、`gardenHypothesis`、`gardenArchived` 與 `gardens`。新前端只使用 Experiment 命名；舊 alias 待已部署客戶端與資料驗證完成後再另案移除。
+
+#### 對現有功能的目前影響與待完成項目
+
+新模型不只增加一個 menu。部分整合已完成，但舊 `growthStatus` 相容功能尚未全面退場：
+
+| 現有功能 | 目前狀態 |
+|---|---|
+| Card Detail | 已在同一資訊卡中顯示「所在實驗主題」與「思想脈絡」，並提供待整理狀態；舊全域成長狀態仍在相容期內顯示。 |
+| Today 快捷「標記種子」 | 尚未退場，仍待改為需要選擇 Experiment 與土壤的「種入實驗場」。 |
+| Card Search | 已支援 `needsProcessing`，但舊 growthStatuses 篩選仍保留；Experiment／stage 複合查詢不納入第一版。 |
+| 議事廳素材 | 目前仍保留 Card growthStatus 顯示，待相容期結束後移除。 |
+| 右側狀態列 | 目前仍保留全域 SEED／GROWING／MATURE Card 數量；退場時不可直接用 ExperimentCard 筆數替代，以免同一卡跨 Experiment 重複計數。 |
+| 快速建立 Card | 已可主動標記「待整理」，一般建立不強迫選 Experiment；從 Experiment「長出新卡」時共用相同建立表單並補入 Experiment 情境。 |
+| Demo | 仍使用舊 growthStatus 測資；最小 Experiment／ExperimentCard／CardRelation 展示資料尚待補齊。 |
+
+剩餘退場項目必須等 Experiment 資料遷移與實際使用驗證完成後再切換，避免過渡期間遺失既有標記或查詢能力。
+
+#### 效能與資料量原則
+
+Experiment、ExperimentCard 與 CardRelation 是一般關聯式資料，符合 PostgreSQL 的常見使用方式。個人長期使用情境下，資料表增加本身不是主要效能風險；需要控制的是每個畫面一次讀取的 row 數與不必要的大型 Card content。
+
+第一版遵循：
+
+- Experiment 列表只回傳摘要與聚合數量，不載入所有 Card。
+- Experiment 詳情的三個 stage 分別分頁或限量載入，不一次傳回整座 Experiment 的全部 Card。
+- Card 摘要查詢不載入不需要顯示的長篇 `content`。
+- ExperimentCard 以 EntityGraph 同批載入 Card 與 tags，避免逐卡 N+1；列表的三種 stage 數量由單一聚合查詢取得。
+- CardRelation 的 Experiment、來源 Card 與衍生 Card 以 EntityGraph 載入，並以 `sourceCardId`、`derivedCardId` 索引支援雙向追查。
+- 所有查詢先以 Experiment ownership 限縮，不把全使用者資料載入 JVM 或瀏覽器後再篩選。
+
+例外是開啟「長出新卡」時，前端目前會分頁載入該實驗主題三塊土壤的所有 Card，供使用者選擇來源；此載入不會發生在一般詳情初始畫面。若單一實驗主題未來成長到大量 Card，應改為可搜尋的後端分頁來源選擇器。
+
+第一版不需要 Redis、Elasticsearch、圖資料庫或背景聚合工作。若未來單一 Experiment 有數千張 Card，再依實際 query profile 評估 keyset pagination、summary projection 或快取。
+
+#### 第一版明確實作範圍
+
+第一個垂直切片只驗證：
+
+1. 建立、編輯、封存與查看 Experiment。
+2. 將既有 Card 種入某座 Experiment 的指定 stage。
+3. 新增、編輯、清空並顯示 ExperimentCard.note。
+4. 在 Experiment 詳情分區查看三種 stage。
+5. 重新分類或移除 ExperimentCard。
+6. 從一張或多張來源 Card 長出新 Card。
+7. 在 Card Detail 分開查看所在實驗主題與雙向思想脈絡。
+8. 保存並查看 `DERIVED_FROM` 關係。
+9. 以 `needsProcessing` 標記待整理 Card，並從 Search 篩選找回。
+10. 保留封存或暫停回流 Card 的 Experiment membership。
+11. 安全遷移既有非 `UNMARKED` growthStatus。
+
+#### 第一版明確不實作
+
+- 儀表板、Experiment 健康分數、成熟率與產量 KPI。
+- 種子逾期、未成熟警告或強迫處理提醒。
+- 自動推薦 stage、自動成熟或依互動推導 ExperimentCard。
+- AI 聚類、自動摘要或自動產生新 Card。
+- CardGrowthEntry、培育日誌與單卡成長時間軸。
+- ExperimentCard 拖曳排序、自由畫布與完整知識圖譜。
+- `DERIVED_FROM` 以外的複雜關係 taxonomy。
+- Soil 獨立 entity 或三張 soil 資料表。
+- Experiment 截止日期、任務、完成勾選與 Project Management。
+- 同步重新命名現有 Work／議題後端 domain。
+- 以 Experiment 操作自動改變回流排程、封存或 WorkCard status。
+
+#### 第一版驗收條件
+
+功能驗收至少包括：
+
+1. 同一張 Card 可加入不同 Experiment，且具有不同 stage。
+2. 同一張 Card 不可重複加入同一 Experiment。
+3. ExperimentCard.note 可新增、編輯、清空，重新分類後仍保留，且不同 Experiment 的 note 互不影響。
+4. 原始種子長出新 Card 後仍保持原 stage。
+5. 新 Card、ExperimentCard 與多筆來源關係建立成功，任一步失敗時全部回滾。
+6. Card Detail 能分辨 ExperimentCard 歸屬與 CardRelation 衍生關係，並雙向進入來源或衍生 Card。
+7. `needsProcessing` 可獨立切換；Search 未套用條件時不影響結果，套用「只看待整理」後只回傳 `true` 的 Card。
+8. Experiment 顯示已封存與暫停回流 Card，但不使其重新進入 Today。
+9. Experiment 與待整理操作不改變任何回流、回顧、星標或稍後再看欄位。
+10. 使用者無法讀取或操作其他使用者的 Experiment、ExperimentCard、Card 或 CardRelation。
+11. 舊 `SEED / GROWING / MATURE` 資料完整進入遷移 Experiment，`UNMARKED` 不被誤建成培育項目，也不自動轉成待整理。
+12. Experiment 列表與詳情在空資料、少量資料、分頁及行動版寬度下都能正常操作。
+13. 實驗場功能退出或 Experiment 封存時，不影響原始 Card、Tag、Today 與議事廳資料。
+
+#### 上線後需要驗證的產品假設
+
+第一版完成只代表具備觀察條件，不代表實驗場永久成立。至少需要驗證：
+
+1. 使用者是否會自然建立不只一座 Experiment，而不是只用 Tag 或議題替代。
+2. 把相關 Card 放在一起，是否真的提高新 Card、理解或行動產生的機率。
+3. 「長出新卡」是否比修改原 Card 更符合實際思考習慣。
+4. 三塊土壤是否幫助理解 Card 的角色，還是再次造成隱性升級壓力。
+5. 同一 Card 在不同 Experiment 使用不同 stage 的情境是否真實發生。
+6. 使用者是否會回看 Card 的思想來源，而不只是建立後忽略關係。
+7. 封存與暫停回流 Card 保留在 Experiment 是否確實有價值。
+8. 「待整理」是否會被自然使用並透過 Search 找回，而不會再次形成未處理債務。
+9. Experiment 是否與議事廳形成互補循環：Experiment 長出 Card，Card 進入議題；議題醒悟再沉澱 Card，Card 回到 Experiment。
+10. Experiment 提供的價值是否無法由 Search、Tag、Card Detail 與議事廳的組合輕易取代。
+
+若使用者只把 Experiment 當成另一種 Tag、長期不會長出新 Card，或三階段再次形成心理債務，應縮減或撤回主導覽入口，保留可重用的 CardRelation 或關聯資料，而不是為了已投入開發成本繼續擴張功能。
