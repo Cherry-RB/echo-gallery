@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import type { WorkStatus, WorkSummary } from '../../types/work'
 import { workApi } from '../../utils/api/workApi'
+import AppDialog from '../AppDialog.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -74,7 +75,7 @@ const addIssueMutation = useMutation({
 </script>
 
 <template>
-  <el-dialog
+  <AppDialog
     v-model="dialogVisible"
     title="將卡片加入議題"
     width="min(560px, calc(100vw - 32px))"
@@ -116,7 +117,7 @@ const addIssueMutation = useMutation({
         </el-button>
       </div>
     </div>
-  </el-dialog>
+  </AppDialog>
 </template>
 
 <style scoped>
@@ -127,8 +128,7 @@ const addIssueMutation = useMutation({
 }
 
 .issue-option-list {
-  max-height: min(56vh, 480px);
-  overflow-y: auto;
+  min-height: 0;
 }
 
 .issue-option {

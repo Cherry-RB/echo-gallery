@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import type { WorkProgressUpdate, WorkProgressUpdateRequest } from '../../types/work'
 import { workApi } from '../../utils/api/workApi'
+import AppDialog from '../AppDialog.vue'
 import {
   hasWorkProgressUpdateContent,
   normalizeWorkProgressUpdate,
@@ -82,7 +83,7 @@ const handleClosed = () => {
 </script>
 
 <template>
-  <el-dialog
+  <AppDialog
     :model-value="modelValue"
     :title="update ? '修改議題近況' : '提出近況'"
     width="min(640px, calc(100vw - 32px))"
@@ -120,7 +121,7 @@ const handleClosed = () => {
         {{ update ? '儲存修改' : '提出近況' }}
       </el-button>
     </template>
-  </el-dialog>
+  </AppDialog>
 </template>
 
 <style scoped>

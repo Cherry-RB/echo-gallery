@@ -6,7 +6,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { WorkProgressUpdate } from '../../types/work'
 import { formatDate } from '../../utils/formatDate'
 import { workApi } from '../../utils/api/workApi'
-import ExpandableText from './ExpandableText.vue'
+import ExpandableText from '../ExpandableText.vue'
+import AppDialog from '../AppDialog.vue'
 import WorkProgressUpdateDialog from './WorkProgressUpdateDialog.vue'
 
 const props = defineProps<{ workId: string | number }>()
@@ -168,7 +169,7 @@ const wasEdited = (update: WorkProgressUpdate) => (
       <button type="button" @click="openCreateDialog">寫下第一筆近況</button>
     </div>
 
-    <el-dialog
+    <AppDialog
       v-model="historyDialogVisible"
       title="歷次更新"
       width="min(760px, calc(100vw - 32px))"
@@ -229,7 +230,7 @@ const wasEdited = (update: WorkProgressUpdate) => (
           </div>
         </div>
       </template>
-    </el-dialog>
+    </AppDialog>
 
     <WorkProgressUpdateDialog v-model="updateDialogVisible" :work-id="workId" :update="editingUpdate" />
   </section>
@@ -451,8 +452,7 @@ const wasEdited = (update: WorkProgressUpdate) => (
 }
 
 .history-list {
-  max-height: min(62vh, 680px);
-  overflow-y: auto;
+  min-height: 0;
 }
 
 .history-item {

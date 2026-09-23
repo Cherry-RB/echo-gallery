@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
-import { Check, Delete, Edit, Plus, RefreshLeft, Search } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import { Check, Delete, Edit, Plus, RefreshLeft } from '@element-plus/icons-vue'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import type { CardDto, CardGrowthStatus, CardType } from '../../types/card'
 import type { WorkCard, WorkCardStatus } from '../../types/work'
-import { cardApi } from '../../utils/api/cardApi'
 import { workApi } from '../../utils/api/workApi'
 import { formatDate } from '../../utils/formatDate'
-import { normalizeWorkCardSearch } from '../../utils/cardSearch'
+import CardPickerDialog from '../CardPickerDialog.vue'
+import AppDialog from '../AppDialog.vue'
 
 const props = defineProps<{ workId: string }>()
 const router = useRouter()
@@ -18,9 +18,6 @@ const addCardDialogVisible = ref(false)
 const noteDialogVisible = ref(false)
 const editingNoteCard = ref<WorkCard | null>(null)
 const noteInput = ref('')
-const searchInput = ref('')
-const searchKeyword = ref('')
-let searchTimer: ReturnType<typeof setTimeout> | undefined
 const materialPageSize = 10
 
 const cardTypeMeta: Record<CardType, string> = {
@@ -81,47 +78,6 @@ const linkedCardIds = computed(() =>
   new Set([...candidateCards.value, ...usedCards.value].map((item) => String(item.cardId))),
 )
 
-watch(searchInput, (value) => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    searchKeyword.value = value.trim()
-  }, 300)
-})
-
-onUnmounted(() => {
-  if (searchTimer) clearTimeout(searchTimer)
-})
-
-const {
-  data: cardPages,
-  isLoading: areCardsLoading,
-  isError: areCardsError,
-  hasNextPage,
-  isFetchingNextPage,
-  fetchNextPage,
-} = useInfiniteQuery({
-  queryKey: computed(() => ['cards', 'work-picker', searchKeyword.value]),
-  queryFn: ({ pageParam }) => {
-    return cardApi.searchCards({
-      ...normalizeWorkCardSearch(searchKeyword.value),
-      archiveStatus: 'ACTIVE',
-      sortBy: 'UPDATED_AT',
-      direction: 'DESC',
-      page: pageParam,
-      size: 20,
-    })
-  },
-  initialPageParam: 0,
-  getNextPageParam: (lastPage) =>
-    lastPage.page + 1 < lastPage.totalPages ? lastPage.page + 1 : undefined,
-  enabled: computed(() => addCardDialogVisible.value),
-})
-
-const availableCards = computed(() =>
-  (cardPages.value?.pages ?? [])
-    .flatMap((page) => page.content)
-    .filter((card) => !linkedCardIds.value.has(String(card.id))),
-)
 
 const refreshMaterialQueries = async () => {
   await Promise.all([
@@ -214,11 +170,6 @@ const confirmRemoveCard = async (card: WorkCard) => {
   }
 }
 
-const resetCardSearch = () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchInput.value = ''
-  searchKeyword.value = ''
-}
 </script>
 
 <template>
@@ -394,11 +345,10 @@ const resetCardSearch = () => {
       </section>
     </div>
 
-    <el-dialog
+    <AppDialog
       v-model="noteDialogVisible"
       title="編輯素材備註"
       width="min(520px, calc(100vw - 32px))"
-      destroy-on-close
       @closed="resetNoteDialog"
     >
       <p v-if="editingNoteCard" class="note-dialog-card-title">
@@ -424,81 +374,26 @@ const resetCardSearch = () => {
           儲存備註
         </el-button>
       </template>
-    </el-dialog>
+    </AppDialog>
 
-    <el-dialog
+    <CardPickerDialog
       v-model="addCardDialogVisible"
       title="加入議題素材"
-      width="min(680px, calc(100vw - 32px))"
-      destroy-on-close
-      @closed="resetCardSearch"
+      description="從曾經保存的卡片中，選擇與這個議題相關、值得一起考慮的內容。已加入的卡片不會重複顯示。"
+      archive-status="ACTIVE"
+      confirm-label="加入議題素材"
+      :excluded-card-ids="Array.from(linkedCardIds)"
+      :submitting="addCardMutation.isPending.value"
+      empty-description="沒有其他可加入的卡片"
+      @confirm="addCardMutation.mutate"
     >
-      <p class="picker-description">
-        從曾經保存的卡片中，選擇與這個議題相關、值得一起考慮的內容。已加入的卡片不會重複顯示。
-      </p>
-
-      <el-input
-        v-model="searchInput"
-        class="card-search-input"
-        :prefix-icon="Search"
-        maxlength="255"
-        clearable
-        placeholder="輸入 Card ID（例如 #7）或標題"
-        aria-label="搜尋可加入的卡片"
-      />
-
-      <div v-if="areCardsLoading" aria-label="卡片列表載入中">
-        <el-skeleton :rows="6" animated />
-      </div>
-
-      <el-result
-        v-else-if="areCardsError"
-        icon="warning"
-        title="無法載入卡片"
-      />
-
-      <div v-else class="card-picker-list">
-        <div v-for="card in availableCards" :key="card.id" class="card-picker-item">
-          <div class="picker-card-content">
-            <strong>{{ card.title }}</strong>
-            <div class="card-metadata">
-              <span class="card-id">#{{ card.id }}</span>
-              <span>{{ cardTypeMeta[card.type] }}</span>
-              <el-tooltip v-if="card.growthStatus !== 'UNMARKED'" :content="growthStatusMeta[card.growthStatus].label">
-                <span
-                  class="growth-icon"
-                  role="img"
-                  :aria-label="growthStatusMeta[card.growthStatus].label"
-                >
-                  {{ growthStatusMeta[card.growthStatus].icon }}
-                </span>
-              </el-tooltip>
-            </div>
-          </div>
-          <el-button
-            type="primary"
-            plain
-            size="small"
-            :loading="addCardMutation.isPending.value"
-            @click="addCardMutation.mutate(card)"
-          >
-            加入
-          </el-button>
-        </div>
-
-        <el-empty
-          v-if="availableCards.length === 0"
-          :image-size="72"
-          :description="hasNextPage ? '目前載入的卡片皆已加入議題，可繼續載入更多' : '沒有其他可加入的卡片'"
-        />
-
-        <div v-if="hasNextPage" class="load-more-row">
-          <el-button :loading="isFetchingNextPage" @click="fetchNextPage()">
-            載入更多
-          </el-button>
-        </div>
-      </div>
-    </el-dialog>
+      <template #settings="{ selectedCard }">
+        <h3>加入議題</h3>
+        <p v-if="selectedCard" class="note-dialog-card-title">{{ selectedCard.title }}</p>
+        <p v-else class="note-dialog-hint">請先從左側選擇一張卡片。</p>
+        <p class="note-dialog-hint">加入後會先成為參考素材；真正影響思考或行動時，再標記為已運用。</p>
+      </template>
+    </CardPickerDialog>
   </section>
 </template>
 
@@ -514,8 +409,7 @@ const resetCardSearch = () => {
 
 .material-heading-row,
 .column-heading,
-.material-card,
-.card-picker-item {
+.material-card {
   display: flex;
   align-items: center;
 }
@@ -537,8 +431,7 @@ const resetCardSearch = () => {
   line-height: var(--leading-section);
 }
 
-.material-heading-row p,
-.picker-description {
+.material-heading-row p {
   margin: 6px 0 0;
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
@@ -586,8 +479,7 @@ const resetCardSearch = () => {
   margin-top: 10px;
 }
 
-.material-card-main,
-.picker-card-content {
+.material-card-main {
   min-width: 0;
 }
 
@@ -664,42 +556,6 @@ const resetCardSearch = () => {
 
 .material-actions :deep(.el-button + .el-button) {
   margin-left: 0;
-}
-
-.picker-description {
-  margin: -8px 0 16px;
-}
-
-.card-search-input {
-  margin-bottom: 12px;
-}
-
-.card-id {
-  font-variant-numeric: tabular-nums;
-}
-
-.card-picker-list {
-  max-height: min(60vh, 560px);
-  overflow-y: auto;
-}
-
-.card-picker-item {
-  justify-content: space-between;
-  gap: 16px;
-  padding: 13px 4px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.picker-card-content strong {
-  display: block;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.load-more-row {
-  display: flex;
-  justify-content: center;
-  padding-top: 18px;
 }
 
 .material-load-more-row {

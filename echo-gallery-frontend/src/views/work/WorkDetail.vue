@@ -6,7 +6,8 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import CurrentAssessmentGuide from '../../components/work/CurrentAssessmentGuide.vue'
-import ExpandableText from '../../components/work/ExpandableText.vue'
+import AppDialog from '../../components/AppDialog.vue'
+import ExpandableText from '../../components/ExpandableText.vue'
 import WorkMaterialManager from '../../components/work/WorkMaterialManager.vue'
 import WorkProgressUpdates from '../../components/work/WorkProgressUpdates.vue'
 import type { UpdateWorkRequest, WorkStatus } from '../../types/work'
@@ -456,7 +457,7 @@ const submitUpdateWork = async () => {
       </aside>
     </div>
 
-    <el-dialog
+    <AppDialog
       v-model="editDialogVisible"
       :title="editDialogTitle"
       width="min(680px, calc(100vw - 32px))"
@@ -550,7 +551,7 @@ const submitUpdateWork = async () => {
           儲存變更
         </el-button>
       </template>
-    </el-dialog>
+    </AppDialog>
   </section>
 </template>
 
@@ -963,9 +964,9 @@ const submitUpdateWork = async () => {
 
 @media (max-width: 900px) {
   .work-detail-page {
-    width: calc(100% + 32px);
+    width: 100%;
     height: auto;
-    margin: -16px;
+    margin: 0;
     min-height: calc(100dvh - 56px);
     overflow: visible;
   }
@@ -1013,9 +1014,16 @@ const submitUpdateWork = async () => {
   }
 
   .detail-actions {
-    width: auto;
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-    margin-left: auto;
+    margin: 0;
+  }
+
+  .detail-actions > :first-child {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 
   .detail-actions,
@@ -1024,18 +1032,21 @@ const submitUpdateWork = async () => {
   }
 
   .detail-edit-actions {
-    gap: 8px;
+    display: contents;
   }
 
   .status-trigger {
-    width: 96px;
+    width: 100%;
+    min-width: 0;
     padding-inline: 6px;
   }
 
   .detail-actions :deep(.el-button) {
-    min-width: 104px;
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
     padding-inline: 6px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .updates-side-card,
@@ -1069,7 +1080,7 @@ const submitUpdateWork = async () => {
   }
 
   .detail-actions {
-    margin-left: auto;
+    margin: 0;
   }
 }
 </style>

@@ -6,7 +6,8 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import CurrentAssessmentGuide from '../../components/work/CurrentAssessmentGuide.vue'
-import ExpandableText from '../../components/work/ExpandableText.vue'
+import AppDialog from '../../components/AppDialog.vue'
+import ExpandableText from '../../components/ExpandableText.vue'
 import WorkProgressUpdateDialog from '../../components/work/WorkProgressUpdateDialog.vue'
 import type { CreateWorkRequest, WorkStatus, WorkSummary } from '../../types/work'
 import { formatDate } from '../../utils/formatDate'
@@ -525,7 +526,7 @@ const submitCreateWork = async () => {
       @closed="quickUpdateWorkId = null"
     />
 
-    <el-dialog
+    <AppDialog
       v-model="createDialogVisible"
       title="發起議題"
       width="min(620px, calc(100vw - 32px))"
@@ -625,7 +626,7 @@ const submitCreateWork = async () => {
           發起議題
         </el-button>
       </template>
-    </el-dialog>
+    </AppDialog>
   </section>
 </template>
 
@@ -1259,6 +1260,7 @@ const submitCreateWork = async () => {
     width: 100%;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .work-list-toolbar {
@@ -1282,8 +1284,10 @@ const submitCreateWork = async () => {
     flex-wrap: wrap;
   }
 
-  .page-actions .el-button {
+  .page-actions :deep(.el-button) {
     width: 100%;
+    min-width: 0;
+    margin-left: 0;
   }
 
   .status-filter :deep(.el-radio-button) {

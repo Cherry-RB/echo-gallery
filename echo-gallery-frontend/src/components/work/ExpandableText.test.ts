@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
-import ExpandableText from './ExpandableText.vue'
+import ExpandableText from '../ExpandableText.vue'
 
 describe('ExpandableText', () => {
   it('只有內容超出預覽高度時才提供展開與收起', async () => {
