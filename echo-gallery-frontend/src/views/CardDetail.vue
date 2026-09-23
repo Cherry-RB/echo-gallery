@@ -8,6 +8,7 @@ import { computed, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
 import { cardApi } from '../utils/api/cardApi';
+import { experimentApi } from '../utils/api/experimentApi';
 import { useQuery } from '@tanstack/vue-query';
 import { useCardStatus } from '../utils/useCardStatus';
 import { onBeforeRouteLeave, useRoute } from 'vue-router';
@@ -17,6 +18,7 @@ import { useTags } from '../utils/composables/useTags';
 import CardWorkManager from '../components/work/CardWorkManager.vue';
 import { createCardFormRules, toCardContentRequest } from '../utils/cardForm';
 import { cardTextFieldCopy } from '../utils/cardTextFieldCopy';
+import AppDialog from '../components/AppDialog.vue';
 import { cardDetailQueryKey } from '../utils/cardDetailQuery';
 import RecurrenceIntervalPicker from '../components/RecurrenceIntervalPicker.vue';
 import { getTextLength, trimToTextLength } from '../utils/textLength';
@@ -90,6 +92,20 @@ const { data: fetchedCard, isLoading, isError, refetch } = useQuery({
   enabled: computed(() => !isCreateMode.value && !!props.id),
   refetchOnWindowFocus: false,
 });
+const { data: cardExperimentContext } = useQuery({
+  queryKey: computed(() => ['card-experiment-context', props.id]),
+  queryFn: () => experimentApi.getCardExperimentContext(props.id),
+  enabled: computed(() => !isCreateMode.value && !!props.id),
+  refetchOnWindowFocus: false,
+});
+const cardExperiments = computed(() => cardExperimentContext.value?.experiments ?? []);
+const cardRelations = computed(() => cardExperimentContext.value?.relations ?? []);
+
+const updateProcessingStatus = async (needsProcessing: boolean) => {
+  const updated = await cardApi.updateProcessingStatus(props.id, needsProcessing);
+  cardData.value.needsProcessing = updated.needsProcessing;
+  ElMessage.success(needsProcessing ? '已標記為待整理' : '已完成待整理標記');
+};
 // =====================================================
 
 const {
@@ -618,6 +634,17 @@ const {
                   <dd>{{ cardData.isArchived ? '已封存' : '使用中' }}</dd>
                 </div>
                 <div>
+                  <dt>整理狀態</dt>
+                  <dd>
+                    <el-switch
+                      :model-value="cardData.needsProcessing"
+                      active-text="待整理"
+                      inactive-text="已完成"
+                      @change="updateProcessingStatus(Boolean($event))"
+                    />
+                  </dd>
+                </div>
+                <div>
                   <dt>喜愛程度</dt>
                   <dd>
                     <button
@@ -639,6 +666,38 @@ const {
 
             <CardWorkManager :card-id="props.id" />
 
+            <section class="property-card experiment-context-card">
+              <header class="property-heading">
+                <div>
+                  <span class="property-eyebrow">實驗場</span>
+                  <h2>實驗主題與思想脈絡</h2>
+                </div>
+                <el-button text size="small" @click="router.push('/experiments')">前往實驗場</el-button>
+              </header>
+              <div class="experiment-context-section">
+                <h3>所在實驗主題</h3>
+                <p v-if="!cardExperiments.length" class="property-hint">尚未加入任何實驗主題。</p>
+                <div v-else class="experiment-context-list">
+                  <button v-for="experiment in cardExperiments" :key="experiment.experimentId" type="button" class="experiment-context-item" @click="router.push(`/experiments/${experiment.experimentId}`)">
+                    <span>{{ experiment.stage === 'SEED' ? '🌱' : experiment.stage === 'GROWING' ? '🌿' : '🌳' }} {{ experiment.experimentTitle }}</span>
+                    <small v-if="experiment.experimentHypothesis">{{ experiment.experimentHypothesis }}</small>
+                    <small v-if="experiment.note">備註：{{ experiment.note }}</small>
+                    <el-tag v-if="experiment.experimentArchived" type="info" size="small">已封存</el-tag>
+                  </button>
+                </div>
+              </div>
+              <div class="experiment-context-section lineage-section">
+                <h3>由此長出／長自</h3>
+                <p v-if="!cardRelations.length" class="property-hint">尚未留下衍生關係。</p>
+                <div v-else class="experiment-context-list">
+                  <button v-for="relation in cardRelations" :key="relation.id" type="button" class="experiment-context-item" @click="router.push(`/card/${relation.sourceCard.cardId === Number(props.id) ? relation.derivedCard.cardId : relation.sourceCard.cardId}`)">
+                    <span>{{ relation.sourceCard.cardId === Number(props.id) ? '由此長出：' : '長自：' }} {{ relation.sourceCard.cardId === Number(props.id) ? relation.derivedCard.cardTitle : relation.sourceCard.cardTitle }}</span>
+                    <small>{{ relation.experimentTitle }}</small>
+                  </button>
+                </div>
+              </div>
+            </section>
+
             <section class="system-metadata" aria-label="卡片系統資訊">
               <span>累積點閱 {{ cardData.openCount }} 次</span>
               <span>建立於 {{ formatDate(cardData.createdAt || '') }}</span>
@@ -648,7 +707,7 @@ const {
         </div>
       </section>
 
-      <el-dialog
+      <AppDialog
         :model-value="isEditMode"
         :title="editDialogTitle"
         width="min(820px, calc(100vw - 32px))"
@@ -758,7 +817,7 @@ const {
           <el-button :disabled="isUpdatePending" @click="requestCancelEdit">取消</el-button>
           <el-button type="primary" :loading="isUpdatePending" @click="handleSave">儲存變更</el-button>
         </template>
-      </el-dialog>
+      </AppDialog>
     </template>
 
 <template v-else>
@@ -1705,5 +1764,52 @@ const {
     width: calc(100vw - 24px) !important;
     max-height: calc(100dvh - 24px);
   }
+}
+
+.experiment-context-card {
+  margin-top: 16px;
+}
+
+.experiment-context-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.experiment-context-section > h3 {
+  margin: 0 0 8px;
+  color: var(--el-text-color-regular);
+  font-size: var(--type-caption);
+}
+
+.lineage-section {
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.experiment-context-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  background: var(--el-fill-color-lighter);
+  color: var(--el-text-color-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.experiment-context-item:hover {
+  border-color: var(--el-color-success-light-5);
+}
+
+.experiment-context-item small {
+  grid-column: 1 / -1;
+  color: var(--el-text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

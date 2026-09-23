@@ -108,6 +108,25 @@ const routes = [
       props: true
     },
     {
+      path: 'experiments',
+      name: 'ExperimentList',
+      component: () => import('../views/experiment/ExperimentList.vue')
+    },
+    {
+      path: 'experiments/:id',
+      name: 'ExperimentDetail',
+      component: () => import('../views/experiment/ExperimentDetail.vue'),
+      props: true
+    },
+    {
+      path: 'gardens',
+      redirect: '/experiments'
+    },
+    {
+      path: 'gardens/:id',
+      redirect: { name: 'ExperimentDetail' }
+    },
+    {
       path: '', // 預設導向 今日看板
       redirect: 'board/today'
     }

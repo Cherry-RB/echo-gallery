@@ -10,9 +10,34 @@ import { cardTextFieldCopy } from '../utils/cardTextFieldCopy'
 import { useTags } from '../utils/composables/useTags'
 import { useCardStatus } from '../utils/useCardStatus'
 import { getTextLength, trimToTextLength } from '../utils/textLength'
+import type { CardContentRequest, CardDto } from '../types/card'
+import AppDialog from './AppDialog.vue'
 
-const props = defineProps<{ modelValue: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
+const props = withDefaults(defineProps<{
+  modelValue: boolean
+  title?: string
+  description?: string
+  createLabel?: string
+  successTitle?: string
+  successDescription?: string
+  canSubmit?: boolean
+  createCard?: (request: CardContentRequest) => Promise<CardDto>
+  createErrorMessage?: string
+  layout?: 'default' | 'split'
+}>(), {
+  title: '快速新增卡片',
+  description: '先留下最重要的內容，其餘資訊可以現在補充，也可以之後再慢慢完善。',
+  createLabel: '建立卡片',
+  successTitle: '卡片已建立',
+  successDescription: '你可以立即查看卡片，或繼續記下下一則內容。',
+  canSubmit: true,
+  createErrorMessage: '建立卡片失敗，請稍後再試',
+  layout: 'default',
+})
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+  created: [card: CardDto]
+}>()
 type OptionalField = 'reason' | 'summary' | 'coverImageUrl'
 
 const cardFormRef = ref<FormInstance>()
@@ -20,6 +45,7 @@ const cardData = ref(getDefaultCardData())
 const visibleOptionalFields = ref<OptionalField[]>([])
 const titleInputRef = ref<{ focus: () => void }>()
 const createdCardId = ref<string | null>(null)
+const isCustomCreatePending = ref(false)
 const router = useRouter()
 const dialogVisible = computed({
   get: () => props.modelValue,
@@ -35,6 +61,10 @@ const {
   handleConfirmAddTag,
 } = useTags(cardData)
 const { handleCreateCard, isCreatePending } = useCardStatus()
+const isSubmitting = computed(() => isCreatePending.value || isCustomCreatePending.value)
+const dialogWidth = computed(() => props.layout === 'split'
+  ? 'min(960px, calc(100vw - 32px))'
+  : 'min(720px, calc(100vw - 32px))')
 
 const optionalFields: Array<{ key: OptionalField; label: string }> = [
   { key: 'reason', label: cardTextFieldCopy.reason.label },
@@ -109,7 +139,7 @@ const confirmDiscard = () => ElMessageBox.confirm(
 )
 
 const requestClose = async () => {
-  if (isCreatePending.value || createdCardId.value || !hasUnsavedChanges.value) {
+  if (isSubmitting.value || createdCardId.value || !hasUnsavedChanges.value) {
     dialogVisible.value = false
     return
   }
@@ -122,7 +152,7 @@ const requestClose = async () => {
 }
 
 const handleBeforeClose = (done: () => void) => {
-  if (isCreatePending.value || createdCardId.value || !hasUnsavedChanges.value) {
+  if (isSubmitting.value || createdCardId.value || !hasUnsavedChanges.value) {
     done()
     return
   }
@@ -145,9 +175,26 @@ const submit = async () => {
   if (!cardFormRef.value) return
   const valid = await cardFormRef.value.validate().catch(() => false)
   if (!valid) return
-  handleCreateCard(toCardContentRequest(cardData.value), {
-    onSuccess: card => { createdCardId.value = card.id },
-  })
+  const request = toCardContentRequest(cardData.value)
+  if (!props.createCard) {
+    handleCreateCard(request, {
+      onSuccess: card => {
+        createdCardId.value = card.id
+        emit('created', card)
+      },
+    })
+    return
+  }
+  isCustomCreatePending.value = true
+  try {
+    const card = await props.createCard(request)
+    createdCardId.value = card.id
+    emit('created', card)
+  } catch {
+    ElMessage.error(props.createErrorMessage)
+  } finally {
+    isCustomCreatePending.value = false
+  }
 }
 
 const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number) => {
@@ -157,26 +204,24 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
 </script>
 
 <template>
-  <el-dialog
+  <AppDialog
     v-model="dialogVisible"
-    title="快速新增卡片"
-    width="min(620px, calc(100vw - 32px))"
-    class="quick-create-dialog"
-    destroy-on-close
-    append-to-body
+    :title="title"
+    :width="dialogWidth"
+    :class="['quick-create-dialog', { 'quick-create-dialog--split': layout === 'split' }]"
     :before-close="handleBeforeClose"
     @opened="handleOpened"
     @closed="resetForm"
   >
     <template v-if="createdCardId">
       <div class="create-success">
-        <h3>卡片已建立</h3>
-        <p>你可以立即查看卡片，或繼續記下下一則內容。</p>
+        <h3>{{ successTitle }}</h3>
+        <p>{{ successDescription }}</p>
       </div>
     </template>
 
     <template v-else>
-      <p class="dialog-description">先留下最重要的內容，其餘資訊可以現在補充，也可以之後再慢慢完善。</p>
+      <p v-if="description" class="dialog-description">{{ description }}</p>
       <el-form
         ref="cardFormRef"
         :model="cardData"
@@ -186,6 +231,8 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
         @keydown.ctrl.enter.prevent="submit"
         @keydown.meta.enter.prevent="submit"
       >
+        <div :class="['quick-create-layout', { split: layout === 'split' }]">
+          <div class="quick-create-main">
         <div class="quick-settings-grid">
           <el-form-item label="卡片類型" prop="type" class="quick-setting-field">
             <el-radio-group v-model="cardData.type">
@@ -227,6 +274,9 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
                 {{ cardData.intervalDays === null ? '已暫停' : '暫停' }}
               </button>
             </div>
+          </el-form-item>
+          <el-form-item class="quick-setting-field">
+            <el-checkbox v-model="cardData.needsProcessing">這張卡仍待整理</el-checkbox>
           </el-form-item>
         </div>
 
@@ -304,6 +354,11 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
         <el-form-item v-if="visibleOptionalFields.includes('coverImageUrl')" label="封面圖片來源連結" prop="coverImageUrl">
           <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
         </el-form-item>
+          </div>
+          <aside v-if="$slots.context" class="quick-create-context">
+            <slot name="context" />
+          </aside>
+        </div>
       </el-form>
     </template>
 
@@ -313,15 +368,19 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
         <el-button type="primary" @click="viewCreatedCard">查看卡片</el-button>
       </template>
       <template v-else>
-        <el-button @click="requestClose">取消</el-button>
-        <el-button type="primary" :loading="isCreatePending" @click="submit">建立卡片</el-button>
+        <el-button :disabled="isSubmitting" @click="requestClose">取消</el-button>
+        <el-button type="primary" :loading="isSubmitting" :disabled="!canSubmit" @click="submit">{{ createLabel }}</el-button>
       </template>
     </template>
-  </el-dialog>
+  </AppDialog>
 </template>
 
 <style scoped>
 .dialog-description { display: block; margin: 0 0 18px; padding-top: 2px; color: var(--el-text-color-secondary); font-size: var(--type-ui); line-height: 1.65; }
+.quick-create-layout.split { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.85fr); gap: 24px; align-items: start; }
+.quick-create-main, .quick-create-context { min-width: 0; }
+.quick-create-context { overflow-wrap: anywhere; }
+.quick-create-context { position: sticky; top: 0; }
 .quick-settings-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; padding: 14px; margin-bottom: 18px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-lighter); }
 .quick-setting-field { margin-bottom: 0; }
 .quick-setting-field :deep(.el-form-item__content) { display: block; }
@@ -352,12 +411,16 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
 .create-success h3 { margin: 0 0 8px; color: var(--el-text-color-primary); font-size: var(--type-title-sm); }
 .create-success p { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); }
 :global(.quick-create-dialog.el-dialog) { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
-:global(.quick-create-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
+:global(.quick-create-dialog .el-dialog__body) { min-height: 0; overflow-x: hidden; overflow-y: auto; }
 :global(.quick-create-dialog .el-dialog__footer) { flex: 0 0 auto; padding-top: 14px; border-top: 1px solid var(--el-border-color-lighter); }
 @media (max-width: 560px) {
   :global(.quick-create-dialog.el-dialog) { width: calc(100vw - 24px) !important; max-height: calc(100dvh - 24px); }
   .quick-settings-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .quick-interval-button, .pause-recurrence-button { min-height: 40px; }
   .optional-field-actions { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 860px) {
+  .quick-create-layout.split { grid-template-columns: minmax(0, 1fr); }
+  .quick-create-context { position: static; }
 }
 </style>
