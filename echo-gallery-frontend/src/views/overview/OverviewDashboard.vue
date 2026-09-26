@@ -19,6 +19,7 @@ const current = computed(() => overview.value?.current ?? {
   needsProcessingCardCount: 0,
   activeExperimentCount: 0,
   workWithNextStepCount: 0,
+  experimentTries: [],
   nextSteps: [],
   attentionSignals: [],
 })
@@ -81,6 +82,7 @@ const activityDefinitions = {
   'experiment-material': '放入實驗場',
   'work-linked': '帶入議題',
   derived: '長出新卡',
+  'exploration-record': '留下探索發現',
   'work-update': '議題更新',
 } as const
 
@@ -133,6 +135,28 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
           >
             <strong>{{ item.value }}</strong><span>{{ item.unit }}</span>
             <small>{{ item.label }}</small>
+          </button>
+        </div>
+      </section>
+
+      <section v-if="current.experimentTries.length" class="experiment-tries-panel" aria-labelledby="overview-experiment-tries-title">
+        <div class="section-title-row">
+          <div>
+            <span class="section-eyebrow">實驗場</span>
+            <h2 id="overview-experiment-tries-title">目前想試</h2>
+          </div>
+          <router-link to="/experiments">查看全部</router-link>
+        </div>
+        <div class="experiment-try-list">
+          <button
+            v-for="experimentTry in current.experimentTries"
+            :key="experimentTry.experimentId"
+            type="button"
+            class="experiment-try-item"
+            @click="openExperiment(experimentTry.experimentId)"
+          >
+            <span>{{ experimentTry.experimentTitle }}</span>
+            <strong>{{ experimentTry.currentTry }}</strong>
           </button>
         </div>
       </section>
@@ -235,7 +259,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
           <div v-if="period.recentExperimentMaterials.length" class="content-list">
             <article v-for="material in period.recentExperimentMaterials.slice(0, 3)" :key="`${material.experimentId}-${material.cardId}`" class="content-card">
               <button type="button" class="content-card-main" @click="openCard(material.cardId)">
-                <span>{{ formatDate(material.addedAt) }} 放入</span>
+                <span>{{ formatDate(material.addedAt) }} · {{ material.sourceKind === 'EXPLORATION' ? '探索整理' : '放入材料' }}</span>
                 <h3>{{ material.title }}</h3>
               </button>
               <button type="button" class="context-link" @click="openExperiment(material.experimentId)">{{ material.experimentTitle }}</button>
@@ -268,8 +292,8 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .overview-workspace { padding: 12px; background: var(--el-bg-color-page); }
 .overview-stack { display: flex; flex-direction: column; gap: 16px; }
 .overview-state { padding: 48px 0; color: var(--el-text-color-secondary); text-align: center; }
-.current-strip, .action-panel, .period-section, .content-panel, .activity-disclosure { border: 1px solid var(--el-border-color-light); border-radius: 8px; background: var(--el-bg-color); }
-.current-strip, .period-section, .content-panel, .action-panel { padding: 20px 24px; }
+.current-strip, .experiment-tries-panel, .action-panel, .period-section, .content-panel, .activity-disclosure { border: 1px solid var(--el-border-color-light); border-radius: 8px; background: var(--el-bg-color); }
+.current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: 20px 24px; }
 .section-title-row, .period-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .section-title-row h2, .period-heading h2 { margin: 4px 0 0; font-size: var(--type-section-title); }
 .section-title-row > a { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
@@ -283,6 +307,12 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .current-stat strong, .period-figure strong, .activity-item strong { color: var(--el-text-color-primary); font-size: 25px; font-variant-numeric: tabular-nums; }
 .current-stat > span, .period-figure > div > span { margin-left: 3px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .current-stat small { display: block; margin-top: 5px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
+.experiment-try-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.experiment-try-item { min-width: 0; padding: 13px 14px; overflow: hidden; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.experiment-try-item > span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
+.experiment-try-item > strong { display: -webkit-box; margin-top: 6px; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.experiment-try-item:hover, .experiment-try-item:focus-visible { border-color: var(--el-color-primary-light-5); }
+.experiment-try-item:hover > strong, .experiment-try-item:focus-visible > strong { color: var(--el-color-primary); }
 .action-grid, .content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .next-step-list, .attention-list, .content-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 .next-step-item { width: 100%; padding: 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
@@ -321,6 +351,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .activity-item { display: flex; align-items: baseline; gap: 4px; min-width: 0; padding: 10px; border-radius: 8px; background: var(--el-fill-color-light); }
 .activity-item strong { font-size: 18px; }
 .activity-item span { overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 900px) { .current-stat-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .current-stat:nth-child(4) { padding-left: 0; border-left: 0; } .action-grid, .content-grid { grid-template-columns: 1fr; } .activity-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .overview-page { max-width: none; } .overview-header { margin-bottom: 18px; } .overview-workspace { margin-inline: -16px; padding: 12px 16px; } .overview-stack { gap: 12px; } .current-strip, .period-section, .content-panel, .action-panel { padding: 18px; border-radius: 8px; } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .current-stat:last-child { grid-column: 1 / -1; padding-right: 0; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: 1fr; gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 18px; border-radius: 8px; } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .current-stat-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .current-stat:nth-child(4) { padding-left: 0; border-left: 0; } .experiment-try-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .action-grid, .content-grid { grid-template-columns: 1fr; } .activity-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .overview-page { max-width: none; } .overview-header { margin-bottom: 18px; } .overview-workspace { margin-inline: -16px; padding: 12px 16px; } .overview-stack { gap: 12px; } .current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: 18px; border-radius: 8px; } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .current-stat:last-child { grid-column: 1 / -1; padding-right: 0; } .experiment-try-list { grid-template-columns: 1fr; gap: 8px; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: 1fr; gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 18px; border-radius: 8px; } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

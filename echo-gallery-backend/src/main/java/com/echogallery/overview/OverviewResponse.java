@@ -16,6 +16,7 @@ public record OverviewResponse(
             int needsProcessingCardCount,
             int activeExperimentCount,
             int workWithNextStepCount,
+            List<ExperimentTryResponse> experimentTries,
             List<NextStepResponse> nextSteps,
             List<AttentionSignalResponse> attentionSignals) {
     }
@@ -57,6 +58,7 @@ public record OverviewResponse(
             ZonedDateTime addedAt,
             Long experimentId,
             String experimentTitle,
+            String sourceKind,
             List<String> tags) {
     }
 
@@ -64,6 +66,9 @@ public record OverviewResponse(
     }
 
     public record NextStepResponse(Long workId, String workTitle, String nextStep, ZonedDateTime updatedAt) {
+    }
+
+    public record ExperimentTryResponse(Long experimentId, String experimentTitle, String currentTry) {
     }
 
     public record AttentionSignalResponse(String key, int cardCount) {

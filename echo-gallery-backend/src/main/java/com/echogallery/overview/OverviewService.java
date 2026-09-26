@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
@@ -24,7 +25,11 @@ import com.echogallery.experiment.CardRelationRepository;
 import com.echogallery.experiment.CardRelationType;
 import com.echogallery.experiment.ExperimentCard;
 import com.echogallery.experiment.ExperimentCardRepository;
+import com.echogallery.experiment.ExperimentExploration;
+import com.echogallery.experiment.ExperimentExplorationRepository;
+import com.echogallery.experiment.ExperimentExplorationRecordRepository;
 import com.echogallery.experiment.ExperimentRepository;
+import com.echogallery.experiment.ExplorationRecordCardRepository;
 import com.echogallery.util.SecurityUtil;
 import com.echogallery.work.WorkCardRepository;
 import com.echogallery.work.WorkProgressUpdate;
@@ -38,11 +43,15 @@ public class OverviewService {
 
     private static final List<Integer> ALLOWED_PERIOD_DAYS = List.of(7, 30, 90);
     private static final int NEXT_STEP_LIMIT = 3;
+    private static final int EXPERIMENT_TRY_LIMIT = 3;
     private static final int DERIVED_CARD_LIMIT = 12;
 
     private final CardRepository cardRepository;
     private final ExperimentRepository experimentRepository;
     private final ExperimentCardRepository experimentCardRepository;
+    private final ExperimentExplorationRepository experimentExplorationRepository;
+    private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
+    private final ExplorationRecordCardRepository explorationRecordCardRepository;
     private final CardRelationRepository cardRelationRepository;
     private final WorkCardRepository workCardRepository;
     private final WorkProgressUpdateRepository workProgressUpdateRepository;
@@ -66,6 +75,11 @@ public class OverviewService {
         int pausedCardCount = safeInt(cardRepository.countPausedByUserId(userId));
         int needsProcessingCardCount = safeInt(cardRepository.countNeedsProcessingByUserId(userId));
         int highSnoozeCardCount = safeInt(cardRepository.countActiveByUserIdAndSnoozeCountGreaterThanEqual(userId, 3));
+        List<OverviewResponse.ExperimentTryResponse> experimentTries = experimentExplorationRepository
+                .findCurrentTriesByUserId(userId, PageRequest.of(0, EXPERIMENT_TRY_LIMIT))
+                .stream()
+                .map(this::toExperimentTry)
+                .toList();
 
         OverviewResponse.OverviewCurrentResponse current = new OverviewResponse.OverviewCurrentResponse(
                 recurringCardCount,
@@ -73,6 +87,7 @@ public class OverviewService {
                 needsProcessingCardCount,
                 safeInt(experimentRepository.countByUserIdAndIsArchivedFalse(userId)),
                 nextStepUpdates.size(),
+                experimentTries,
                 nextStepUpdates.stream().limit(NEXT_STEP_LIMIT).map(this::toNextStep).toList(),
                 attentionSignals(needsProcessingCardCount, highSnoozeCardCount));
 
@@ -157,6 +172,9 @@ public class OverviewService {
                 activity("work-linked", workCardRepository.countByWorkUserIdAndLinkedAtGreaterThanEqualAndLinkedAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("derived", cardRelationRepository.countDistinctDerivedCardsByUserIdAndCreatedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
+                activity("exploration-record", experimentExplorationRecordRepository
+                        .countByExperimentUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                                userId, periodStartAt, periodEndAt)),
                 activity("work-update", workProgressUpdateRepository.countByWorkUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                         userId, periodStartAt, periodEndAt)));
     }
@@ -201,31 +219,53 @@ public class OverviewService {
             Long userId,
             ZonedDateTime periodStartAt,
             ZonedDateTime periodEndAt) {
-        return experimentCardRepository.findRecentStandaloneMaterialsByUserId(
+        List<ExperimentCard> materials = experimentCardRepository.findRecentStandaloneMaterialsByUserId(
                         userId,
                         CardRelationType.DERIVED_FROM,
                         periodStartAt,
                         periodEndAt,
                         PageRequest.of(0, DERIVED_CARD_LIMIT))
-                .stream()
-                .map(this::toExperimentMaterial)
+                .stream().toList();
+        Set<ExperimentCardKey> explorationCardKeys = materials.isEmpty()
+                ? Set.of()
+                : explorationRecordCardRepository.findExplorationExperimentCardKeys(
+                                userId, materials.stream().map(material -> material.getCard().getId()).toList())
+                        .stream()
+                        .map(key -> new ExperimentCardKey(key.getExperimentId(), key.getCardId()))
+                        .collect(Collectors.toSet());
+        return materials.stream()
+                .map(material -> toExperimentMaterial(material, explorationCardKeys))
                 .toList();
     }
 
-    private OverviewResponse.ExperimentMaterialResponse toExperimentMaterial(ExperimentCard experimentCard) {
+    private OverviewResponse.ExperimentMaterialResponse toExperimentMaterial(
+            ExperimentCard experimentCard,
+            Set<ExperimentCardKey> explorationCardKeys) {
         Card card = experimentCard.getCard();
+        ExperimentCardKey key = new ExperimentCardKey(experimentCard.getExperiment().getId(), card.getId());
         return new OverviewResponse.ExperimentMaterialResponse(
                 card.getId(),
                 card.getTitle(),
                 experimentCard.getAddedAt(),
                 experimentCard.getExperiment().getId(),
                 experimentCard.getExperiment().getTitle(),
+                explorationCardKeys.contains(key) ? "EXPLORATION" : "MATERIAL",
                 card.getTags().stream().map(tag -> tag.getName()).sorted().toList());
+    }
+
+    private record ExperimentCardKey(Long experimentId, Long cardId) {
     }
 
     private OverviewResponse.NextStepResponse toNextStep(WorkProgressUpdate update) {
         return new OverviewResponse.NextStepResponse(
                 update.getWork().getId(), update.getWork().getTitle(), update.getNextStep(), update.getCreatedAt());
+    }
+
+    private OverviewResponse.ExperimentTryResponse toExperimentTry(ExperimentExploration exploration) {
+        return new OverviewResponse.ExperimentTryResponse(
+                exploration.getExperiment().getId(),
+                exploration.getExperiment().getTitle(),
+                exploration.getCurrentTry());
     }
 
     private List<OverviewResponse.AttentionSignalResponse> attentionSignals(int needsProcessingCardCount, int highSnoozeCardCount) {

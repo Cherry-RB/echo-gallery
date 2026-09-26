@@ -2,9 +2,11 @@ package com.echogallery.overview;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -13,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import com.echogallery.experiment.ExperimentRepository;
 import com.echogallery.support.IntegrationTestBase;
 
 import tools.jackson.databind.ObjectMapper;
@@ -26,9 +29,29 @@ class OverviewIntegrationTests extends IntegrationTestBase {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private ExperimentRepository experimentRepository;
+
+    @AfterEach
+    void cleanExperimentData() {
+        experimentRepository.deleteAll();
+    }
+
     @Test
     void returnsCurrentAndPeriodObservationForAuthenticatedUser() throws Exception {
         String token = register("overview-owner", "overview-owner@example.com");
+        MvcResult experimentResult = mockMvc.perform(post("/api/experiments")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"持續畫畫\",\"hypothesis\":\"怎樣比較容易開始？\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        long experimentId = objectMapper.readTree(experimentResult.getResponse().getContentAsString()).get("id").asLong();
+        mockMvc.perform(put("/api/experiments/{id}/exploration/current-try", experimentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentTry\":\"晚餐後畫兩分鐘\"}"))
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/overview")
                         .param("periodDays", "30")
@@ -36,8 +59,11 @@ class OverviewIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.periodDays").value(30))
                 .andExpect(jsonPath("$.current.recurringCardCount").isNumber())
+                .andExpect(jsonPath("$.current.experimentTries.length()").value(1))
+                .andExpect(jsonPath("$.current.experimentTries[0].experimentId").value(experimentId))
+                .andExpect(jsonPath("$.current.experimentTries[0].currentTry").value("晚餐後畫兩分鐘"))
                 .andExpect(jsonPath("$.period.flow.reengagedCardCount").isNumber())
-                .andExpect(jsonPath("$.period.activities.length()").value(7))
+                .andExpect(jsonPath("$.period.activities.length()").value(8))
                 .andExpect(jsonPath("$.period.recentExperimentMaterials").isArray());
 
         mockMvc.perform(get("/api/overview/card-return")

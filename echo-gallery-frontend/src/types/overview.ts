@@ -10,6 +10,7 @@ export interface OverviewResponse {
     needsProcessingCardCount: number
     activeExperimentCount: number
     workWithNextStepCount: number
+    experimentTries: OverviewExperimentTry[]
     nextSteps: OverviewNextStep[]
     attentionSignals: OverviewAttentionSignal[]
   }
@@ -24,7 +25,7 @@ export interface OverviewResponse {
 }
 
 export interface OverviewActivity {
-  key: 'created' | 'offered' | 'reviewed' | 'experiment-material' | 'work-linked' | 'derived' | 'work-update'
+  key: 'created' | 'offered' | 'reviewed' | 'experiment-material' | 'work-linked' | 'derived' | 'exploration-record' | 'work-update'
   value: number
 }
 
@@ -44,6 +45,7 @@ export interface OverviewExperimentMaterial {
   addedAt: string
   experimentId: number
   experimentTitle: string
+  sourceKind: 'EXPLORATION' | 'MATERIAL'
   tags: string[]
 }
 
@@ -52,6 +54,12 @@ export interface OverviewNextStep {
   workTitle: string
   nextStep: string
   updatedAt: string
+}
+
+export interface OverviewExperimentTry {
+  experimentId: number
+  experimentTitle: string
+  currentTry: string
 }
 
 export interface OverviewAttentionSignal {
