@@ -15,7 +15,8 @@ import {
   RemoveFilled,
   CollectionTag,
   Filter,
-  Aim
+  Aim,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';
 import { storeToRefs } from 'pinia';
@@ -41,6 +42,7 @@ const menuItems = [
   { name: '全部卡片', path: '/board/all', icon: Clock },
   { name: '議事廳', path: '/works', icon: Filter },
   { name: '實驗場', path: '/experiments', icon: Aim },
+  { name: '觀測台', path: '/overview', icon: DataAnalysis },
   { name: '標籤管理', path: '/center/tag', icon: CollectionTag },
   { name: '熱門', path: '/board/hot', icon: Star },
   { name: '隨機', path: '/board/random', icon: Refresh },

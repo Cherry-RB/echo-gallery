@@ -119,6 +119,16 @@ const routes = [
       props: true
     },
     {
+      path: 'overview',
+      name: 'Overview',
+      component: () => import('../views/overview/OverviewDashboard.vue')
+    },
+    {
+      path: 'overview/cards',
+      name: 'CardReturnOverview',
+      component: () => import('../views/overview/CardReturnOverview.vue')
+    },
+    {
       path: 'gardens',
       redirect: '/experiments'
     },

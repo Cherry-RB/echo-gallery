@@ -2,6 +2,7 @@ package com.echogallery.work;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.ZonedDateTime;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -47,5 +48,33 @@ public interface WorkProgressUpdateRepository extends JpaRepository<WorkProgress
               )
             """)
     List<WorkProgressUpdate> findLatestByUserId(@Param("userId") Long userId);
+
+    long countByWorkUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            Long userId,
+            ZonedDateTime startAt,
+            ZonedDateTime endAt);
+
+    @Query("""
+            SELECT COUNT(DISTINCT laterUpdate.work.id)
+            FROM WorkProgressUpdate laterUpdate
+            WHERE laterUpdate.work.user.id = :userId
+              AND laterUpdate.createdAt >= :periodStartAt
+              AND laterUpdate.createdAt < :periodEndAt
+              AND EXISTS (
+                  SELECT earlierUpdate.id
+                  FROM WorkProgressUpdate earlierUpdate
+                  WHERE earlierUpdate.work.id = laterUpdate.work.id
+                    AND earlierUpdate.nextStep IS NOT NULL
+                    AND TRIM(earlierUpdate.nextStep) <> ''
+                    AND (
+                        earlierUpdate.createdAt < laterUpdate.createdAt
+                        OR (earlierUpdate.createdAt = laterUpdate.createdAt AND earlierUpdate.id < laterUpdate.id)
+                    )
+              )
+            """)
+    long countWorksWithFollowUpAfterNextStep(
+            @Param("userId") Long userId,
+            @Param("periodStartAt") ZonedDateTime periodStartAt,
+            @Param("periodEndAt") ZonedDateTime periodEndAt);
 
 }

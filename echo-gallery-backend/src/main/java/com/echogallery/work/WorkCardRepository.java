@@ -2,6 +2,7 @@ package com.echogallery.work;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.ZonedDateTime;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,4 +28,9 @@ public interface WorkCardRepository extends JpaRepository<WorkCard, Long> {
 
     @EntityGraph(attributePaths = "work")
     List<WorkCard> findByCardIdAndWorkUserIdOrderByLinkedAtDesc(Long cardId, Long userId);
+
+    long countByWorkUserIdAndLinkedAtGreaterThanEqualAndLinkedAtLessThan(
+            Long userId,
+            ZonedDateTime startAt,
+            ZonedDateTime endAt);
 }

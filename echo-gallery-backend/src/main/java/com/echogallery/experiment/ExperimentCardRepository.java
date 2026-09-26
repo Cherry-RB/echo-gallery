@@ -25,6 +25,54 @@ public interface ExperimentCardRepository extends JpaRepository<ExperimentCard, 
 
     List<ExperimentCard> findByExperimentIdAndCardIdIn(Long experimentId, Collection<Long> cardIds);
 
+    long countByExperimentUserIdAndAddedAtGreaterThanEqualAndAddedAtLessThan(
+            Long userId,
+            java.time.ZonedDateTime startAt,
+            java.time.ZonedDateTime endAt);
+
+    @Query("""
+            SELECT COUNT(experimentCard)
+            FROM ExperimentCard experimentCard
+            WHERE experimentCard.experiment.user.id = :userId
+              AND experimentCard.addedAt >= :startAt
+              AND experimentCard.addedAt < :endAt
+              AND NOT EXISTS (
+                  SELECT relation.id
+                  FROM CardRelation relation
+                  WHERE relation.experiment = experimentCard.experiment
+                    AND relation.derivedCard = experimentCard.card
+                    AND relation.relationType = :relationType
+              )
+            """)
+    long countStandaloneMaterialsByUserIdAndAddedAtBetween(
+            @Param("userId") Long userId,
+            @Param("relationType") CardRelationType relationType,
+            @Param("startAt") java.time.ZonedDateTime startAt,
+            @Param("endAt") java.time.ZonedDateTime endAt);
+
+    @EntityGraph(attributePaths = { "experiment", "card", "card.tags" })
+    @Query("""
+            SELECT experimentCard
+            FROM ExperimentCard experimentCard
+            WHERE experimentCard.experiment.user.id = :userId
+              AND experimentCard.addedAt >= :startAt
+              AND experimentCard.addedAt < :endAt
+              AND NOT EXISTS (
+                  SELECT relation.id
+                  FROM CardRelation relation
+                  WHERE relation.experiment = experimentCard.experiment
+                    AND relation.derivedCard = experimentCard.card
+                    AND relation.relationType = :relationType
+              )
+            ORDER BY experimentCard.addedAt DESC, experimentCard.id DESC
+            """)
+    List<ExperimentCard> findRecentStandaloneMaterialsByUserId(
+            @Param("userId") Long userId,
+            @Param("relationType") CardRelationType relationType,
+            @Param("startAt") java.time.ZonedDateTime startAt,
+            @Param("endAt") java.time.ZonedDateTime endAt,
+            Pageable pageable);
+
     void deleteByExperimentId(Long experimentId);
 
     @Query("""

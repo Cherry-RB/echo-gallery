@@ -155,3 +155,9 @@
 * **屬性**：產品設計、資料遷移與分階段實作追蹤文件（Current）。
 * **內容**：記錄實驗場需求變更、Experiment／ExperimentCard／CardRelation／needsProcessing 模型、現行 UX 與 API contract、Garden → Experiment schema rename、舊 growthStatus 相容退場、效能原則、測試策略、任務進度與產品去留條件。
 * **Agent 讀取時機**：設計或實作實驗場、卡片衍生關係、待整理查詢、Card Detail 思想脈絡，或規劃 schema rename、Garden alias 與 growthStatus 退場時讀取；實作前仍須核對目前程式碼、正式 schema 與使用者最新確認。
+
+### 21. [21_資訊轉化觀測台產品設計暨實作追蹤.md](./21_資訊轉化觀測台產品設計暨實作追蹤.md)
+
+* **屬性**：跨模組產品設計、觀測指標與分階段實作追蹤文件（Current／正式 V1 aggregate 已串接）。
+* **內容**：定義資訊轉化觀測台的 Flow／Generativity／Closure 邊界、現有資料能力與缺口、概覽與卡片與回流第二層 IA、Metric Dictionary、正式 aggregate API、尚待補足的 drill-down contract、ActivityEvent 去留、效能原則、任務拆分與驗收條件。
+* **Agent 讀取時機**：設計或實作觀測台、Dashboard、Overview、卡片與回流、跨 Card／Experiment／Work 聚合、回流統計、資訊生成、drill-down 或 ActivityEvent 時讀取；實作前仍須核對目前程式碼、正式 schema 與使用者最新確認。

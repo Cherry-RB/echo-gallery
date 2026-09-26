@@ -78,6 +78,152 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
 
     List<Card> findAllByUserId(Long userId);
 
+    long countByUserIdAndIsArchivedTrue(Long userId);
+
+    long countByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            Long userId, ZonedDateTime startAt, ZonedDateTime endAt);
+
+    long countByUserIdAndLastOfferedAtGreaterThanEqualAndLastOfferedAtLessThan(
+            Long userId, ZonedDateTime startAt, ZonedDateTime endAt);
+
+    long countByUserIdAndLastOpenAtGreaterThanEqualAndLastOpenAtLessThan(
+            Long userId, ZonedDateTime startAt, ZonedDateTime endAt);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND c.intervalDays IS NOT NULL
+              AND c.nextShowAt IS NOT NULL
+            """)
+    long countRecurringByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND c.intervalDays IS NULL
+              AND c.nextShowAt IS NULL
+            """)
+    long countPausedByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND c.needsProcessing = true
+            """)
+    long countNeedsProcessingByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND c.snoozeCount >= :minSnoozeCount
+            """)
+    long countActiveByUserIdAndSnoozeCountGreaterThanEqual(
+            @Param("userId") Long userId,
+            @Param("minSnoozeCount") int minSnoozeCount);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND c.snoozeCount BETWEEN :minSnoozeCount AND :maxSnoozeCount
+            """)
+    long countActiveByUserIdAndSnoozeCountBetween(
+            @Param("userId") Long userId,
+            @Param("minSnoozeCount") int minSnoozeCount,
+            @Param("maxSnoozeCount") int maxSnoozeCount);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND c.lastOpenAt IS NULL
+            """)
+    long countNeverReviewedActiveByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND ((c.intervalDays IS NULL AND c.nextShowAt IS NOT NULL)
+                OR (c.intervalDays IS NOT NULL AND c.nextShowAt IS NULL))
+            """)
+    long countScheduleIssueByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND c.intervalDays BETWEEN :minIntervalDays AND :maxIntervalDays
+              AND c.nextShowAt IS NOT NULL
+            """)
+    long countRecurringByUserIdAndIntervalDaysBetween(
+            @Param("userId") Long userId,
+            @Param("minIntervalDays") int minIntervalDays,
+            @Param("maxIntervalDays") int maxIntervalDays);
+
+    @Query("""
+            SELECT c
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND c.intervalDays IS NOT NULL
+              AND c.nextShowAt >= :startAt
+              AND c.nextShowAt < :endAt
+            ORDER BY c.nextShowAt ASC, c.id ASC
+            """)
+    List<Card> findForecastCardsByUserId(
+            @Param("userId") Long userId,
+            @Param("startAt") ZonedDateTime startAt,
+            @Param("endAt") ZonedDateTime endAt);
+
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.createdAt < :periodStartAt
+              AND (
+                  (c.lastOpenAt >= :periodStartAt AND c.lastOpenAt < :periodEndAt)
+                  OR EXISTS (
+                      SELECT experimentCard.id
+                      FROM ExperimentCard experimentCard
+                      WHERE experimentCard.card = c
+                        AND experimentCard.addedAt >= :periodStartAt
+                        AND experimentCard.addedAt < :periodEndAt
+                  )
+                  OR EXISTS (
+                      SELECT workCard.id
+                      FROM WorkCard workCard
+                      WHERE workCard.card = c
+                        AND workCard.linkedAt >= :periodStartAt
+                        AND workCard.linkedAt < :periodEndAt
+                  )
+                  OR EXISTS (
+                      SELECT relation.id
+                      FROM CardRelation relation
+                      WHERE relation.sourceCard = c
+                        AND relation.relationType = com.echogallery.experiment.CardRelationType.DERIVED_FROM
+                        AND relation.createdAt >= :periodStartAt
+                        AND relation.createdAt < :periodEndAt
+                  )
+              )
+            """)
+    long countReengagedByUserId(
+            @Param("userId") Long userId,
+            @Param("periodStartAt") ZonedDateTime periodStartAt,
+            @Param("periodEndAt") ZonedDateTime periodEndAt);
+
     @Query("""
             SELECT DISTINCT c
             FROM Card c
