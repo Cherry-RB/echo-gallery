@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { FormInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -24,6 +24,7 @@ const props = withDefaults(defineProps<{
   createCard?: (request: CardContentRequest) => Promise<CardDto>
   createErrorMessage?: string
   layout?: 'default' | 'split'
+  initialData?: Partial<CardDto>
 }>(), {
   title: '快速新增卡片',
   description: '先留下最重要的內容，其餘資訊可以現在補充，也可以之後再慢慢完善。',
@@ -41,7 +42,12 @@ const emit = defineEmits<{
 type OptionalField = 'reason' | 'summary' | 'coverImageUrl'
 
 const cardFormRef = ref<FormInstance>()
-const cardData = ref(getDefaultCardData())
+const createInitialCardData = () => ({
+  ...getDefaultCardData(),
+  ...props.initialData,
+  tags: [...(props.initialData?.tags ?? [])],
+})
+const cardData = ref(createInitialCardData())
 const visibleOptionalFields = ref<OptionalField[]>([])
 const titleInputRef = ref<{ focus: () => void }>()
 const createdCardId = ref<string | null>(null)
@@ -78,13 +84,17 @@ const showOptionalField = (field: OptionalField) => {
 }
 
 const resetForm = () => {
-  cardData.value = getDefaultCardData()
+  cardData.value = createInitialCardData()
   visibleOptionalFields.value = []
   tagPopoverVisible.value = false
   tagSearchQuery.value = ''
   createdCardId.value = null
   cardFormRef.value?.clearValidate()
 }
+
+watch(() => props.modelValue, visible => {
+  if (visible) resetForm()
+})
 
 const handleOpened = () => nextTick(() => titleInputRef.value?.focus())
 

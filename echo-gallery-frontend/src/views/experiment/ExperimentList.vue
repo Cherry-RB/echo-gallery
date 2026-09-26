@@ -80,7 +80,7 @@ const submit = () => {
   form.title = trimToTextLength(form.title, 255).trim()
   form.hypothesis = trimToTextLength(form.hypothesis ?? '', 2000).trim()
   form.description = trimToTextLength(form.description ?? '', 5000)
-  if (!form.title || !form.hypothesis || saveMutation.isPending.value) return
+  if (!form.title || saveMutation.isPending.value) return
   saveMutation.mutate()
 }
 </script>
@@ -144,8 +144,9 @@ const submit = () => {
           <div class="experiment-card-content">
             <div class="experiment-copy">
               <h2 class="experiment-title">{{ experiment.title }}</h2>
-              <p :class="['experiment-hypothesis', { empty: !experiment.hypothesis }]">
-                {{ experiment.hypothesis || experiment.description || '尚未寫下這個實驗主題想觀察的假設。' }}
+              <p :class="['experiment-hypothesis', { empty: !experiment.currentTry && !experiment.hypothesis && !experiment.description }]">
+                <span v-if="experiment.currentTry" class="experiment-current-try-label">目前想試</span>
+                {{ experiment.currentTry || experiment.hypothesis || experiment.description || '還沒有寫下目前想試的事；可以先從材料開始。' }}
               </p>
             </div>
             <aside class="experiment-summary-side">
@@ -167,7 +168,7 @@ const submit = () => {
                 <div class="soil-summary" :aria-label="`茁壯 ${experiment.growingCount} 張`"><strong>{{ experiment.growingCount }}</strong><span aria-hidden="true">🌿</span></div>
                 <div class="soil-summary" :aria-label="`成熟 ${experiment.matureCount} 張`"><strong>{{ experiment.matureCount }}</strong><span aria-hidden="true">🌳</span></div>
               </section>
-              <footer class="experiment-card-footer">更新於 {{ formatDate(experiment.updatedAt) }}</footer>
+              <footer class="experiment-card-footer">最近活動於 {{ formatDate(experiment.updatedAt) }}</footer>
             </aside>
           </div>
         </el-card>
@@ -191,14 +192,14 @@ const submit = () => {
     width="min(680px, calc(100vw - 32px))"
     destroy-on-close
   >
-    <p class="dialog-intro">用一個清楚的假設聚集相關卡片；它可以被觀察、修正，也不必預先承諾成果。</p>
+    <p class="dialog-intro">先為想探索的方向取個名字；目前想弄懂的事，之後再補也可以。</p>
     <el-form label-position="top" @submit.prevent="submit">
       <el-form-item label="實驗主題名稱" required>
         <el-input v-model="form.title" maxlength="255" placeholder="例如：讓生活變得更可靠" />
         <p class="field-counter">總字數：{{ getTextLength(form.title) }} / 255</p>
       </el-form-item>
-      <el-form-item label="假設" required>
-        <el-input v-model="form.hypothesis" type="textarea" :rows="3" maxlength="2000" placeholder="例如：持續記錄感恩日記，是否會讓我更容易注意到生活中值得珍惜的事情？" />
+      <el-form-item label="目前想弄懂什麼？（選填）">
+        <el-input v-model="form.hypothesis" type="textarea" :rows="3" maxlength="2000" placeholder="例如：怎樣讓我更容易開始畫畫？還不清楚也可以先留白。" />
         <p class="field-counter">總字數：{{ getTextLength(form.hypothesis ?? '') }} / 2000</p>
       </el-form-item>
       <el-form-item label="主題說明（選填）">
@@ -215,7 +216,7 @@ const submit = () => {
     </el-form>
     <template #footer>
       <el-button :disabled="saveMutation.isPending.value" @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="saveMutation.isPending.value" :disabled="!form.title.trim() || !form.hypothesis?.trim()" @click="submit">{{ editingId ? '儲存變更' : '建立實驗主題' }}</el-button>
+      <el-button type="primary" :loading="saveMutation.isPending.value" :disabled="!form.title.trim()" @click="submit">{{ editingId ? '儲存變更' : '建立實驗主題' }}</el-button>
     </template>
   </AppDialog>
 </template>
@@ -239,6 +240,7 @@ const submit = () => {
 .experiment-title { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: 650; line-height: var(--leading-section); overflow-wrap: anywhere; }
 .experiment-hypothesis { display: -webkit-box; margin: 9px 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
 .experiment-hypothesis.empty { color: var(--el-text-color-placeholder); font-weight: 400; }
+.experiment-current-try-label { display: block; margin-bottom: 3px; color: var(--el-color-primary); font-size: var(--type-meta); font-weight: 600; }
 .experiment-summary-side { display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
 .soil-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 20px; padding: 15px 14px; border: 1px solid color-mix(in srgb, var(--experiment-vivid) 40%, var(--el-bg-color)); border-radius: 12px; background: color-mix(in srgb, var(--experiment-vivid) 26%, var(--el-bg-color)); }
 .soil-summary { display: flex; align-items: center; justify-content: center; min-width: 0; gap: 4px; font-size: var(--type-card-title); font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -8,6 +8,7 @@ export interface ExperimentDto {
   title: string
   description: string | null
   hypothesis: string | null
+  currentTry: string | null
   themeColor: ExperimentThemeColor
   isArchived: boolean
   seedCount: number
@@ -78,6 +79,28 @@ export interface ExperimentGrowRequest extends CardContentRequest {
   sourceCardIds: number[]
   stage: ExperimentStage
   note?: string
+}
+
+export interface ExperimentExplorationCardRequest extends CardContentRequest {
+  recordIds: number[]
+}
+
+export interface ExperimentExplorationDto {
+  currentTry: string
+  favoriteTries: string[]
+  records: ExperimentExplorationRecordDto[]
+}
+
+export interface ExperimentExplorationRecordDto {
+  id: number
+  tryText: string | null
+  discovery: string
+  createdAt: string
+  exports: Array<{
+    cardId: number
+    cardTitle: string
+    exportedAt: string
+  }>
 }
 
 export interface CardExperimentContextDto {

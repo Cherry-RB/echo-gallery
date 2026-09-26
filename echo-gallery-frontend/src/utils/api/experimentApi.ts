@@ -5,6 +5,8 @@ import type {
   CardRelationDto,
   ExperimentCardDto,
   ExperimentCardRequest,
+  ExperimentExplorationCardRequest,
+  ExperimentExplorationDto,
   ExperimentDto,
   ExperimentGrowRequest,
   ExperimentRequest,
@@ -48,6 +50,34 @@ export const experimentApi = {
   },
   growCard(experimentId: number, data: ExperimentGrowRequest): Promise<CardDto> {
     return request({ url: `/experiments/${experimentId}/grow`, method: 'POST', data })
+  },
+  createExplorationCard(experimentId: number, data: ExperimentExplorationCardRequest): Promise<CardDto> {
+    return request({ url: `/experiments/${experimentId}/exploration/cards`, method: 'POST', data })
+  },
+  getExploration(experimentId: number): Promise<ExperimentExplorationDto> {
+    return request({ url: `/experiments/${experimentId}/exploration`, method: 'GET' })
+  },
+  updateCurrentTry(experimentId: number, currentTry: string): Promise<ExperimentExplorationDto> {
+    return request({ url: `/experiments/${experimentId}/exploration/current-try`, method: 'PUT', data: { currentTry } })
+  },
+  updateFavoriteTries(experimentId: number, favoriteTries: string[]): Promise<ExperimentExplorationDto> {
+    return request({ url: `/experiments/${experimentId}/exploration/favorite-tries`, method: 'PUT', data: { favoriteTries } })
+  },
+  createExplorationRecord(experimentId: number, discovery: string, includeCurrentTry: boolean): Promise<ExperimentExplorationDto> {
+    return request({ url: `/experiments/${experimentId}/exploration/records`, method: 'POST', data: { discovery, includeCurrentTry } })
+  },
+  deleteExplorationRecord(experimentId: number, recordId: number): Promise<void> {
+    return request({ url: `/experiments/${experimentId}/exploration/records/${recordId}`, method: 'DELETE' })
+  },
+  clearExploration(experimentId: number): Promise<void> {
+    return request({ url: `/experiments/${experimentId}/exploration`, method: 'DELETE' })
+  },
+  appendExplorationToCard(experimentId: number, cardId: number, recordIds: number[], content: string): Promise<CardDto> {
+    return request({
+      url: `/experiments/${experimentId}/exploration/cards/${cardId}`,
+      method: 'POST',
+      data: { recordIds, content },
+    })
   },
   getCardExperiments(cardId: string | number): Promise<CardExperimentDto[]> {
     return request({ url: `/cards/${cardId}/experiments`, method: 'GET' })

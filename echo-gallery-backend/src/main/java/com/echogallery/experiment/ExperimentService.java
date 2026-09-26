@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.time.ZonedDateTime;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +38,9 @@ public class ExperimentService {
     private final CardRepository cardRepository;
     private final CardService cardService;
     private final UserRepository userRepository;
+    private final ExperimentExplorationRepository experimentExplorationRepository;
+    private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
+    private final ExplorationRecordCardRepository explorationRecordCardRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<ExperimentResponse> getExperiments(boolean archived, int requestedPage, int requestedSize) {
@@ -44,9 +48,16 @@ public class ExperimentService {
         int size = Math.max(1, Math.min(requestedSize, MAX_PAGE_SIZE));
         Page<Experiment> experiments = experimentRepository.findByUserIdAndIsArchivedOrderByUpdatedAtDescIdDesc(
                 SecurityUtil.getCurrentUserId(), archived, PageRequest.of(page, size));
-        Map<Long, ExperimentStageCount> counts = getCounts(experiments.getContent().stream().map(Experiment::getId).toList());
+        List<Long> experimentIds = experiments.getContent().stream().map(Experiment::getId).toList();
+        Map<Long, ExperimentStageCount> counts = getCounts(experimentIds);
+        Map<Long, String> currentTries = getCurrentTries(experimentIds);
         return new PageResponse<>(
-                experiments.getContent().stream().map(experiment -> toExperimentResponse(experiment, counts.get(experiment.getId()))).toList(),
+                experiments.getContent().stream()
+                        .map(experiment -> toExperimentResponse(
+                                experiment,
+                                counts.get(experiment.getId()),
+                                currentTries.get(experiment.getId())))
+                        .toList(),
                 page,
                 size,
                 experiments.getTotalElements(),
@@ -56,7 +67,10 @@ public class ExperimentService {
     @Transactional(readOnly = true)
     public ExperimentResponse getExperiment(Long experimentId) {
         Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
-        return toExperimentResponse(experiment, getCounts(List.of(experimentId)).get(experimentId));
+        return toExperimentResponse(
+                experiment,
+                getCounts(List.of(experimentId)).get(experimentId),
+                getCurrentTry(experimentId));
     }
 
     @Transactional
@@ -70,7 +84,7 @@ public class ExperimentService {
                 .hypothesis(normalizeOptionalText(request.getHypothesis()))
                 .themeColor(request.getThemeColor() == null ? ExperimentThemeColor.LEAF : request.getThemeColor())
                 .build();
-        return toExperimentResponse(experimentRepository.save(experiment), null);
+        return toExperimentResponse(experimentRepository.save(experiment), null, null);
     }
 
     @Transactional
@@ -82,14 +96,20 @@ public class ExperimentService {
         if (request.getThemeColor() != null) {
             experiment.setThemeColor(request.getThemeColor());
         }
-        return toExperimentResponse(experiment, getCounts(List.of(experimentId)).get(experimentId));
+        return toExperimentResponse(
+                experiment,
+                getCounts(List.of(experimentId)).get(experimentId),
+                getCurrentTry(experimentId));
     }
 
     @Transactional
     public ExperimentResponse setArchived(Long experimentId, boolean archived) {
         Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
         experiment.setArchived(archived);
-        return toExperimentResponse(experiment, getCounts(List.of(experimentId)).get(experimentId));
+        return toExperimentResponse(
+                experiment,
+                getCounts(List.of(experimentId)).get(experimentId),
+                getCurrentTry(experimentId));
     }
 
     @Transactional
@@ -127,6 +147,7 @@ public class ExperimentService {
                 .stage(request.getStage())
                 .note(normalizeOptionalText(request.getNote()))
                 .build();
+        touchExperiment(experiment);
         return toExperimentCardResponse(experimentCardRepository.save(relation));
     }
 
@@ -134,6 +155,7 @@ public class ExperimentService {
     public ExperimentCardResponse updateExperimentCardStage(Long experimentId, Long cardId, ExperimentCardStageRequest request) {
         ExperimentCard relation = getOwnedExperimentCard(experimentId, cardId, SecurityUtil.getCurrentUserId());
         relation.setStage(request.getStage());
+        touchExperiment(relation.getExperiment());
         return toExperimentCardResponse(relation);
     }
 
@@ -141,6 +163,7 @@ public class ExperimentService {
     public ExperimentCardResponse updateExperimentCardNote(Long experimentId, Long cardId, ExperimentCardNoteRequest request) {
         ExperimentCard relation = getOwnedExperimentCard(experimentId, cardId, SecurityUtil.getCurrentUserId());
         relation.setNote(normalizeOptionalText(request.getNote()));
+        touchExperiment(relation.getExperiment());
         return toExperimentCardResponse(relation);
     }
 
@@ -150,6 +173,7 @@ public class ExperimentService {
         // 關係的來源／產物都必須仍屬於同一個實驗主題；移出時一併移除其局部譜系。
         cardRelationRepository.deleteByExperimentIdAndCardId(experimentId, cardId);
         experimentCardRepository.delete(relation);
+        touchExperiment(relation.getExperiment());
     }
 
     /** 在同一交易中建立卡片、種入目標土壤，並保留所有來源譜系。 */
@@ -179,7 +203,136 @@ public class ExperimentService {
                         .build())
                 .toList();
         cardRelationRepository.saveAll(relations);
+        touchExperiment(experiment);
         return cardService.convertToDetailResponse(newCard);
+    }
+
+    /**
+     * 將探索紀錄整理成新卡，並在同一筆交易中放入目前實驗場的茁壯土壤。
+     */
+    @Transactional
+    public CardDetailResponse createExplorationCard(Long experimentId, ExperimentExplorationCardRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        Experiment experiment = getOwnedExperiment(experimentId, userId);
+        List<ExperimentExplorationRecord> records = getOwnedExplorationRecords(
+                experimentId, request.getRecordIds());
+        Card newCard = cardService.createCardEntity(request);
+        ExperimentCard experimentCard = ExperimentCard.builder()
+                .experiment(experiment)
+                .card(newCard)
+                .stage(ExperimentStage.GROWING)
+                .build();
+        experimentCardRepository.save(experimentCard);
+        createExplorationCardLinks(records, newCard);
+        touchExperiment(experiment);
+        return cardService.convertToDetailResponse(newCard);
+    }
+
+    @Transactional(readOnly = true)
+    public ExperimentExplorationResponse getExploration(Long experimentId) {
+        getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
+        return toExplorationResponse(experimentId);
+    }
+
+    @Transactional
+    public ExperimentExplorationResponse updateCurrentTry(Long experimentId, ExperimentCurrentTryRequest request) {
+        Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
+        ExperimentExploration exploration = getOrCreateExploration(experiment);
+        exploration.setCurrentTry(normalizeOptionalText(request.currentTry()));
+        touchExperiment(experiment);
+        return toExplorationResponse(experimentId);
+    }
+
+    @Transactional
+    public ExperimentExplorationResponse updateFavoriteTries(
+            Long experimentId,
+            ExperimentFavoriteTriesRequest request) {
+        Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
+        List<String> favoriteTries = request.favoriteTries() == null
+                ? List.of()
+                : request.favoriteTries().stream()
+                        .map(this::normalizeOptionalText)
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .limit(3)
+                        .toList();
+        ExperimentExploration exploration = getOrCreateExploration(experiment);
+        exploration.setFavoriteTry1(favoriteTries.size() > 0 ? favoriteTries.get(0) : null);
+        exploration.setFavoriteTry2(favoriteTries.size() > 1 ? favoriteTries.get(1) : null);
+        exploration.setFavoriteTry3(favoriteTries.size() > 2 ? favoriteTries.get(2) : null);
+        touchExperiment(experiment);
+        return toExplorationResponse(experimentId);
+    }
+
+    @Transactional
+    public ExperimentExplorationResponse createExplorationRecord(
+            Long experimentId,
+            ExperimentExplorationRecordRequest request) {
+        Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
+        ExperimentExploration exploration = experimentExplorationRepository.findByExperimentId(experimentId).orElse(null);
+        String tryText = request.includeCurrentTry() && exploration != null
+                ? normalizeOptionalText(exploration.getCurrentTry())
+                : null;
+        ExperimentExplorationRecord record = ExperimentExplorationRecord.builder()
+                .experiment(experiment)
+                .tryText(tryText)
+                .discovery(request.discovery().trim())
+                .build();
+        experimentExplorationRecordRepository.save(record);
+        if (tryText != null) {
+            exploration.setCurrentTry(null);
+        }
+        touchExperiment(experiment);
+        return toExplorationResponse(experimentId);
+    }
+
+    @Transactional
+    public void deleteExplorationRecord(Long experimentId, Long recordId) {
+        Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
+        ExperimentExplorationRecord record = experimentExplorationRecordRepository
+                .findByIdAndExperimentId(recordId, experimentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到探索紀錄"));
+        experimentExplorationRecordRepository.delete(record);
+        touchExperiment(experiment);
+    }
+
+    @Transactional
+    public void clearExploration(Long experimentId) {
+        Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
+        experimentExplorationRecordRepository.deleteByExperimentId(experimentId);
+        experimentExplorationRepository.deleteByExperimentId(experimentId);
+        touchExperiment(experiment);
+    }
+
+    @Transactional
+    public CardDetailResponse appendExplorationToCard(
+            Long experimentId,
+            Long cardId,
+            ExperimentExplorationAppendRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        Experiment experiment = getOwnedExperiment(experimentId, userId);
+        if (!experimentCardRepository.existsByExperimentIdAndCardId(experimentId, cardId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "只能整理到目前實驗場中的卡片");
+        }
+        Card card = cardRepository.findByIdForUpdate(cardId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到卡片"));
+        if (!card.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "沒有權限存取這張卡片");
+        }
+        List<ExperimentExplorationRecord> records = getOwnedExplorationRecords(experimentId, request.recordIds());
+        boolean containsExistingLink = records.stream()
+                .anyMatch(record -> explorationRecordCardRepository
+                        .existsByExplorationRecordIdAndCardId(record.getId(), card.getId()));
+        if (containsExistingLink) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "選取的探索紀錄已包含整理到這張卡片的內容");
+        }
+        String existingContent = normalizeOptionalText(card.getContent());
+        card.setContent(existingContent == null
+                ? request.content().trim()
+                : existingContent + "\n\n---\n\n" + request.content().trim());
+        createExplorationCardLinks(records, card);
+        touchExperiment(experiment);
+        return cardService.convertToDetailResponse(card);
     }
 
     @Transactional(readOnly = true)
@@ -260,9 +413,32 @@ public class ExperimentService {
         return result;
     }
 
-    private ExperimentResponse toExperimentResponse(Experiment experiment, ExperimentStageCount count) {
+    private Map<Long, String> getCurrentTries(Collection<Long> experimentIds) {
+        if (experimentIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> result = new HashMap<>();
+        experimentExplorationRepository.findByExperimentIdIn(experimentIds)
+                .forEach(exploration -> result.put(
+                        exploration.getExperiment().getId(),
+                        normalizeOptionalText(exploration.getCurrentTry())));
+        return result;
+    }
+
+    private String getCurrentTry(Long experimentId) {
+        return experimentExplorationRepository.findByExperimentId(experimentId)
+                .map(ExperimentExploration::getCurrentTry)
+                .map(this::normalizeOptionalText)
+                .orElse(null);
+    }
+
+    private ExperimentResponse toExperimentResponse(
+            Experiment experiment,
+            ExperimentStageCount count,
+            String currentTry) {
         return new ExperimentResponse(
                 experiment.getId(), experiment.getTitle(), experiment.getDescription(), experiment.getHypothesis(),
+                currentTry,
                 experiment.getThemeColor() == null ? ExperimentThemeColor.LEAF : experiment.getThemeColor(), experiment.isArchived(),
                 count == null ? 0 : count.getSeedCount(),
                 count == null ? 0 : count.getGrowingCount(),
@@ -288,6 +464,77 @@ public class ExperimentService {
 
     private CardLineageCardResponse toLineageCard(Card card) {
         return new CardLineageCardResponse(card.getId(), card.getTitle(), card.getType(), card.isArchived());
+    }
+
+    private ExperimentExploration getOrCreateExploration(Experiment experiment) {
+        return experimentExplorationRepository.findByExperimentId(experiment.getId())
+                .orElseGet(() -> experimentExplorationRepository.save(
+                        ExperimentExploration.builder().experiment(experiment).build()));
+    }
+
+    private List<ExperimentExplorationRecord> getOwnedExplorationRecords(
+            Long experimentId,
+            List<Long> requestedRecordIds) {
+        List<Long> recordIds = requestedRecordIds.stream().filter(Objects::nonNull).distinct().toList();
+        List<ExperimentExplorationRecord> records = experimentExplorationRecordRepository
+                .findByExperimentIdAndIdIn(experimentId, recordIds);
+        if (records.size() != recordIds.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "所有探索紀錄都必須屬於目前實驗場");
+        }
+        return records;
+    }
+
+    private void createExplorationCardLinks(List<ExperimentExplorationRecord> records, Card card) {
+        List<ExplorationRecordCard> links = records.stream()
+                .filter(record -> !explorationRecordCardRepository
+                        .existsByExplorationRecordIdAndCardId(record.getId(), card.getId()))
+                .map(record -> ExplorationRecordCard.builder()
+                        .explorationRecord(record)
+                        .card(card)
+                        .build())
+                .toList();
+        explorationRecordCardRepository.saveAll(links);
+    }
+
+    private ExperimentExplorationResponse toExplorationResponse(Long experimentId) {
+        ExperimentExploration exploration = experimentExplorationRepository.findByExperimentId(experimentId).orElse(null);
+        List<String> favoriteTries = exploration == null
+                ? List.of()
+                : java.util.stream.Stream.of(
+                                exploration.getFavoriteTry1(),
+                                exploration.getFavoriteTry2(),
+                                exploration.getFavoriteTry3())
+                        .filter(Objects::nonNull)
+                        .toList();
+        List<ExperimentExplorationResponse.RecordResponse> records = experimentExplorationRecordRepository
+                .findByExperimentIdOrderByCreatedAtDescIdDesc(experimentId)
+                .stream()
+                .map(this::toExplorationRecordResponse)
+                .toList();
+        return new ExperimentExplorationResponse(
+                exploration == null || exploration.getCurrentTry() == null ? "" : exploration.getCurrentTry(),
+                favoriteTries,
+                records);
+    }
+
+    private ExperimentExplorationResponse.RecordResponse toExplorationRecordResponse(
+            ExperimentExplorationRecord record) {
+        return new ExperimentExplorationResponse.RecordResponse(
+                record.getId(),
+                record.getTryText(),
+                record.getDiscovery(),
+                record.getCreatedAt(),
+                record.getExports().stream()
+                        .sorted(java.util.Comparator.comparing(ExplorationRecordCard::getCreatedAt).reversed())
+                        .map(link -> new ExperimentExplorationResponse.CardExportResponse(
+                                link.getCard().getId(),
+                                link.getCard().getTitle(),
+                                link.getCreatedAt()))
+                        .toList());
+    }
+
+    private void touchExperiment(Experiment experiment) {
+        experiment.setUpdatedAt(ZonedDateTime.now());
     }
 
     private String normalizeOptionalText(String value) {

@@ -111,4 +111,60 @@ public class ExperimentController {
             @Valid @RequestBody ExperimentGrowRequest request) {
         return ResponseEntity.ok(experimentService.growCard(experimentId, request));
     }
+
+    @GetMapping("/{experimentId}/exploration")
+    public ResponseEntity<ExperimentExplorationResponse> getExploration(
+            @PathVariable("experimentId") Long experimentId) {
+        return ResponseEntity.ok(experimentService.getExploration(experimentId));
+    }
+
+    @PutMapping("/{experimentId}/exploration/current-try")
+    public ResponseEntity<ExperimentExplorationResponse> updateCurrentTry(
+            @PathVariable("experimentId") Long experimentId,
+            @Valid @RequestBody ExperimentCurrentTryRequest request) {
+        return ResponseEntity.ok(experimentService.updateCurrentTry(experimentId, request));
+    }
+
+    @PutMapping("/{experimentId}/exploration/favorite-tries")
+    public ResponseEntity<ExperimentExplorationResponse> updateFavoriteTries(
+            @PathVariable("experimentId") Long experimentId,
+            @Valid @RequestBody ExperimentFavoriteTriesRequest request) {
+        return ResponseEntity.ok(experimentService.updateFavoriteTries(experimentId, request));
+    }
+
+    @PostMapping("/{experimentId}/exploration/records")
+    public ResponseEntity<ExperimentExplorationResponse> createExplorationRecord(
+            @PathVariable("experimentId") Long experimentId,
+            @Valid @RequestBody ExperimentExplorationRecordRequest request) {
+        return ResponseEntity.ok(experimentService.createExplorationRecord(experimentId, request));
+    }
+
+    @DeleteMapping("/{experimentId}/exploration/records/{recordId}")
+    public ResponseEntity<Void> deleteExplorationRecord(
+            @PathVariable("experimentId") Long experimentId,
+            @PathVariable("recordId") Long recordId) {
+        experimentService.deleteExplorationRecord(experimentId, recordId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{experimentId}/exploration")
+    public ResponseEntity<Void> clearExploration(@PathVariable("experimentId") Long experimentId) {
+        experimentService.clearExploration(experimentId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{experimentId}/exploration/cards")
+    public ResponseEntity<CardDetailResponse> createExplorationCard(
+            @PathVariable("experimentId") Long experimentId,
+            @Valid @RequestBody ExperimentExplorationCardRequest request) {
+        return ResponseEntity.ok(experimentService.createExplorationCard(experimentId, request));
+    }
+
+    @PostMapping("/{experimentId}/exploration/cards/{cardId}")
+    public ResponseEntity<CardDetailResponse> appendExplorationToCard(
+            @PathVariable("experimentId") Long experimentId,
+            @PathVariable("cardId") Long cardId,
+            @Valid @RequestBody ExperimentExplorationAppendRequest request) {
+        return ResponseEntity.ok(experimentService.appendExplorationToCard(experimentId, cardId, request));
+    }
 }

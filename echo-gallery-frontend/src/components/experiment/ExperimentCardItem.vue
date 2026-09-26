@@ -5,6 +5,7 @@ import type { ExperimentCardDto, ExperimentStage } from '../../types/experiment'
 defineProps<{
   card: ExperimentCardDto
   stages: Array<{ value: ExperimentStage; title: string }>
+  comparing?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -12,6 +13,7 @@ const emit = defineEmits<{
   changeStage: [card: ExperimentCardDto, stage: ExperimentStage]
   editNote: [card: ExperimentCardDto]
   remove: [card: ExperimentCardDto]
+  toggleCompare: [card: ExperimentCardDto]
 }>()
 
 const handleCommand = (card: ExperimentCardDto, command: string) => {
@@ -30,6 +32,9 @@ const handleCommand = (card: ExperimentCardDto, command: string) => {
         {{ card.cardTitle }}
       </button>
 
+      <p v-if="card.cardSummary" class="experiment-card-excerpt"><span>內容重點</span>{{ card.cardSummary }}</p>
+      <p v-if="card.cardReason" class="experiment-card-excerpt"><span>留下原因</span>{{ card.cardReason }}</p>
+
       <div class="experiment-card-metadata">
         <span class="card-id">#{{ card.cardId }}</span>
         <span>{{ card.cardType === 'link' ? '連結' : '筆記' }}</span>
@@ -45,6 +50,9 @@ const handleCommand = (card: ExperimentCardDto, command: string) => {
       </div>
 
       <p v-if="card.note" class="experiment-card-note">{{ card.note }}</p>
+      <button type="button" class="compare-toggle" :aria-pressed="comparing" @click="emit('toggleCompare', card)">
+        {{ comparing ? '移出比較' : '拿來比較' }}
+      </button>
     </div>
 
     <el-dropdown trigger="click" @command="handleCommand(card, $event)">
@@ -86,6 +94,11 @@ const handleCommand = (card: ExperimentCardDto, command: string) => {
 .experiment-card-main {
   min-width: 0;
 }
+
+.experiment-card-excerpt { display: -webkit-box; margin: 10px 0 0; overflow: hidden; color: var(--el-text-color-regular); font-size: var(--type-caption); line-height: var(--leading-ui); overflow-wrap: anywhere; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.experiment-card-excerpt span { flex: 0 0 auto; margin-right: 8px; color: var(--el-text-color-placeholder); }
+.compare-toggle { margin-top: 12px; padding: 0; border: 0; background: none; color: var(--el-color-primary); font: inherit; font-size: var(--type-caption); cursor: pointer; }
+.compare-toggle:hover, .compare-toggle:focus-visible { text-decoration: underline; }
 
 .experiment-card-title {
   max-width: 100%;
