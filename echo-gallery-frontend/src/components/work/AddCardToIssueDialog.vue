@@ -122,9 +122,10 @@ const addIssueMutation = useMutation({
 
 <style scoped>
 .dialog-description {
-  margin: -8px 0 14px;
+  margin: 0 0 18px;
   color: var(--el-text-color-secondary);
-  font-size: var(--type-meta);
+  font-size: var(--type-ui);
+  line-height: var(--leading-ui);
 }
 
 .issue-option-list {
@@ -142,14 +143,19 @@ const addIssueMutation = useMutation({
 
 .issue-option-content {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   flex-direction: column;
   gap: 5px;
 }
 
 .issue-option-content strong {
+  display: -webkit-box;
+  overflow: hidden;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .issue-option-content span {

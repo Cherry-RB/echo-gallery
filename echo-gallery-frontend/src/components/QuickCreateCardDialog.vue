@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
 import type { FormInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -12,6 +12,9 @@ import { useCardStatus } from '../utils/useCardStatus'
 import { getTextLength, trimToTextLength } from '../utils/textLength'
 import type { CardContentRequest, CardDto } from '../types/card'
 import AppDialog from './AppDialog.vue'
+
+const AddCardToIssueDialog = defineAsyncComponent(() => import('./work/AddCardToIssueDialog.vue'))
+const AddCardToExperimentDialog = defineAsyncComponent(() => import('./experiment/AddCardToExperimentDialog.vue'))
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -51,6 +54,8 @@ const cardData = ref(createInitialCardData())
 const visibleOptionalFields = ref<OptionalField[]>([])
 const titleInputRef = ref<{ focus: () => void }>()
 const createdCardId = ref<string | null>(null)
+const addIssueDialogVisible = ref(false)
+const addExperimentDialogVisible = ref(false)
 const isCustomCreatePending = ref(false)
 const router = useRouter()
 const dialogVisible = computed({
@@ -68,6 +73,7 @@ const {
 } = useTags(cardData)
 const { handleCreateCard, isCreatePending } = useCardStatus()
 const isSubmitting = computed(() => isCreatePending.value || isCustomCreatePending.value)
+const canPlaceCreatedCard = computed(() => !props.createCard)
 const dialogWidth = computed(() => props.layout === 'split'
   ? 'min(960px, calc(100vw - 32px))'
   : 'min(720px, calc(100vw - 32px))')
@@ -89,6 +95,8 @@ const resetForm = () => {
   tagPopoverVisible.value = false
   tagSearchQuery.value = ''
   createdCardId.value = null
+  addIssueDialogVisible.value = false
+  addExperimentDialogVisible.value = false
   cardFormRef.value?.clearValidate()
 }
 
@@ -227,6 +235,13 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
       <div class="create-success">
         <h3>{{ successTitle }}</h3>
         <p>{{ successDescription }}</p>
+        <div v-if="canPlaceCreatedCard" class="create-placement-actions">
+          <span>接著安放（選填）</span>
+          <div>
+            <el-button plain @click="addExperimentDialogVisible = true">種入實驗場</el-button>
+            <el-button plain @click="addIssueDialogVisible = true">帶入議題</el-button>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -383,6 +398,17 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
       </template>
     </template>
   </AppDialog>
+
+  <AddCardToExperimentDialog
+    v-if="createdCardId && canPlaceCreatedCard"
+    v-model="addExperimentDialogVisible"
+    :card-id="createdCardId"
+  />
+  <AddCardToIssueDialog
+    v-if="createdCardId && canPlaceCreatedCard"
+    v-model="addIssueDialogVisible"
+    :card-id="createdCardId"
+  />
 </template>
 
 <style scoped>
@@ -420,6 +446,9 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
 .create-success { padding: 12px 0 4px; }
 .create-success h3 { margin: 0 0 8px; color: var(--el-text-color-primary); font-size: var(--type-title-sm); }
 .create-success p { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); }
+.create-placement-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin-top: 16px; border-radius: 8px; background: var(--el-fill-color-light); }
+.create-placement-actions > span { color: var(--el-text-color-secondary); font-size: var(--type-meta); }
+.create-placement-actions > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 :global(.quick-create-dialog.el-dialog) { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
 :global(.quick-create-dialog .el-dialog__body) { min-height: 0; overflow-x: hidden; overflow-y: auto; }
 :global(.quick-create-dialog .el-dialog__footer) { flex: 0 0 auto; padding-top: 14px; border-top: 1px solid var(--el-border-color-lighter); }
@@ -428,6 +457,8 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
   .quick-settings-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .quick-interval-button, .pause-recurrence-button { min-height: 40px; }
   .optional-field-actions { align-items: flex-start; flex-direction: column; }
+  .create-placement-actions { align-items: flex-start; flex-direction: column; }
+  .create-placement-actions > div { justify-content: flex-start; }
 }
 @media (max-width: 860px) {
   .quick-create-layout.split { grid-template-columns: minmax(0, 1fr); }
