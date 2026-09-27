@@ -43,7 +43,7 @@ public class OverviewService {
 
     private static final List<Integer> ALLOWED_PERIOD_DAYS = List.of(7, 30, 90);
     private static final int NEXT_STEP_LIMIT = 3;
-    private static final int EXPERIMENT_TRY_LIMIT = 3;
+    private static final int EXPERIMENT_TRY_LIMIT = 6;
     private static final int DERIVED_CARD_LIMIT = 12;
 
     private final CardRepository cardRepository;

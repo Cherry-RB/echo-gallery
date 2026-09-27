@@ -117,28 +117,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
     <div v-else-if="overview" class="overview-workspace">
       <div class="overview-stack">
-      <section class="current-strip" aria-labelledby="overview-current-title">
-        <div class="section-title-row">
-          <div>
-            <span class="section-eyebrow">此刻</span>
-            <h2 id="overview-current-title">系統現在的狀態</h2>
-          </div>
-          <router-link to="/overview/cards">查看卡片與回流</router-link>
-        </div>
-        <div class="current-stat-list">
-          <button
-            v-for="item in currentItems"
-            :key="item.key"
-            type="button"
-            class="current-stat"
-            @click="openCurrentItem(item.key)"
-          >
-            <strong>{{ item.value }}</strong><span>{{ item.unit }}</span>
-            <small>{{ item.label }}</small>
-          </button>
-        </div>
-      </section>
-
       <section v-if="current.experimentTries.length" class="experiment-tries-panel" aria-labelledby="overview-experiment-tries-title">
         <div class="section-title-row">
           <div>
@@ -200,6 +178,28 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
           </div>
         </section>
       </div>
+
+      <section class="current-strip" aria-labelledby="overview-current-title">
+        <div class="section-title-row">
+          <div>
+            <span class="section-eyebrow">此刻</span>
+            <h2 id="overview-current-title">系統現在的狀態</h2>
+          </div>
+          <router-link to="/overview/cards">查看卡片與回流</router-link>
+        </div>
+        <div class="current-stat-list">
+          <button
+            v-for="item in currentItems"
+            :key="item.key"
+            type="button"
+            class="current-stat"
+            @click="openCurrentItem(item.key)"
+          >
+            <strong>{{ item.value }}</strong><span>{{ item.unit }}</span>
+            <small>{{ item.label }}</small>
+          </button>
+        </div>
+      </section>
 
       <section class="period-section" aria-labelledby="overview-period-title">
         <div class="period-heading">
