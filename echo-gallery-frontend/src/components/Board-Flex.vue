@@ -23,6 +23,18 @@ const props = defineProps<{
 const router = useRouter();
 const { handleReadCard } = useCardStatus();
 const normalizedFilters = computed(() => props.filters ?? {});
+const PAGE_SIZE = 15
+
+interface BoardPageParam {
+  pageNumber: number;
+  startId?: number;
+  cursorId?: number;
+}
+
+interface BoardQueryPage {
+  content: CardDto[];
+  nextPageParam?: BoardPageParam;
+}
 
 // =====================================================
 // 🚀 TanStack Query 無限滾動設定
@@ -36,29 +48,51 @@ const {
     error
 } = useInfiniteQuery({
     queryKey: computed(() => ["cards", props.boardType, normalizedFilters.value]), // 給這個快取一個名字
-    initialPageParam: 1, // 起始頁碼
+    initialPageParam: { pageNumber: 1 } as BoardPageParam,
 
-    // 自動帶入當前頁碼進行 API 請求
-    queryFn: ({ pageParam }) => cardApi.getCards({ pageNumber: pageParam, pageSize: 15, boardType: props.boardType, ...normalizedFilters.value }),
+    queryFn: async ({ pageParam }): Promise<BoardQueryPage> => {
+      if (props.boardType === 'random') {
+        const page = await cardApi.getRandomCards({
+          pageSize: PAGE_SIZE,
+          startId: pageParam.startId,
+          cursorId: pageParam.cursorId,
+        })
+        return {
+          content: page.content,
+          nextPageParam: page.hasMore && page.startId !== null && page.cursorId !== null
+            ? { pageNumber: 1, startId: page.startId, cursorId: page.cursorId }
+            : undefined,
+        }
+      }
+
+      const threshold = typeof normalizedFilters.value.threshold === 'number'
+        ? normalizedFilters.value.threshold
+        : undefined
+      const content = await cardApi.getCards({
+        pageNumber: pageParam.pageNumber,
+        pageSize: PAGE_SIZE,
+        boardType: props.boardType,
+        threshold,
+      })
+      return {
+        content,
+        nextPageParam: content.length === PAGE_SIZE
+          ? { pageNumber: pageParam.pageNumber + 1 }
+          : undefined,
+      }
+    },
 
     /**
      * 判斷有無下一頁
      * @param lastPage 最後一次（最新那一頁）撈到的資料（陣列）
      * @param allPages 目前已經撈出來的所有頁面清單
      */
-    getNextPageParam: (lastPage, allPages) => {
-        // 如果最新這一頁撈出來剛好是 15 筆，代表「應該還有下一頁」
-        if (lastPage.length === 15) {
-            return allPages.length + 1
-        }
-        // 如果撈出來少於 15 筆（例如 5 筆、或空陣列），代表到底了，回傳 undefined 告訴套件停止
-        return undefined
-    }
+    getNextPageParam: (lastPage) => lastPage.nextPageParam,
 });
 
 // 把二維陣列壓扁，無縫接軌瀑布流
 const cardList = computed<CardDto[]>(() => {
-    return data.value?.pages.flatMap(page => page) || [];
+    return data.value?.pages.flatMap(page => page.content) || [];
 })
 
 function handleOpenDetail(card: CardDto) {
@@ -122,8 +156,11 @@ onUnmounted(() => {
 
   <section class="board-page">
     <header class="board-page-header">
-      <h1 class="board-page-title">{{ title }}</h1>
-      <p v-if="description" class="board-description">{{ description }}</p>
+      <div class="board-heading-copy">
+        <h1 class="board-page-title">{{ title }}</h1>
+        <p v-if="description" class="board-description">{{ description }}</p>
+      </div>
+      <slot name="header-actions" />
     </header>
 
     <div class="board-workspace">
@@ -176,8 +213,14 @@ onUnmounted(() => {
 }
 
 .board-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
   margin-bottom: 24px;
 }
+
+.board-heading-copy { min-width: 0; }
 
 .board-page-title {
   margin: 0;
@@ -237,6 +280,9 @@ onUnmounted(() => {
   }
 
   .board-page-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
     margin-bottom: 16px;
   }
 

@@ -1,5 +1,7 @@
 package com.echogallery.security;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -11,6 +13,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import javax.crypto.SecretKey;
 
@@ -221,6 +226,35 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.content[0].name").value("alpha"));
     }
 
+    @Test
+    void randomCardsWrapOnceAndReturnEveryActiveCardWithoutDuplicates() throws Exception {
+        String token = register("random-owner", "random-owner@example.com");
+        for (int index = 1; index <= 7; index++) {
+            createCard(token, "Random card " + index, new String[0]);
+        }
+
+        JsonNode page = randomCards(token, Map.of("pageSize", 3));
+        Set<Long> seenCardIds = new HashSet<>();
+        int requestCount = 1;
+
+        while (true) {
+            for (JsonNode card : page.get("content")) {
+                assertTrue(seenCardIds.add(card.get("id").asLong()), "同一輪隨機瀏覽不應出現重複卡片");
+            }
+            if (!page.get("hasMore").asBoolean()) {
+                break;
+            }
+
+            assertTrue(requestCount++ < 5, "隨機 cursor 應在有限次請求內結束");
+            page = randomCards(token, Map.of(
+                    "pageSize", 3,
+                    "startId", page.get("startId").asLong(),
+                    "cursorId", page.get("cursorId").asLong()));
+        }
+
+        assertEquals(7, seenCardIds.size());
+    }
+
     private String register(String username, String email) throws Exception {
         String body = objectMapper.writeValueAsString(new RegistrationRequest(username, email, "password123"));
         MvcResult result = mockMvc.perform(post("/api/auth/register")
@@ -295,6 +329,16 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
 
         JsonNode tags = objectMapper.readTree(result.getResponse().getContentAsString());
         return tags.get("content").get(0).get("id").asLong();
+    }
+
+    private JsonNode randomCards(String token, Map<String, Object> request) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/cards/random")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 
     private String cardRequestJson(String title, String[] tags) throws Exception {

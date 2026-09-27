@@ -33,6 +33,13 @@ export interface PageResponse<T> {
     totalPages: number;
 }
 
+export interface RandomCardPageResponse {
+    content: CardDto[];
+    startId: number | null;
+    cursorId: number | null;
+    hasMore: boolean;
+}
+
 export interface TodayBatchResponse {
     cards: CardDto[];
     batchOfferedAt: string | null;

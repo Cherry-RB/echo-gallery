@@ -1,5 +1,5 @@
 import type { BoardType } from "../../types/board";
-import type { CardDto, CardGrowthStatus, CardSearchParams, CreateCardRequest, PageResponse, TodayBatchResponse, UpdateCardRequest } from "../../types/card";
+import type { CardDto, CardGrowthStatus, CardSearchParams, CreateCardRequest, PageResponse, RandomCardPageResponse, TodayBatchResponse, UpdateCardRequest } from "../../types/card";
 import request from "./request"
 
 export const cardApi = {
@@ -10,6 +10,13 @@ export const cardApi = {
             method: "POST",
             data
         });
+    },
+    getRandomCards(data: { pageSize: number, startId?: number, cursorId?: number }): Promise<RandomCardPageResponse> {
+        return request({
+            url: "/cards/random",
+            method: "POST",
+            data,
+        })
     },
     searchCards(data: CardSearchParams): Promise<PageResponse<CardDto>> {
         const params = {

@@ -57,20 +57,38 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
     Page<Card> findTodayCards(@Param("userId") Long userId, @Param("startOfTomorrow") ZonedDateTime startOfTomorrow, Pageable pageable);
 
     // 看板分頁 - 熱度排行
-    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false ORDER BY c.likeCount DESC")
+    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false ORDER BY c.likeCount DESC, c.updatedAt DESC, c.id DESC")
     Page<Card> findHotCards(@Param("userId") Long userId, Pageable pageable);
 
-    // 看板分頁 - 隨機看板
-    @Query(value = "SELECT * FROM cards c WHERE c.user_id = :userId AND c.is_archived = false ORDER BY RANDOM()",
-       countQuery = "SELECT count(*) FROM cards c WHERE c.user_id = :userId AND c.is_archived = false",
-       nativeQuery = true)
-    Page<Card> findRandomCards(@Param("userId") Long userId, Pageable pageable);
+    long countByUserIdAndIsArchivedFalse(Long userId);
+
+    @Query("SELECT c.id FROM Card c WHERE c.user.id = :userId AND c.isArchived = false ORDER BY c.id ASC")
+    List<Long> findActiveCardIds(@Param("userId") Long userId, Pageable pageable);
+
+    List<Card> findByUserIdAndIsArchivedFalseAndIdLessThanEqualOrderByIdDesc(
+            Long userId, Long startId, Pageable pageable);
+
+    List<Card> findByUserIdAndIsArchivedFalseAndIdLessThanOrderByIdDesc(
+            Long userId, Long cursorId, Pageable pageable);
+
+    List<Card> findByUserIdAndIsArchivedFalseAndIdGreaterThanOrderByIdDesc(
+            Long userId, Long startId, Pageable pageable);
+
+    List<Card> findByUserIdAndIsArchivedFalseAndIdLessThanAndIdGreaterThanOrderByIdDesc(
+            Long userId, Long cursorId, Long startId, Pageable pageable);
+
+    boolean existsByUserIdAndIsArchivedFalseAndIdLessThan(Long userId, Long cursorId);
+
+    boolean existsByUserIdAndIsArchivedFalseAndIdGreaterThan(Long userId, Long startId);
+
+    boolean existsByUserIdAndIsArchivedFalseAndIdLessThanAndIdGreaterThan(
+            Long userId, Long cursorId, Long startId);
 
     // 看板分頁 - 已封存看板
     Page<Card> findByUserIdAndIsArchivedTrue(Long userId, Pageable pageable);
 
     // 看板分頁 - 稍後再看看版
-    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false AND c.snoozeCount > :threshold")
+    @Query("SELECT c FROM Card c WHERE c.user.id = :userId AND c.isArchived = false AND c.snoozeCount > :threshold ORDER BY c.snoozeCount DESC, c.updatedAt DESC, c.id DESC")
     Page<Card> findSnoozedCards(@Param("userId") Long userId, @Param("threshold") int threshold, Pageable pageable);
 
     // 透過 Spring Data JPA 命名規範，直接建立限定用戶且支援分頁的查詢

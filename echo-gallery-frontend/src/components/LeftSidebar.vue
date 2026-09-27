@@ -5,11 +5,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 // 🌟 引入原有與新加入的 Element Plus 官方圖示
 import {
   Calendar,
+  Files,
   Refresh,
-  Star,
-  Loading,
-  Box,
-  Clock,
   Search,
   Plus,
   RemoveFilled,
@@ -39,15 +36,11 @@ const userProfile = ref({
 
 const menuItems = [
   { name: '今日', path: '/board/today', icon: Calendar },
-  { name: '全部卡片', path: '/board/all', icon: Clock },
+  { name: '全部卡片', path: '/board/all', icon: Files },
   { name: '議事廳', path: '/works', icon: Filter },
   { name: '實驗場', path: '/experiments', icon: Aim },
   { name: '觀測台', path: '/overview', icon: DataAnalysis },
   { name: '標籤管理', path: '/center/tag', icon: CollectionTag },
-  { name: '熱門', path: '/board/hot', icon: Star },
-  { name: '隨機', path: '/board/random', icon: Refresh },
-  { name: '封存', path: '/board/archived', icon: Box },
-  { name: '稍後再看', path: '/board/snoozed', icon: Loading },
   { name: '查詢', path: '/search', icon: Search },
 ]
 

@@ -36,6 +36,12 @@ public class CardController {
         return ResponseEntity.ok(cards);
     }
 
+    @PostMapping("/random")
+    public ResponseEntity<RandomCardPageResponse> randomCards(
+            @Valid @RequestBody RandomCardListRequest request) {
+        return ResponseEntity.ok(cardService.getRandomCards(request));
+    }
+
     @GetMapping("/search")
     public ResponseEntity<PageResponse<CardSummaryResponse>> searchCards(
             @Valid @ModelAttribute CardSearchRequest request) {

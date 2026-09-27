@@ -68,23 +68,19 @@ const routes = [
     },
     {
       path: 'board/hot', // 熱門看板
-      name: 'HotBoard',
-      component: () => import('../views/boards/HotBoard.vue')
+      redirect: { path: '/board/all', query: { view: 'hot' } }
     },
     {
       path: 'board/random', // 隨機看板
-      name: 'RandomBoard',
-      component: () => import('../views/boards/RandomBoard.vue')
+      redirect: { path: '/board/all', query: { view: 'random' } }
     },
     {
       path: 'board/archived', // 封存看板
-      name: 'ArchivedBoard',
-      component: () => import('../views/boards/ArchivedBoard.vue')
+      redirect: { path: '/board/all', query: { view: 'archived' } }
     },
     {
       path: 'board/snoozed', // 稍後再看看板
-      name: 'SnoozedBoard',
-      component: () => import('../views/boards/SnoozedBoard.vue')
+      redirect: { path: '/board/all', query: { view: 'snoozed' } }
     },
     {
       path: 'search', // 查詢看板

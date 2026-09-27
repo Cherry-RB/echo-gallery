@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -55,9 +56,9 @@ public class CardService {
         int requestedSize = (request.getPageSize() != null && request.getPageSize() > 0) ? request.getPageSize() : 10;
         int size = Math.min(requestedSize, 100);
 
-        // 3. 建立分頁與排序條件（依據建立時間降冪排序）
+        // 3. 建立分頁與排序條件（依據更新時間降冪排序）
         Pageable pageable = PageRequest.of(page, size,
-            Sort.by(Sort.Direction.DESC, "createdAt")
+            Sort.by(Sort.Direction.DESC, "updatedAt")
             .and(Sort.by(Sort.Direction.DESC, "id"))
         );
 
@@ -75,7 +76,8 @@ public class CardService {
             }
             case ALL -> cardRepository.findByUserIdAndIsArchivedFalse(userId, pageable);
             case HOT -> cardRepository.findHotCards(userId, pageable);
-            case RANDOM -> cardRepository.findRandomCards(userId, PageRequest.of(0, size));
+            case RANDOM -> throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "隨機看板請使用 cursor 查詢");
             case ARCHIVED -> cardRepository.findByUserIdAndIsArchivedTrue(userId, pageable);
             case SNOOZED -> cardRepository.findSnoozedCards(userId, request.getThreshold() <= 0 ? 10 : request.getThreshold(), pageable);
         };
@@ -84,6 +86,85 @@ public class CardService {
         return cardPage.getContent().stream()
                 .map(this::convertToSummaryResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public RandomCardPageResponse getRandomCards(RandomCardListRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        int size = request.pageSize() == null ? 15 : Math.max(1, Math.min(request.pageSize(), 100));
+        Long startId = request.startId();
+        Long cursorId = request.cursorId();
+
+        if ((startId == null) != (cursorId == null)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "隨機起點與游標必須同時提供");
+        }
+
+        Pageable limit = PageRequest.of(0, size);
+        if (startId == null) {
+            long totalCards = cardRepository.countByUserIdAndIsArchivedFalse(userId);
+            if (totalCards == 0) {
+                return new RandomCardPageResponse(List.of(), null, null, false);
+            }
+
+            long randomOffset = ThreadLocalRandom.current().nextLong(totalCards);
+            Long selectedStartId = cardRepository.findActiveCardIds(
+                            userId, PageRequest.of(Math.toIntExact(randomOffset), 1))
+                    .getFirst();
+            List<Card> cards = cardRepository
+                    .findByUserIdAndIsArchivedFalseAndIdLessThanEqualOrderByIdDesc(
+                            userId, selectedStartId, limit);
+            Long nextCursorId = cards.getLast().getId();
+            boolean hasMore = cardRepository.existsByUserIdAndIsArchivedFalseAndIdLessThan(
+                    userId, nextCursorId)
+                    || cardRepository.existsByUserIdAndIsArchivedFalseAndIdGreaterThan(userId, selectedStartId);
+            return toRandomCardPage(cards, selectedStartId, nextCursorId, hasMore);
+        }
+
+        if (cursorId <= startId) {
+            List<Card> tailCards = cardRepository
+                    .findByUserIdAndIsArchivedFalseAndIdLessThanOrderByIdDesc(userId, cursorId, limit);
+            if (!tailCards.isEmpty()) {
+                Long nextCursorId = tailCards.getLast().getId();
+                boolean hasMore = cardRepository.existsByUserIdAndIsArchivedFalseAndIdLessThan(
+                        userId, nextCursorId)
+                        || cardRepository.existsByUserIdAndIsArchivedFalseAndIdGreaterThan(userId, startId);
+                return toRandomCardPage(tailCards, startId, nextCursorId, hasMore);
+            }
+
+            List<Card> wrappedCards = cardRepository
+                    .findByUserIdAndIsArchivedFalseAndIdGreaterThanOrderByIdDesc(userId, startId, limit);
+            if (wrappedCards.isEmpty()) {
+                return new RandomCardPageResponse(List.of(), startId, cursorId, false);
+            }
+            Long nextCursorId = wrappedCards.getLast().getId();
+            boolean hasMore = cardRepository
+                    .existsByUserIdAndIsArchivedFalseAndIdLessThanAndIdGreaterThan(
+                            userId, nextCursorId, startId);
+            return toRandomCardPage(wrappedCards, startId, nextCursorId, hasMore);
+        }
+
+        List<Card> wrappedCards = cardRepository
+                .findByUserIdAndIsArchivedFalseAndIdLessThanAndIdGreaterThanOrderByIdDesc(
+                        userId, cursorId, startId, limit);
+        if (wrappedCards.isEmpty()) {
+            return new RandomCardPageResponse(List.of(), startId, cursorId, false);
+        }
+        Long nextCursorId = wrappedCards.getLast().getId();
+        boolean hasMore = cardRepository.existsByUserIdAndIsArchivedFalseAndIdLessThanAndIdGreaterThan(
+                userId, nextCursorId, startId);
+        return toRandomCardPage(wrappedCards, startId, nextCursorId, hasMore);
+    }
+
+    private RandomCardPageResponse toRandomCardPage(
+            List<Card> cards,
+            Long startId,
+            Long cursorId,
+            boolean hasMore) {
+        return new RandomCardPageResponse(
+                cards.stream().map(this::convertToSummaryResponse).toList(),
+                startId,
+                cursorId,
+                hasMore);
     }
 
     @Transactional(readOnly = true)
