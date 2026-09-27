@@ -7,7 +7,6 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import CardItem from '../components/CardItem.vue'
 import type {
-  CardGrowthStatus,
   CardSearchArchiveStatus,
   CardSearchDirection,
   CardSearchParams,
@@ -28,7 +27,6 @@ interface SearchForm {
   title: string
   tagIds: number[]
   tagMode: CardSearchTagMode
-  growthStatuses: CardGrowthStatus[]
   needsProcessing: boolean
   archiveStatus: CardSearchArchiveStatus
   recurrenceStatus: CardSearchRecurrenceStatus
@@ -43,7 +41,6 @@ const defaultForm = (): SearchForm => ({
   title: '',
   tagIds: [],
   tagMode: 'OR',
-  growthStatuses: [],
   needsProcessing: false,
   archiveStatus: 'ACTIVE',
   recurrenceStatus: 'ALL',
@@ -58,7 +55,6 @@ const toSearchFilters = (source: SearchForm): CardSearchParams => ({
   title: source.title.trim() || undefined,
   tagIds: [...new Set(source.tagIds)],
   tagMode: source.tagIds.length >= 2 ? source.tagMode : 'OR',
-  growthStatuses: [...new Set(source.growthStatuses)],
   needsProcessing: source.needsProcessing || undefined,
   archiveStatus: source.archiveStatus,
   recurrenceStatus: source.recurrenceStatus,
@@ -73,7 +69,6 @@ const tagPopoverVisible = ref(false)
 const tagSearchQuery = ref('')
 const debouncedTagSearchQuery = ref('')
 let tagSearchDebounceTimer: ReturnType<typeof setTimeout> | undefined
-const growthPopoverVisible = ref(false)
 const appliedFilters = ref<CardSearchParams>(toSearchFilters(defaultForm()))
 const page = ref(0)
 
@@ -92,20 +87,6 @@ const visibleRange = computed(() => {
   }
 })
 
-const growthStatusLabels: Record<CardGrowthStatus, string> = {
-  UNMARKED: '未標記',
-  SEED: '🌱 種子',
-  GROWING: '🌿 生長',
-  MATURE: '🌳 成熟',
-}
-const growthStatusTypes: Record<CardGrowthStatus, 'info' | 'success' | 'warning' | 'primary'> = {
-  UNMARKED: 'info',
-  SEED: 'success',
-  GROWING: 'warning',
-  MATURE: 'primary',
-}
-const growthStatusOptions = (Object.entries(growthStatusLabels) as Array<[CardGrowthStatus, string]>)
-  .map(([value, label]) => ({ value, label, tagType: growthStatusTypes[value] }))
 
 const activeFilterLabels = computed(() => {
   const filters = appliedFilters.value
@@ -116,9 +97,6 @@ const activeFilterLabels = computed(() => {
     const names = filters.tagIds.map(id =>
       tagOptions.value.find(option => option.value === id)?.label ?? `#${id}`)
     labels.push(`標籤：${names.join(filters.tagMode === 'AND' ? ' ＋ ' : '／')}`)
-  }
-  if (filters.growthStatuses?.length) {
-    labels.push(`成長狀態：${filters.growthStatuses.map(status => growthStatusLabels[status]).join('、')}`)
   }
   if (filters.needsProcessing) labels.push('待整理')
   if (filters.archiveStatus && filters.archiveStatus !== 'ACTIVE') {
@@ -162,13 +140,11 @@ const tagOptions = computed(() => (tagsData.value?.content ?? []).map((tag) => (
 const selectedTagOptions = computed(() => form.tagIds.map(id =>
   tagOptions.value.find(option => option.value === id) ?? { value: id, label: `#${id}` }))
 const filteredTagOptions = computed(() => tagOptions.value)
-const selectedGrowthStatuses = computed(() => growthStatusOptions.filter(option =>
-  form.growthStatuses.includes(option.value)))
 
 const sameValues = <T,>(left: T[] = [], right: T[] = []) =>
   left.length === right.length && [...left].sort().every((value, index) => value === [...right].sort()[index])
 
-type SearchField = 'id' | 'title' | 'tags' | 'growth' | 'processing' | 'archive' | 'recurrence' | 'interval' | 'sort' | 'direction'
+type SearchField = 'id' | 'title' | 'tags' | 'processing' | 'archive' | 'recurrence' | 'interval' | 'sort' | 'direction'
 
 const fieldMatchesApplied = (field: SearchField) => {
   const applied = appliedFilters.value
@@ -177,7 +153,6 @@ const fieldMatchesApplied = (field: SearchField) => {
     case 'title': return form.title.trim() === (applied.title ?? '')
     case 'tags': return sameValues(form.tagIds, applied.tagIds)
       && (form.tagIds.length < 2 || form.tagMode === (applied.tagMode ?? 'OR'))
-    case 'growth': return sameValues(form.growthStatuses, applied.growthStatuses)
     case 'processing': return form.needsProcessing === Boolean(applied.needsProcessing)
     case 'archive': return form.archiveStatus === (applied.archiveStatus ?? 'ACTIVE')
     case 'recurrence': return form.recurrenceStatus === (applied.recurrenceStatus ?? 'ALL')
@@ -194,7 +169,6 @@ const fieldIsActive = (field: SearchField) => {
     case 'id': return applied.id !== undefined
     case 'title': return Boolean(applied.title)
     case 'tags': return Boolean(applied.tagIds?.length)
-    case 'growth': return Boolean(applied.growthStatuses?.length)
     case 'processing': return Boolean(applied.needsProcessing)
     case 'archive': return applied.archiveStatus !== 'ACTIVE'
     case 'recurrence': return applied.recurrenceStatus !== 'ALL'
@@ -210,7 +184,7 @@ const fieldClass = (field: SearchField) => ({
 })
 
 const hasPendingChanges = computed(() => [
-  'id', 'title', 'tags', 'growth', 'processing', 'archive', 'recurrence', 'interval', 'sort', 'direction',
+  'id', 'title', 'tags', 'processing', 'archive', 'recurrence', 'interval', 'sort', 'direction',
 ].some(field => !fieldMatchesApplied(field as SearchField)))
 
 const toggleTag = (tagId: number) => {
@@ -221,12 +195,6 @@ const toggleTag = (tagId: number) => {
 
 const removeTag = (tagId: number) => {
   form.tagIds = form.tagIds.filter(id => id !== tagId)
-}
-
-const toggleGrowthStatus = (status: CardGrowthStatus) => {
-  form.growthStatuses = form.growthStatuses.includes(status)
-    ? form.growthStatuses.filter(value => value !== status)
-    : [...form.growthStatuses, status]
 }
 
 const {
@@ -348,46 +316,6 @@ const openDetail = (cardId: string) => {
             <span>縮小結果範圍，或調整顯示順序</span>
           </div>
           <div class="secondary-filter-row">
-          <div class="compact-field growth-field" :class="fieldClass('growth')">
-            <span>成長狀態</span>
-            <div class="picker-control" :class="{ 'has-selection': form.growthStatuses.length }">
-              <el-tag
-                v-for="status in selectedGrowthStatuses"
-                :key="status.value"
-                :type="status.tagType"
-                size="small"
-                effect="plain"
-                closable
-                @close="toggleGrowthStatus(status.value)"
-              >{{ status.label }}</el-tag>
-              <el-popover
-                v-model:visible="growthPopoverVisible"
-                placement="bottom-start"
-                :width="220"
-                trigger="click"
-              >
-                <template #reference>
-                  <el-button class="picker-trigger">
-                    {{ form.growthStatuses.length ? '調整狀態' : '全部狀態' }}
-                  </el-button>
-                </template>
-                <div class="growth-option-list" role="listbox" aria-label="成長狀態" aria-multiselectable="true">
-                  <button
-                    v-for="option in growthStatusOptions"
-                    :key="option.value"
-                    type="button"
-                    class="growth-option"
-                    :class="{ selected: form.growthStatuses.includes(option.value) }"
-                    :aria-selected="form.growthStatuses.includes(option.value)"
-                    @click="toggleGrowthStatus(option.value)"
-                  >
-                    <span>{{ option.label }}</span>
-                    <span class="selection-mark">{{ form.growthStatuses.includes(option.value) ? '✓' : '' }}</span>
-                  </button>
-                </div>
-              </el-popover>
-            </div>
-          </div>
           <label class="compact-field processing-field" :class="fieldClass('processing')">
             <span>整理狀態</span>
             <el-checkbox v-model="form.needsProcessing">只看待整理</el-checkbox>
@@ -557,16 +485,11 @@ const openDetail = (cardId: string) => {
 .popover-tags-list { display: flex; max-height: 220px; flex-wrap: wrap; gap: 8px; overflow-y: auto; }
 .clickable-filter-tag { cursor: pointer; user-select: none; }
 .empty-option-text { color: var(--el-text-color-secondary); font-size: var(--type-caption); }
-.growth-option-list { display: flex; flex-direction: column; margin: -6px; }
-.growth-option { display: flex; width: 100%; min-height: 40px; align-items: center; justify-content: space-between; padding: 8px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--el-text-color-regular); cursor: pointer; font: inherit; text-align: left; }
-.growth-option:hover { background: var(--el-fill-color-light); }
-.growth-option.selected { background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-weight: 600; }
 .selection-mark { width: 16px; color: var(--el-color-primary); text-align: center; }
 .id-field { width: 110px; }
 .title-field { flex: 1 1 180px; }
 .tag-field { flex: 1.2 1 220px; }
 .tag-mode-field { min-width: 200px; }
-.growth-field { width: 220px; }
 .archive-field { width: 140px; }
 .recurrence-status-field { width: 140px; }
 .interval-field { width: 240px; }
@@ -595,6 +518,6 @@ const openDetail = (cardId: string) => {
 .card-grid.fetching { opacity: .65; }
 .pagination-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; color: var(--el-text-color-secondary); font-size: var(--type-caption); }
 @media (max-width: 1100px) { .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .secondary-filter-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .growth-field, .archive-field, .recurrence-status-field, .interval-field { width: auto; } .sort-section { align-items: flex-start; flex-direction: column; gap: 8px; } .sort-section-label { padding-bottom: 0; } .sort-control-group { width: 100%; } .sort-control-group .compact-field { flex: 1; width: auto; } }
+@media (max-width: 720px) { .secondary-filter-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .archive-field, .recurrence-status-field, .interval-field { width: auto; } .sort-section { align-items: flex-start; flex-direction: column; gap: 8px; } .sort-section-label { padding-bottom: 0; } .sort-control-group { width: 100%; } .sort-control-group .compact-field { flex: 1; width: auto; } }
 @media (max-width: 640px) { .search-page { padding: 16px; } .search-panel :deep(.el-card__body) { padding: 12px; } .filter-section { padding: 14px 12px; } .filter-section-heading { align-items: flex-start; flex-direction: column; gap: 4px; } .primary-filter-row, .secondary-filter-row { display: grid; grid-template-columns: 1fr; } .id-field, .title-field, .tag-field, .tag-mode-field { width: auto; } .sort-control-group { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .75fr); } .search-action-footer { align-items: stretch; flex-direction: column; } .search-actions { display: grid; width: 100%; grid-template-columns: 1fr 1fr; margin-left: 0; } .search-button, .clear-button { width: 100%; } .applied-filters { align-items: flex-start; } .applied-filter-copy { align-items: flex-start; flex-direction: column; gap: 6px; } .card-grid { grid-template-columns: 1fr; } .result-heading { align-items: flex-start; gap: 8px; } .result-summary { flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; } .pagination-row { flex-direction: column; gap: 6px; } }
 </style>

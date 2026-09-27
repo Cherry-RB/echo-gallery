@@ -4,7 +4,7 @@ import { Check, Delete, Edit, Plus, RefreshLeft } from '@element-plus/icons-vue'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import type { CardDto, CardGrowthStatus, CardType } from '../../types/card'
+import type { CardDto, CardType } from '../../types/card'
 import type { WorkCard, WorkCardStatus } from '../../types/work'
 import { workApi } from '../../utils/api/workApi'
 import { formatDate } from '../../utils/formatDate'
@@ -23,13 +23,6 @@ const materialPageSize = 10
 const cardTypeMeta: Record<CardType, string> = {
   note: '筆記',
   link: '連結',
-}
-
-const growthStatusMeta: Record<CardGrowthStatus, { icon: string; label: string }> = {
-  UNMARKED: { icon: '', label: '未標記' },
-  SEED: { icon: '🌱', label: '種子' },
-  GROWING: { icon: '🌿', label: '生長' },
-  MATURE: { icon: '🌳', label: '成熟' },
 }
 
 const {
@@ -218,11 +211,6 @@ const confirmRemoveCard = async (card: WorkCard) => {
             </button>
             <div class="card-metadata">
               <span>{{ cardTypeMeta[card.cardType] }}</span>
-              <el-tooltip v-if="card.cardGrowthStatus !== 'UNMARKED'" :content="growthStatusMeta[card.cardGrowthStatus].label">
-                <span class="growth-icon" role="img" :aria-label="growthStatusMeta[card.cardGrowthStatus].label">
-                  {{ growthStatusMeta[card.cardGrowthStatus].icon }}
-                </span>
-              </el-tooltip>
               <span>加入於 {{ formatDate(card.linkedAt) }}</span>
             </div>
             <div v-if="card.tags.length" class="card-tags">
@@ -291,11 +279,6 @@ const confirmRemoveCard = async (card: WorkCard) => {
             </button>
             <div class="card-metadata">
               <span>{{ cardTypeMeta[card.cardType] }}</span>
-              <el-tooltip v-if="card.cardGrowthStatus !== 'UNMARKED'" :content="growthStatusMeta[card.cardGrowthStatus].label">
-                <span class="growth-icon" role="img" :aria-label="growthStatusMeta[card.cardGrowthStatus].label">
-                  {{ growthStatusMeta[card.cardGrowthStatus].icon }}
-                </span>
-              </el-tooltip>
               <span v-if="card.usedAt">運用於 {{ formatDate(card.usedAt) }}</span>
             </div>
             <div v-if="card.tags.length" class="card-tags">
@@ -510,10 +493,6 @@ const confirmRemoveCard = async (card: WorkCard) => {
   margin-top: 7px;
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
-}
-
-.growth-icon {
-  line-height: 1;
 }
 
 .card-tags {

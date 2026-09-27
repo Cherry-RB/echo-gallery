@@ -3,7 +3,7 @@ defineOptions({ name: 'CardDetail' })
 
 import { ArrowLeft, Calendar, Clock, CollectionTag, Edit, Link, MoreFilled, Plus, Star, StarFilled } from '@element-plus/icons-vue'
 import router from '../router';
-import type { CardDto, CardGrowthStatus, UpdateCardRequest } from '../types/card';
+import type { CardDto, UpdateCardRequest } from '../types/card';
 import { computed, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue';
 import { formatDate } from '../utils/formatDate';
 import { getDefaultCardData } from '../mock-data/card-default-new';
@@ -21,6 +21,7 @@ import { cardTextFieldCopy } from '../utils/cardTextFieldCopy';
 import AppDialog from '../components/AppDialog.vue';
 import { cardDetailQueryKey } from '../utils/cardDetailQuery';
 import RecurrenceIntervalPicker from '../components/RecurrenceIntervalPicker.vue';
+import AddCardToExperimentDialog from '../components/experiment/AddCardToExperimentDialog.vue';
 import { getTextLength, trimToTextLength } from '../utils/textLength';
 
 const props = defineProps<{ id: string }>();
@@ -56,21 +57,7 @@ const editSection = ref<EditSection>('all')
 // 模擬資料取得
 const cardData = ref<CardDto>(getDefaultCardData());
 
-const growthStatusOptions: Array<{
-  value: CardGrowthStatus;
-  label: string;
-  tagType: 'info' | 'success' | 'warning' | 'primary';
-}> = [
-  { value: 'UNMARKED', label: '未標記', tagType: 'info' },
-  { value: 'SEED', label: '🌱 種子', tagType: 'success' },
-  { value: 'GROWING', label: '🌿 生長', tagType: 'warning' },
-  { value: 'MATURE', label: '🌳 成熟', tagType: 'primary' }
-];
-
-const currentGrowthStatus = computed(() =>
-  growthStatusOptions.find(option => option.value === cardData.value.growthStatus)
-    ?? growthStatusOptions[0]
-);
+const addExperimentDialogVisible = ref(false)
 
 // 監聽路由的 id 變動，當從詳情頁切換到 'new' (新增模式) 時，強制重置表單與狀態
 watch(() => props.id, (newId) => {
@@ -114,7 +101,6 @@ const {
   handlePauseCard,
   handleResumeCard,
   handleUpdateRecurrence,
-  handleUpdateGrowthStatus,
   handleCreateCard,
   handleUpdateCard,
   handleDeleteCard,
@@ -125,8 +111,7 @@ const {
   isRecurrencePending,
   isCreatePending,
   isUpdatePending,
-  isDeletePending,
-  isGrowthStatusPending
+  isDeletePending
 } = useCardStatus();
 
 const isRecurrencePaused = computed(() =>
@@ -206,8 +191,7 @@ const handleSave = async () => {
       // 調用對外接口更新卡片（傳入封裝好的參數物件）
       const request: UpdateCardRequest = {
         ...toCardContentRequest(cardData.value),
-        isArchived: cardData.value.isArchived,
-        growthStatus: cardData.value.growthStatus
+        isArchived: cardData.value.isArchived
       };
       handleUpdateCard({ id: props.id, data: request }, {
         // 💡 後端儲存成功且快取重整後，才執行 UI 狀態切換
@@ -323,11 +307,6 @@ const toggleArchive = () => {
     archivedStatus: !cardData.value.isArchived
   });
 }
-
-const changeGrowthStatus = (growthStatus: CardGrowthStatus) => {
-  if (isGrowthStatusPending.value || growthStatus === cardData.value.growthStatus) return;
-  handleUpdateGrowthStatus({ id: props.id, growthStatus });
-};
 
 const handleMoreCommand = (command: 'archive' | 'delete') => {
   if (command === 'archive') {
@@ -611,25 +590,6 @@ const {
               </header>
               <dl class="property-list">
                 <div>
-                  <dt>成長狀態</dt>
-                  <dd>
-                    <el-select
-                      :model-value="cardData.growthStatus"
-                      class="growth-status-select"
-                      size="small"
-                      :loading="isGrowthStatusPending"
-                      @change="changeGrowthStatus"
-                    >
-                      <el-option
-                        v-for="option in growthStatusOptions"
-                        :key="option.value"
-                        :label="option.label"
-                        :value="option.value"
-                      />
-                    </el-select>
-                  </dd>
-                </div>
-                <div>
                   <dt>使用狀態</dt>
                   <dd>{{ cardData.isArchived ? '已封存' : '使用中' }}</dd>
                 </div>
@@ -672,7 +632,10 @@ const {
                   <span class="property-eyebrow">實驗場</span>
                   <h2>實驗主題與思想脈絡</h2>
                 </div>
-                <el-button text size="small" @click="router.push('/experiments')">前往實驗場</el-button>
+                <div class="experiment-context-actions">
+                  <el-button text size="small" @click="router.push('/experiments')">前往實驗場</el-button>
+                  <el-button type="primary" plain size="small" @click="addExperimentDialogVisible = true">放入實驗場</el-button>
+                </div>
               </header>
               <div class="experiment-context-section">
                 <h3>所在實驗主題</h3>
@@ -697,6 +660,12 @@ const {
                 </div>
               </div>
             </section>
+
+            <AddCardToExperimentDialog
+              v-if="addExperimentDialogVisible"
+              v-model="addExperimentDialogVisible"
+              :card-id="props.id"
+            />
 
             <section class="system-metadata" aria-label="卡片系統資訊">
               <span>累積點閱 {{ cardData.openCount }} 次</span>
@@ -1143,30 +1112,6 @@ const {
           <el-divider class="compact-divider" />
 
           <div class="info-list">
-            <div class="info-item">
-              <span class="info-label">成長狀態</span>
-              <el-tag
-                v-if="!isEditMode"
-                :type="currentGrowthStatus.tagType"
-                size="small"
-                effect="light"
-              >
-                {{ currentGrowthStatus.label }}
-              </el-tag>
-              <el-select
-                v-else
-                v-model="cardData.growthStatus"
-                size="small"
-                style="width: 112px;"
-              >
-                <el-option
-                  v-for="option in growthStatusOptions"
-                  :key="option.value"
-                  :value="option.value"
-                  :label="option.label"
-                />
-              </el-select>
-            </div>
             <div class="info-item">
               <span class="info-label">使用狀態</span>
               <template v-if="!isEditMode">
@@ -1645,11 +1590,6 @@ const {
   font-size: var(--type-ui);
 }
 
-.growth-status-select {
-  width: 132px;
-  flex: 0 0 132px;
-}
-
 .star-button {
   display: inline-flex;
   align-items: center;
@@ -1768,6 +1708,12 @@ const {
 
 .experiment-context-card {
   margin-top: 16px;
+}
+
+.experiment-context-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .experiment-context-list {

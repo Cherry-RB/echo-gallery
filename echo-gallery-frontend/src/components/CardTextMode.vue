@@ -9,6 +9,7 @@ import { getBoardCapabilities, type BoardType } from '../types/board';
 import RecurrenceIntervalPicker from './RecurrenceIntervalPicker.vue';
 
 const AddCardToIssueDialog = defineAsyncComponent(() => import('./work/AddCardToIssueDialog.vue'));
+const AddCardToExperimentDialog = defineAsyncComponent(() => import('./experiment/AddCardToExperimentDialog.vue'));
 
 const props = defineProps<{
   data: CardDto;
@@ -17,20 +18,8 @@ const props = defineProps<{
 
 const capabilities = computed(() => getBoardCapabilities(props.boardType));
 const addIssueDialogVisible = ref(false);
+const addExperimentDialogVisible = ref(false);
 const recurrencePopoverVisible = ref(false);
-
-const growthTag = computed(() => {
-  if (props.data.growthStatus === 'SEED') {
-    return { icon: '🌱', label: '種子' };
-  }
-  if (props.data.growthStatus === 'GROWING') {
-    return { icon: '🌿', label: '生長' };
-  }
-  if (props.data.growthStatus === 'MATURE') {
-    return { icon: '🌳', label: '成熟' };
-  }
-  return null;
-});
 
 const emit = defineEmits<{
   (e: "open-detail", card: any): void;
@@ -43,9 +32,7 @@ const {
   handlePauseCard,
   handleResumeCard,
   handleUpdateRecurrence,
-  handleUpdateGrowthStatus,
   handleDeleteCard,
-  isGrowthStatusPending,
   isPausePending,
   isResumePending,
   isRecurrencePending,
@@ -190,10 +177,6 @@ const pauseFromPicker = () => {
   pauseRecurrence();
 };
 
-const markAsSeed = () => {
-  handleUpdateGrowthStatus({ id: props.data.id, growthStatus: 'SEED' });
-};
-
 const getLikeAvailableStatus = (likeAvailableAt: string | undefined) => {
   if (!likeAvailableAt) return true;
   try {
@@ -269,19 +252,7 @@ const deleteCard = async () => {
         <p class="card-body-content">{{ getCardShowInfo }}</p>
       </div>
       <!-- 標籤 -->
-      <div class="tag-container">
-        <el-tooltip v-if="growthTag" :content="growthTag.label" placement="top">
-          <el-tag
-            type="info"
-            size="small"
-            effect="plain"
-            class="growth-status-tag"
-            role="img"
-            :aria-label="growthTag.label"
-          >
-            {{ growthTag.icon }}
-          </el-tag>
-        </el-tooltip>
+      <div v-if="data.tags.length" class="tag-container">
         <el-tag v-for="tag in data.tags" type="info" size="small" effect="plain" :key="tag">#{{ tag }}</el-tag>
       </div>
 
@@ -363,17 +334,13 @@ const deleteCard = async () => {
     <el-icon :size="16" class="rotate-icon" @click.stop><MoreFilled /></el-icon>
     <template #dropdown>
       <el-dropdown-menu>
+        <el-dropdown-item v-if="!data.isArchived" @click.stop="addExperimentDialogVisible = true">
+          放入實驗場
+        </el-dropdown-item>
         <el-dropdown-item v-if="!data.isArchived" @click.stop="addIssueDialogVisible = true">
           加入議題
         </el-dropdown-item>
         <!-- <el-dropdown-item @click="goToDetail()">編輯</el-dropdown-item> -->
-        <el-dropdown-item
-          v-if="!isMuted && data.growthStatus !== 'SEED'"
-          :disabled="isGrowthStatusPending"
-          @click.stop="markAsSeed"
-        >
-          標記種子
-        </el-dropdown-item>
         <el-dropdown-item v-if="!isMuted && capabilities.canSnooze && boardType !== 'today' && boardType !== 'snoozed' && !isRecurrencePaused" @click.stop="triggerSnooze">
           稍後再看
         </el-dropdown-item>
@@ -407,6 +374,11 @@ const deleteCard = async () => {
   <AddCardToIssueDialog
     v-if="addIssueDialogVisible"
     v-model="addIssueDialogVisible"
+    :card-id="data.id"
+  />
+  <AddCardToExperimentDialog
+    v-if="addExperimentDialogVisible"
+    v-model="addExperimentDialogVisible"
     :card-id="data.id"
   />
 </template>
@@ -476,14 +448,6 @@ const deleteCard = async () => {
   overflow: hidden;
   flex: 1;
   flex-wrap: wrap;
-}
-.growth-status-tag {
-  flex: 0 0 auto;
-  width: 24px;
-  padding: 0;
-  margin-right: 5px;
-  justify-content: center;
-  cursor: default;
 }
 /* 讓標題跟標籤有點距離 */
 .card-header {
