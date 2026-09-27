@@ -2,12 +2,15 @@ package com.echogallery.tag;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.echogallery.card.Card;
+import com.echogallery.card.PageResponse;
 import com.echogallery.util.SecurityUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -19,15 +22,19 @@ public class TagService {
     private final TagRepository tagRepository;
 
     @Transactional(readOnly = true)
-    public List<TagDto> getTagList(){
+    public PageResponse<TagDto> getTagList(String keyword, int requestedPage, int requestedSize){
 
         // 安全地從安全上下文取得目前登入的 userId，落實多租戶資料隔離
         Long userId = SecurityUtil.getCurrentUserId();
 
-        List<TagDto> tags = tagRepository.findTagsWithCardCount(userId);
+        int page = Math.max(0, requestedPage);
+        int size = Math.max(1, Math.min(requestedSize, 50));
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        Page<TagDto> tags = tagRepository.findTagsWithCardCount(
+                userId, normalizedKeyword, PageRequest.of(page, size));
 
-        // 轉換為 Response DTO 列表回傳
-        return tags;
+        return new PageResponse<>(
+                tags.getContent(), tags.getNumber(), tags.getSize(), tags.getTotalElements(), tags.getTotalPages());
     }
 
     @Transactional

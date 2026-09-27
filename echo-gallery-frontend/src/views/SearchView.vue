@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'SearchView' })
 
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -15,7 +15,7 @@ import type {
   CardSearchSortBy,
   CardSearchTagMode,
 } from '../types/card'
-import type { TagDto } from '../types/tag'
+import type { TagPage } from '../types/tag'
 import { cardApi } from '../utils/api/cardApi'
 import { tagApi } from '../utils/api/tagApi'
 import { cardSearchQueryKey } from '../utils/cardSearch'
@@ -71,6 +71,8 @@ const toSearchFilters = (source: SearchForm): CardSearchParams => ({
 const form = reactive<SearchForm>(defaultForm())
 const tagPopoverVisible = ref(false)
 const tagSearchQuery = ref('')
+const debouncedTagSearchQuery = ref('')
+let tagSearchDebounceTimer: ReturnType<typeof setTimeout> | undefined
 const growthPopoverVisible = ref(false)
 const appliedFilters = ref<CardSearchParams>(toSearchFilters(defaultForm()))
 const page = ref(0)
@@ -137,22 +139,29 @@ const activeFilterLabels = computed(() => {
   return labels
 })
 
-const { data: tagsData, isLoading: areTagsLoading } = useQuery<TagDto[]>({
-  queryKey: ['tags'],
-  queryFn: tagApi.getTags,
+watch(tagSearchQuery, (query) => {
+  if (tagSearchDebounceTimer) clearTimeout(tagSearchDebounceTimer)
+  tagSearchDebounceTimer = setTimeout(() => {
+    debouncedTagSearchQuery.value = query.trim()
+  }, 200)
+})
+
+onBeforeUnmount(() => {
+  if (tagSearchDebounceTimer) clearTimeout(tagSearchDebounceTimer)
+})
+
+const { data: tagsData, isLoading: areTagsLoading } = useQuery<TagPage>({
+  queryKey: ['tags', 'search', debouncedTagSearchQuery],
+  queryFn: () => tagApi.getTags(debouncedTagSearchQuery.value),
   staleTime: 5 * 60 * 1000,
 })
-const tagOptions = computed(() => (tagsData.value ?? []).map((tag) => ({
+const tagOptions = computed(() => (tagsData.value?.content ?? []).map((tag) => ({
   value: tag.id,
   label: `#${tag.name}`,
 })))
 const selectedTagOptions = computed(() => form.tagIds.map(id =>
   tagOptions.value.find(option => option.value === id) ?? { value: id, label: `#${id}` }))
-const filteredTagOptions = computed(() => {
-  const keyword = tagSearchQuery.value.trim().toLocaleLowerCase()
-  if (!keyword) return tagOptions.value
-  return tagOptions.value.filter(option => option.label.toLocaleLowerCase().includes(keyword))
-})
+const filteredTagOptions = computed(() => tagOptions.value)
 const selectedGrowthStatuses = computed(() => growthStatusOptions.filter(option =>
   form.growthStatuses.includes(option.value)))
 

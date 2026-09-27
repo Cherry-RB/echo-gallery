@@ -195,6 +195,32 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void tagListPaginatesAndSearchesOnlyCurrentUsersActiveTags() throws Exception {
+        String token = register("tag-page-owner", "tag-page-owner@example.com");
+        String otherToken = register("tag-page-other", "tag-page-other@example.com");
+        createCard(token, "Alpha card", new String[] { "alpha" });
+        createCard(token, "Beta card", new String[] { "beta" });
+        createCard(token, "Gamma card", new String[] { "gamma" });
+        createCard(otherToken, "Private card", new String[] { "alpha-private" });
+
+        mockMvc.perform(get("/api/tags/list")
+                .param("page", "0")
+                .param("size", "1")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.totalElements").value(3));
+
+        mockMvc.perform(get("/api/tags/list")
+                .param("keyword", "alp")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("alpha"));
+    }
+
     private String register(String username, String email) throws Exception {
         String body = objectMapper.writeValueAsString(new RegistrationRequest(username, email, "password123"));
         MvcResult result = mockMvc.perform(post("/api/auth/register")
@@ -268,7 +294,7 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
                 .andReturn();
 
         JsonNode tags = objectMapper.readTree(result.getResponse().getContentAsString());
-        return tags.get(0).get("id").asLong();
+        return tags.get("content").get(0).get("id").asLong();
     }
 
     private String cardRequestJson(String title, String[] tags) throws Exception {

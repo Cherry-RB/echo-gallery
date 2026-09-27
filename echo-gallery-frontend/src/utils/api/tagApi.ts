@@ -1,12 +1,13 @@
-import type { TagDto, TagRequest } from "../../types/tag";
+import type { TagDto, TagPage, TagRequest } from "../../types/tag";
 import request from "./request"
 
 export const tagApi = {
     // 取得標籤列表
-    getTags(): Promise<TagDto[]>{
+    getTags(keyword = '', page = 0, size = 20): Promise<TagPage>{
         return request({
             url: "/tags/list",
-            method: "GET"
+            method: "GET",
+            params: { keyword, page, size },
         });
     },
     // 更新標籤

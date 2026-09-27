@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { tagApi } from '../api/tagApi'
 import { ElMessage } from 'element-plus'
@@ -11,22 +11,30 @@ const MAX_TAG_LENGTH = 50
 export function useTags(cardDataRef: Ref<CardDto>) {
   const tagPopoverVisible = ref(false)
   const tagSearchQuery = ref('')
+  const debouncedTagSearchQuery = ref('')
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
+
+  watch(tagSearchQuery, (query) => {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = setTimeout(() => {
+      debouncedTagSearchQuery.value = query.trim()
+    }, 200)
+  })
+
+  onBeforeUnmount(() => {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  })
 
   // 1. 取得後端標籤清單
   const { data: existingTags, isLoading: isTagsLoading } = useQuery({
-    queryKey: ['tags'],
-    queryFn: () => tagApi.getTags(),
+    queryKey: ['tags', 'suggestions', debouncedTagSearchQuery],
+    queryFn: () => tagApi.getTags(debouncedTagSearchQuery.value),
     staleTime: 1000 * 60 * 5, // 5 分鐘快取
   })
 
   // 2. 即時過濾標籤
   const filteredExistingTags = computed(() => {
-    const tags = existingTags.value ?? []
-    if (!tagSearchQuery.value.trim()) return tags
-
-    return tags.filter((t: any) =>
-      t.name.toLowerCase().includes(tagSearchQuery.value.toLowerCase())
-    )
+    return existingTags.value?.content ?? []
   })
 
   // 3. 切換選取/取消選取標籤

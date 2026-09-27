@@ -3,6 +3,7 @@ package com.echogallery.tag;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -27,13 +28,29 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     """)
     List<TagDto> findTopTagsWithCardCount(@Param("userId") Long userId, Pageable pageable);
 
-    @Query("""
+    @Query(value = """
         SELECT new com.echogallery.tag.TagDto(t.id, t.name, COUNT(c.id))
         FROM Tag t
         JOIN t.cards c
-        WHERE t.user.id = :userId AND c.isArchived = false
+        WHERE t.user.id = :userId
+          AND c.isArchived = false
+          AND (:keyword = '' OR LOWER(t.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
         GROUP BY t.id, t.name
         ORDER BY COUNT(c.id) DESC
+    """, countQuery = """
+        SELECT COUNT(t)
+        FROM Tag t
+        WHERE t.user.id = :userId
+          AND (:keyword = '' OR LOWER(t.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+          AND EXISTS (
+              SELECT c.id
+              FROM Card c
+              JOIN c.tags tag
+              WHERE tag = t AND c.isArchived = false
+          )
     """)
-    List<TagDto> findTagsWithCardCount(@Param("userId") Long userId);
+    Page<TagDto> findTagsWithCardCount(
+            @Param("userId") Long userId,
+            @Param("keyword") String keyword,
+            Pageable pageable);
 }

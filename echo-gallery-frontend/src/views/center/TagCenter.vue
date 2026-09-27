@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onActivated } from 'vue'
+import { ref, computed, nextTick, onActivated, onBeforeUnmount, watch } from 'vue'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, More, Edit, Delete, CollectionTag } from '@element-plus/icons-vue'
@@ -9,6 +9,7 @@ import { tagApi } from '../../utils/api/tagApi'
 import { useCardStatus } from '../../utils/useCardStatus'
 import { shouldMarkReviewedOnOpenDetail, type BoardType } from '../../types/board'
 import type { CardDto } from '../../types/card'
+import type { TagPage } from '../../types/tag'
 import CardItem from '../../components/CardItem.vue';
 
 // 標籤資料結構：id 是唯一識別，name 只作為顯示用途（可被改名）
@@ -59,6 +60,10 @@ const queryClient = useQueryClient()
 const tagSearchQuery = ref('')                          // 左側標籤搜尋框
 const selectedTagIds = ref<Array<number | string>>([])  // 已勾選的標籤「id」陣列（改用 id，不再用 name）
 const operator = ref<'AND' | 'OR'>('OR')                 // 運算邏輯切換 ('AND' | 'OR')
+const tagPage = ref(0)
+const debouncedTagSearchQuery = ref('')
+const selectedTagsById = ref<Record<string, TagDto>>({})
+let tagSearchDebounceTimer: ReturnType<typeof setTimeout> | undefined
 
 // 重新命名 Dialog 相關狀態
 const renameDialogVisible = ref(false)
@@ -68,25 +73,38 @@ const newTagNameInput = ref('')
 // =====================================================
 // 2. TanStack Query: 獲取標籤清單
 // =====================================================
-const { data: tagsData, isLoading: isTagsLoading } = useQuery<TagDto[]>({
-  queryKey: ['tags'],
-  queryFn: () => tagApi.getTags(),
-  placeholderData: [],
+watch(tagSearchQuery, (query) => {
+  tagPage.value = 0
+  if (tagSearchDebounceTimer) clearTimeout(tagSearchDebounceTimer)
+  tagSearchDebounceTimer = setTimeout(() => {
+    debouncedTagSearchQuery.value = query.trim()
+  }, 200)
 })
 
-// 即時過濾左側標籤清單（依名稱搜尋）
-const filteredTags = computed(() => {
-  const list = tagsData.value ?? []
-  if (!tagSearchQuery.value.trim()) return list
-  return list.filter((t) =>
-    t.name.toLowerCase().includes(tagSearchQuery.value.toLowerCase())
-  )
+onBeforeUnmount(() => {
+  if (tagSearchDebounceTimer) clearTimeout(tagSearchDebounceTimer)
 })
+
+const { data: tagsData, isLoading: isTagsLoading } = useQuery<TagPage>({
+  queryKey: ['tags', 'center', debouncedTagSearchQuery, tagPage],
+  queryFn: () => tagApi.getTags(debouncedTagSearchQuery.value, tagPage.value),
+  placeholderData: keepPreviousData,
+})
+
+const filteredTags = computed(() => tagsData.value?.content ?? [])
 
 // 目前已勾選標籤的完整物件：id 對應到「最新」的 name
 // checkbox 的勾選狀態、畫面顯示的 pill 都靠這個，不會因為改名或刪除而跑掉
+watch([selectedTagIds, filteredTags], () => {
+  filteredTags.value.forEach((tag) => {
+    if (selectedTagIds.value.includes(tag.id)) selectedTagsById.value[String(tag.id)] = tag
+  })
+}, { immediate: true })
+
 const selectedTagObjects = computed(() =>
-  (tagsData.value ?? []).filter((t) => selectedTagIds.value.includes(t.id))
+  selectedTagIds.value
+    .map((id) => selectedTagsById.value[String(id)])
+    .filter((tag): tag is TagDto => Boolean(tag))
 )
 
 // =====================================================
@@ -146,7 +164,10 @@ const deleteMutation = useMutation({
 // =====================================================
 // 全選標籤
 const handleSelectAll = () => {
-  selectedTagIds.value = (tagsData.value ?? []).map((t) => t.id)
+  selectedTagIds.value = [...new Set([
+    ...selectedTagIds.value,
+    ...filteredTags.value.map((tag) => tag.id),
+  ])]
 }
 
 // 清除選取
@@ -227,7 +248,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
       <!-- 快捷按鈕與運算邏輯切換器 -->
       <div class="controls-toolbar">
         <div class="action-buttons">
-          <el-button size="small" type="primary" link @click="handleSelectAll">全選</el-button>
+          <el-button size="small" type="primary" link @click="handleSelectAll">選取本頁</el-button>
           <span class="divider">|</span>
           <el-button size="small" type="info" link @click="handleClearSelection">清除</el-button>
         </div>
@@ -271,6 +292,17 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
           沒有找到相符的標籤
         </div>
       </div>
+
+      <el-pagination
+        v-if="(tagsData?.totalPages ?? 0) > 1"
+        small
+        background
+        layout="prev, pager, next"
+        :current-page="tagPage + 1"
+        :page-size="tagsData?.size ?? 20"
+        :total="tagsData?.totalElements ?? 0"
+        @current-change="(nextPage: number) => { tagPage = nextPage - 1 }"
+      />
     </aside>
 
     <!-- ================= 右側卡片網格區 (75%) ================= -->
