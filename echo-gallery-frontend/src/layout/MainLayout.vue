@@ -2,12 +2,10 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import LeftSidebar from '../components/LeftSidebar.vue'
-import RightSidebar from '../components/RightSidebar.vue'
 import QuickCreateCardDialog from '../components/QuickCreateCardDialog.vue'
 import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 
 const isLeftDrawerOpen = ref(false)
-const isRightDrawerOpen = ref(false)
 const isQuickCreateOpen = ref(false)
 
 const route = useRoute()
@@ -20,7 +18,6 @@ const openQuickCreate = () => {
 // 當偵測到頁面路由切換時，才自動關閉手機版抽屜
 watch(() => route.path, () => {
   isLeftDrawerOpen.value = false
-  isRightDrawerOpen.value = false
 })
 </script>
 
@@ -34,7 +31,6 @@ watch(() => route.path, () => {
       </div>
       <div class="mobile-header-actions">
         <ThemeSwitcher compact />
-        <button class="stats-toggle-btn" aria-label="開啟統計" @click="isRightDrawerOpen = true">📊</button>
       </div>
     </header>
 
@@ -60,23 +56,6 @@ watch(() => route.path, () => {
         </KeepAlive>
       </RouterView>
     </main>
-
-    <aside class="stats-panel desktop-only">
-      <RightSidebar />
-    </aside>
-
-    <el-drawer
-      v-model="isRightDrawerOpen"
-      direction="rtl"
-      size="280px"
-      :with-header="false"
-      destroy-on-close
-      class="custom-mobile-drawer"
-    >
-      <div class="mobile-drawer-content">
-        <RightSidebar />
-      </div>
-    </el-drawer>
 
     <QuickCreateCardDialog v-model="isQuickCreateOpen" />
   </div>
@@ -109,15 +88,6 @@ watch(() => route.path, () => {
   padding: 20px;
 }
 
-/* 🖥️ 桌機右側欄：同步加入安全鎖 */
-.stats-panel {
-  width: 280px;
-  flex-shrink: 0;
-  align-self: stretch;
-  border-left: 1px solid var(--el-border-color-light);
-  min-height: 100dvh;
-}
-
 /* 🧼 清除 Element Plus 抽屜預設的 Padding，交由內部組件自己決定邊距 */
 :deep(.el-drawer__body) {
   padding: 0 !important;
@@ -148,7 +118,7 @@ watch(() => route.path, () => {
     background: var(--el-bg-color); /* ✨ 改用 Element 原生背景變數，自動支援未來的黑夜模式 */
   }
 
-  .hamburger-btn, .stats-toggle-btn {
+  .hamburger-btn {
     background: none;
     border: none;
     font-size: 24px;
@@ -183,11 +153,5 @@ watch(() => route.path, () => {
     box-sizing: border-box;
   }
 
-  .mobile-drawer-content {
-    height: 100%;
-    padding: 24px 16px; /* 讓右側欄在手機抽屜裡的邊距與左側欄對齊 */
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
 }
 </style>
