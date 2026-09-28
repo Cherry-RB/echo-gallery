@@ -161,3 +161,15 @@
 * **屬性**：跨模組產品設計、觀測指標與分階段實作追蹤文件（Current／正式 V1 aggregate 已串接）。
 * **內容**：定義資訊轉化觀測台的 Flow／Generativity／Closure 邊界、現有資料能力與缺口、概覽與卡片與回流第二層 IA、Metric Dictionary、正式 aggregate API、尚待補足的 drill-down contract、ActivityEvent 去留、效能原則、任務拆分與驗收條件。
 * **Agent 讀取時機**：設計或實作觀測台、Dashboard、Overview、卡片與回流、跨 Card／Experiment／Work 聚合、回流統計、資訊生成、drill-down 或 ActivityEvent 時讀取；實作前仍須核對目前程式碼、正式 schema 與使用者最新確認。
+
+### UI Design System：[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)
+
+* **屬性**：全站 UI／UX visual grammar 唯一正式規格（Current）。
+* **內容**：定義 design tokens、page shells、surface taxonomy、header、forms、selection lists、Dialog、Drawer、responsive 原則、有效例外與人工驗收 reference。
+* **Agent 讀取時機**：新增或修改任何 active UI 前必須完整閱讀；實作時仍須核對 router、active component graph 與文件列出的人工驗收 reference。
+
+### 已退役：[23_全站版型與Spacing規格.md](./23_全站版型與Spacing規格.md)
+
+* **屬性**：Superseded。
+* **內容**：舊版版型與 spacing 規格入口，已由 `DESIGN_SYSTEM.md` 完整取代。
+* **Agent 讀取時機**：不得作為 UI 實作依據；只用來確認其退役狀態並轉讀 `DESIGN_SYSTEM.md`。
