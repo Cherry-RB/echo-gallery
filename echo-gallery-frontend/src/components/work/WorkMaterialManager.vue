@@ -10,6 +10,7 @@ import { workApi } from '../../utils/api/workApi'
 import { formatDate } from '../../utils/formatDate'
 import CardPickerDialog from '../CardPickerDialog.vue'
 import AppDialog from '../AppDialog.vue'
+import CardPickerSelectionSummary from '../ui/CardPickerSelectionSummary.vue'
 
 const props = defineProps<{ workId: string }>()
 const router = useRouter()
@@ -334,8 +335,9 @@ const confirmRemoveCard = async (card: WorkCard) => {
       width="min(520px, calc(100vw - 32px))"
       @closed="resetNoteDialog"
     >
-      <p v-if="editingNoteCard" class="note-dialog-card-title">
-        {{ editingNoteCard.cardTitle }}
+      <p v-if="editingNoteCard" class="note-dialog-context">
+        <span class="note-dialog-context-label">素材卡片</span>
+        <span class="note-dialog-context-title">{{ editingNoteCard.cardTitle }}</span>
       </p>
       <el-input
         v-model="noteInput"
@@ -365,16 +367,16 @@ const confirmRemoveCard = async (card: WorkCard) => {
       description="從曾經保存的卡片中，選擇與這個議題相關、值得一起考慮的內容。已加入的卡片不會重複顯示。"
       archive-status="ACTIVE"
       confirm-label="加入議題素材"
+      settings-style="plain"
       :excluded-card-ids="Array.from(linkedCardIds)"
       :submitting="addCardMutation.isPending.value"
       empty-description="沒有其他可加入的卡片"
       @confirm="addCardMutation.mutate"
     >
       <template #settings="{ selectedCard }">
-        <h3>加入議題</h3>
-        <p v-if="selectedCard" class="note-dialog-card-title">{{ selectedCard.title }}</p>
-        <p v-else class="note-dialog-hint">請先從左側選擇一張卡片。</p>
-        <p class="note-dialog-hint">加入後會先成為參考素材；真正影響思考或行動時，再標記為已運用。</p>
+        <h3 class="material-picker-heading">加入議題</h3>
+        <CardPickerSelectionSummary :card="selectedCard" />
+        <p class="material-picker-hint">加入後會先成為參考素材；真正影響思考或行動時，再標記為已運用。</p>
       </template>
     </CardPickerDialog>
   </section>
@@ -511,8 +513,19 @@ const confirmRemoveCard = async (card: WorkCard) => {
   white-space: pre-wrap;
 }
 
-.note-dialog-card-title {
-  margin: -8px 0 14px;
+.note-dialog-context {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 14px;
+}
+
+.note-dialog-context-label {
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-meta);
+  line-height: var(--leading-ui);
+}
+
+.note-dialog-context-title {
   color: var(--el-text-color-primary);
   font-weight: 600;
   line-height: 1.5;
@@ -523,6 +536,18 @@ const confirmRemoveCard = async (card: WorkCard) => {
   margin: 8px 0 0;
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
+}
+
+.material-picker-heading {
+  margin: 0 0 12px;
+  font-size: var(--type-card-title);
+}
+
+.material-picker-hint {
+  margin: 14px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-caption);
+  line-height: var(--leading-ui);
 }
 
 .material-actions {

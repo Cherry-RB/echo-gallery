@@ -87,11 +87,12 @@ const handleClosed = () => {
     :model-value="modelValue"
     :title="update ? '修改議題近況' : '提出近況'"
     width="min(640px, calc(100vw - 32px))"
+    scroll-body
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @closed="handleClosed"
   >
-    <p class="dialog-intro">不必寫成完整報告。只要記下相較上一次，現在有什麼不同。</p>
+    <p class="dialog-intro app-dialog-intro">不必寫成完整報告。只要記下相較上一次，現在有什麼不同。</p>
 
     <label class="update-field">
       <span>最近有什麼改變？</span>
@@ -125,7 +126,6 @@ const handleClosed = () => {
 </template>
 
 <style scoped>
-.dialog-intro,
 .update-field small {
   margin: 0;
   color: var(--el-text-color-secondary);

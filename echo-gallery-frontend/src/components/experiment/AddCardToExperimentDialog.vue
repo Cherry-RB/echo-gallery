@@ -74,10 +74,11 @@ const addExperimentMutation = useMutation({
     v-model="dialogVisible"
     title="將卡片放入實驗場"
     width="min(560px, calc(100vw - 32px))"
+    scroll-body
     append-to-body
     destroy-on-close
   >
-    <p class="dialog-description">
+    <p class="dialog-description app-dialog-intro">
       選擇一個正在探索的實驗場，這張卡會先放入種子土壤；階段與備註都可以之後再調整。
     </p>
 
@@ -120,13 +121,6 @@ const addExperimentMutation = useMutation({
 </template>
 
 <style scoped>
-.dialog-description {
-  margin: 0 0 18px;
-  color: var(--el-text-color-secondary);
-  font-size: var(--type-ui);
-  line-height: var(--leading-ui);
-}
-
 .experiment-option-list {
   min-height: 0;
 }

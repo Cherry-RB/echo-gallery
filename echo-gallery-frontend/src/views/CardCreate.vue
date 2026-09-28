@@ -44,8 +44,8 @@ const handleCreate = () => {
 
         <el-form-item label="卡片類型">
           <el-radio-group v-model="form.type">
-            <el-radio-button label="note">知識筆記</el-radio-button>
-            <el-radio-button label="link">外部連結</el-radio-button>
+            <el-radio-button value="note">知識筆記</el-radio-button>
+            <el-radio-button value="link">外部連結</el-radio-button>
           </el-radio-group>
         </el-form-item>
 

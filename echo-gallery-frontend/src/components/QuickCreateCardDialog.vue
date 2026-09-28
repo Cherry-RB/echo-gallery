@@ -261,8 +261,8 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
         <div class="quick-settings-grid">
           <el-form-item label="卡片類型" prop="type" class="quick-setting-field">
             <el-radio-group v-model="cardData.type">
-              <el-radio-button label="note">筆記</el-radio-button>
-              <el-radio-button label="link">連結</el-radio-button>
+              <el-radio-button value="note">筆記</el-radio-button>
+              <el-radio-button value="link">連結</el-radio-button>
             </el-radio-group>
           </el-form-item>
 

@@ -79,10 +79,11 @@ const addIssueMutation = useMutation({
     v-model="dialogVisible"
     title="將卡片加入議題"
     width="min(560px, calc(100vw - 32px))"
+    scroll-body
     append-to-body
     destroy-on-close
   >
-    <p class="dialog-description">
+    <p class="dialog-description app-dialog-intro">
       讓這張卡片進入一個正在思考的議題，成為後續研判、創作或行動的參考。已加入與已封存的議題不會重複顯示。
     </p>
 
@@ -121,13 +122,6 @@ const addIssueMutation = useMutation({
 </template>
 
 <style scoped>
-.dialog-description {
-  margin: 0 0 18px;
-  color: var(--el-text-color-secondary);
-  font-size: var(--type-ui);
-  line-height: var(--leading-ui);
-}
-
 .issue-option-list {
   min-height: 0;
 }
