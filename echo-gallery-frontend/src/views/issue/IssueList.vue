@@ -266,7 +266,7 @@ const submitCreateIssue = async () => {
 </script>
 
 <template>
-  <section class="issue-list-page app-page app-page--issuespace">
+  <section class="issue-list-page app-page app-page--workspace">
     <PageHeader title="議事廳" description="把正在反覆思考或推進的事情放上桌，讓相關素材、現實變化與自己的判斷在同一處相遇">
       <template #actions>
         <el-button :icon="Clock" @click="recentDrawerVisible = true">
@@ -278,7 +278,7 @@ const submitCreateIssue = async () => {
       </template>
     </PageHeader>
 
-    <div class="issue-dashboard app-issuespace app-issuespace--edge-to-edge">
+    <div class="issue-dashboard app-workspace app-workspace--edge-to-edge">
       <div class="issue-list-toolbar app-toolbar">
         <div class="issue-filter-groups">
           <div class="filter-row">
@@ -736,8 +736,6 @@ const submitCreateIssue = async () => {
 .issue-dashboard {
   display: block;
   margin-top: var(--space-sm);
-  padding: var(--issuespace-padding);
-  background: var(--el-bg-color-page);
 }
 
 .loading-grid,
@@ -1259,11 +1257,6 @@ const submitCreateIssue = async () => {
 
   .issue-card :deep(.el-card__body) {
     padding: 18px;
-  }
-
-  .issue-dashboard {
-    margin-inline: calc(var(--page-gutter) * -1);
-    padding: var(--issuespace-padding) var(--page-gutter);
   }
 
   .external-link {

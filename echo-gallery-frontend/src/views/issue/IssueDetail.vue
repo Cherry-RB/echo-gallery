@@ -618,7 +618,7 @@ const submitUpdateIssue = async () => {
 
 .issue-overview-panel {
   height: 100%;
-  padding: var(--issuespace-padding);
+  padding: var(--workspace-padding);
   box-sizing: border-box;
   background: var(--el-bg-color);
   overflow-y: auto;
@@ -626,7 +626,7 @@ const submitUpdateIssue = async () => {
 
 .issue-updates-panel {
   height: 100%;
-  padding: var(--issuespace-padding);
+  padding: var(--workspace-padding);
   box-sizing: border-box;
   border-left: 1px solid var(--el-border-color-lighter);
   background: var(--el-bg-color-page);
