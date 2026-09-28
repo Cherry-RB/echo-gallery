@@ -9,7 +9,7 @@ export interface OverviewResponse {
     pausedCardCount: number
     needsProcessingCardCount: number
     activeExperimentCount: number
-    workWithNextStepCount: number
+    issueWithNextStepCount: number
     experimentTries: OverviewExperimentTry[]
     nextSteps: OverviewNextStep[]
     attentionSignals: OverviewAttentionSignal[]
@@ -17,7 +17,7 @@ export interface OverviewResponse {
   period: {
     flow: { reengagedCardCount: number; reviewedCardCount: number }
     generativity: { derivedCardCount: number; sourceCardCount: number }
-    closure: { workWithFollowUpCount: number }
+    closure: { issueWithFollowUpCount: number }
     activities: OverviewActivity[]
     derivedCards: OverviewDerivedCard[]
     recentExperimentMaterials: OverviewExperimentMaterial[]
@@ -25,7 +25,7 @@ export interface OverviewResponse {
 }
 
 export interface OverviewActivity {
-  key: 'created' | 'offered' | 'reviewed' | 'experiment-material' | 'work-linked' | 'derived' | 'exploration-record' | 'work-update'
+  key: 'created' | 'offered' | 'reviewed' | 'experiment-material' | 'issue-linked' | 'derived' | 'exploration-record' | 'issue-update'
   value: number
 }
 
@@ -50,8 +50,8 @@ export interface OverviewExperimentMaterial {
 }
 
 export interface OverviewNextStep {
-  workId: number
-  workTitle: string
+  issueId: number
+  issueTitle: string
   nextStep: string
   updatedAt: string
 }

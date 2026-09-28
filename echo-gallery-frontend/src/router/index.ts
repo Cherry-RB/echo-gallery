@@ -1,4 +1,4 @@
-import {createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 import { jwtDecode } from 'jwt-decode';
 
 interface JwtPayload {
@@ -93,14 +93,14 @@ const routes = [
       component: () => import('../views/center/TagCenter.vue')
     },
     {
-      path: 'works', // 議事廳（技術路由暫時沿用 works）
-      name: 'WorkList',
-      component: () => import('../views/work/WorkList.vue')
+      path: 'issues',
+      name: 'IssueList',
+      component: () => import('../views/issue/IssueList.vue')
     },
     {
-      path: 'works/:id', // 議題詳情（技術路由暫時沿用 works）
-      name: 'WorkDetail',
-      component: () => import('../views/work/WorkDetail.vue'),
+      path: 'issues/:id',
+      name: 'IssueDetail',
+      component: () => import('../views/issue/IssueDetail.vue'),
       props: true
     },
     {

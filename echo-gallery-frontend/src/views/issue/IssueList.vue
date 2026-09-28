@@ -5,16 +5,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import CurrentAssessmentGuide from '../../components/work/CurrentAssessmentGuide.vue'
+import CurrentAssessmentGuide from '../../components/issue/CurrentAssessmentGuide.vue'
 import AppDialog from '../../components/AppDialog.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
-import WorkProgressUpdateDialog from '../../components/work/WorkProgressUpdateDialog.vue'
+import IssueUpdateDialog from '../../components/issue/IssueUpdateDialog.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
-import type { CreateWorkRequest, WorkStatus, WorkSummary } from '../../types/work'
+import type { CreateIssueRequest, IssueStatus, IssueSummary } from '../../types/issue'
 import { formatDate } from '../../utils/formatDate'
-import { workApi } from '../../utils/api/workApi'
+import { issueApi } from '../../utils/api/issueApi'
 
-const workStatusMeta: Record<WorkStatus, { label: string; tone: string }> = {
+const issueStatusMeta: Record<IssueStatus, { label: string; tone: string }> = {
   IDEA: { label: '探索中', tone: 'exploring' },
   DRAFT: { label: '已釐清', tone: 'clarified' },
   ACTIVE: { label: '推進中', tone: 'advancing' },
@@ -22,10 +22,10 @@ const workStatusMeta: Record<WorkStatus, { label: string; tone: string }> = {
   ARCHIVED: { label: '已封存', tone: 'archived' },
 }
 
-type WorkScope = 'OPEN' | 'DONE' | 'ARCHIVED' | 'ALL'
+type IssueScope = 'OPEN' | 'DONE' | 'ARCHIVED' | 'ALL'
 type OpenPhase = 'ALL' | 'IDEA' | 'DRAFT' | 'ACTIVE'
 
-const workScopeOptions: Array<{ value: WorkScope; label: string }> = [
+const issueScopeOptions: Array<{ value: IssueScope; label: string }> = [
   { value: 'OPEN', label: '進行中' },
   { value: 'DONE', label: '已完成' },
   { value: 'ARCHIVED', label: '已封存' },
@@ -45,12 +45,12 @@ const createDialogVisible = ref(false)
 const recentDrawerVisible = ref(false)
 const phasePopoverVisible = ref(false)
 const quickUpdateVisible = ref(false)
-const quickUpdateWorkId = ref<number | null>(null)
+const quickUpdateIssueId = ref<number | null>(null)
 const showCreateDetails = ref(false)
-const selectedScope = ref<WorkScope>('OPEN')
+const selectedScope = ref<IssueScope>('OPEN')
 const selectedOpenPhase = ref<OpenPhase>('ALL')
 const createFormRef = ref<FormInstance>()
-const createForm = reactive<CreateWorkRequest>({
+const createForm = reactive<CreateIssueRequest>({
   title: '',
   objective: '',
   description: '',
@@ -82,7 +82,7 @@ const validateOptionalUrl = (
   callback(new Error('請輸入有效的 HTTP 或 HTTPS 連結'))
 }
 
-const createFormRules: FormRules<CreateWorkRequest> = {
+const createFormRules: FormRules<CreateIssueRequest> = {
   title: [
     { required: true, message: '請輸入議題名稱', trigger: 'blur' },
     { max: 255, message: '議題名稱不可超過 255 個字', trigger: 'blur' },
@@ -106,13 +106,13 @@ const createFormRules: FormRules<CreateWorkRequest> = {
 }
 
 const {
-  data: works,
+  data: issues,
   isLoading,
   isError,
   refetch,
 } = useQuery({
-  queryKey: ['works'],
-  queryFn: workApi.getWorks,
+  queryKey: ['issues'],
+  queryFn: issueApi.getIssues,
   placeholderData: [],
   staleTime: 1000 * 60,
 })
@@ -123,59 +123,59 @@ const {
   isError: isRecentUpdatesError,
   refetch: refetchRecentUpdates,
 } = useQuery({
-  queryKey: ['recent-work-progress-updates'],
-  queryFn: () => workApi.getRecentWorkUpdates(12),
+  queryKey: ['recent-issue-progress-updates'],
+  queryFn: () => issueApi.getRecentIssueUpdates(12),
   enabled: recentDrawerVisible,
   placeholderData: [],
   staleTime: 1000 * 30,
 })
 
-const allWorks = computed(() => works.value ?? [])
-const workScopeCounts = computed<Record<WorkScope, number>>(() => ({
-  OPEN: allWorks.value.filter((work) => !['DONE', 'ARCHIVED'].includes(work.status)).length,
-  DONE: allWorks.value.filter((work) => work.status === 'DONE').length,
-  ARCHIVED: allWorks.value.filter((work) => work.status === 'ARCHIVED').length,
-  ALL: allWorks.value.length,
+const allIssues = computed(() => issues.value ?? [])
+const issueScopeCounts = computed<Record<IssueScope, number>>(() => ({
+  OPEN: allIssues.value.filter((issue) => !['DONE', 'ARCHIVED'].includes(issue.status)).length,
+  DONE: allIssues.value.filter((issue) => issue.status === 'DONE').length,
+  ARCHIVED: allIssues.value.filter((issue) => issue.status === 'ARCHIVED').length,
+  ALL: allIssues.value.length,
 }))
 const openPhaseCounts = computed<Record<OpenPhase, number>>(() => ({
-  ALL: workScopeCounts.value.OPEN,
-  IDEA: allWorks.value.filter((work) => work.status === 'IDEA').length,
-  DRAFT: allWorks.value.filter((work) => work.status === 'DRAFT').length,
-  ACTIVE: allWorks.value.filter((work) => work.status === 'ACTIVE').length,
+  ALL: issueScopeCounts.value.OPEN,
+  IDEA: allIssues.value.filter((issue) => issue.status === 'IDEA').length,
+  DRAFT: allIssues.value.filter((issue) => issue.status === 'DRAFT').length,
+  ACTIVE: allIssues.value.filter((issue) => issue.status === 'ACTIVE').length,
 }))
 const recentUpdateList = computed(() => recentUpdates.value ?? [])
-const getLatestWorkProgressLead = (work: WorkSummary) => (
-  work.latestProgressAssessment
-  || work.latestProgressChangeSummary
-  || work.latestProgressNextStep
+const getLatestIssueProgressLead = (issue: IssueSummary) => (
+  issue.latestProgressAssessment
+  || issue.latestProgressChangeSummary
+  || issue.latestProgressNextStep
   || ''
 )
-const workList = computed(() => {
-  let filteredWorks = allWorks.value
-  if (selectedScope.value === 'ALL') filteredWorks = allWorks.value
+const issueList = computed(() => {
+  let filteredIssues = allIssues.value
+  if (selectedScope.value === 'ALL') filteredIssues = allIssues.value
   if (selectedScope.value === 'DONE') {
-    filteredWorks = allWorks.value.filter((work) => work.status === 'DONE')
+    filteredIssues = allIssues.value.filter((issue) => issue.status === 'DONE')
   }
   if (selectedScope.value === 'ARCHIVED') {
-    filteredWorks = allWorks.value.filter((work) => work.status === 'ARCHIVED')
+    filteredIssues = allIssues.value.filter((issue) => issue.status === 'ARCHIVED')
   }
   if (selectedScope.value === 'OPEN') {
-    filteredWorks = allWorks.value.filter((work) => !['DONE', 'ARCHIVED'].includes(work.status))
+    filteredIssues = allIssues.value.filter((issue) => !['DONE', 'ARCHIVED'].includes(issue.status))
     if (selectedOpenPhase.value !== 'ALL') {
-      filteredWorks = filteredWorks.filter((work) => work.status === selectedOpenPhase.value)
+      filteredIssues = filteredIssues.filter((issue) => issue.status === selectedOpenPhase.value)
     }
   }
-  return [...filteredWorks].sort((first, second) => {
-    const firstAt = workActivityAt(first.updatedAt, first.latestProgressAt)
-    const secondAt = workActivityAt(second.updatedAt, second.latestProgressAt)
+  return [...filteredIssues].sort((first, second) => {
+    const firstAt = issueActivityAt(first.updatedAt, first.latestProgressAt)
+    const secondAt = issueActivityAt(second.updatedAt, second.latestProgressAt)
     return new Date(secondAt).getTime() - new Date(firstAt).getTime()
   })
 })
 
 const createMutation = useMutation({
-  mutationFn: workApi.createWork,
+  mutationFn: issueApi.createIssue,
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: ['works'] })
+    await queryClient.invalidateQueries({ queryKey: ['issues'] })
     await queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] })
     ElMessage.success('議題已發起')
     createDialogVisible.value = false
@@ -186,8 +186,8 @@ const openCreateDialog = () => {
   createDialogVisible.value = true
 }
 
-const openQuickUpdate = (workId: number) => {
-  quickUpdateWorkId.value = workId
+const openQuickUpdate = (issueId: number) => {
+  quickUpdateIssueId.value = issueId
   quickUpdateVisible.value = true
 }
 
@@ -197,7 +197,7 @@ const selectOpenPhase = (phase: OpenPhase) => {
   phasePopoverVisible.value = false
 }
 
-const closePhasePopoverOutsideOpenScope = (scope: WorkScope) => {
+const closePhasePopoverOutsideOpenScope = (scope: IssueScope) => {
   if (scope !== 'OPEN') phasePopoverVisible.value = false
 }
 
@@ -209,8 +209,8 @@ const openFilterLabel = computed(() => {
 
 const openFilterCount = computed(() => openPhaseCounts.value[selectedOpenPhase.value])
 
-const openWorkDetail = (workId: number) => {
-  router.push({ name: 'WorkDetail', params: { id: workId } })
+const openIssueDetail = (issueId: number) => {
+  router.push({ name: 'IssueDetail', params: { id: issueId } })
 }
 
 const formatUpdatedAt = (value: string) => {
@@ -220,7 +220,7 @@ const formatUpdatedAt = (value: string) => {
   return `${date} 更新`
 }
 
-const workActivityAt = (updatedAt: string, latestProgressAt: string | null) => {
+const issueActivityAt = (updatedAt: string, latestProgressAt: string | null) => {
   if (!latestProgressAt) return updatedAt
   return new Date(latestProgressAt).getTime() > new Date(updatedAt).getTime()
     ? latestProgressAt
@@ -247,7 +247,7 @@ const resetCreateForm = () => {
   createFormRef.value?.clearValidate()
 }
 
-const submitCreateWork = async () => {
+const submitCreateIssue = async () => {
   if (!createFormRef.value) return
 
   await createFormRef.value.validate((valid) => {
@@ -266,7 +266,7 @@ const submitCreateWork = async () => {
 </script>
 
 <template>
-  <section class="work-list-page app-page app-page--workspace">
+  <section class="issue-list-page app-page app-page--issuespace">
     <PageHeader title="議事廳" description="把正在反覆思考或推進的事情放上桌，讓相關素材、現實變化與自己的判斷在同一處相遇">
       <template #actions>
         <el-button :icon="Clock" @click="recentDrawerVisible = true">
@@ -278,9 +278,9 @@ const submitCreateWork = async () => {
       </template>
     </PageHeader>
 
-    <div class="work-dashboard app-workspace app-workspace--edge-to-edge">
-      <div class="work-list-toolbar app-toolbar">
-        <div class="work-filter-groups">
+    <div class="issue-dashboard app-issuespace app-issuespace--edge-to-edge">
+      <div class="issue-list-toolbar app-toolbar">
+        <div class="issue-filter-groups">
           <div class="filter-row">
             <el-radio-group
               v-model="selectedScope"
@@ -316,12 +316,12 @@ const submitCreateWork = async () => {
                 </div>
               </el-popover>
               <el-radio-button
-                v-for="option in workScopeOptions.filter((option) => option.value !== 'OPEN')"
+                v-for="option in issueScopeOptions.filter((option) => option.value !== 'OPEN')"
                 :key="option.value"
                 :value="option.value"
               >
                 {{ option.label }}
-                <span class="scope-count">{{ workScopeCounts[option.value] }}</span>
+                <span class="scope-count">{{ issueScopeCounts[option.value] }}</span>
               </el-radio-button>
             </el-radio-group>
           </div>
@@ -346,7 +346,7 @@ const submitCreateWork = async () => {
       </el-result>
 
       <el-empty
-        v-else-if="allWorks.length === 0"
+        v-else-if="allIssues.length === 0"
         description="目前無事可議。從一件反覆思考、正在推進，或尚未有答案的事情開始。"
       >
         <el-button type="primary" :icon="Plus" @click="openCreateDialog">
@@ -355,98 +355,98 @@ const submitCreateWork = async () => {
       </el-empty>
 
       <el-empty
-        v-else-if="workList.length === 0"
-        :description="`目前沒有${workScopeOptions.find((option) => option.value === selectedScope)?.label ?? ''}議題`"
+        v-else-if="issueList.length === 0"
+        :description="`目前沒有${issueScopeOptions.find((option) => option.value === selectedScope)?.label ?? ''}議題`"
       >
         <el-button @click="selectedScope = 'ALL'">查看全部議題</el-button>
       </el-empty>
 
-      <div v-else class="work-list">
+      <div v-else class="issue-list">
         <el-card
-          v-for="work in workList"
-          :key="work.id"
+          v-for="issue in issueList"
+          :key="issue.id"
           shadow="never"
-          class="work-card app-summary-card"
+          class="issue-card app-summary-card"
           role="link"
           tabindex="0"
-          :aria-label="`查看議題：${work.title}`"
-          @click="openWorkDetail(work.id)"
-          @keydown.enter="openWorkDetail(work.id)"
-          @keydown.space.prevent="openWorkDetail(work.id)"
+          :aria-label="`查看議題：${issue.title}`"
+          @click="openIssueDetail(issue.id)"
+          @keydown.enter="openIssueDetail(issue.id)"
+          @keydown.space.prevent="openIssueDetail(issue.id)"
         >
-          <div class="work-card-layout">
-            <section class="work-overview">
-              <span class="status-label" :class="`status-${workStatusMeta[work.status].tone}`">
+          <div class="issue-card-layout">
+            <section class="issue-overview">
+              <span class="status-label" :class="`status-${issueStatusMeta[issue.status].tone}`">
                 <span class="status-dot" aria-hidden="true"></span>
-                {{ workStatusMeta[work.status].label }}
+                {{ issueStatusMeta[issue.status].label }}
               </span>
-              <h2 class="work-title" :title="work.title">{{ work.title }}</h2>
+              <h2 class="issue-title" :title="issue.title">{{ issue.title }}</h2>
 
-              <div class="work-overview-field">
+              <div class="issue-overview-field">
                 <span>議題焦點</span>
-                <p v-if="work.objective || work.description" class="work-description">
-                  {{ work.objective || work.description }}
+                <p v-if="issue.objective || issue.description" class="issue-description">
+                  {{ issue.objective || issue.description }}
                 </p>
-                <p v-else class="work-description empty-objective">這個議題最需要回答、釐清或推進什麼？</p>
+                <p v-else class="issue-description empty-objective">這個議題最需要回答、釐清或推進什麼？</p>
               </div>
 
-              <div class="work-overview-field criteria-preview">
+              <div class="issue-overview-field criteria-preview">
                 <span>結案／重議條件</span>
-                <p :class="{ 'empty-objective': !work.outcomeCriteria }">
-                  {{ work.outcomeCriteria || '尚未設定' }}
+                <p :class="{ 'empty-objective': !issue.outcomeCriteria }">
+                  {{ issue.outcomeCriteria || '尚未設定' }}
                 </p>
               </div>
 
-              <footer class="work-card-footer">
+              <footer class="issue-card-footer">
                 <div class="material-summary" aria-label="議題素材統計">
-                  <span class="material-info">素材 {{ work.candidateCount }}</span>
+                  <span class="material-info">素材 {{ issue.candidateCount }}</span>
                   <span class="material-divider" aria-hidden="true">·</span>
-                  <span class="material-info used-material-info">已運用 {{ work.usedCount }}</span>
+                  <span class="material-info used-material-info">已運用 {{ issue.usedCount }}</span>
                 </div>
                 <a
-                  v-if="work.externalUrl"
-                  :href="work.externalUrl"
+                  v-if="issue.externalUrl"
+                  :href="issue.externalUrl"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="external-link"
-                  :title="work.externalUrl"
+                  :title="issue.externalUrl"
                   @click.stop
                   @keydown.stop
                 >
                   <el-icon><Link /></el-icon>
-                  <span>{{ getHostname(work.externalUrl) }}</span>
+                  <span>{{ getHostname(issue.externalUrl) }}</span>
                 </a>
-                <span class="work-data-updated">議題資料 · {{ formatUpdatedAt(work.updatedAt) }}</span>
+                <span class="issue-data-updated">議題資料 · {{ formatUpdatedAt(issue.updatedAt) }}</span>
               </footer>
             </section>
 
-            <section class="work-latest-progress">
+            <section class="issue-latest-progress">
               <header>
                 <span class="card-section-label">最新更新</span>
                 <div class="latest-progress-actions">
                   <time
-                    v-if="getLatestWorkProgressLead(work) && work.latestProgressAt"
-                    :datetime="work.latestProgressAt"
+                    v-if="getLatestIssueProgressLead(issue) && issue.latestProgressAt"
+                    :datetime="issue.latestProgressAt"
                   >
-                    {{ formatUpdatedAt(work.latestProgressAt) }}
+                    {{ formatUpdatedAt(issue.latestProgressAt) }}
                   </time>
-                  <button type="button" class="quick-update-button" @click.stop="openQuickUpdate(work.id)">
+                  <button type="button" class="quick-update-button" @click.stop="openQuickUpdate(issue.id)">
                     ＋ 提出近況
                   </button>
                 </div>
               </header>
-              <div v-if="getLatestWorkProgressLead(work)" class="work-progress-fields">
-                <section v-if="work.latestProgressChangeSummary">
+              <div v-if="getLatestIssueProgressLead(issue)" class="issue-progress-fields">
+                <section v-if="issue.latestProgressChangeSummary">
                   <span>最近有什麼改變？</span>
-                  <ExpandableText :content="work.latestProgressChangeSummary" :lines="3" />
+                  <ExpandableText :content="issue.latestProgressChangeSummary" :lines="3" />
                 </section>
-                <section v-if="work.latestProgressAssessment">
+                <section v-if="issue.latestProgressAssessment">
                   <span>現在怎麼看？</span>
-                  <ExpandableText :content="work.latestProgressAssessment" :lines="3" />
+                  <ExpandableText :content="issue.latestProgressAssessment" :lines="3" />
                 </section>
-                <section v-if="work.latestProgressNextStep" class="work-next-step">
+                <section v-if="issue.latestProgressNextStep" class="issue-next-step">
                   <span>所以接下來呢？</span>
-                  <ExpandableText :content="work.latestProgressNextStep" :lines="2" />
+                  <ExpandableText :content="issue.latestProgressNextStep" :lines="2" />
                 </section>
               </div>
               <p v-else class="no-progress-update">
@@ -487,10 +487,10 @@ const submitCreateWork = async () => {
               <button
                 type="button"
                 class="recent-update-header"
-                :aria-label="`查看議題：${update.workTitle}`"
-                @click="openWorkDetail(update.workId)"
+                :aria-label="`查看議題：${update.issueTitle}`"
+                @click="openIssueDetail(update.issueId)"
               >
-                <span class="recent-update-work">{{ update.workTitle }}</span>
+                <span class="recent-update-issue">{{ update.issueTitle }}</span>
                 <time :datetime="update.createdAt">{{ formatUpdatedAt(update.createdAt) }}</time>
               </button>
               <div class="recent-update-fields">
@@ -513,11 +513,11 @@ const submitCreateWork = async () => {
       </section>
     </el-drawer>
 
-    <WorkProgressUpdateDialog
-      v-if="quickUpdateWorkId !== null"
+    <IssueUpdateDialog
+      v-if="quickUpdateIssueId !== null"
       v-model="quickUpdateVisible"
-      :work-id="quickUpdateWorkId"
-      @closed="quickUpdateWorkId = null"
+      :issue-id="quickUpdateIssueId"
+      @closed="quickUpdateIssueId = null"
     />
 
     <AppDialog
@@ -533,7 +533,7 @@ const submitCreateWork = async () => {
         :model="createForm"
         :rules="createFormRules"
         label-position="top"
-        @submit.prevent="submitCreateWork"
+        @submit.prevent="submitCreateIssue"
       >
         <p class="create-intro">先把事情放上桌。只填名稱就能建立，其餘內容可以之後再慢慢補上。</p>
 
@@ -616,7 +616,7 @@ const submitCreateWork = async () => {
         <el-button
           type="primary"
           :loading="createMutation.isPending.value"
-          @click="submitCreateWork"
+          @click="submitCreateIssue"
         >
           發起議題
         </el-button>
@@ -626,7 +626,7 @@ const submitCreateWork = async () => {
 </template>
 
 <style scoped>
-.work-list-page {
+.issue-list-page {
   width: 100%;
   box-sizing: border-box;
 }
@@ -636,7 +636,7 @@ const submitCreateWork = async () => {
   flex: 0 0 auto;
 }
 
-.work-list-toolbar {
+.issue-list-toolbar {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -644,7 +644,7 @@ const submitCreateWork = async () => {
   margin-bottom: var(--space-sm);
 }
 
-.work-filter-groups {
+.issue-filter-groups {
   display: grid;
   justify-items: end;
   gap: var(--space-xs);
@@ -733,21 +733,21 @@ const submitCreateWork = async () => {
   padding-top: 2px;
 }
 
-.work-dashboard {
+.issue-dashboard {
   display: block;
   margin-top: var(--space-sm);
-  padding: var(--workspace-padding);
+  padding: var(--issuespace-padding);
   background: var(--el-bg-color-page);
 }
 
 .loading-grid,
-.work-list {
+.issue-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-sm);
 }
 
-.work-card {
+.issue-card {
   height: auto;
   border-color: var(--el-border-color-light);
   box-shadow: none;
@@ -755,33 +755,33 @@ const submitCreateWork = async () => {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.work-card:hover,
-.work-card:focus-visible {
+.issue-card:hover,
+.issue-card:focus-visible {
   transform: translateY(-2px);
   border-color: var(--el-border-color);
   box-shadow: var(--el-box-shadow-lighter);
 }
 
-.work-card:focus-visible {
+.issue-card:focus-visible {
   outline: 2px solid var(--el-color-primary);
   outline-offset: 2px;
 }
 
-.work-card:active {
+.issue-card:active {
   transform: translateY(-1px);
 }
 
-.work-card :deep(.el-card__body) {
+.issue-card :deep(.el-card__body) {
   padding: var(--panel-padding);
 }
 
-.work-card-layout {
+.issue-card-layout {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   align-items: stretch;
 }
 
-.work-overview {
+.issue-overview {
   display: flex;
   height: 100%;
   min-width: 0;
@@ -830,7 +830,7 @@ const submitCreateWork = async () => {
   background: var(--el-color-success);
 }
 
-.work-title {
+.issue-title {
   display: -webkit-box;
   margin: 0;
   min-width: 0;
@@ -843,7 +843,7 @@ const submitCreateWork = async () => {
   -webkit-line-clamp: 3;
 }
 
-.work-description {
+.issue-description {
   display: -webkit-box;
   margin: var(--space-xs) 0 0;
   overflow: hidden;
@@ -855,11 +855,11 @@ const submitCreateWork = async () => {
   -webkit-line-clamp: 5;
 }
 
-.work-overview-field {
+.issue-overview-field {
   margin-top: var(--space-md);
 }
 
-.work-overview-field > span {
+.issue-overview-field > span {
   display: block;
   margin-bottom: var(--space-2xs);
   color: var(--el-text-color-placeholder);
@@ -867,8 +867,8 @@ const submitCreateWork = async () => {
   font-weight: 600;
 }
 
-.work-overview-field .work-description,
-.work-overview-field > p {
+.issue-overview-field .issue-description,
+.issue-overview-field > p {
   margin-top: 0;
 }
 
@@ -896,14 +896,14 @@ const submitCreateWork = async () => {
   font-size: var(--type-caption);
 }
 
-.work-latest-progress {
+.issue-latest-progress {
   min-width: 0;
   padding: var(--space-lg);
   border-radius: var(--radius-md);
   background: var(--el-fill-color-light);
 }
 
-.work-latest-progress > header {
+.issue-latest-progress > header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -916,18 +916,18 @@ const submitCreateWork = async () => {
   gap: var(--space-sm);
 }
 
-.work-latest-progress > header time {
+.issue-latest-progress > header time {
   flex: 0 0 auto;
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
 }
 
-.work-progress-fields {
+.issue-progress-fields {
   display: grid;
   gap: var(--space-sm);
 }
 
-.work-progress-fields section > span {
+.issue-progress-fields section > span {
   display: block;
   margin-bottom: var(--space-2xs);
   color: var(--el-text-color-placeholder);
@@ -935,21 +935,21 @@ const submitCreateWork = async () => {
   font-weight: 600;
 }
 
-.work-progress-fields :deep(.expandable-content) {
+.issue-progress-fields :deep(.expandable-content) {
   margin: 0;
   color: var(--el-text-color-regular);
   font-size: var(--type-ui);
   line-height: 1.65;
 }
 
-.work-next-step {
+.issue-next-step {
   padding: var(--space-2xs) 0 0;
   border: 0;
   background: transparent;
 }
 
-.work-next-step > span,
-.work-next-step :deep(.expandable-content) {
+.issue-next-step > span,
+.issue-next-step :deep(.expandable-content) {
   color: var(--el-color-primary);
 }
 
@@ -986,7 +986,7 @@ const submitCreateWork = async () => {
   color: var(--el-border-color-darker);
 }
 
-.work-card-footer {
+.issue-card-footer {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -1006,7 +1006,7 @@ const submitCreateWork = async () => {
   text-decoration: none;
 }
 
-.work-data-updated {
+.issue-data-updated {
   margin-left: auto;
   white-space: nowrap;
 }
@@ -1125,8 +1125,8 @@ const submitCreateWork = async () => {
   cursor: pointer;
 }
 
-.recent-update-header:hover .recent-update-work,
-.recent-update-header:focus-visible .recent-update-work {
+.recent-update-header:hover .recent-update-issue,
+.recent-update-header:focus-visible .recent-update-issue {
   color: var(--el-color-primary);
 }
 
@@ -1135,7 +1135,7 @@ const submitCreateWork = async () => {
   outline-offset: 2px;
 }
 
-.recent-update-work {
+.recent-update-issue {
   overflow: hidden;
   color: var(--el-text-color-primary);
   font-size: var(--type-ui);
@@ -1194,22 +1194,22 @@ const submitCreateWork = async () => {
 }
 
 @media (max-width: 900px) {
-  .work-card-layout {
+  .issue-card-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .work-overview {
+  .issue-overview {
     padding-right: 0;
   }
 
-  .work-latest-progress {
+  .issue-latest-progress {
     margin-top: 20px;
     padding: 18px;
   }
 }
 
 @media (max-width: 600px) {
-  .work-list-page {
+  .issue-list-page {
     width: 100%;
     margin: 0;
   }
@@ -1221,12 +1221,12 @@ const submitCreateWork = async () => {
     gap: 8px;
   }
 
-  .work-list-toolbar {
+  .issue-list-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .work-filter-groups,
+  .issue-filter-groups,
   .filter-row {
     width: 100%;
     align-items: stretch;
@@ -1257,13 +1257,13 @@ const submitCreateWork = async () => {
     padding-inline: 8px;
   }
 
-  .work-card :deep(.el-card__body) {
+  .issue-card :deep(.el-card__body) {
     padding: 18px;
   }
 
-  .work-dashboard {
+  .issue-dashboard {
     margin-inline: calc(var(--page-gutter) * -1);
-    padding: var(--workspace-padding) var(--page-gutter);
+    padding: var(--issuespace-padding) var(--page-gutter);
   }
 
   .external-link {

@@ -5,20 +5,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import CurrentAssessmentGuide from '../../components/work/CurrentAssessmentGuide.vue'
+import CurrentAssessmentGuide from '../../components/issue/CurrentAssessmentGuide.vue'
 import AppDialog from '../../components/AppDialog.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
-import WorkMaterialManager from '../../components/work/WorkMaterialManager.vue'
-import WorkProgressUpdates from '../../components/work/WorkProgressUpdates.vue'
-import type { UpdateWorkRequest, WorkStatus } from '../../types/work'
+import IssueMaterialManager from '../../components/issue/IssueMaterialManager.vue'
+import IssueUpdates from '../../components/issue/IssueUpdates.vue'
+import type { UpdateIssueRequest, IssueStatus } from '../../types/issue'
 import { formatDate } from '../../utils/formatDate'
-import { workApi } from '../../utils/api/workApi'
+import { issueApi } from '../../utils/api/issueApi'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 const queryClient = useQueryClient()
 
-const workStatusMeta: Record<WorkStatus, { label: string }> = {
+const issueStatusMeta: Record<IssueStatus, { label: string }> = {
   IDEA: { label: '探索中' },
   DRAFT: { label: '已釐清' },
   ACTIVE: { label: '推進中' },
@@ -26,7 +26,7 @@ const workStatusMeta: Record<WorkStatus, { label: string }> = {
   ARCHIVED: { label: '已封存' },
 }
 
-const workStatusOptions: Array<{ value: WorkStatus; label: string }> = [
+const issueStatusOptions: Array<{ value: IssueStatus; label: string }> = [
   { value: 'IDEA', label: '探索中' },
   { value: 'DRAFT', label: '已釐清' },
   { value: 'ACTIVE', label: '推進中' },
@@ -34,7 +34,7 @@ const workStatusOptions: Array<{ value: WorkStatus; label: string }> = [
   { value: 'ARCHIVED', label: '已封存' },
 ]
 
-const phaseStatuses: Array<{ value: WorkStatus; label: string }> = [
+const phaseStatuses: Array<{ value: IssueStatus; label: string }> = [
   { value: 'IDEA', label: '探索' },
   { value: 'DRAFT', label: '已釐清' },
   { value: 'ACTIVE', label: '推進' },
@@ -45,7 +45,7 @@ const editDialogVisible = ref(false)
 type EditSection = 'all' | 'basic' | 'assessment' | 'background' | 'criteria' | 'link'
 const editSection = ref<EditSection>('all')
 const editFormRef = ref<FormInstance>()
-const editForm = reactive<UpdateWorkRequest>({
+const editForm = reactive<UpdateIssueRequest>({
   title: '',
   objective: '',
   description: '',
@@ -78,7 +78,7 @@ const validateOptionalUrl = (
   callback(new Error('請輸入有效的 HTTP 或 HTTPS 連結'))
 }
 
-const editFormRules: FormRules<UpdateWorkRequest> = {
+const editFormRules: FormRules<UpdateIssueRequest> = {
   title: [
     { required: true, message: '請輸入議題名稱', trigger: 'blur' },
     { max: 255, message: '議題名稱不可超過 255 個字', trigger: 'blur' },
@@ -105,18 +105,18 @@ const editFormRules: FormRules<UpdateWorkRequest> = {
 }
 
 const {
-  data: work,
+  data: issue,
   isLoading,
   isError,
   refetch,
 } = useQuery({
-  queryKey: computed(() => ['work', String(props.id)]),
-  queryFn: () => workApi.getWork(props.id),
+  queryKey: computed(() => ['issue', String(props.id)]),
+  queryFn: () => issueApi.getIssue(props.id),
 })
 
 const currentPhaseIndex = computed(() => {
-  if (!work.value) return -1
-  return phaseStatuses.findIndex((phase) => phase.value === work.value?.status)
+  if (!issue.value) return -1
+  return phaseStatuses.findIndex((phase) => phase.value === issue.value?.status)
 })
 
 const editDialogTitle = computed(() => {
@@ -132,11 +132,11 @@ const editDialogTitle = computed(() => {
 })
 
 const updateMutation = useMutation({
-  mutationFn: (data: UpdateWorkRequest) => workApi.updateWork(props.id, data),
-  onSuccess: async (updatedWork) => {
-    queryClient.setQueryData(['work', String(props.id)], updatedWork)
+  mutationFn: (data: UpdateIssueRequest) => issueApi.updateIssue(props.id, data),
+  onSuccess: async (updatedIssue) => {
+    queryClient.setQueryData(['issue', String(props.id)], updatedIssue)
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['works'] }),
+      queryClient.invalidateQueries({ queryKey: ['issues'] }),
       queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] }),
     ])
     ElMessage.success('議題更新成功')
@@ -145,25 +145,25 @@ const updateMutation = useMutation({
 })
 
 const statusMutation = useMutation({
-  mutationFn: (status: WorkStatus) => {
-    if (!work.value) throw new Error('議題尚未載入')
-    return workApi.updateWork(props.id, {
-      title: work.value.title,
-      objective: work.value.objective,
-      description: work.value.description,
-      currentAssessment: work.value.currentAssessment,
-      outcomeCriteria: work.value.outcomeCriteria,
-      externalUrl: work.value.externalUrl,
+  mutationFn: (status: IssueStatus) => {
+    if (!issue.value) throw new Error('議題尚未載入')
+    return issueApi.updateIssue(props.id, {
+      title: issue.value.title,
+      objective: issue.value.objective,
+      description: issue.value.description,
+      currentAssessment: issue.value.currentAssessment,
+      outcomeCriteria: issue.value.outcomeCriteria,
+      externalUrl: issue.value.externalUrl,
       status,
     })
   },
-  onSuccess: async (updatedWork) => {
-    queryClient.setQueryData(['work', String(props.id)], updatedWork)
+  onSuccess: async (updatedIssue) => {
+    queryClient.setQueryData(['issue', String(props.id)], updatedIssue)
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['works'] }),
+      queryClient.invalidateQueries({ queryKey: ['issues'] }),
       queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] }),
     ])
-    ElMessage.success(`議題已改為「${workStatusMeta[updatedWork.status].label}」`)
+    ElMessage.success(`議題已改為「${issueStatusMeta[updatedIssue.status].label}」`)
   },
   onError: () => {
     ElMessage.error('更新議題階段失敗，請稍後再試')
@@ -171,23 +171,23 @@ const statusMutation = useMutation({
 })
 
 const deleteMutation = useMutation({
-  mutationFn: () => workApi.deleteWork(props.id),
+  mutationFn: () => issueApi.deleteIssue(props.id),
   onSuccess: async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['works'] }),
+      queryClient.invalidateQueries({ queryKey: ['issues'] }),
       queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] }),
-      queryClient.invalidateQueries({ queryKey: ['recent-work-progress-updates'] }),
+      queryClient.invalidateQueries({ queryKey: ['recent-issue-progress-updates'] }),
     ])
     ElMessage.success('議題已永久刪除')
-    router.replace({ name: 'WorkList' })
+    router.replace({ name: 'IssueList' })
   },
   onError: () => {
     ElMessage.error('刪除議題失敗，請稍後再試')
   },
 })
 
-const changeWorkStatus = (status: WorkStatus) => {
-  if (!work.value || status === work.value.status || statusMutation.isPending.value) return
+const changeIssueStatus = (status: IssueStatus) => {
+  if (!issue.value || status === issue.value.status || statusMutation.isPending.value) return
   statusMutation.mutate(status)
 }
 
@@ -196,15 +196,15 @@ const goBack = () => {
     router.back()
     return
   }
-  router.push({ name: 'WorkList' })
+  router.push({ name: 'IssueList' })
 }
 
-const confirmDeleteWork = async () => {
-  if (!work.value || deleteMutation.isPending.value) return
+const confirmDeleteIssue = async () => {
+  if (!issue.value || deleteMutation.isPending.value) return
 
   try {
     await ElMessageBox.confirm(
-      `「${work.value.title}」及其所有議題更新、素材關聯都會永久刪除；原始卡片不會被刪除。`,
+      `「${issue.value.title}」及其所有議題更新、素材關聯都會永久刪除；原始卡片不會被刪除。`,
       '永久刪除議題',
       {
         confirmButtonText: '永久刪除',
@@ -219,16 +219,16 @@ const confirmDeleteWork = async () => {
 }
 
 const openEditDialog = (section: EditSection = 'all') => {
-  if (!work.value) return
+  if (!issue.value) return
 
   editSection.value = section
-  editForm.title = work.value.title
-  editForm.objective = work.value.objective ?? ''
-  editForm.description = work.value.description ?? ''
-  editForm.currentAssessment = work.value.currentAssessment ?? ''
-  editForm.outcomeCriteria = work.value.outcomeCriteria ?? ''
-  editForm.externalUrl = work.value.externalUrl ?? ''
-  editForm.status = work.value.status
+  editForm.title = issue.value.title
+  editForm.objective = issue.value.objective ?? ''
+  editForm.description = issue.value.description ?? ''
+  editForm.currentAssessment = issue.value.currentAssessment ?? ''
+  editForm.outcomeCriteria = issue.value.outcomeCriteria ?? ''
+  editForm.externalUrl = issue.value.externalUrl ?? ''
+  editForm.status = issue.value.status
   editDialogVisible.value = true
 }
 
@@ -237,7 +237,7 @@ const resetEditForm = () => {
   editFormRef.value?.clearValidate()
 }
 
-const submitUpdateWork = async () => {
+const submitUpdateIssue = async () => {
   if (!editFormRef.value) return
 
   await editFormRef.value.validate((valid) => {
@@ -257,25 +257,25 @@ const submitUpdateWork = async () => {
 </script>
 
 <template>
-  <section class="work-detail-page app-page">
+  <section class="issue-detail-page app-page">
     <header class="detail-navigation app-detail-navigation">
       <el-button :icon="ArrowLeft" text @click="goBack">
         返回議事廳
       </el-button>
-      <div v-if="work" class="detail-actions">
-        <el-dropdown trigger="click" @command="(status: WorkStatus) => changeWorkStatus(status)">
+      <div v-if="issue" class="detail-actions">
+        <el-dropdown trigger="click" @command="(status: IssueStatus) => changeIssueStatus(status)">
           <button type="button" class="status-trigger" :disabled="statusMutation.isPending.value">
-            <span class="property-status-dot" :class="`property-status-${work.status.toLowerCase()}`"></span>
-            <span>{{ workStatusMeta[work.status].label }}</span>
+            <span class="property-status-dot" :class="`property-status-${issue.status.toLowerCase()}`"></span>
+            <span>{{ issueStatusMeta[issue.status].label }}</span>
             <el-icon class="status-trigger-arrow"><ArrowDown /></el-icon>
           </button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item
-                v-for="option in workStatusOptions"
+                v-for="option in issueStatusOptions"
                 :key="option.value"
                 :command="option.value"
-                :disabled="option.value === work.status"
+                :disabled="option.value === issue.status"
                 :divided="option.value === 'ARCHIVED'"
               >
                 {{ option.label }}
@@ -289,7 +289,7 @@ const submitUpdateWork = async () => {
             plain
             :icon="Delete"
             :loading="deleteMutation.isPending.value"
-            @click="confirmDeleteWork"
+            @click="confirmDeleteIssue"
           >
             刪除議題
           </el-button>
@@ -317,14 +317,14 @@ const submitUpdateWork = async () => {
       </el-result>
     </div>
 
-    <div v-else-if="work" class="detail-layout">
+    <div v-else-if="issue" class="detail-layout">
       <main class="issue-overview-panel" aria-label="議題整體資訊">
         <article>
           <section class="overview-group overview-primary-group" aria-label="議題主軸">
             <div class="detail-heading">
               <div class="title-group">
                 <span class="detail-eyebrow">議題</span>
-                <h1 class="work-title">{{ work.title }}</h1>
+                <h1 class="issue-title">{{ issue.title }}</h1>
               </div>
             </div>
 
@@ -347,9 +347,9 @@ const submitUpdateWork = async () => {
                 <h2 id="focus-title">議題焦點</h2>
               </header>
               <ExpandableText
-                v-if="work.objective"
+                v-if="issue.objective"
                 class="focus-content"
-                :content="work.objective"
+                :content="issue.objective"
                 :lines="5"
               />
               <div v-else class="quiet-empty-state">
@@ -367,9 +367,9 @@ const submitUpdateWork = async () => {
                 <button type="button" class="inline-edit-button" @click="openEditDialog('assessment')">編輯</button>
               </header>
               <ExpandableText
-                v-if="work.currentAssessment"
+                v-if="issue.currentAssessment"
                 class="assessment-content"
-                :content="work.currentAssessment"
+                :content="issue.currentAssessment"
                 :lines="8"
               />
               <div v-else class="quiet-empty-state">
@@ -387,7 +387,7 @@ const submitUpdateWork = async () => {
               </div>
               <button type="button" class="inline-edit-button" @click="openEditDialog('criteria')">編輯</button>
             </header>
-            <ExpandableText v-if="work.outcomeCriteria" :content="work.outcomeCriteria" :lines="5" />
+            <ExpandableText v-if="issue.outcomeCriteria" :content="issue.outcomeCriteria" :lines="5" />
             <p v-else class="context-empty">尚未設定；需要形成判準時再補充。</p>
           </section>
 
@@ -397,8 +397,8 @@ const submitUpdateWork = async () => {
                 <button type="button" class="inline-edit-button" @click="openEditDialog('link')">編輯</button>
               </header>
               <a
-                v-if="work.externalUrl"
-                :href="work.externalUrl"
+                v-if="issue.externalUrl"
+                :href="issue.externalUrl"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="external-link"
@@ -420,9 +420,9 @@ const submitUpdateWork = async () => {
                 <button type="button" class="inline-edit-button" @click="openEditDialog('background')">編輯</button>
               </header>
               <ExpandableText
-                v-if="work.description"
+                v-if="issue.description"
                 class="background-content"
-                :content="work.description"
+                :content="issue.description"
                 :lines="5"
               />
               <p v-else class="context-empty">尚未補充背景；需要時再填即可。</p>
@@ -431,15 +431,15 @@ const submitUpdateWork = async () => {
             <dl class="time-metadata">
               <div class="property-row">
                 <dt>建立時間</dt>
-                <dd>{{ formatDate(work.createdAt) }}</dd>
+                <dd>{{ formatDate(issue.createdAt) }}</dd>
               </div>
               <div class="property-row">
                 <dt>最後更新</dt>
-                <dd>{{ formatDate(work.updatedAt) }}</dd>
+                <dd>{{ formatDate(issue.updatedAt) }}</dd>
               </div>
-              <div v-if="work.completedAt">
+              <div v-if="issue.completedAt">
                 <dt>完成時間</dt>
-                <dd>{{ formatDate(work.completedAt) }}</dd>
+                <dd>{{ formatDate(issue.completedAt) }}</dd>
               </div>
             </dl>
           </section>
@@ -449,10 +449,10 @@ const submitUpdateWork = async () => {
 
       <aside class="issue-updates-panel" aria-label="議題更新資訊">
         <section class="updates-side-card" aria-label="最近推進">
-          <WorkProgressUpdates :work-id="props.id" />
+          <IssueUpdates :issue-id="props.id" />
         </section>
         <section class="materials-side-card" aria-label="參考素材">
-          <WorkMaterialManager :work-id="props.id" />
+          <IssueMaterialManager :issue-id="props.id" />
         </section>
       </aside>
     </div>
@@ -470,7 +470,7 @@ const submitUpdateWork = async () => {
         :model="editForm"
         :rules="editFormRules"
         label-position="top"
-        @submit.prevent="submitUpdateWork"
+        @submit.prevent="submitUpdateIssue"
       >
         <el-form-item v-if="editSection === 'all' || editSection === 'basic'" label="議題名稱" prop="title">
           <el-input v-model="editForm.title" maxlength="255" />
@@ -528,7 +528,7 @@ const submitUpdateWork = async () => {
         <el-form-item v-if="editSection === 'all'" label="議題階段" prop="status">
           <el-select v-model="editForm.status" class="status-select">
             <el-option
-              v-for="option in workStatusOptions"
+              v-for="option in issueStatusOptions"
               :key="option.value"
               :label="option.label"
               :value="option.value"
@@ -547,7 +547,7 @@ const submitUpdateWork = async () => {
         <el-button
           type="primary"
           :loading="updateMutation.isPending.value"
-          @click="submitUpdateWork"
+          @click="submitUpdateIssue"
         >
           儲存變更
         </el-button>
@@ -557,7 +557,7 @@ const submitUpdateWork = async () => {
 </template>
 
 <style scoped>
-.work-detail-page {
+.issue-detail-page {
   width: 100%;
   height: calc(100dvh - (var(--page-gutter) * 2));
   overflow: hidden;
@@ -618,7 +618,7 @@ const submitUpdateWork = async () => {
 
 .issue-overview-panel {
   height: 100%;
-  padding: var(--workspace-padding);
+  padding: var(--issuespace-padding);
   box-sizing: border-box;
   background: var(--el-bg-color);
   overflow-y: auto;
@@ -626,7 +626,7 @@ const submitUpdateWork = async () => {
 
 .issue-updates-panel {
   height: 100%;
-  padding: var(--workspace-padding);
+  padding: var(--issuespace-padding);
   box-sizing: border-box;
   border-left: 1px solid var(--el-border-color-lighter);
   background: var(--el-bg-color-page);
@@ -652,7 +652,7 @@ const submitUpdateWork = async () => {
   letter-spacing: 0.12em;
 }
 
-.work-title {
+.issue-title {
   margin: 0;
   min-width: 0;
   overflow-wrap: break-word;
@@ -958,13 +958,13 @@ const submitUpdateWork = async () => {
 }
 
 @media (max-width: 1200px) and (min-width: 901px) {
-  .work-detail-page {
+  .issue-detail-page {
     height: calc(100dvh - 88px);
   }
 }
 
 @media (max-width: 900px) {
-  .work-detail-page {
+  .issue-detail-page {
     width: 100%;
     height: auto;
     margin: 0;

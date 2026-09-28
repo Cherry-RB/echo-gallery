@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
-import type { WorkStatus, WorkSummary } from '../../types/work'
-import { workApi } from '../../utils/api/workApi'
+import type { IssueStatus, IssueSummary } from '../../types/issue'
+import { issueApi } from '../../utils/api/issueApi'
 import AppDialog from '../AppDialog.vue'
 
 const props = defineProps<{
@@ -17,7 +17,7 @@ const emit = defineEmits<{
 
 const queryClient = useQueryClient()
 
-const workStatusMeta: Record<WorkStatus, string> = {
+const issueStatusMeta: Record<IssueStatus, string> = {
   IDEA: '探索中',
   DRAFT: '已釐清',
   ACTIVE: '推進中',
@@ -31,8 +31,8 @@ const dialogVisible = computed({
 })
 
 const { data: cardIssues, isLoading: areRelationsLoading } = useQuery({
-  queryKey: computed(() => ['cardWorks', String(props.cardId)]),
-  queryFn: () => workApi.getCardWorks(props.cardId),
+  queryKey: computed(() => ['cardIssues', String(props.cardId)]),
+  queryFn: () => issueApi.getCardIssues(props.cardId),
   enabled: computed(() => props.modelValue),
 })
 
@@ -41,13 +41,13 @@ const {
   isLoading: areIssuesLoading,
   isError: areIssuesError,
 } = useQuery({
-  queryKey: ['works'],
-  queryFn: workApi.getWorks,
+  queryKey: ['issues'],
+  queryFn: issueApi.getIssues,
   enabled: computed(() => props.modelValue),
 })
 
 const linkedIssueIds = computed(() =>
-  new Set((cardIssues.value ?? []).map((relation) => String(relation.workId))),
+  new Set((cardIssues.value ?? []).map((relation) => String(relation.issueId))),
 )
 
 const availableIssues = computed(() =>
@@ -57,13 +57,13 @@ const availableIssues = computed(() =>
 )
 
 const addIssueMutation = useMutation({
-  mutationFn: (issue: WorkSummary) =>
-    workApi.addWorkCard(issue.id, { cardId: Number(props.cardId) }),
+  mutationFn: (issue: IssueSummary) =>
+    issueApi.addIssueCard(issue.id, { cardId: Number(props.cardId) }),
   onSuccess: async (_relation, issue) => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['cardWorks', String(props.cardId)] }),
-      queryClient.invalidateQueries({ queryKey: ['workCards', String(issue.id)] }),
-      queryClient.invalidateQueries({ queryKey: ['works'] }),
+      queryClient.invalidateQueries({ queryKey: ['cardIssues', String(props.cardId)] }),
+      queryClient.invalidateQueries({ queryKey: ['issueCards', String(issue.id)] }),
+      queryClient.invalidateQueries({ queryKey: ['issues'] }),
     ])
     ElMessage.success(`已加入議題「${issue.title}」`)
     dialogVisible.value = false
@@ -105,7 +105,7 @@ const addIssueMutation = useMutation({
       <div v-for="issue in availableIssues" :key="issue.id" class="issue-option">
         <div class="issue-option-content">
           <strong>{{ issue.title }}</strong>
-          <span>{{ workStatusMeta[issue.status] }}</span>
+          <span>{{ issueStatusMeta[issue.status] }}</span>
         </div>
         <el-button
           type="primary"

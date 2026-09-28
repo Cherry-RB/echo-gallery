@@ -19,7 +19,7 @@ const current = computed(() => overview.value?.current ?? {
   pausedCardCount: 0,
   needsProcessingCardCount: 0,
   activeExperimentCount: 0,
-  workWithNextStepCount: 0,
+  issueWithNextStepCount: 0,
   experimentTries: [],
   nextSteps: [],
   attentionSignals: [],
@@ -27,7 +27,7 @@ const current = computed(() => overview.value?.current ?? {
 const period = computed(() => overview.value?.period ?? {
   flow: { reengagedCardCount: 0, reviewedCardCount: 0 },
   generativity: { derivedCardCount: 0, sourceCardCount: 0 },
-  closure: { workWithFollowUpCount: 0 },
+  closure: { issueWithFollowUpCount: 0 },
   activities: [],
   derivedCards: [],
   recentExperimentMaterials: [],
@@ -38,7 +38,7 @@ const currentItems = computed(() => [
   { key: 'paused', label: '暫停中', value: current.value.pausedCardCount, unit: '張卡片' },
   { key: 'processing', label: '待整理', value: current.value.needsProcessingCardCount, unit: '張卡片' },
   { key: 'experiments', label: '活躍實驗場', value: current.value.activeExperimentCount, unit: '個' },
-  { key: 'next-steps', label: '已有下一步的議題', value: current.value.workWithNextStepCount, unit: '個' },
+  { key: 'next-steps', label: '已有下一步的議題', value: current.value.issueWithNextStepCount, unit: '個' },
 ])
 
 const periodFigures = computed(() => [
@@ -60,7 +60,7 @@ const periodFigures = computed(() => [
   },
   {
     key: 'follow-up',
-    value: period.value.closure.workWithFollowUpCount,
+    value: period.value.closure.issueWithFollowUpCount,
     unit: '個議題',
     label: '下一步後留下更新',
     description: '代表議題後續有新的研判或經驗',
@@ -81,10 +81,10 @@ const activityDefinitions = {
   offered: 'Today 再次出現',
   reviewed: '完成回顧',
   'experiment-material': '放入實驗場',
-  'work-linked': '帶入議題',
+  'issue-linked': '帶入議題',
   derived: '長出新卡',
   'exploration-record': '留下探索發現',
-  'work-update': '議題更新',
+  'issue-update': '議題更新',
 } as const
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', {
@@ -94,11 +94,11 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', {
 
 const openCard = (cardId: number) => router.push({ name: 'CardDetail', params: { id: cardId }, query: { from: 'overview' } })
 const openExperiment = (experimentId: number) => router.push({ name: 'ExperimentDetail', params: { id: experimentId } })
-const openWork = (workId: number) => router.push({ name: 'WorkDetail', params: { id: workId } })
+const openIssue = (issueId: number) => router.push({ name: 'IssueDetail', params: { id: issueId } })
 const openCardReturn = () => router.push('/overview/cards')
 const openCurrentItem = (key: string) => {
   if (key === 'experiments') router.push('/experiments')
-  else if (key === 'next-steps') router.push('/works')
+  else if (key === 'next-steps') router.push('/issues')
   else openCardReturn()
 }
 const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'processing' ? '□' : '↗'
@@ -149,8 +149,8 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
             </el-tooltip>
           </div>
           <div v-if="current.nextSteps.length" class="next-step-list">
-            <button v-for="step in current.nextSteps.slice(0, 3)" :key="step.workId" type="button" class="next-step-item" @click="openWork(step.workId)">
-              <span>{{ step.workTitle }}</span>
+            <button v-for="step in current.nextSteps.slice(0, 3)" :key="step.issueId" type="button" class="next-step-item" @click="openIssue(step.issueId)">
+              <span>{{ step.issueTitle }}</span>
               <strong>{{ step.nextStep }}</strong>
               <small>更新於 {{ formatDate(step.updatedAt) }}</small>
             </button>

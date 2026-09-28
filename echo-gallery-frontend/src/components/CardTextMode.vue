@@ -8,7 +8,7 @@ import type { CardDto } from '../types/card';
 import { getBoardCapabilities, type BoardType } from '../types/board';
 import RecurrenceIntervalPicker from './RecurrenceIntervalPicker.vue';
 
-const AddCardToIssueDialog = defineAsyncComponent(() => import('./work/AddCardToIssueDialog.vue'));
+const AddCardToIssueDialog = defineAsyncComponent(() => import('./issue/AddCardToIssueDialog.vue'));
 const AddCardToExperimentDialog = defineAsyncComponent(() => import('./experiment/AddCardToExperimentDialog.vue'));
 
 const props = defineProps<{

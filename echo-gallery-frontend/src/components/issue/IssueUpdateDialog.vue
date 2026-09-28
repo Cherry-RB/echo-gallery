@@ -2,31 +2,31 @@
 import { reactive, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
-import type { WorkProgressUpdate, WorkProgressUpdateRequest } from '../../types/work'
-import { workApi } from '../../utils/api/workApi'
+import type { IssueUpdate, IssueUpdateRequest } from '../../types/issue'
+import { issueApi } from '../../utils/api/issueApi'
 import AppDialog from '../AppDialog.vue'
 import {
-  hasWorkProgressUpdateContent,
-  normalizeWorkProgressUpdate,
-} from '../../utils/workProgressUpdate'
+  hasIssueUpdateContent,
+  normalizeIssueUpdate,
+} from '../../utils/issueUpdate'
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
-  workId: string | number
-  update?: WorkProgressUpdate | null
+  issueId: string | number
+  update?: IssueUpdate | null
 }>(), {
   update: null,
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  saved: [update: WorkProgressUpdate]
+  saved: [update: IssueUpdate]
   closed: []
 }>()
 
 const queryClient = useQueryClient()
 const formError = ref('')
-const form = reactive<WorkProgressUpdateRequest>({
+const form = reactive<IssueUpdateRequest>({
   changeSummary: '',
   assessment: '',
   nextStep: '',
@@ -48,15 +48,15 @@ watch(
 )
 
 const saveMutation = useMutation({
-  mutationFn: (payload: WorkProgressUpdateRequest) => props.update
-    ? workApi.updateWorkUpdate(props.workId, props.update.id, payload)
-    : workApi.createWorkUpdate(props.workId, payload),
+  mutationFn: (payload: IssueUpdateRequest) => props.update
+    ? issueApi.updateIssueUpdate(props.issueId, props.update.id, payload)
+    : issueApi.createIssueUpdate(props.issueId, payload),
   onSuccess: async (savedUpdate) => {
     emit('update:modelValue', false)
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['work-progress-updates', String(props.workId)] }),
-      queryClient.invalidateQueries({ queryKey: ['recent-work-progress-updates'] }),
-      queryClient.invalidateQueries({ queryKey: ['works'] }),
+      queryClient.invalidateQueries({ queryKey: ['issue-progress-updates', String(props.issueId)] }),
+      queryClient.invalidateQueries({ queryKey: ['recent-issue-progress-updates'] }),
+      queryClient.invalidateQueries({ queryKey: ['issues'] }),
     ])
     emit('saved', savedUpdate)
     ElMessage.success(props.update ? '議題近況已修改' : '近況已提出')
@@ -67,8 +67,8 @@ const saveMutation = useMutation({
 })
 
 const submitUpdate = () => {
-  const payload = normalizeWorkProgressUpdate(form)
-  if (!hasWorkProgressUpdateContent(payload)) {
+  const payload = normalizeIssueUpdate(form)
+  if (!hasIssueUpdateContent(payload)) {
     formError.value = '至少寫下一項，才算一次議題近況。'
     return
   }

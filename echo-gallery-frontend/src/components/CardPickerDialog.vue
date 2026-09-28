@@ -4,7 +4,7 @@ import { useInfiniteQuery } from '@tanstack/vue-query'
 import { Search } from '@element-plus/icons-vue'
 import type { CardDto, CardSearchParams } from '../types/card'
 import { cardApi } from '../utils/api/cardApi'
-import { normalizeWorkCardSearch } from '../utils/cardSearch'
+import { normalizeIssueCardSearch } from '../utils/cardSearch'
 import AppDialog from './AppDialog.vue'
 
 const props = withDefaults(defineProps<{
@@ -62,7 +62,7 @@ const cardsQuery = useInfiniteQuery({
   enabled: computed(() => props.modelValue),
   initialPageParam: 0,
   queryFn: ({ pageParam }) => cardApi.searchCards({
-    ...normalizeWorkCardSearch(searchKeyword.value),
+    ...normalizeIssueCardSearch(searchKeyword.value),
     archiveStatus: props.archiveStatus,
     sortBy: 'UPDATED_AT',
     direction: 'DESC',

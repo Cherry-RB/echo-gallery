@@ -2,13 +2,13 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AddCardToIssueDialog from './AddCardToIssueDialog.vue'
-import { workApi } from '../../utils/api/workApi'
+import { issueApi } from '../../utils/api/issueApi'
 
-vi.mock('../../utils/api/workApi', () => ({
-  workApi: {
-    getCardWorks: vi.fn(),
-    getWorks: vi.fn(),
-    addWorkCard: vi.fn(),
+vi.mock('../../utils/api/issueApi', () => ({
+  issueApi: {
+    getCardIssues: vi.fn(),
+    getIssues: vi.fn(),
+    addIssueCard: vi.fn(),
   },
 }))
 
@@ -22,8 +22,8 @@ vi.mock('element-plus', () => ({
 describe('AddCardToIssueDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(workApi.getCardWorks).mockResolvedValue([])
-    vi.mocked(workApi.getWorks).mockResolvedValue([
+    vi.mocked(issueApi.getCardIssues).mockResolvedValue([])
+    vi.mocked(issueApi.getIssues).mockResolvedValue([
       {
         id: 10,
         title: 'Echo Gallery 下一階段',
@@ -43,7 +43,7 @@ describe('AddCardToIssueDialog', () => {
         usedCount: 0,
       },
     ])
-    vi.mocked(workApi.addWorkCard).mockResolvedValue({} as never)
+    vi.mocked(issueApi.addIssueCard).mockResolvedValue({} as never)
   })
 
   it('將卡片加入選取的議題並關閉對話框', async () => {
@@ -69,7 +69,7 @@ describe('AddCardToIssueDialog', () => {
     await wrapper.find('button').trigger('click')
     await flushPromises()
 
-    expect(workApi.addWorkCard).toHaveBeenCalledWith(10, { cardId: 5 })
+    expect(issueApi.addIssueCard).toHaveBeenCalledWith(10, { cardId: 5 })
     expect(wrapper.emitted('update:modelValue')).toContainEqual([false])
   })
 })

@@ -37,7 +37,7 @@ const userProfile = ref({
 const menuItems = [
   { name: '今日', path: '/board/today', icon: Calendar },
   { name: '全部卡片', path: '/board/all', icon: Files },
-  { name: '議事廳', path: '/works', icon: Filter },
+  { name: '議事廳', path: '/issues', icon: Filter },
   { name: '實驗場', path: '/experiments', icon: Aim },
   { name: '觀測台', path: '/overview', icon: DataAnalysis },
   { name: '標籤管理', path: '/center/tag', icon: CollectionTag },

@@ -5,19 +5,19 @@ import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-que
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import type { CardDto, CardType } from '../../types/card'
-import type { WorkCard, WorkCardStatus } from '../../types/work'
-import { workApi } from '../../utils/api/workApi'
+import type { IssueCard, IssueCardStatus } from '../../types/issue'
+import { issueApi } from '../../utils/api/issueApi'
 import { formatDate } from '../../utils/formatDate'
 import CardPickerDialog from '../CardPickerDialog.vue'
 import AppDialog from '../AppDialog.vue'
 import CardPickerSelectionSummary from '../ui/CardPickerSelectionSummary.vue'
 
-const props = defineProps<{ workId: string }>()
+const props = defineProps<{ issueId: string }>()
 const router = useRouter()
 const queryClient = useQueryClient()
 const addCardDialogVisible = ref(false)
 const noteDialogVisible = ref(false)
-const editingNoteCard = ref<WorkCard | null>(null)
+const editingNoteCard = ref<IssueCard | null>(null)
 const noteInput = ref('')
 const materialPageSize = 10
 
@@ -35,8 +35,8 @@ const {
   fetchNextPage: fetchNextCandidatePage,
   refetch: refetchCandidateCards,
 } = useInfiniteQuery({
-  queryKey: computed(() => ['workCards', String(props.workId), 'CANDIDATE']),
-  queryFn: ({ pageParam }) => workApi.getWorkCards(props.workId, 'CANDIDATE', pageParam, materialPageSize),
+  queryKey: computed(() => ['issueCards', String(props.issueId), 'CANDIDATE']),
+  queryFn: ({ pageParam }) => issueApi.getIssueCards(props.issueId, 'CANDIDATE', pageParam, materialPageSize),
   initialPageParam: 0,
   getNextPageParam: (lastPage) =>
     lastPage.page + 1 < lastPage.totalPages ? lastPage.page + 1 : undefined,
@@ -51,8 +51,8 @@ const {
   fetchNextPage: fetchNextUsedPage,
   refetch: refetchUsedCards,
 } = useInfiniteQuery({
-  queryKey: computed(() => ['workCards', String(props.workId), 'USED']),
-  queryFn: ({ pageParam }) => workApi.getWorkCards(props.workId, 'USED', pageParam, materialPageSize),
+  queryKey: computed(() => ['issueCards', String(props.issueId), 'USED']),
+  queryFn: ({ pageParam }) => issueApi.getIssueCards(props.issueId, 'USED', pageParam, materialPageSize),
   initialPageParam: 0,
   getNextPageParam: (lastPage) =>
     lastPage.page + 1 < lastPage.totalPages ? lastPage.page + 1 : undefined,
@@ -66,8 +66,8 @@ const usedCards = computed(() =>
 )
 const candidateTotal = computed(() => candidateCardPages.value?.pages[0]?.totalElements ?? 0)
 const usedTotal = computed(() => usedCardPages.value?.pages[0]?.totalElements ?? 0)
-const areWorkCardsLoading = computed(() => areCandidateCardsLoading.value || areUsedCardsLoading.value)
-const areWorkCardsError = computed(() => areCandidateCardsError.value || areUsedCardsError.value)
+const areIssueCardsLoading = computed(() => areCandidateCardsLoading.value || areUsedCardsLoading.value)
+const areIssueCardsError = computed(() => areCandidateCardsError.value || areUsedCardsError.value)
 const linkedCardIds = computed(() =>
   new Set([...candidateCards.value, ...usedCards.value].map((item) => String(item.cardId))),
 )
@@ -75,17 +75,17 @@ const linkedCardIds = computed(() =>
 
 const refreshMaterialQueries = async () => {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['workCards', String(props.workId)] }),
-    queryClient.invalidateQueries({ queryKey: ['works'] }),
+    queryClient.invalidateQueries({ queryKey: ['issueCards', String(props.issueId)] }),
+    queryClient.invalidateQueries({ queryKey: ['issues'] }),
   ])
 }
 
-const refetchWorkCards = async () => {
+const refetchIssueCards = async () => {
   await Promise.all([refetchCandidateCards(), refetchUsedCards()])
 }
 
 const addCardMutation = useMutation({
-  mutationFn: (card: CardDto) => workApi.addWorkCard(props.workId, { cardId: Number(card.id) }),
+  mutationFn: (card: CardDto) => issueApi.addIssueCard(props.issueId, { cardId: Number(card.id) }),
   onSuccess: async () => {
     await refreshMaterialQueries()
     ElMessage.success('卡片已加入議題素材池')
@@ -94,8 +94,8 @@ const addCardMutation = useMutation({
 })
 
 const statusMutation = useMutation({
-  mutationFn: ({ card, status }: { card: WorkCard; status: WorkCardStatus }) =>
-    workApi.updateWorkCardStatus(props.workId, card.cardId, { status }),
+  mutationFn: ({ card, status }: { card: IssueCard; status: IssueCardStatus }) =>
+    issueApi.updateIssueCardStatus(props.issueId, card.cardId, { status }),
   onSuccess: async (_updatedCard, variables) => {
     await refreshMaterialQueries()
     ElMessage.success(variables.status === 'USED' ? '已標記為已運用' : '已移回素材池')
@@ -103,12 +103,12 @@ const statusMutation = useMutation({
 })
 
 const noteMutation = useMutation({
-  mutationFn: ({ card, note }: { card: WorkCard; note: string }) =>
-    workApi.updateWorkCardNote(props.workId, card.cardId, { note }),
+  mutationFn: ({ card, note }: { card: IssueCard; note: string }) =>
+    issueApi.updateIssueCardNote(props.issueId, card.cardId, { note }),
   onSuccess: async (_updatedCard, variables) => {
     await Promise.all([
       refreshMaterialQueries(),
-      queryClient.invalidateQueries({ queryKey: ['cardWorks'] }),
+      queryClient.invalidateQueries({ queryKey: ['cardIssues'] }),
     ])
     ElMessage.success(variables.note.trim() ? '素材備註已更新' : '素材備註已清除')
     noteDialogVisible.value = false
@@ -116,7 +116,7 @@ const noteMutation = useMutation({
 })
 
 const removeCardMutation = useMutation({
-  mutationFn: (card: WorkCard) => workApi.removeWorkCard(props.workId, card.cardId),
+  mutationFn: (card: IssueCard) => issueApi.removeIssueCard(props.issueId, card.cardId),
   onSuccess: async () => {
     await refreshMaterialQueries()
     ElMessage.success('已解除卡片與議題的關聯')
@@ -127,11 +127,11 @@ const openCard = (cardId: number) => {
   router.push({
     name: 'CardDetail',
     params: { id: cardId },
-    query: { fromWork: props.workId },
+    query: { fromIssue: props.issueId },
   })
 }
 
-const openNoteDialog = (card: WorkCard) => {
+const openNoteDialog = (card: IssueCard) => {
   editingNoteCard.value = card
   noteInput.value = card.note ?? ''
   noteDialogVisible.value = true
@@ -147,7 +147,7 @@ const resetNoteDialog = () => {
   noteInput.value = ''
 }
 
-const confirmRemoveCard = async (card: WorkCard) => {
+const confirmRemoveCard = async (card: IssueCard) => {
   try {
     await ElMessageBox.confirm(
       `確定要從議題中移除「${card.cardTitle}」嗎？卡片本身不會被刪除。`,
@@ -178,17 +178,17 @@ const confirmRemoveCard = async (card: WorkCard) => {
       </el-button>
     </header>
 
-    <div v-if="areWorkCardsLoading" aria-label="議題素材載入中">
+    <div v-if="areIssueCardsLoading" aria-label="議題素材載入中">
       <el-skeleton :rows="5" animated />
     </div>
 
     <el-result
-      v-else-if="areWorkCardsError"
+      v-else-if="areIssueCardsError"
       icon="warning"
       title="無法載入議題素材"
     >
       <template #extra>
-        <el-button type="primary" @click="refetchWorkCards()">重新載入</el-button>
+        <el-button type="primary" @click="refetchIssueCards()">重新載入</el-button>
       </template>
     </el-result>
 

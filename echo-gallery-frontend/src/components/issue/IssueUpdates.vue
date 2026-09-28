@@ -3,24 +3,24 @@ import { computed, ref } from 'vue'
 import { Delete, Edit, MoreFilled, Plus } from '@element-plus/icons-vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { WorkProgressUpdate } from '../../types/work'
+import type { IssueUpdate } from '../../types/issue'
 import { formatDate } from '../../utils/formatDate'
-import { workApi } from '../../utils/api/workApi'
+import { issueApi } from '../../utils/api/issueApi'
 import ExpandableText from '../ExpandableText.vue'
 import AppDialog from '../AppDialog.vue'
-import WorkProgressUpdateDialog from './WorkProgressUpdateDialog.vue'
+import IssueUpdateDialog from './IssueUpdateDialog.vue'
 
-const props = defineProps<{ workId: string | number }>()
+const props = defineProps<{ issueId: string | number }>()
 const queryClient = useQueryClient()
 const updateDialogVisible = ref(false)
 const historyDialogVisible = ref(false)
-const editingUpdate = ref<WorkProgressUpdate | null>(null)
+const editingUpdate = ref<IssueUpdate | null>(null)
 const historyPage = ref(0)
 const historyPageSize = 10
 
-const summaryQueryKey = computed(() => ['work-progress-updates', String(props.workId), 'summary'])
+const summaryQueryKey = computed(() => ['issue-progress-updates', String(props.issueId), 'summary'])
 const historyQueryKey = computed(() => [
-  'work-progress-updates', String(props.workId), 'history', historyPage.value,
+  'issue-progress-updates', String(props.issueId), 'history', historyPage.value,
 ])
 
 const {
@@ -30,7 +30,7 @@ const {
   refetch,
 } = useQuery({
   queryKey: summaryQueryKey,
-  queryFn: () => workApi.getWorkUpdates(props.workId, 0, 5),
+  queryFn: () => issueApi.getIssueUpdates(props.issueId, 0, 5),
 })
 
 const {
@@ -40,7 +40,7 @@ const {
   refetch: refetchHistory,
 } = useQuery({
   queryKey: historyQueryKey,
-  queryFn: () => workApi.getWorkUpdates(props.workId, historyPage.value, historyPageSize),
+  queryFn: () => issueApi.getIssueUpdates(props.issueId, historyPage.value, historyPageSize),
   enabled: historyDialogVisible,
 })
 
@@ -51,14 +51,14 @@ const historyUpdates = computed(() => historyPageData.value?.items ?? [])
 
 const invalidateUpdateQueries = async () => {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['work-progress-updates', String(props.workId)] }),
-    queryClient.invalidateQueries({ queryKey: ['recent-work-progress-updates'] }),
-    queryClient.invalidateQueries({ queryKey: ['works'] }),
+    queryClient.invalidateQueries({ queryKey: ['issue-progress-updates', String(props.issueId)] }),
+    queryClient.invalidateQueries({ queryKey: ['recent-issue-progress-updates'] }),
+    queryClient.invalidateQueries({ queryKey: ['issues'] }),
   ])
 }
 
 const deleteMutation = useMutation({
-  mutationFn: (updateId: number) => workApi.deleteWorkUpdate(props.workId, updateId),
+  mutationFn: (updateId: number) => issueApi.deleteIssueUpdate(props.issueId, updateId),
   onSuccess: async () => {
     await invalidateUpdateQueries()
     ElMessage.success('議題更新已刪除')
@@ -71,7 +71,7 @@ const openCreateDialog = () => {
   updateDialogVisible.value = true
 }
 
-const openEditDialog = (update: WorkProgressUpdate) => {
+const openEditDialog = (update: IssueUpdate) => {
   editingUpdate.value = update
   updateDialogVisible.value = true
 }
@@ -81,7 +81,7 @@ const openHistoryDialog = () => {
   historyDialogVisible.value = true
 }
 
-const confirmDelete = async (update: WorkProgressUpdate) => {
+const confirmDelete = async (update: IssueUpdate) => {
   try {
     await ElMessageBox.confirm(
       '刪除這次議題更新？刪除後無法復原，但不會改動議題的整體資料。',
@@ -99,7 +99,7 @@ const confirmDelete = async (update: WorkProgressUpdate) => {
   }
 }
 
-const wasEdited = (update: WorkProgressUpdate) => (
+const wasEdited = (update: IssueUpdate) => (
   new Date(update.updatedAt).getTime() - new Date(update.createdAt).getTime() > 1000
 )
 </script>
@@ -233,7 +233,7 @@ const wasEdited = (update: WorkProgressUpdate) => (
       </template>
     </AppDialog>
 
-    <WorkProgressUpdateDialog v-model="updateDialogVisible" :work-id="workId" :update="editingUpdate" />
+    <IssueUpdateDialog v-model="updateDialogVisible" :issue-id="issueId" :update="editingUpdate" />
   </section>
 </template>
 

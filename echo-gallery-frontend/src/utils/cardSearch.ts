@@ -1,6 +1,6 @@
 import type { CardSearchParams } from '../types/card'
 
-export const normalizeWorkCardSearch = (keyword: string): Pick<CardSearchParams, 'id' | 'title'> => {
+export const normalizeIssueCardSearch = (keyword: string): Pick<CardSearchParams, 'id' | 'title'> => {
   const normalized = keyword.trim()
   const idMatch = normalized.match(/^#?(\d+)$/)
   if (idMatch) {

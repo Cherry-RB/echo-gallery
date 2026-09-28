@@ -1,7 +1,7 @@
 export interface SidebarStats {
   totalCards: number;
-  totalWorks: number;
-  unfinishedWorks: number;
+  totalIssues: number;
+  unfinishedIssues: number;
   highSnoozeCards: number;
   seedCards: number;
   growingCards: number;

@@ -2,15 +2,15 @@ import { flushPromises, mount } from '@vue/test-utils'
 import type { GlobalMountOptions } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import WorkProgressUpdates from './WorkProgressUpdates.vue'
-import { workApi } from '../../utils/api/workApi'
+import IssueUpdates from './IssueUpdates.vue'
+import { issueApi } from '../../utils/api/issueApi'
 
-vi.mock('../../utils/api/workApi', () => ({
-  workApi: {
-    getWorkUpdates: vi.fn(),
-    createWorkUpdate: vi.fn(),
-    updateWorkUpdate: vi.fn(),
-    deleteWorkUpdate: vi.fn(),
+vi.mock('../../utils/api/issueApi', () => ({
+  issueApi: {
+    getIssueUpdates: vi.fn(),
+    createIssueUpdate: vi.fn(),
+    updateIssueUpdate: vi.fn(),
+    deleteIssueUpdate: vi.fn(),
   },
 }))
 
@@ -44,19 +44,19 @@ const globalOptions = (queryClient: QueryClient): GlobalMountOptions => ({
   },
 })
 
-describe('WorkProgressUpdates', () => {
+describe('IssueUpdates', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(workApi.getWorkUpdates).mockResolvedValue({
+    vi.mocked(issueApi.getIssueUpdates).mockResolvedValue({
       items: [],
       page: 0,
       size: 5,
       hasNext: false,
     })
-    vi.mocked(workApi.createWorkUpdate).mockResolvedValue({
+    vi.mocked(issueApi.createIssueUpdate).mockResolvedValue({
       id: 1,
-      workId: 7,
-      workTitle: '測試議題',
+      issueId: 7,
+      issueTitle: '測試議題',
       changeSummary: '取得新回饋',
       assessment: null,
       nextStep: null,
@@ -67,8 +67,8 @@ describe('WorkProgressUpdates', () => {
 
   it('拒絕發布三個欄位皆空白的更新', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const wrapper = mount(WorkProgressUpdates, {
-      props: { workId: 7 },
+    const wrapper = mount(IssueUpdates, {
+      props: { issueId: 7 },
       global: globalOptions(queryClient),
     })
     await flushPromises()
@@ -78,13 +78,13 @@ describe('WorkProgressUpdates', () => {
     await submitButtons.at(-1)?.trigger('click')
 
     expect(wrapper.text()).toContain('至少寫下一項')
-    expect(workApi.createWorkUpdate).not.toHaveBeenCalled()
+    expect(issueApi.createIssueUpdate).not.toHaveBeenCalled()
   })
 
   it('任一欄位有內容即可提出近況', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const wrapper = mount(WorkProgressUpdates, {
-      props: { workId: 7 },
+    const wrapper = mount(IssueUpdates, {
+      props: { issueId: 7 },
       global: globalOptions(queryClient),
     })
     await flushPromises()
@@ -95,7 +95,7 @@ describe('WorkProgressUpdates', () => {
     await submitButtons.at(-1)?.trigger('click')
     await flushPromises()
 
-    expect(workApi.createWorkUpdate).toHaveBeenCalledWith(7, {
+    expect(issueApi.createIssueUpdate).toHaveBeenCalledWith(7, {
       changeSummary: '取得新回饋',
       assessment: null,
       nextStep: null,
@@ -103,11 +103,11 @@ describe('WorkProgressUpdates', () => {
   })
 
   it('最新近況完整顯示改變、研判與下一步', async () => {
-    vi.mocked(workApi.getWorkUpdates).mockResolvedValue({
+    vi.mocked(issueApi.getIssueUpdates).mockResolvedValue({
       items: [{
         id: 2,
-        workId: 7,
-        workTitle: '測試議題',
+        issueId: 7,
+        issueTitle: '測試議題',
         changeSummary: '收到新的市場回饋',
         assessment: '原本的方向仍值得推進',
         nextStep: '安排下一次訪談',
@@ -119,8 +119,8 @@ describe('WorkProgressUpdates', () => {
       hasNext: false,
     })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const wrapper = mount(WorkProgressUpdates, {
-      props: { workId: 7 },
+    const wrapper = mount(IssueUpdates, {
+      props: { issueId: 7 },
       global: globalOptions(queryClient),
     })
 
@@ -135,11 +135,11 @@ describe('WorkProgressUpdates', () => {
   })
 
   it('初始只查詢五筆，後續更新只呈現日期與改變內容', async () => {
-    vi.mocked(workApi.getWorkUpdates).mockResolvedValue({
+    vi.mocked(issueApi.getIssueUpdates).mockResolvedValue({
       items: Array.from({ length: 5 }, (_, index) => ({
         id: 10 - index,
-        workId: 7,
-        workTitle: '測試議題',
+        issueId: 7,
+        issueTitle: '測試議題',
         changeSummary: `變化 ${index + 1}`,
         assessment: `研判 ${index + 1}`,
         nextStep: `下一步 ${index + 1}`,
@@ -151,14 +151,14 @@ describe('WorkProgressUpdates', () => {
       hasNext: true,
     })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const wrapper = mount(WorkProgressUpdates, {
-      props: { workId: 7 },
+    const wrapper = mount(IssueUpdates, {
+      props: { issueId: 7 },
       global: globalOptions(queryClient),
     })
 
     await flushPromises()
 
-    expect(workApi.getWorkUpdates).toHaveBeenCalledWith(7, 0, 5)
+    expect(issueApi.getIssueUpdates).toHaveBeenCalledWith(7, 0, 5)
     expect(wrapper.text()).toContain('研判 1')
     expect(wrapper.text()).not.toContain('研判 2')
     expect(wrapper.text()).not.toContain('下一步 5')
@@ -166,11 +166,11 @@ describe('WorkProgressUpdates', () => {
   })
 
   it('開啟歷次更新後才查詢十筆歷程', async () => {
-    vi.mocked(workApi.getWorkUpdates).mockResolvedValue({
+    vi.mocked(issueApi.getIssueUpdates).mockResolvedValue({
       items: [{
         id: 2,
-        workId: 7,
-        workTitle: '測試議題',
+        issueId: 7,
+        issueTitle: '測試議題',
         changeSummary: '收到新的市場回饋',
         assessment: null,
         nextStep: null,
@@ -182,16 +182,16 @@ describe('WorkProgressUpdates', () => {
       hasNext: false,
     })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const wrapper = mount(WorkProgressUpdates, {
-      props: { workId: 7 },
+    const wrapper = mount(IssueUpdates, {
+      props: { issueId: 7 },
       global: globalOptions(queryClient),
     })
     await flushPromises()
 
-    expect(workApi.getWorkUpdates).toHaveBeenCalledTimes(1)
+    expect(issueApi.getIssueUpdates).toHaveBeenCalledTimes(1)
     await wrapper.findAll('button').find((button) => button.text().includes('查看歷次更新'))?.trigger('click')
     await flushPromises()
 
-    expect(workApi.getWorkUpdates).toHaveBeenCalledWith(7, 0, 10)
+    expect(issueApi.getIssueUpdates).toHaveBeenCalledWith(7, 0, 10)
   })
 })

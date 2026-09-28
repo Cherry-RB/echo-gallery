@@ -13,7 +13,7 @@ import { getTextLength, trimToTextLength } from '../utils/textLength'
 import type { CardContentRequest, CardDto } from '../types/card'
 import AppDialog from './AppDialog.vue'
 
-const AddCardToIssueDialog = defineAsyncComponent(() => import('./work/AddCardToIssueDialog.vue'))
+const AddCardToIssueDialog = defineAsyncComponent(() => import('./issue/AddCardToIssueDialog.vue'))
 const AddCardToExperimentDialog = defineAsyncComponent(() => import('./experiment/AddCardToExperimentDialog.vue'))
 
 const props = withDefaults(defineProps<{

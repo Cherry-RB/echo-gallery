@@ -15,7 +15,7 @@ import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import type { FormInstance } from 'element-plus';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useTags } from '../utils/composables/useTags';
-import CardWorkManager from '../components/work/CardWorkManager.vue';
+import CardIssueManager from '../components/issue/CardIssueManager.vue';
 import { createCardFormRules, toCardContentRequest } from '../utils/cardForm';
 import { cardTextFieldCopy } from '../utils/cardTextFieldCopy';
 import AppDialog from '../components/AppDialog.vue';
@@ -34,9 +34,9 @@ const goBack = () => {
     return;
   }
   // 從議題素材直接開啟或重新整理時，優先回到來源議題。
-  const fromWork = route.query.fromWork;
-  if (typeof fromWork === 'string' && fromWork) {
-    router.push({ name: 'WorkDetail', params: { id: fromWork } });
+  const fromIssue = route.query.fromIssue;
+  if (typeof fromIssue === 'string' && fromIssue) {
+    router.push({ name: 'IssueDetail', params: { id: fromIssue } });
     return;
   }
   // 沒有紀錄（重新整理 / 外部連結進入）→ 退回到 query 記錄的來源看板，沒有就給預設值
@@ -624,7 +624,7 @@ const {
               </dl>
             </section>
 
-            <CardWorkManager :card-id="props.id" />
+            <CardIssueManager :card-id="props.id" />
 
             <section class="property-card experiment-context-card">
               <header class="property-heading">
@@ -1154,7 +1154,7 @@ const {
           </div>
         </el-card>
 
-        <CardWorkManager
+        <CardIssueManager
           v-if="fetchedCard && !isEditMode"
           :card-id="props.id"
         />

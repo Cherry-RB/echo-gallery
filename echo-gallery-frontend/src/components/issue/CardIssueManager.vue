@@ -3,8 +3,8 @@ import { computed, ref } from 'vue'
 import { FolderOpened, Plus } from '@element-plus/icons-vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
-import type { WorkCardStatus, WorkStatus } from '../../types/work'
-import { workApi } from '../../utils/api/workApi'
+import type { IssueCardStatus, IssueStatus } from '../../types/issue'
+import { issueApi } from '../../utils/api/issueApi'
 import AddCardToIssueDialog from './AddCardToIssueDialog.vue'
 
 const props = defineProps<{ cardId: string }>()
@@ -13,12 +13,12 @@ const addIssueDialogVisible = ref(false)
 
 type StatusTagType = 'primary' | 'success' | 'warning' | 'info'
 
-const relationStatusMeta: Record<WorkCardStatus, { label: string; type: StatusTagType }> = {
+const relationStatusMeta: Record<IssueCardStatus, { label: string; type: StatusTagType }> = {
   CANDIDATE: { label: '素材池', type: 'info' },
   USED: { label: '已運用', type: 'success' },
 }
 
-const workStatusMeta: Record<WorkStatus, string> = {
+const issueStatusMeta: Record<IssueStatus, string> = {
   IDEA: '探索中',
   DRAFT: '已釐清',
   ACTIVE: '推進中',
@@ -27,23 +27,23 @@ const workStatusMeta: Record<WorkStatus, string> = {
 }
 
 const {
-  data: cardWorks,
-  isLoading: areCardWorksLoading,
-  isError: areCardWorksError,
-  refetch: refetchCardWorks,
+  data: cardIssues,
+  isLoading: areCardIssuesLoading,
+  isError: areCardIssuesError,
+  refetch: refetchCardIssues,
 } = useQuery({
-  queryKey: computed(() => ['cardWorks', String(props.cardId)]),
-  queryFn: () => workApi.getCardWorks(props.cardId),
+  queryKey: computed(() => ['cardIssues', String(props.cardId)]),
+  queryFn: () => issueApi.getCardIssues(props.cardId),
 })
 
-const openWork = (workId: number) => {
-  router.push({ name: 'WorkDetail', params: { id: workId } })
+const openIssue = (issueId: number) => {
+  router.push({ name: 'IssueDetail', params: { id: issueId } })
 }
 </script>
 
 <template>
-  <el-card class="sidebar-card work-relations-card">
-    <header class="work-card-header">
+  <el-card class="sidebar-card issue-relations-card">
+    <header class="issue-card-header">
       <div class="header-title">
         <el-icon><FolderOpened /></el-icon>
         <span>所在議題</span>
@@ -53,35 +53,35 @@ const openWork = (workId: number) => {
       </el-button>
     </header>
 
-    <el-skeleton v-if="areCardWorksLoading" :rows="2" animated />
+    <el-skeleton v-if="areCardIssuesLoading" :rows="2" animated />
 
     <el-alert
-      v-else-if="areCardWorksError"
+      v-else-if="areCardIssuesError"
       title="無法載入議題關聯"
       type="warning"
       :closable="false"
       show-icon
     >
       <template #default>
-        <el-button link type="primary" @click="refetchCardWorks()">重新載入</el-button>
+        <el-button link type="primary" @click="refetchCardIssues()">重新載入</el-button>
       </template>
     </el-alert>
 
     <el-empty
-      v-else-if="!cardWorks?.length"
+      v-else-if="!cardIssues?.length"
       :image-size="56"
       description="這張卡片還沒有進入任何議題"
     />
 
     <div v-else class="relation-list">
       <button
-        v-for="relation in cardWorks"
-        :key="relation.workId"
+        v-for="relation in cardIssues"
+        :key="relation.issueId"
         type="button"
         class="relation-item"
-        @click="openWork(relation.workId)"
+        @click="openIssue(relation.issueId)"
       >
-        <span class="relation-title">{{ relation.workTitle }}</span>
+        <span class="relation-title">{{ relation.issueTitle }}</span>
         <span class="relation-metadata">
           <el-tag
             :type="relationStatusMeta[relation.status].type"
@@ -90,8 +90,8 @@ const openWork = (workId: number) => {
           >
             {{ relationStatusMeta[relation.status].label }}
           </el-tag>
-          <span v-if="relation.workStatus === 'ARCHIVED'" class="archived-label">
-            {{ workStatusMeta[relation.workStatus] }}
+          <span v-if="relation.issueStatus === 'ARCHIVED'" class="archived-label">
+            {{ issueStatusMeta[relation.issueStatus] }}
           </span>
         </span>
         <span v-if="relation.note" class="relation-note">{{ relation.note }}</span>
@@ -111,19 +111,19 @@ const openWork = (workId: number) => {
   margin-bottom: 16px;
 }
 
-.work-card-header,
+.issue-card-header,
 .header-title,
 .relation-metadata {
   display: flex;
   align-items: center;
 }
 
-.work-card-header {
+.issue-card-header {
   justify-content: space-between;
   gap: 12px;
 }
 
-.work-card-header {
+.issue-card-header {
   margin-bottom: 10px;
 }
 

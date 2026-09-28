@@ -1,10 +1,10 @@
 import type { CardGrowthStatus, CardType } from './card'
 
-export type WorkStatus = 'IDEA' | 'DRAFT' | 'ACTIVE' | 'DONE' | 'ARCHIVED'
+export type IssueStatus = 'IDEA' | 'DRAFT' | 'ACTIVE' | 'DONE' | 'ARCHIVED'
 
-export type WorkCardStatus = 'CANDIDATE' | 'USED'
+export type IssueCardStatus = 'CANDIDATE' | 'USED'
 
-export interface WorkContentRequest {
+export interface IssueContentRequest {
   title: string
   objective?: string | null
   description?: string | null
@@ -13,26 +13,26 @@ export interface WorkContentRequest {
   externalUrl?: string | null
 }
 
-export type CreateWorkRequest = WorkContentRequest
+export type CreateIssueRequest = IssueContentRequest
 
-export interface UpdateWorkRequest extends WorkContentRequest {
-  status: WorkStatus
+export interface UpdateIssueRequest extends IssueContentRequest {
+  status: IssueStatus
 }
 
-export interface AddWorkCardRequest {
+export interface AddIssueCardRequest {
   cardId: number
   note?: string | null
 }
 
-export interface UpdateWorkCardStatusRequest {
-  status: WorkCardStatus
+export interface UpdateIssueCardStatusRequest {
+  status: IssueCardStatus
 }
 
-export interface UpdateWorkCardNoteRequest {
+export interface UpdateIssueCardNoteRequest {
   note?: string | null
 }
 
-export interface WorkSummary {
+export interface IssueSummary {
   id: number
   title: string
   objective: string | null
@@ -40,7 +40,7 @@ export interface WorkSummary {
   currentAssessment: string | null
   outcomeCriteria: string | null
   externalUrl: string | null
-  status: WorkStatus
+  status: IssueStatus
   completedAt: string | null
   updatedAt: string
   latestProgressAt: string | null
@@ -51,16 +51,16 @@ export interface WorkSummary {
   usedCount: number
 }
 
-export interface WorkProgressUpdateRequest {
+export interface IssueUpdateRequest {
   changeSummary?: string | null
   assessment?: string | null
   nextStep?: string | null
 }
 
-export interface WorkProgressUpdate {
+export interface IssueUpdate {
   id: number
-  workId: number
-  workTitle: string
+  issueId: number
+  issueTitle: string
   changeSummary: string | null
   assessment: string | null
   nextStep: string | null
@@ -68,54 +68,54 @@ export interface WorkProgressUpdate {
   updatedAt: string
 }
 
-export interface WorkProgressUpdatePage {
-  items: WorkProgressUpdate[]
+export interface IssueUpdatePage {
+  items: IssueUpdate[]
   page: number
   size: number
   hasNext: boolean
 }
 
-export interface WorkDetail {
+export interface IssueDetail {
   id: number
   title: string
   objective: string | null
   description: string | null
   currentAssessment: string | null
   outcomeCriteria: string | null
-  status: WorkStatus
+  status: IssueStatus
   externalUrl: string | null
   completedAt: string | null
   createdAt: string
   updatedAt: string
 }
 
-export interface WorkCard {
+export interface IssueCard {
   id: number
-  workId: number
+  issueId: number
   cardId: number
   cardTitle: string
   cardType: CardType
   cardGrowthStatus: CardGrowthStatus
   tags: string[]
-  status: WorkCardStatus
+  status: IssueCardStatus
   note: string | null
   linkedAt: string
   usedAt: string | null
 }
 
-export interface WorkCardPage {
-  items: WorkCard[]
+export interface IssueCardPage {
+  items: IssueCard[]
   page: number
   size: number
   totalElements: number
   totalPages: number
 }
 
-export interface CardWork {
-  workId: number
-  workTitle: string
-  workStatus: WorkStatus
-  status: WorkCardStatus
+export interface CardIssue {
+  issueId: number
+  issueTitle: string
+  issueStatus: IssueStatus
+  status: IssueCardStatus
   note: string | null
   linkedAt: string
   usedAt: string | null

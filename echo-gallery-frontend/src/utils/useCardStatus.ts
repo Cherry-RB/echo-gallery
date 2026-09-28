@@ -230,7 +230,7 @@ export const useCardStatus = () => {
             updateLocalCache(variables.id, updatedCard);
             queryClient.invalidateQueries({ queryKey: ['cards'] });
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
-            queryClient.invalidateQueries({ queryKey: ['workCards'] });
+            queryClient.invalidateQueries({ queryKey: ['issueCards'] });
             ElMessage.success('卡片回流已暫停');
         },
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
@@ -244,7 +244,7 @@ export const useCardStatus = () => {
             updateLocalCache(variables.id, updatedCard);
             queryClient.invalidateQueries({ queryKey: ['cards'] });
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
-            queryClient.invalidateQueries({ queryKey: ['workCards'] });
+            queryClient.invalidateQueries({ queryKey: ['issueCards'] });
             ElMessage.success(`已恢復每 ${updatedCard.intervalDays} 天回流`);
         },
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
@@ -271,7 +271,7 @@ export const useCardStatus = () => {
             }
             queryClient.invalidateQueries({ queryKey: ['cards'] });
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
-            queryClient.invalidateQueries({ queryKey: ['workCards'] });
+            queryClient.invalidateQueries({ queryKey: ['issueCards'] });
             ElMessage.success(variables.deferCurrentOccurrence
                 ? `已稍後再看，將於 ${updatedCard.intervalDays} 天後回流`
                 : `已調整為每 ${updatedCard.intervalDays} 天回流`);
