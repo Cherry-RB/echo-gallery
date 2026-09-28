@@ -8,7 +8,7 @@ describe('CardTextMode', () => {
   it('全部卡片顯示來源、內容預覽與可調整的回流週期', () => {
     const card: CardDto = {
       id: '1', type: 'note', title: '測試卡片', tags: [], showContentPreview: false,
-      reason: '這是留下卡片的原因',
+      cardNote: '這是留下卡片的原因',
       intervalDays: 10, nextShowAt: '2099-12-31T00:00:00Z', openCount: 0,
       likeCount: 0, snoozeCount: 0, isArchived: false, createdAt: '', updatedAt: '',
     }

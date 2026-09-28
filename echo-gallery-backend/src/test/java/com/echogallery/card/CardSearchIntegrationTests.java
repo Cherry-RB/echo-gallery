@@ -297,7 +297,7 @@ class CardSearchIntegrationTests extends IntegrationTestBase {
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new CardRequest(
-                        "note", title, null, null, null, null, null, tags, 10))))
+                        "note", title, null, null, null, null, tags, 10))))
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
@@ -322,6 +322,6 @@ class CardSearchIntegrationTests extends IntegrationTestBase {
 
     private record RegistrationRequest(String username, String email, String password) {}
     private record CardRequest(
-            String type, String title, String coverImageUrl, String url, String summary,
-            String content, String reason, List<String> tags, Integer intervalDays) {}
+            String type, String title, String coverImageUrl, String url, String cardNote,
+            String content, List<String> tags, Integer intervalDays) {}
 }

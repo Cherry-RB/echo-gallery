@@ -13,8 +13,7 @@ public class CardDetailResponse {
     private String title;
     private List<String> tags;
     private String coverImageUrl;
-    private String reason;
-    private String summary;
+    private String cardNote;
     private String content;
     private String url;
     private Integer intervalDays;

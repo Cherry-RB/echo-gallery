@@ -7,8 +7,7 @@ const card: ExperimentCardDto = {
   cardId: 7,
   cardType: 'note',
   cardTitle: '畫畫的練習方式',
-  cardReason: '希望找到容易開始的方法',
-  cardSummary: '每天先畫十分鐘',
+  cardNote: '希望找到容易開始的方法\n\n每天先畫十分鐘',
   cardTags: ['創作'],
   cardArchived: false,
   intervalDays: 10,
@@ -34,8 +33,8 @@ describe('ExperimentCardItem', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('每天先畫十分鐘')
     expect(wrapper.text()).toContain('希望找到容易開始的方法')
+    expect(wrapper.text()).toContain('每天先畫十分鐘')
 
     await wrapper.find('.compare-toggle').trigger('click')
     expect(wrapper.emitted('toggleCompare')).toEqual([[card]])

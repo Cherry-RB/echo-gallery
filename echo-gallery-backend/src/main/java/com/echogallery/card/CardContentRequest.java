@@ -27,11 +27,10 @@ public abstract class CardContentRequest {
     @Size(max = 2048, message = "來源網址不可超過 2048 個字元")
     private String url;
 
-    private String summary;
+    private String cardNote;
 
     private String content;
 
-    private String reason;
 
     @Size(max = 10, message = "每張卡片最多只能有 10 個標籤")
     private List<@NotNull(message = "標籤不可為 null") String> tags;

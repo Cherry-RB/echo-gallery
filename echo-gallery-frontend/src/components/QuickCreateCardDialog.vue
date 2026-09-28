@@ -42,7 +42,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   created: [card: CardDto]
 }>()
-type OptionalField = 'reason' | 'summary' | 'coverImageUrl'
+type OptionalField = 'content' | 'coverImageUrl'
 
 const cardFormRef = ref<FormInstance>()
 const createInitialCardData = () => ({
@@ -51,7 +51,10 @@ const createInitialCardData = () => ({
   tags: [...(props.initialData?.tags ?? [])],
 })
 const cardData = ref(createInitialCardData())
-const visibleOptionalFields = ref<OptionalField[]>([])
+const getInitialOptionalFields = (): OptionalField[] => cardData.value.content?.trim()
+  ? ['content']
+  : []
+const visibleOptionalFields = ref<OptionalField[]>(getInitialOptionalFields())
 const titleInputRef = ref<{ focus: () => void }>()
 const createdCardId = ref<string | null>(null)
 const addIssueDialogVisible = ref(false)
@@ -79,8 +82,7 @@ const dialogWidth = computed(() => props.layout === 'split'
   : 'min(720px, calc(100vw - 32px))')
 
 const optionalFields: Array<{ key: OptionalField; label: string }> = [
-  { key: 'reason', label: cardTextFieldCopy.reason.label },
-  { key: 'summary', label: cardTextFieldCopy.summary.label },
+  { key: 'content', label: cardTextFieldCopy.content.label },
   { key: 'coverImageUrl', label: '封面圖片' },
 ]
 const quickRecurrenceOptions = [7, 10, 30]
@@ -91,7 +93,7 @@ const showOptionalField = (field: OptionalField) => {
 
 const resetForm = () => {
   cardData.value = createInitialCardData()
-  visibleOptionalFields.value = []
+  visibleOptionalFields.value = getInitialOptionalFields()
   tagPopoverVisible.value = false
   tagSearchQuery.value = ''
   createdCardId.value = null
@@ -142,8 +144,7 @@ const hasUnsavedChanges = computed(() => {
   return cardData.value.type !== defaultCard.type
     || cardData.value.title.trim() !== ''
     || cardData.value.url?.trim() !== ''
-    || cardData.value.reason?.trim() !== ''
-    || cardData.value.summary?.trim() !== ''
+    || cardData.value.cardNote?.trim() !== ''
     || cardData.value.content?.trim() !== ''
     || cardData.value.coverImageUrl?.trim() !== ''
     || cardData.value.intervalDays !== defaultCard.intervalDays
@@ -215,7 +216,7 @@ const submit = async () => {
   }
 }
 
-const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number) => {
+const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
   const value = cardData.value[field] ?? ''
   cardData.value[field] = trimToTextLength(value, maximum)
 }
@@ -320,9 +321,9 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
           <el-input v-model="cardData.url" placeholder="https://..." clearable />
         </el-form-item>
 
-        <el-form-item :label="cardTextFieldCopy.content.label" prop="content">
-          <el-input v-model="cardData.content" type="textarea" :rows="4" :placeholder="cardTextFieldCopy.content.placeholder" />
-          <div class="word-count-hint">總字數：{{ cardData.content?.length || 0 }} 字</div>
+        <el-form-item :label="cardTextFieldCopy.cardNote.label" prop="cardNote">
+          <el-input v-model="cardData.cardNote" type="textarea" :rows="4" :placeholder="cardTextFieldCopy.cardNote.placeholder" @update:model-value="limitTextLength('cardNote', 1000)" />
+          <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.cardNote) >= 900 }">字數：{{ getTextLength(cardData.cardNote) }} / 1000</div>
         </el-form-item>
 
         <el-form-item label="標籤" prop="tags" class="tags-field">
@@ -368,16 +369,13 @@ const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number)
           >{{ field.label }}</el-button>
         </div>
 
-        <el-form-item v-if="visibleOptionalFields.includes('reason')" :label="cardTextFieldCopy.reason.label" prop="reason">
-          <el-input v-model="cardData.reason" type="textarea" :rows="2" :placeholder="cardTextFieldCopy.reason.placeholder" @update:model-value="limitTextLength('reason', 300)" />
-          <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.reason) >= 270 }">字數：{{ getTextLength(cardData.reason) }} / 300</div>
-        </el-form-item>
-        <el-form-item v-if="visibleOptionalFields.includes('summary')" :label="cardTextFieldCopy.summary.label" prop="summary">
-          <el-input v-model="cardData.summary" type="textarea" :rows="3" :placeholder="cardTextFieldCopy.summary.placeholder" @update:model-value="limitTextLength('summary', 600)" />
-          <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.summary) >= 540 }">字數：{{ getTextLength(cardData.summary) }} / 600</div>
-        </el-form-item>
         <el-form-item v-if="visibleOptionalFields.includes('coverImageUrl')" label="封面圖片來源連結" prop="coverImageUrl">
           <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
+        </el-form-item>
+
+        <el-form-item v-if="visibleOptionalFields.includes('content')" :label="cardTextFieldCopy.content.label" prop="content">
+          <el-input v-model="cardData.content" type="textarea" :rows="4" :placeholder="cardTextFieldCopy.content.placeholder" />
+          <div class="word-count-hint">總字數：{{ cardData.content?.length || 0 }} 字</div>
         </el-form-item>
           </div>
           <aside v-if="$slots.context" class="quick-create-context">

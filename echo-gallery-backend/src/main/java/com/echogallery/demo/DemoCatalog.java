@@ -22,5 +22,5 @@ public class DemoCatalog {
         return result;
     }
     public record Library(String issueTitle, List<Entry> cards) {}
-    public record Entry(String type, String title, String url, String summary, String reason, List<String> tags, Integer intervalDays, Integer dayOffset, String content, Integer snoozeCount, Boolean archived, String issueStatus) {}
+    public record Entry(String type, String title, String url, String cardNote, List<String> tags, Integer intervalDays, Integer dayOffset, String content, Integer snoozeCount, Boolean archived, String issueStatus) {}
 }

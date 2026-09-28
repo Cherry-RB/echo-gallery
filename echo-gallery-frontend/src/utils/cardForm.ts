@@ -22,9 +22,8 @@ export const toCardContentRequest = (card: CardDto): CardContentRequest => ({
   type: card.type,
   title: card.title.trim(),
   url: card.url?.trim() || undefined,
-  summary: card.summary?.trim() || undefined,
+  cardNote: card.cardNote?.trim() || undefined,
   content: card.content?.trim() || undefined,
-  reason: card.reason?.trim() || undefined,
   coverImageUrl: card.coverImageUrl?.trim() || undefined,
   tags: card.tags.map(tag => tag.trim()),
   intervalDays: card.intervalDays,
@@ -59,8 +58,7 @@ export const createCardFormRules = (cardData: Ref<CardDto>): FormRules<CardDto> 
       trigger: 'blur',
     },
   ],
-  summary: [{ validator: validateTextLength(600, '內容重點不可超過 600 字'), trigger: 'blur' }],
-  reason: [{ validator: validateTextLength(300, '留下原因不可超過 300 字'), trigger: 'blur' }],
+  cardNote: [{ validator: validateTextLength(1000, '卡片筆記不可超過 1000 字'), trigger: 'blur' }],
   tags: [
     {
       validator: (_rule, value: string[], callback) => {

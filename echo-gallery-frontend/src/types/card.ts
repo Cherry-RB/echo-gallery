@@ -56,9 +56,8 @@ export interface CardContentRequest {
     type: CardType;
     title: string;
     url?: string;
-    summary?: string;
+    cardNote?: string;
     content?: string;
-    reason?: string;
     coverImageUrl?: string;
     tags: string[];
     intervalDays: number | null;
@@ -83,11 +82,10 @@ export interface CardDto {
     sourceType?: SourceType;
 
     // 卡片摘要，用於瀑布流
-    summary?: string;
+    cardNote?: string;
     // 詳細內容，用於詳情頁
     content?: string;
     // 使用者為什麼收藏這張卡
-    reason?: string;
     
     // 瀑布流顯示開關
     showContentPreview: boolean;

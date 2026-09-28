@@ -449,7 +449,7 @@ public class ExperimentService {
     private ExperimentCardResponse toExperimentCardResponse(ExperimentCard relation) {
         Card card = relation.getCard();
         return new ExperimentCardResponse(
-                card.getId(), card.getType(), card.getTitle(), card.getReason(), card.getSummary(),
+                card.getId(), card.getType(), card.getTitle(), card.getCardNote(),
                 card.getTags().stream().map(tag -> tag.getName()).sorted().toList(),
                 card.isArchived(), card.getIntervalDays(), card.getNextShowAt(), card.isNeedsProcessing(),
                 relation.getStage(), relation.getNote(), relation.getAddedAt());

@@ -22,8 +22,7 @@ export interface ExperimentCardDto {
   cardId: number
   cardType: CardType
   cardTitle: string
-  cardReason: string | null
-  cardSummary: string | null
+  cardNote: string | null
   cardTags: string[]
   cardArchived: boolean
   intervalDays: number | null

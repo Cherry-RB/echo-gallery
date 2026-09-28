@@ -122,6 +122,30 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void createAcceptsCardNoteAtUnicodeCharacterLimit() throws Exception {
+        Map<String, Object> request = validRequest();
+        request.put("cardNote", "🙂".repeat(1000));
+
+        performCreate(request).andExpect(status().isOk());
+    }
+
+    @Test
+    void createRejectsCardNoteBeyondUnicodeCharacterLimit() throws Exception {
+        Map<String, Object> request = validRequest();
+        request.put("cardNote", "🙂".repeat(1001));
+
+        performCreate(request).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createAcceptsLongContentWithoutLengthLimit() throws Exception {
+        Map<String, Object> request = validRequest();
+        request.put("content", "內容".repeat(5000));
+
+        performCreate(request).andExpect(status().isOk());
+    }
+
+    @Test
     void createRejectsLinkWithoutUrl() throws Exception {
         Map<String, Object> request = validRequest();
         request.put("type", "link");
@@ -272,9 +296,8 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
         request.put("title", "有效標題");
         request.put("coverImageUrl", "https://example.com/cover.jpg");
         request.put("url", "https://example.com/source");
-        request.put("summary", "簡介");
+        request.put("cardNote", "推薦原因\n\n簡介");
         request.put("content", "內容");
-        request.put("reason", "推薦原因");
         request.put("tags", List.of("Java"));
         request.put("intervalDays", 10);
         return request;

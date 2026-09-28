@@ -35,8 +35,7 @@ public class CardContentValidator implements ConstraintValidator<ValidCardConten
         }
 
         valid = hasTextLengthAtMost(request.getTitle(), 255, "卡片標題不可超過 255 字", "title", context) && valid;
-        valid = hasTextLengthAtMost(request.getSummary(), 600, "內容重點不可超過 600 字", "summary", context) && valid;
-        valid = hasTextLengthAtMost(request.getReason(), 300, "留下原因不可超過 300 字", "reason", context) && valid;
+        valid = hasTextLengthAtMost(request.getCardNote(), 1000, "卡片筆記不可超過 1000 字", "cardNote", context) && valid;
 
         if (!hasValidTags(request.getTags(), context)) {
             valid = false;

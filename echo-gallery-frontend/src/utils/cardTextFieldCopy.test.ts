@@ -3,9 +3,8 @@ import { cardTextFieldCopy } from './cardTextFieldCopy'
 
 describe('cardTextFieldCopy', () => {
   it('使用統一的 Card 文字欄位語意', () => {
-    expect(cardTextFieldCopy.reason.label).toBe('為什麼留下它／我思我長')
-    expect(cardTextFieldCopy.summary.label).toBe('我見我聞／內容重點')
-    expect(cardTextFieldCopy.content.label).toBe('延伸筆記／完整內容')
+    expect(cardTextFieldCopy.cardNote.label).toBe('卡片筆記')
+    expect(cardTextFieldCopy.content.label).toBe('更多內容')
   })
 
   it('不再暗示 Card 是行動或覆盤容器', () => {

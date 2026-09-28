@@ -12,8 +12,7 @@ const form = ref({
   url: '',
   coverImageUrl: '',
   tags: [] as string[],
-  reason: '',
-  summary: '',
+  cardNote: '',
   content: '',
   intervalDays: 1 // 預設 1 天回流一次
 })

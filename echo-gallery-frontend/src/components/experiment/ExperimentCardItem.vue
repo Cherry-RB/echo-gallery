@@ -32,8 +32,7 @@ const handleCommand = (card: ExperimentCardDto, command: string) => {
         {{ card.cardTitle }}
       </button>
 
-      <p v-if="card.cardSummary" class="experiment-card-excerpt"><span>內容重點</span>{{ card.cardSummary }}</p>
-      <p v-if="card.cardReason" class="experiment-card-excerpt"><span>留下原因</span>{{ card.cardReason }}</p>
+      <p v-if="card.cardNote" class="experiment-card-excerpt"><span>卡片筆記</span>{{ card.cardNote }}</p>
 
       <div class="experiment-card-metadata">
         <span class="card-id">#{{ card.cardId }}</span>

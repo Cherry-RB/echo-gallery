@@ -51,7 +51,7 @@ const isCreateMode = computed(() => props.id === 'new' || !props.id)
 // 💡 2. 如果是創建模式，預設就必須是編輯狀態
 const isEditMode = ref(isCreateMode.value)
 const isClosingAfterSave = ref(false)
-type EditSection = 'all' | 'basic' | 'reason' | 'summary' | 'content' | 'source'
+type EditSection = 'all' | 'basic' | 'cardNote' | 'content' | 'source'
 const editSection = ref<EditSection>('all')
 
 // 模擬資料取得
@@ -139,8 +139,7 @@ let backupData = '' // 用於存放編輯前的資料快照
 const editDialogTitle = computed(() => ({
   all: '編輯卡片',
   basic: '編輯標題與標籤',
-  reason: `編輯${cardTextFieldCopy.reason.label}`,
-  summary: `編輯${cardTextFieldCopy.summary.label}`,
+  cardNote: `編輯${cardTextFieldCopy.cardNote.label}`,
   content: `編輯${cardTextFieldCopy.content.label}`,
   source: '編輯來源資訊',
 })[editSection.value]);
@@ -250,7 +249,7 @@ const handleEditDialogVisibilityChange = (visible: boolean) => {
   requestCancelEdit();
 };
 
-const limitTextLength = (field: 'title' | 'reason' | 'summary', maximum: number) => {
+const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
   const value = cardData.value[field] ?? '';
   cardData.value[field] = trimToTextLength(value, maximum);
 };
@@ -481,32 +480,18 @@ const {
                 alt="卡片封面"
               />
 
-              <section class="reading-section prominent-section" :aria-labelledby="`reason-${cardData.id}`">
+              <section class="reading-section prominent-section" :aria-labelledby="`card-note-${cardData.id}`">
                 <header class="section-heading">
                   <div>
-                    <h2 :id="`reason-${cardData.id}`">{{ cardTextFieldCopy.reason.label }}</h2>
-                    <p>重新看見這張卡片時，先回到當初留下它的原因。</p>
+                    <h2 :id="`card-note-${cardData.id}`">{{ cardTextFieldCopy.cardNote.label }}</h2>
+                    <p>留下此內容的重要原因、重點與再次遇見時的想法。</p>
                   </div>
-                  <button type="button" class="inline-edit-button" @click="openEditDialog('reason')">編輯</button>
+                  <button type="button" class="inline-edit-button" @click="openEditDialog('cardNote')">編輯</button>
                 </header>
-                <p v-if="cardData.reason" class="reading-copy prominent-copy">{{ cardData.reason }}</p>
+                <p v-if="cardData.cardNote" class="reading-copy prominent-copy">{{ cardData.cardNote }}</p>
                 <div v-else class="quiet-empty-state">
-                  <p>還沒有留下收藏理由。</p>
-                  <button type="button" class="inline-edit-button" @click="openEditDialog('reason')">補上理由</button>
-                </div>
-              </section>
-
-              <section class="reading-section" :aria-labelledby="`summary-${cardData.id}`">
-                <header class="section-heading">
-                  <div>
-                    <h2 :id="`summary-${cardData.id}`">{{ cardTextFieldCopy.summary.label }}</h2>
-                    <p>用較短的篇幅保留這張卡片最值得記住的部分。</p>
-                  </div>
-                  <button type="button" class="inline-edit-button" @click="openEditDialog('summary')">編輯</button>
-                </header>
-                <p v-if="cardData.summary" class="reading-copy">{{ cardData.summary }}</p>
-                <div v-else class="quiet-empty-state">
-                  <p>還沒有摘要；需要快速回顧時再補充即可。</p>
+                  <p>還沒有卡片筆記。</p>
+                  <button type="button" class="inline-edit-button" @click="openEditDialog('cardNote')">補上筆記</button>
                 </div>
               </section>
 
@@ -746,21 +731,12 @@ const {
           </template>
 
           <el-form-item
-            v-if="editSection === 'all' || editSection === 'reason'"
-            :label="cardTextFieldCopy.reason.label"
-            prop="reason"
+            v-if="editSection === 'all' || editSection === 'cardNote'"
+            :label="cardTextFieldCopy.cardNote.label"
+            prop="cardNote"
           >
-            <el-input v-model="cardData.reason" type="textarea" :rows="3" :placeholder="cardTextFieldCopy.reason.placeholder" @update:model-value="limitTextLength('reason', 300)" />
-            <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.reason) >= 270 }">字數：{{ getTextLength(cardData.reason) }} / 300</div>
-          </el-form-item>
-
-          <el-form-item
-            v-if="editSection === 'all' || editSection === 'summary'"
-            :label="cardTextFieldCopy.summary.label"
-            prop="summary"
-          >
-            <el-input v-model="cardData.summary" type="textarea" :rows="5" :placeholder="cardTextFieldCopy.summary.placeholder" @update:model-value="limitTextLength('summary', 600)" />
-            <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.summary) >= 540 }">字數：{{ getTextLength(cardData.summary) }} / 600</div>
+            <el-input v-model="cardData.cardNote" type="textarea" :rows="5" :placeholder="cardTextFieldCopy.cardNote.placeholder" @update:model-value="limitTextLength('cardNote', 1000)" />
+            <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.cardNote) >= 900 }">字數：{{ getTextLength(cardData.cardNote) }} / 1000</div>
           </el-form-item>
 
           <el-form-item
@@ -962,34 +938,19 @@ const {
           </div>
 
           <div class="content-section">
-            <div class="info-paragraph" v-if="cardData.reason || isEditMode">
-              <h3 class="paragraph-title reason"><span class="title-marker reason"></span>{{ cardTextFieldCopy.reason.label }}</h3>
-              <p v-if="!isEditMode" class="paragraph-text">{{ cardData.reason }}</p>
-              <el-form-item v-else prop="reason">
+            <div class="info-paragraph" v-if="cardData.cardNote || isEditMode">
+              <h3 class="paragraph-title card-note"><span class="title-marker card-note"></span>{{ cardTextFieldCopy.cardNote.label }}</h3>
+              <p v-if="!isEditMode" class="paragraph-text">{{ cardData.cardNote }}</p>
+              <el-form-item v-else prop="cardNote">
                 <el-input
-                  v-model="cardData.reason"
-                  type="textarea"
-                  :rows="3"
-                  :placeholder="cardTextFieldCopy.reason.placeholder"
-                />
-                <div class="word-count-hint" :class="{ 'over-limit': (cardData.reason?.length || 0) > 300 }">總字數：
-                  {{ cardData.reason?.length || 0 }} / 300
-                </div>
-              </el-form-item>
-            </div>
-
-            <div class="info-paragraph" v-if="cardData.summary || isEditMode">
-              <h3 class="paragraph-title summary"><span class="title-marker summary"></span>{{ cardTextFieldCopy.summary.label }}</h3>
-              <p v-if="!isEditMode" class="paragraph-text">{{ cardData.summary }}</p>
-              <el-form-item v-else prop="summary">
-                <el-input
-                  v-model="cardData.summary"
+                  v-model="cardData.cardNote"
                   type="textarea"
                   :rows="5"
-                  :placeholder="cardTextFieldCopy.summary.placeholder"
+                  :placeholder="cardTextFieldCopy.cardNote.placeholder"
+                  @update:model-value="limitTextLength('cardNote', 1000)"
                 />
-                <div class="word-count-hint" :class="{ 'over-limit': (cardData.summary?.length || 0) > 600 }">總字數：
-                  {{ cardData.summary?.length || 0 }} / 600
+                <div class="word-count-hint" :class="{ 'near-limit': getTextLength(cardData.cardNote) >= 900 }">字數：
+                  {{ getTextLength(cardData.cardNote) }} / 1000
                 </div>
               </el-form-item>
             </div>
@@ -1222,7 +1183,7 @@ const {
 .info-paragraph + .info-paragraph { margin-top: 26px; padding-top: 26px; border-top: 1px solid var(--el-border-color-lighter); }
 .paragraph-title { font-size: var(--type-section-title); font-weight: 600; color: var(--el-text-color-primary); margin: 0; line-height: var(--leading-section); }
 .title-marker { display: none; }
-.paragraph-title.reason, .paragraph-title.summary, .paragraph-title.content { color: var(--el-text-color-primary); }
+.paragraph-title.card-note, .paragraph-title.content { color: var(--el-text-color-primary); }
 .paragraph-text { font-size: var(--type-body); color: var(--el-text-color-regular); line-height: var(--leading-body); margin: 0; padding: 0; background: transparent; white-space: pre-wrap; overflow-wrap: anywhere; }
 .paragraph-text.main-content { color: var(--el-text-color-primary); }
 .icon-align { vertical-align: middle; margin-right: 4px; color: var(--el-text-color-secondary); }

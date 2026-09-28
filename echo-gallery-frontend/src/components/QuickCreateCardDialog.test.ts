@@ -45,6 +45,7 @@ describe('QuickCreateCardDialog', () => {
         },
         'el-input': true,
         'el-input-number': true,
+        'el-checkbox': true,
         'el-radio-group': { template: '<div><slot /></div>' },
         'el-radio-button': { template: '<button><slot /></button>' },
         'el-button': { template: '<button type="button" @click="$emit(\'click\')"><slot /></button>' },
@@ -55,11 +56,13 @@ describe('QuickCreateCardDialog', () => {
     },
   })
 
-  it('預設直接提供標題、完整內容、標籤、類型與回流設定', () => {
+  it('預設提供卡片筆記，並將更多內容列為按需補充', () => {
     const wrapper = mountDialog()
 
     expect(wrapper.text()).toContain('標題')
-    expect(wrapper.text()).toContain('延伸筆記／完整內容')
+    expect(wrapper.text()).toContain('卡片筆記')
+    expect(wrapper.text()).toContain('更多內容')
+    expect(wrapper.text()).toContain('按需補充')
     expect(wrapper.text()).toContain('標籤')
     expect(wrapper.text()).toContain('卡片類型')
     expect(wrapper.text()).toContain('回流天數')

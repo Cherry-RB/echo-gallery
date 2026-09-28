@@ -45,14 +45,12 @@ public class Card {
     @Column(name = "source_type", length = 20)
     private String sourceType;
 
-    @Column(name = "summary", length = 600)
-    private String summary;
+    @Column(name = "card_note", length = 1000)
+    private String cardNote;
 
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "reason", length = 300)
-    private String reason;
 
     @Column(name = "interval_days")
     private Integer intervalDays;

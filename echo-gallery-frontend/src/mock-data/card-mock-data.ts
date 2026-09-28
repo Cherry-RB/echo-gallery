@@ -22,9 +22,8 @@ export const generateCards = (pageNumber: number, pageSize: number) : CardDto[] 
             url: "http://localhost:5173/111111111111111111",
             sourceType: "other",
 
-            summary: "(summary)" + randomText(Math.random()*100),
+            cardNote: "(cardNote)" + randomText(Math.random()*100),
             content: "(content)" + randomText(Math.random()*100),
-            reason: "(reason)" + randomText(Math.random()*100),
 
             showContentPreview: true,
 

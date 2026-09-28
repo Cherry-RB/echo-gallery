@@ -880,10 +880,9 @@ const handleGrownCard = async (_card: CardDto) => {
       <div class="comparison-grid">
         <article v-for="card in comparingCards" :key="card.cardId" class="comparison-card">
           <button type="button" class="comparison-card-title" @click="router.push(`/card/${card.cardId}`)">{{ card.cardTitle }}</button>
-          <p v-if="card.cardSummary"><span>內容重點</span>{{ card.cardSummary }}</p>
-          <p v-if="card.cardReason"><span>留下原因</span>{{ card.cardReason }}</p>
+          <p v-if="card.cardNote"><span>卡片筆記</span>{{ card.cardNote }}</p>
           <p v-if="card.note"><span>在此主題的備註</span>{{ card.note }}</p>
-          <p v-if="!card.cardSummary && !card.cardReason && !card.note" class="comparison-empty">這張卡尚無摘要或備註；可點標題閱讀全文。</p>
+          <p v-if="!card.cardNote && !card.note" class="comparison-empty">這張卡尚無筆記或實驗場備註；可點標題閱讀更多內容。</p>
         </article>
         <div v-if="comparingCards.length === 1" class="comparison-placeholder">可以再從材料列表選一張卡，看看它們有什麼相同或不同。</div>
       </div>

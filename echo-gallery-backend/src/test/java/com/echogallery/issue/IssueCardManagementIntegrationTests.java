@@ -602,7 +602,6 @@ class IssueCardManagementIntegrationTests extends IntegrationTestBase {
                         null,
                         null,
                         null,
-                        null,
                         tags,
                         10))))
                 .andExpect(status().isOk())
@@ -716,9 +715,8 @@ class IssueCardManagementIntegrationTests extends IntegrationTestBase {
             String title,
             String coverImageUrl,
             String url,
-            String summary,
+            String cardNote,
             String content,
-            String reason,
             List<String> tags,
             Integer intervalDays
     ) {}

@@ -83,11 +83,8 @@ const getUrlDomain = (url:string)=>{
 
 const getCardShowInfo = computed(()=>{
   const cardData = props.data;
-  if(cardData.reason){
-    return cardData.reason;
-  }
-  if(cardData.summary){
-    return cardData.summary;
+  if(cardData.cardNote){
+    return cardData.cardNote;
   }
   // if( cardData.isShowContentPreview && cardData.content){
   //   return cardData.content;

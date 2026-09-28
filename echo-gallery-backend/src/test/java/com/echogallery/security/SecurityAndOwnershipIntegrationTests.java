@@ -316,8 +316,7 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
         return objectMapper.writeValueAsString(new CardPayload(
                 "note",
                 title,
-                "測試原因",
-                "測試摘要",
+                "測試原因\n\n測試摘要",
                 "測試內容",
                 tags,
                 10,
@@ -334,8 +333,7 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
     private record CardPayload(
             String type,
             String title,
-            String reason,
-            String summary,
+            String cardNote,
             String content,
             String[] tags,
             Integer intervalDays,

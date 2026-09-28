@@ -235,8 +235,7 @@ public class CardService {
         card.setTitle(request.getTitle());
         card.setUrl(request.getUrl());
         card.setCoverImageUrl(request.getCoverImageUrl());
-        card.setReason(request.getReason());
-        card.setSummary(request.getSummary());
+        card.setCardNote(request.getCardNote());
         card.setContent(request.getContent());
         if (request.getNeedsProcessing() != null) {
             card.setNeedsProcessing(request.getNeedsProcessing());
@@ -298,9 +297,8 @@ public class CardService {
                 .coverImageUrl(request.getCoverImageUrl())
                 .url(request.getUrl())
                 // .sourceType(request.getSourceType())
-                .summary(request.getSummary())
+                .cardNote(request.getCardNote())
                 .content(request.getContent())
-                .reason(request.getReason())
                 .tags(associatedTags) // 關聯安全的標籤庫
                 .intervalDays(request.getIntervalDays())
                 .nextShowAt(request.getIntervalDays() == null
@@ -378,8 +376,7 @@ public class CardService {
         response.setId(card.getId());
         response.setType(card.getType());
         response.setTitle(card.getTitle());
-        response.setReason(card.getReason());
-        response.setSummary(card.getSummary());
+        response.setCardNote(card.getCardNote());
         response.setTags(convertTags(card.getTags()));
         response.setLikeAvailableAt(card.getLikeAvailableAt());
         response.setLikeCount(card.getLikeCount());
@@ -400,8 +397,7 @@ public class CardService {
         response.setTitle(card.getTitle());
         response.setTags(convertTags(card.getTags()));
         response.setCoverImageUrl(card.getCoverImageUrl());
-        response.setReason(card.getReason());
-        response.setSummary(card.getSummary());
+        response.setCardNote(card.getCardNote());
         response.setContent(card.getContent());
         response.setUrl(card.getUrl());
         response.setIntervalDays(card.getIntervalDays());

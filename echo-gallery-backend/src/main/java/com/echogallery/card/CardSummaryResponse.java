@@ -11,8 +11,7 @@ public class CardSummaryResponse {
     private Long id;
     private String type;
     private String title;
-    private String reason;
-    private String summary;
+    private String cardNote;
     private List<String> tags;
     private ZonedDateTime likeAvailableAt;
     private Integer likeCount;

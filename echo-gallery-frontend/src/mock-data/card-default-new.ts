@@ -9,9 +9,8 @@ export const getDefaultCardData = (): CardDto => {
         url: "",
         sourceType: "other",
 
-        summary: "",
+        cardNote: "",
         content: "",
-        reason: "",
 
         showContentPreview: true,
 

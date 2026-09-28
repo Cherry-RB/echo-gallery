@@ -100,7 +100,7 @@ public class DemoSessionService {
             boolean archived = Boolean.TRUE.equals(entry.archived());
             Card card = Card.builder()
                     .user(user).type(entry.type()).title(entry.title())
-                    .summary(entry.summary()).reason(entry.reason()).content(entry.content())
+                    .cardNote(entry.cardNote()).content(entry.content())
                     .url(entry.url())
                     .intervalDays(entry.intervalDays())
                     .nextShowAt(entry.dayOffset() == null ? null : now.toLocalDate().plusDays(entry.dayOffset()).atStartOfDay(clock.getZone()))
