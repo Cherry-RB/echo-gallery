@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.echogallery.card.CardRepository;
-import com.echogallery.card.CardGrowthStatus;
 import com.echogallery.card.CardStatsProjection;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.tag.TagDto;
@@ -32,12 +31,7 @@ public class SidebarService {
         // 安全地從安全上下文取得目前登入的 userId，落實多租戶資料隔離
         Long userId = SecurityUtil.getCurrentUserId();
 
-        CardStatsProjection cardStats = cardRepository.findActiveStats(
-                userId,
-                10,
-                CardGrowthStatus.SEED,
-                CardGrowthStatus.GROWING,
-                CardGrowthStatus.MATURE);
+        CardStatsProjection cardStats = cardRepository.findActiveStats(userId, 10);
         IssueStatsProjection issueStats = issueRepository.findStats(
                 userId,
                 List.of(IssueStatus.IDEA, IssueStatus.DRAFT, IssueStatus.ACTIVE));
@@ -46,10 +40,7 @@ public class SidebarService {
                 cardStats.getTotalCards(),
                 issueStats.getTotalIssues(),
                 issueStats.getUnfinishedIssues(),
-                cardStats.getHighSnoozeCards(),
-                cardStats.getSeedCards(),
-                cardStats.getGrowingCards(),
-                cardStats.getMatureCards());
+                cardStats.getHighSnoozeCards());
     }
 
     @Transactional(readOnly = true)

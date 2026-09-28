@@ -99,26 +99,6 @@ class CardSearchIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
-    void filtersSingleAndMultipleGrowthStatuses() throws Exception {
-        String token = register("growth-owner", "growth-owner@example.com");
-        long unmarkedId = createCard(token, "未標記", List.of());
-        long seedId = createCard(token, "種子", List.of());
-        long matureId = createCard(token, "成熟", List.of());
-        updateGrowthStatus(token, seedId, "SEED");
-        updateGrowthStatus(token, matureId, "MATURE");
-
-        search(token, "growthStatuses", "SEED")
-                .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].id").value(seedId));
-
-        MvcResult result = search(token, "growthStatuses", "UNMARKED,MATURE,UNMARKED", "sortBy", "ID", "direction", "ASC")
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2))
-                .andReturn();
-        assertThat(ids(result)).containsExactly(unmarkedId, matureId);
-    }
-
-    @Test
     void filtersRecurrenceStatusAndInclusiveIntervalRange() throws Exception {
         String token = register("recurrence-search", "recurrence-search@example.com");
         long shortId = createCard(token, "短週期", List.of());
@@ -326,14 +306,6 @@ class CardSearchIntegrationTests extends IntegrationTestBase {
     private long tagId(long cardId, String name) {
         Long userId = cardRepository.findById(cardId).orElseThrow().getUser().getId();
         return tagRepository.findByUserIdAndName(userId, name).orElseThrow().getId();
-    }
-
-    private void updateGrowthStatus(String token, long cardId, String statusValue) throws Exception {
-        mockMvc.perform(put("/api/cards/{id}/growth-status", cardId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"growthStatus\":\"" + statusValue + "\"}"))
-                .andExpect(status().isOk());
     }
 
     private void archiveCard(String token, long cardId) throws Exception {

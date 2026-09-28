@@ -38,7 +38,6 @@ vi.mock('../utils/useCardStatus', () => ({
     handlePauseCard: vi.fn(),
     handleResumeCard: vi.fn(),
     handleUpdateRecurrence: vi.fn(),
-    handleUpdateGrowthStatus: vi.fn(),
     handleCreateCard: vi.fn(),
     handleUpdateCard: vi.fn(),
     handleDeleteCard: vi.fn(),
@@ -50,7 +49,6 @@ vi.mock('../utils/useCardStatus', () => ({
     isCreatePending: ref(false),
     isUpdatePending: ref(false),
     isDeletePending: ref(false),
-    isGrowthStatusPending: ref(false),
   }),
 }))
 
@@ -79,7 +77,6 @@ const card: CardDto = {
   openCount: 3,
   likeCount: 1,
   isArchived: false,
-  growthStatus: 'SEED',
   createdAt: '2026-09-01T00:00:00+08:00',
   updatedAt: '2026-09-18T00:00:00+08:00',
 }

@@ -21,7 +21,6 @@ final class CardSearchSpecifications {
 
     static Specification<Card> from(Long userId, CardSearchRequest request) {
         List<Long> tagIds = request.getTagIds().stream().distinct().toList();
-        List<CardGrowthStatus> growthStatuses = request.getGrowthStatuses().stream().distinct().toList();
         String title = request.getTitle() == null ? null : request.getTitle().trim();
 
         return (root, query, criteriaBuilder) -> {
@@ -60,9 +59,6 @@ final class CardSearchSpecifications {
                         criteriaBuilder.lower(root.get("title")),
                         "%" + escapedTitle + "%",
                         '\\'));
-            }
-            if (!growthStatuses.isEmpty()) {
-                predicates.add(root.get("growthStatus").in(growthStatuses));
             }
             if (request.getNeedsProcessing() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("needsProcessing"), request.getNeedsProcessing()));

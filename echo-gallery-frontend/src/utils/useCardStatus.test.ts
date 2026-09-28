@@ -23,7 +23,7 @@ vi.mock('element-plus', () => ({
 const card = (id: string): CardDto => ({
   id, type: 'note', title: `card-${id}`, tags: [], showContentPreview: false,
   intervalDays: 10, nextShowAt: null, openCount: 0, snoozeCount: 10,
-  likeCount: 0, isArchived: false, growthStatus: 'UNMARKED', createdAt: '', updatedAt: '',
+  likeCount: 0, isArchived: false, createdAt: '', updatedAt: '',
 })
 
 function setup() {

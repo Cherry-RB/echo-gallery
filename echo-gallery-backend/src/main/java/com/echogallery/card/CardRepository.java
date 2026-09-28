@@ -256,20 +256,14 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
     @Query("""
             SELECT
                 COUNT(c) AS totalCards,
-                COALESCE(SUM(CASE WHEN c.snoozeCount > :snoozeThreshold THEN 1 ELSE 0 END), 0) AS highSnoozeCards,
-                COALESCE(SUM(CASE WHEN c.growthStatus = :seedStatus THEN 1 ELSE 0 END), 0) AS seedCards,
-                COALESCE(SUM(CASE WHEN c.growthStatus = :growingStatus THEN 1 ELSE 0 END), 0) AS growingCards,
-                COALESCE(SUM(CASE WHEN c.growthStatus = :matureStatus THEN 1 ELSE 0 END), 0) AS matureCards
+                COALESCE(SUM(CASE WHEN c.snoozeCount > :snoozeThreshold THEN 1 ELSE 0 END), 0) AS highSnoozeCards
             FROM Card c
             WHERE c.user.id = :userId
             AND c.isArchived = false
             """)
     CardStatsProjection findActiveStats(
             @Param("userId") Long userId,
-            @Param("snoozeThreshold") int snoozeThreshold,
-            @Param("seedStatus") CardGrowthStatus seedStatus,
-            @Param("growingStatus") CardGrowthStatus growingStatus,
-            @Param("matureStatus") CardGrowthStatus matureStatus);
+            @Param("snoozeThreshold") int snoozeThreshold);
 
     // 以標籤作為篩選條件 查詢卡片
         // 只有當命中的標籤數量恰好等於傳入的標籤總數，才保留該張卡片。這確保了卡片同時擁有了所有要求的標籤（AND 邏輯）

@@ -11,7 +11,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.echogallery.card.Card;
-import com.echogallery.card.CardGrowthStatus;
 import com.echogallery.card.CardRepository;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.user.User;
@@ -91,10 +90,6 @@ class IssueCardPersistenceTests extends IntegrationTestBase {
                 .get()
                 .extracting(IssueCard::getStatus)
                 .isEqualTo(IssueCardStatus.USED);
-        assertThat(cardRepository.findById(card.getId()))
-                .get()
-                .extracting(Card::getGrowthStatus)
-                .isEqualTo(CardGrowthStatus.UNMARKED);
     }
 
     @Test

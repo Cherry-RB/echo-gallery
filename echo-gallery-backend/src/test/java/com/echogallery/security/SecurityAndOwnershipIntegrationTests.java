@@ -132,17 +132,12 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
         String ownerToken = register("stats-owner", "stats-owner@example.com");
         String otherToken = register("stats-other", "stats-other@example.com");
 
-        long growingCardId = createCard(ownerToken, "Growing card", new String[0]);
-        long matureCardId = createCard(ownerToken, "Mature card", new String[0]);
-        long seedCardId = createCard(ownerToken, "Seed card", new String[0]);
-        long archivedCardId = createCard(ownerToken, "Archived mature card", new String[0]);
-        long otherCardId = createCard(otherToken, "Other user's mature card", new String[0]);
+        createCard(ownerToken, "First active card", new String[0]);
+        createCard(ownerToken, "Second active card", new String[0]);
+        createCard(ownerToken, "Third active card", new String[0]);
+        createCard(ownerToken, "Archived card", new String[0]);
+        createCard(otherToken, "Other user's card", new String[0]);
 
-        updateCard(ownerToken, growingCardId, "Growing card", false, "GROWING");
-        updateCard(ownerToken, matureCardId, "Mature card", false, "MATURE");
-        updateCard(ownerToken, seedCardId, "Seed card", false, "SEED");
-        updateCard(ownerToken, archivedCardId, "Archived mature card", true, "MATURE");
-        updateCard(otherToken, otherCardId, "Other user's mature card", false, "MATURE");
         createIssue(ownerToken, "Unfinished owner issue");
         long completedIssueId = createIssue(ownerToken, "Completed owner issue");
         updateIssue(ownerToken, completedIssueId, "Completed owner issue", "DONE");
@@ -151,14 +146,11 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
         mockMvc.perform(get("/api/sidebar/stats")
                 .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalCards").value(3))
+                .andExpect(jsonPath("$.totalCards").value(4))
                 .andExpect(jsonPath("$.totalIssues").value(2))
                 .andExpect(jsonPath("$.unfinishedIssues").value(1))
                 .andExpect(jsonPath("$.todayEchoCards").doesNotExist())
-                .andExpect(jsonPath("$.highSnoozeCards").value(0))
-                .andExpect(jsonPath("$.seedCards").value(1))
-                .andExpect(jsonPath("$.growingCards").value(1))
-                .andExpect(jsonPath("$.matureCards").value(1));
+                .andExpect(jsonPath("$.highSnoozeCards").value(0));
     }
 
     @Test
@@ -277,27 +269,6 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
     }
 
-    private void updateCard(
-            String token,
-            long cardId,
-            String title,
-            boolean archived,
-            String growthStatus) throws Exception {
-        String body = objectMapper.writeValueAsString(new CardUpdatePayload(
-                "note",
-                title,
-                new String[0],
-                10,
-                archived,
-                growthStatus));
-
-        mockMvc.perform(put("/api/cards/{id}", cardId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
-                .andExpect(status().isOk());
-    }
-
     private long createIssue(String token, String title) throws Exception {
         String body = objectMapper.writeValueAsString(new IssuePayload(title, null, null));
 
@@ -369,15 +340,6 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
             String[] tags,
             Integer intervalDays,
             Boolean isArchived
-    ) {}
-
-    private record CardUpdatePayload(
-            String type,
-            String title,
-            String[] tags,
-            Integer intervalDays,
-            Boolean isArchived,
-            String growthStatus
     ) {}
 
     private record IssuePayload(String title, String description, String externalUrl) {}

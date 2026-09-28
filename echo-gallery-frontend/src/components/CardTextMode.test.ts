@@ -10,7 +10,7 @@ describe('CardTextMode', () => {
       id: '1', type: 'note', title: '測試卡片', tags: [], showContentPreview: false,
       reason: '這是留下卡片的原因',
       intervalDays: 10, nextShowAt: '2099-12-31T00:00:00Z', openCount: 0,
-      likeCount: 0, snoozeCount: 0, isArchived: false, growthStatus: 'UNMARKED', createdAt: '', updatedAt: '',
+      likeCount: 0, snoozeCount: 0, isArchived: false, createdAt: '', updatedAt: '',
     }
     const wrapper = mount(CardTextMode, {
       props: { data: card, boardType: 'all' },
@@ -43,7 +43,7 @@ describe('CardTextMode', () => {
     const card: CardDto = {
       id: '2', type: 'link', title: '今日卡片', url: 'https://example.com/post', tags: [], showContentPreview: false,
       intervalDays: 7, nextShowAt: '2026-09-05T00:00:00Z', openCount: 0,
-      likeCount: 0, snoozeCount: 0, isArchived: false, growthStatus: 'UNMARKED', createdAt: '', updatedAt: '',
+      likeCount: 0, snoozeCount: 0, isArchived: false, createdAt: '', updatedAt: '',
     }
     const wrapper = mount(CardTextMode, {
       props: { data: card, boardType: 'today' },
@@ -72,7 +72,7 @@ describe('CardTextMode', () => {
     const card: CardDto = {
       id: '3', type: 'note', title: '反覆延後的卡片', tags: [], showContentPreview: false,
       intervalDays: 14, nextShowAt: '2026-10-01T00:00:00Z', openCount: 0,
-      likeCount: 0, snoozeCount: 12, isArchived: false, growthStatus: 'UNMARKED', createdAt: '', updatedAt: '',
+      likeCount: 0, snoozeCount: 12, isArchived: false, createdAt: '', updatedAt: '',
     }
     const wrapper = mount(CardTextMode, {
       props: { data: card, boardType: 'snoozed' },

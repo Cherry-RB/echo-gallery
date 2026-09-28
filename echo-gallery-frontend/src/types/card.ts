@@ -1,7 +1,5 @@
 export type CardType = "note" | "link";
 
-export type CardGrowthStatus = "UNMARKED" | "SEED" | "GROWING" | "MATURE";
-
 export type CardSearchTagMode = "AND" | "OR";
 export type CardSearchArchiveStatus = "ACTIVE" | "ARCHIVED" | "ALL";
 export type CardSearchRecurrenceStatus = "ACTIVE" | "PAUSED" | "ALL";
@@ -13,7 +11,6 @@ export interface CardSearchParams {
     title?: string;
     tagIds?: number[];
     tagMode?: CardSearchTagMode;
-    growthStatuses?: CardGrowthStatus[];
     needsProcessing?: boolean;
     archiveStatus?: CardSearchArchiveStatus;
     recurrenceStatus?: CardSearchRecurrenceStatus;
@@ -72,7 +69,6 @@ export type CreateCardRequest = CardContentRequest;
 
 export interface UpdateCardRequest extends CardContentRequest {
     isArchived: boolean;
-    growthStatus?: CardGrowthStatus;
 }
 
 export interface CardDto {
@@ -123,7 +119,6 @@ export interface CardDto {
     // 狀態 (是否封存)
     isArchived: boolean;
 
-    growthStatus: CardGrowthStatus;
     needsProcessing?: boolean;
 
     isShowContentPreview?: boolean| null;

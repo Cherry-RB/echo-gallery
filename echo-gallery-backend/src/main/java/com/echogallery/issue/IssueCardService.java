@@ -155,7 +155,6 @@ public class IssueCardService {
         response.setCardId(relation.getCard().getId());
         response.setCardTitle(relation.getCard().getTitle());
         response.setCardType(relation.getCard().getType());
-        response.setCardGrowthStatus(relation.getCard().getGrowthStatus());
         response.setTags(relation.getCard().getTags().stream()
                 .map(tag -> tag.getName())
                 .sorted()

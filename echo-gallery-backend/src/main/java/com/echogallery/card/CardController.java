@@ -61,13 +61,6 @@ public class CardController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}/growth-status")
-    public ResponseEntity<CardDetailResponse> updateGrowthStatus(
-            @PathVariable("id") Long cardId,
-            @Valid @RequestBody CardGrowthStatusRequest request) {
-        return ResponseEntity.ok(cardService.updateGrowthStatus(cardId, request));
-    }
-
     @PutMapping("/{id}/processing-status")
     public ResponseEntity<CardDetailResponse> updateProcessingStatus(
             @PathVariable("id") Long cardId,

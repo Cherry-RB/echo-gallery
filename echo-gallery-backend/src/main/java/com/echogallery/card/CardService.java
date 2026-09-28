@@ -238,9 +238,6 @@ public class CardService {
         card.setReason(request.getReason());
         card.setSummary(request.getSummary());
         card.setContent(request.getContent());
-        if (request.getGrowthStatus() != null) {
-            card.setGrowthStatus(request.getGrowthStatus());
-        }
         if (request.getNeedsProcessing() != null) {
             card.setNeedsProcessing(request.getNeedsProcessing());
         }
@@ -257,20 +254,6 @@ public class CardService {
         // Card savedCard = cardRepository.save(card);
 
         // 7. 將結果包裝成 Response DTO 回傳
-        return convertToDetailResponse(card);
-    }
-
-    @Transactional
-    public CardDetailResponse updateGrowthStatus(Long cardId, CardGrowthStatusRequest request) {
-        Long currentUserId = SecurityUtil.getCurrentUserId();
-        Card card = cardRepository.findById(cardId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
-
-        if (!card.getUser().getId().equals(currentUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權修改此卡片的成長狀態");
-        }
-
-        card.setGrowthStatus(request.getGrowthStatus());
         return convertToDetailResponse(card);
     }
 
@@ -406,7 +389,6 @@ public class CardService {
         response.setCreatedAt(card.getCreatedAt());
         response.setIsArchived(card.isArchived());
         response.setIntervalDays(card.getIntervalDays());
-        response.setGrowthStatus(card.getGrowthStatus());
         response.setNeedsProcessing(card.isNeedsProcessing());
         return response;
     }
@@ -433,7 +415,6 @@ public class CardService {
         response.setLastOpenAt(card.getLastOpenAt());
         response.setLastOfferedAt(card.getLastOfferedAt());
         response.setLastInteractionAt(card.getLastInteractionAt());
-        response.setGrowthStatus(card.getGrowthStatus());
         response.setNeedsProcessing(card.isNeedsProcessing());
         response.setCreatedAt(card.getCreatedAt());
         response.setUpdatedAt(card.getUpdatedAt());

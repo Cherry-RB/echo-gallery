@@ -1,4 +1,4 @@
-import type { CardGrowthStatus, CardType } from './card'
+import type { CardType } from './card'
 
 export type IssueStatus = 'IDEA' | 'DRAFT' | 'ACTIVE' | 'DONE' | 'ARCHIVED'
 
@@ -95,7 +95,6 @@ export interface IssueCard {
   cardId: number
   cardTitle: string
   cardType: CardType
-  cardGrowthStatus: CardGrowthStatus
   tags: string[]
   status: IssueCardStatus
   note: string | null

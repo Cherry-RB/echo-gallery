@@ -1,5 +1,5 @@
 import type { BoardType } from "../../types/board";
-import type { CardDto, CardGrowthStatus, CardSearchParams, CreateCardRequest, PageResponse, RandomCardPageResponse, TodayBatchResponse, UpdateCardRequest } from "../../types/card";
+import type { CardDto, CardSearchParams, CreateCardRequest, PageResponse, RandomCardPageResponse, TodayBatchResponse, UpdateCardRequest } from "../../types/card";
 import request from "./request"
 
 export const cardApi = {
@@ -22,7 +22,6 @@ export const cardApi = {
         const params = {
             ...data,
             tagIds: data.tagIds?.join(','),
-            growthStatuses: data.growthStatuses?.join(','),
         }
         return request({
             url: "/cards/search",
@@ -58,13 +57,6 @@ export const cardApi = {
             url: `/cards/${id}`,
             method: "PUT",
             data
-        })
-    },
-    updateGrowthStatus(id: string | number, growthStatus: CardGrowthStatus): Promise<CardDto> {
-        return request({
-            url: `/cards/${id}/growth-status`,
-            method: "PUT",
-            data: { growthStatus }
         })
     },
     updateProcessingStatus(id: string | number, needsProcessing: boolean): Promise<CardDto> {

@@ -22,7 +22,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.echogallery.card.Card;
-import com.echogallery.card.CardGrowthStatus;
 import com.echogallery.card.CardRepository;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
@@ -212,10 +211,6 @@ class IssueCardManagementIntegrationTests extends IntegrationTestBase {
         assertThat(candidateResponse.get("status").asText()).isEqualTo("CANDIDATE");
         assertThat(candidateResponse.get("usedAt").isNull()).isTrue();
 
-        assertThat(cardRepository.findById(cardId))
-                .get()
-                .extracting(card -> card.getGrowthStatus())
-                .isEqualTo(CardGrowthStatus.UNMARKED);
     }
 
     @Test
@@ -340,7 +335,6 @@ class IssueCardManagementIntegrationTests extends IntegrationTestBase {
         JsonNode candidate = findRelation(candidateResponse.get("items"), candidateCardId);
         assertThat(candidate.get("cardTitle").asText()).isEqualTo("候選卡片");
         assertThat(candidate.get("cardType").asText()).isEqualTo("note");
-        assertThat(candidate.get("cardGrowthStatus").asText()).isEqualTo("UNMARKED");
         assertThat(candidate.get("status").asText()).isEqualTo("CANDIDATE");
         assertThat(candidate.get("tags").get(0).asText()).isEqualTo("AI");
         assertThat(candidate.get("tags").get(1).asText()).isEqualTo("Java");
@@ -500,7 +494,7 @@ class IssueCardManagementIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
-    void cardBoardsAndInteractionsKeepIssueRelationAndGrowthStatus() throws Exception {
+    void cardBoardsAndInteractionsKeepIssueRelation() throws Exception {
         String token = register("regression-owner", "regression-owner@example.com");
         long issueId = createIssue(token, "回歸驗收作品");
         long cardId = createCard(token, "回歸驗收卡片");
@@ -520,22 +514,19 @@ class IssueCardManagementIntegrationTests extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"starStatus\":true}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.likeCount").value(1))
-                .andExpect(jsonPath("$.growthStatus").value("UNMARKED"));
+                .andExpect(jsonPath("$.likeCount").value(1));
 
         mockMvc.perform(put("/api/cards/{id}/snooze", cardId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"nextIntervalDays\":5}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nextShowAt").exists())
-                .andExpect(jsonPath("$.growthStatus").value("UNMARKED"));
+                .andExpect(jsonPath("$.nextShowAt").exists());
 
         mockMvc.perform(put("/api/cards/{id}/read", cardId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.openCount").value(1))
-                .andExpect(jsonPath("$.growthStatus").value("UNMARKED"));
+                .andExpect(jsonPath("$.openCount").value(1));
 
         mockMvc.perform(put("/api/cards/{id}/archive", cardId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
@@ -564,8 +555,7 @@ class IssueCardManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].cardId").value(cardId))
-                .andExpect(jsonPath("$.items[0].status").value("CANDIDATE"))
-                .andExpect(jsonPath("$.items[0].cardGrowthStatus").value("UNMARKED"));
+                .andExpect(jsonPath("$.items[0].status").value("CANDIDATE"));
 
         assertThat(cardRepository.existsById(cardId)).isTrue();
         assertThat(issueCardRepository.findByIssueIdAndCardId(issueId, cardId)).isPresent();

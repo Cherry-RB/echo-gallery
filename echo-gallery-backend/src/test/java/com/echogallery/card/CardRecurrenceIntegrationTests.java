@@ -59,7 +59,6 @@ class CardRecurrenceIntegrationTests extends IntegrationTestBase {
         Card before = cardRepository.findById(cardId).orElseThrow();
         before.setOpenCount(3);
         before.setSnoozeCount(4);
-        before.setGrowthStatus(CardGrowthStatus.GROWING);
         cardRepository.saveAndFlush(before);
 
         pause(token, cardId)
@@ -67,8 +66,7 @@ class CardRecurrenceIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.intervalDays").value(nullValue()))
                 .andExpect(jsonPath("$.nextShowAt").value(nullValue()))
                 .andExpect(jsonPath("$.openCount").value(3))
-                .andExpect(jsonPath("$.snoozeCount").value(4))
-                .andExpect(jsonPath("$.growthStatus").value("GROWING"));
+                .andExpect(jsonPath("$.snoozeCount").value(4));
 
         pause(token, cardId)
                 .andExpect(status().isOk())
@@ -80,7 +78,6 @@ class CardRecurrenceIntegrationTests extends IntegrationTestBase {
         assertThat(paused.getNextShowAt()).isNull();
         assertThat(paused.getOpenCount()).isEqualTo(3);
         assertThat(paused.getSnoozeCount()).isEqualTo(4);
-        assertThat(paused.getGrowthStatus()).isEqualTo(CardGrowthStatus.GROWING);
     }
 
     @Test

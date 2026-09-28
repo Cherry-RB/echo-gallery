@@ -7,7 +7,6 @@ import java.time.ZonedDateTime;
 import java.util.Set;
 
 import org.hibernate.annotations.BatchSize;
-import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -90,12 +89,6 @@ public class Card {
 
     @Column(name = "last_interaction_at")
     private ZonedDateTime lastInteractionAt;
-
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    @ColumnDefault("'UNMARKED'")
-    @Column(name = "growth_status", nullable = false, length = 20)
-    private CardGrowthStatus growthStatus = CardGrowthStatus.UNMARKED;
 
     @Builder.Default
     @Column(name = "needs_processing", nullable = false)

@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.echogallery.card.Card;
-import com.echogallery.card.CardGrowthStatus;
 import com.echogallery.card.CardRepository;
 import com.echogallery.tag.Tag;
 import com.echogallery.tag.TagRepository;
@@ -105,7 +104,7 @@ public class DemoSessionService {
                     .url(entry.url())
                     .intervalDays(entry.intervalDays())
                     .nextShowAt(entry.dayOffset() == null ? null : now.toLocalDate().plusDays(entry.dayOffset()).atStartOfDay(clock.getZone()))
-                    .isArchived(archived).growthStatus(entry.growthStatus() == null ? CardGrowthStatus.UNMARKED : CardGrowthStatus.valueOf(entry.growthStatus()))
+                    .isArchived(archived)
                     .snoozeCount(entry.snoozeCount() == null ? 0 : entry.snoozeCount()).build();
             entry.tags().forEach(name -> card.getTags().add(tags.get(name)));
             cards.add(cardRepository.save(card));

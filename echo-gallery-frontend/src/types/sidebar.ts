@@ -3,9 +3,6 @@ export interface SidebarStats {
   totalIssues: number;
   unfinishedIssues: number;
   highSnoozeCards: number;
-  seedCards: number;
-  growingCards: number;
-  matureCards: number;
 }
 
 export interface TagRanking {

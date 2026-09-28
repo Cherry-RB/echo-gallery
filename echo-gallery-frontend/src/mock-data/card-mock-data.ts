@@ -46,7 +46,6 @@ export const generateCards = (pageNumber: number, pageSize: number) : CardDto[] 
 
             isArchived: true,
 
-            growthStatus: "UNMARKED",
 
             isShowContentPreview: true,
 

@@ -6,9 +6,4 @@ public interface CardStatsProjection {
 
     long getHighSnoozeCards();
 
-    long getSeedCards();
-
-    long getGrowingCards();
-
-    long getMatureCards();
 }

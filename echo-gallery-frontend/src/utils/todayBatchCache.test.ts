@@ -5,7 +5,7 @@ import { removeTodayCard, resolveNextBatch, updateTodayCard } from './todayBatch
 const card = (id: string): CardDto => ({
   id, type: 'note', title: `card-${id}`, tags: [], showContentPreview: false,
   intervalDays: 10, nextShowAt: null, openCount: 0, likeCount: 0,
-  isArchived: false, growthStatus: 'UNMARKED', createdAt: '', updatedAt: '',
+  isArchived: false, needsProcessing: false, createdAt: '', updatedAt: '',
 })
 const batch = (): TodayBatchResponse => ({
   cards: [card('1'), card('2')], batchOfferedAt: '2026-08-24T12:00:00+08:00',
@@ -19,9 +19,9 @@ describe('Today batch cache', () => {
   })
 
   it('更新內容時保留卡片', () => {
-    const result = updateTodayCard(batch(), '1', { growthStatus: 'SEED' })
+    const result = updateTodayCard(batch(), '1', { needsProcessing: true })
     expect(result?.cards).toHaveLength(2)
-    expect(result?.cards[0].growthStatus).toBe('SEED')
+    expect(result?.cards[0].needsProcessing).toBe(true)
   })
 
   it('下一批有內容時取代目前批次', () => {
