@@ -141,8 +141,8 @@
 ### 18. [18_議事廳與議題推演產品設計暨實作追蹤.md](./18_議事廳與議題推演產品設計暨實作追蹤.md)
 
 * **屬性**：議事廳產品設計與分階段實作追蹤文件（Current）。
-* **內容**：定義議事廳／議題的 top-down 推演模型、Card 與 WorkCard 邊界、議題整體欄位、最新近況、更新歷程、UX、API、migration、任務拆分與去留條件。
-* **Agent 讀取時機**：設計或修改議事廳、議題列表／詳情、WorkProgressUpdate、議題素材與回流後推進出口時讀取；實際行為仍須核對目前程式碼與測試。
+* **內容**：定義議事廳／議題的 top-down 推演模型、Card 與 IssueCard 邊界、議題整體欄位、最新近況、更新歷程、UX、API、migration、任務拆分與去留條件。
+* **Agent 讀取時機**：設計或修改議事廳、議題列表／詳情、IssueUpdate、議題素材與回流後推進出口時讀取；實際行為仍須核對目前程式碼與測試。
 
 ### 19. [19_Demo功能規格與實作方案.md](./19_Demo功能規格與實作方案.md)
 
@@ -160,7 +160,7 @@
 
 * **屬性**：跨模組產品設計、觀測指標與分階段實作追蹤文件（Current／正式 V1 aggregate 已串接）。
 * **內容**：定義資訊轉化觀測台的 Flow／Generativity／Closure 邊界、現有資料能力與缺口、概覽與卡片與回流第二層 IA、Metric Dictionary、正式 aggregate API、尚待補足的 drill-down contract、ActivityEvent 去留、效能原則、任務拆分與驗收條件。
-* **Agent 讀取時機**：設計或實作觀測台、Dashboard、Overview、卡片與回流、跨 Card／Experiment／Work 聚合、回流統計、資訊生成、drill-down 或 ActivityEvent 時讀取；實作前仍須核對目前程式碼、正式 schema 與使用者最新確認。
+* **Agent 讀取時機**：設計或實作觀測台、Dashboard、Overview、卡片與回流、跨 Card／Experiment／Issue 聚合、回流統計、資訊生成、drill-down 或 ActivityEvent 時讀取；實作前仍須核對目前程式碼、正式 schema 與使用者最新確認。
 
 ### UI Design System：[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)
 

@@ -18,7 +18,7 @@ EchoGallery 讓使用者把自己認可的內容，從社群即時演算法的�
 
 使用者先選內容庫，才顯示約 40 至 60 字的情境說明與「開始體驗」按鈕。不可顯示 Demo 密碼，不可將內容庫包裝成人格分類，也不可用 Demo 取代一般登入。
 
-登入後的帳號選單僅在 Demo 工作階段顯示「重新開始此展示」及「會清除本次展示中的操作」說明。確認後會重建同一內容庫的初始資料並留在登入狀態。一般帳號不顯示此操作；Today、Card、Tag、Work 的既有操作與 UI 不因 Demo 而改變。
+登入後的帳號選單僅在 Demo 工作階段顯示「重新開始此展示」及「會清除本次展示中的操作」說明。確認後會重建同一內容庫的初始資料並留在登入狀態。一般帳號不顯示此操作；Today、Card、Tag、Issue 的既有操作與 UI 不因 Demo 而改變。
 
 Demo 是匿名、瀏覽器內以 JWT 維持的工作階段：重整或關閉再開瀏覽器時，JWT 尚未到期即可繼續；按「登出」會清除本機 JWT，沒有帳密或取回機制，下一次快速體驗會建立新的工作階段。舊資料僅保留到到期清理，使用者不能重新進入。
 
@@ -39,7 +39,7 @@ Demo 是匿名、瀏覽器內以 JWT 維持的工作階段：重整或關閉再�
 
 可執行測資的唯一內容來源是 [`demo-libraries.json`](../echo-gallery-backend/src/main/resources/demo/demo-libraries.json)。不得在 Java、Markdown 或其他檔案複製 Card 文案、網址或狀態資料。`DemoCatalog` 負責解析與檢查三庫各 15 張資料；`DemoSessionService` 只負責建立使用者副本、以建立時刻計算相對日期、重設與清理。
 
-每次建立 Demo 時系統建立隨機匿名 `User`，標記 `is_demo_session`、`demo_library`、`demo_expires_at`，並複製該庫的 Tags、15 張 Cards、一個 Work 與其 WorkCards。不同訪客使用不同 user id，不共用可修改資料。
+每次建立 Demo 時系統建立隨機匿名 `User`，標記 `is_demo_session`、`demo_library`、`demo_expires_at`，並複製該庫的 Tags、15 張 Cards、一個 Issue 與其 IssueCards。不同訪客使用不同 user id，不共用可修改資料。
 
 | 狀態 | 每庫數量 | JSON／初始化規則 | 展示目的 |
 | --- | ---: | --- | --- |
@@ -49,7 +49,7 @@ Demo 是匿名、瀏覽器內以 JWT 維持的工作階段：重整或關閉再�
 | 暫停 | 1 | `intervalDays = null`、`dayOffset = null`、未封存 | 不進 Today |
 | 封存 | 1 | `archived = true` | 不進 Today |
 
-`lastOfferedAt` 不得從其他工作階段複製；新建與重設的資料必須重新初始化。重設會先刪除該使用者的 Work updates、WorkCards、Works、Cards、Tags，再由 JSON 建立，避免影響其他 Demo 或一般帳號。
+`lastOfferedAt` 不得從其他工作階段複製；新建與重設的資料必須重新初始化。重設會先刪除該使用者的 Issue updates、IssueCards、Issues、Cards、Tags，再由 JSON 建立，避免影響其他 Demo 或一般帳號。
 
 ## 5. API、權限與生命週期
 
@@ -103,32 +103,32 @@ CREATE INDEX IF NOT EXISTS idx_users_demo_expiry
 1. 選擇「技術與學習收藏」。
 2. Today 開啟一張 Redis 或 Spring 官方文件，說明收藏理由與回流間隔。
 3. 點「今天想多看一批」，確認還有五張可展示。
-4. 進入「Redis 學習脈絡」Work，展示候選與已使用素材。
+4. 進入「Redis 學習脈絡」Issue，展示候選與已使用素材。
 
-截圖：登入快速體驗、Today 首批、Today 下一批、技術 Card 詳情、Redis Work 素材。
+截圖：登入快速體驗、Today 首批、Today 下一批、技術 Card 詳情、Redis Issue 素材。
 
 ### 視覺靈感與創作素材
 
 1. 選擇「視覺靈感與創作素材」。
 2. Today 查看咖啡店企劃素材，對其中一張示範稍後再看。
-3. 進入「秋日咖啡店插畫」Work，說明素材是自行保存後再遇見，不是平台推薦。
+3. 進入「秋日咖啡店插畫」Issue，說明素材是自行保存後再遇見，不是平台推薦。
 
-截圖：登入選擇、Today、稍後再看後狀態、素材 Card、Work 候選／已採用。
+截圖：登入選擇、Today、稍後再看後狀態、素材 Card、Issue 候選／已採用。
 
 ### 文字片段與生活觀察
 
 1. 選擇「文字片段與生活觀察」。
 2. Today 開原創片段，展示 `content` 與收藏理由。
-3. 示範封存已完成片段或暫停目前不想再遇見的筆記，並開啟「下班路上」Work。
+3. 示範封存已完成片段或暫停目前不想再遇見的筆記，並開啟「下班路上」Issue。
 
-截圖：登入選擇、Today、文字 Card 詳情、封存或暫停、下班路上 Work。
+截圖：登入選擇、Today、文字 Card 詳情、封存或暫停、下班路上 Issue。
 
 ### 共通截圖／操作驗收清單
 
 - 一般 Email／密碼登入與註冊仍為登入頁主要入口。
 - Demo 僅在功能開啟時顯示，選取內容庫後才出現說明與開始按鈕。
 - 三庫各自建立後有 15 張資料；首批、下一批均為五張；彼此內容與操作隔離。
-- Today、Card、Tag、Work 沒有為 Demo 改寫互動規則。
+- Today、Card、Tag、Issue 沒有為 Demo 改寫互動規則。
 - 「重新開始此展示」清除操作並恢復初始資料，不影響另一個 Demo session。
 - 登出後不可回到匿名 Demo session；重新開始快速體驗會建立新資料。
 - 來源連結可開啟且不在產品內嵌第三方內容。

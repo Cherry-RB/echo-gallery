@@ -22,15 +22,15 @@ Echo Gallery 以共享的 visual grammar 維持一致性，而不是讓所有畫
 | --- | --- |
 | Collection | `src/views/boards/TodayBoard.vue`、`src/components/Board-Flex.vue` |
 | Persistent filter rail + result workspace | `src/views/SearchView.vue`、`src/views/center/TagCenter.vue` |
-| Workspace | `src/views/work/WorkList.vue` |
+| Workspace | `src/views/issue/IssueList.vue` |
 | Detail | `src/views/CardDetail.vue` |
 
 ### Dialog references
 
 | Pattern | Reference |
 | --- | --- |
-| Compact form | `src/components/work/WorkMaterialManager.vue` 的「編輯素材備註」 |
-| Form | `src/views/work/WorkList.vue` 的「發起議題」 |
+| Compact form | `src/components/issue/IssueMaterialManager.vue` 的「編輯素材備註」 |
+| Form | `src/views/issue/IssueList.vue` 的「發起議題」 |
 | Large form | `src/views/CardDetail.vue` 的「編輯卡片」 |
 | Picker / workspace | `src/components/CardPickerDialog.vue` |
 | Content-heavy | `src/views/experiment/ExperimentDetail.vue` 的「整理探索紀錄」 |
@@ -116,8 +116,8 @@ Structure: `filter / selection rail → result toolbar → grey result canvas �
 
 Structure: `PageHeader → workspace canvas → semantic sections / panels`.
 
-- Use for Works, Experiments, Overview, Return Overview and management interfaces.
-- Aggregate data does not create a separate page shell. Overview and Return Overview follow the same Workspace Shell and page rhythm as Work List; only their internal data geometry differs.
+- Use for Issues, Experiments, Overview, Return Overview and management interfaces.
+- Aggregate data does not create a separate page shell. Overview and Return Overview follow the same Workspace Shell and page rhythm as Issue List; only their internal data geometry differs.
 - The canvas may be page-background without becoming an extra card. Panels only mark meaningful independently actionable or readable groups.
 - Management-specific split panes are allowed when their work requires concurrent context.
 
@@ -125,7 +125,7 @@ Structure: `PageHeader → workspace canvas → semantic sections / panels`.
 
 Structure: `detail navigation → primary content → secondary context / actions`.
 
-- Use for Card, Work and Experiment detail.
+- Use for Card, Issue and Experiment detail.
 - Long reading content uses `--reading-max-width`; details may use an adjacent property/context area where it has a distinct semantic purpose.
 - On mobile, split layouts stack; do not preserve desktop side columns by shrinking them.
 
@@ -198,7 +198,7 @@ Dialog visual language follows the baseline Element Plus rhythm preserved by `Ap
 | Exception | Reason |
 | --- | --- |
 | Card Detail reading width and property rail | reading and metadata have distinct cognitive roles |
-| Work Detail split workspace | issue context, updates and materials are deliberately concurrent |
+| Issue Detail split workspace | issue context, updates and materials are deliberately concurrent |
 | Experiment stage colour | stage identity is domain information, not decoration |
 | Masonry collection | variable card length requires masonry placement; it still uses Collection Shell spacing |
 | Navigation drawer | temporary navigation has edge-overlay interaction |
@@ -253,11 +253,11 @@ This inventory records the current production UI scope. `Compliant` means the su
 | Today, All Cards | Compliant | Collection Shell and Masonry exception |
 | Card Search | Compliant | Collection Shell persistent filter rail + result workspace |
 | Tag Center | Compliant | Persistent filter rail + result workspace; tag selection is its rail-specific semantics |
-| Work List | Compliant | Workspace Shell |
-| Work Detail | Compliant exception | concurrent detail workspace |
+| Issue List | Compliant | Workspace Shell |
+| Issue Detail | Compliant exception | concurrent detail workspace |
 | Experiment List | Compliant | Workspace / collection variant |
 | Experiment Detail | Compliant | Detail Shell with stage semantics |
-| Overview, Return Overview | Compliant | Workspace Shell shared with Work List; aggregate-stat geometry is internal content only |
+| Overview, Return Overview | Compliant | Workspace Shell shared with Issue List; aggregate-stat geometry is internal content only |
 | Card Detail / create mode | Compliant exception | Detail Shell with reading width and property rail |
 | Gardens and legacy board paths | Redirect only | no independent render surface |
 | `Home.vue`, `CardCreate.vue`, `SearchBar.vue`, `CardTextModeFooter.vue` | Legacy / unused | not referenced by current production route or component graph; do not use as a new UI reference |
