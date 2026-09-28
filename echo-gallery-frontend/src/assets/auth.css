@@ -4,20 +4,20 @@
   align-items: center;
   width: 100%;
   min-height: 100dvh;
-  padding: 24px 16px;
+  padding: var(--space-lg) var(--page-gutter);
   position: relative;
   background-color: var(--el-bg-color-page);
 }
 .auth-theme-switcher {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: var(--space-md);
+  right: var(--space-md);
 }
 .auth-card {
   width: min(400px, 100%);
 }
 .auth-link {
-  margin-top: 20px;
+  margin-top: var(--space-md);
   text-align: center;
   font-size: var(--type-ui);
 }
@@ -27,5 +27,5 @@
 }
 .auth-btn {
   width: 100%;
-  margin-top: 10px;
+  margin-top: var(--space-sm);
 }

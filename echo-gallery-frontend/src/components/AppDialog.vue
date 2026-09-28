@@ -1,11 +1,15 @@
 <script setup lang="ts">
 defineOptions({ inheritAttrs: false })
 
+type DialogPattern = 'confirmation' | 'compact-form' | 'form' | 'large-form' | 'picker' | 'workspace'
+
 withDefaults(defineProps<{
   modelValue: boolean
   title: string
   width?: string
+  pattern?: DialogPattern
   mode?: 'form' | 'workspace'
+  scrollBody?: boolean
   destroyOnClose?: boolean
   appendToBody?: boolean
   closeOnClickModal?: boolean
@@ -13,7 +17,9 @@ withDefaults(defineProps<{
   beforeClose?: (done: () => void) => void
 }>(), {
   width: 'min(680px, calc(100vw - 32px))',
+  pattern: 'form',
   mode: 'form',
+  scrollBody: false,
   destroyOnClose: true,
   appendToBody: true,
   closeOnClickModal: true,
@@ -34,7 +40,7 @@ const emit = defineEmits<{
     :model-value="modelValue"
     :title="title"
     :width="width"
-    :class="['app-dialog', `app-dialog--${mode}`]"
+    :class="['app-dialog', `app-dialog--${mode}`, `app-dialog--${pattern}`, { 'app-dialog--scroll-body': scrollBody }]"
     :destroy-on-close="destroyOnClose"
     :append-to-body="appendToBody"
     :close-on-click-modal="closeOnClickModal"
@@ -67,15 +73,8 @@ const emit = defineEmits<{
   min-height: 0;
 }
 
-:global(.app-dialog--form .el-dialog__body) {
+:global(.app-dialog--scroll-body .el-dialog__body) {
   overflow-y: auto;
-}
-
-:global(.app-dialog--workspace .el-dialog__body) {
-  display: flex;
-  overflow: hidden;
-  flex: 1 1 auto;
-  flex-direction: column;
 }
 
 :global(.app-dialog .el-dialog__footer) {
@@ -88,11 +87,6 @@ const emit = defineEmits<{
     width: calc(100vw - 24px) !important;
     max-height: calc(100dvh - 24px);
     margin: 12px auto !important;
-  }
-
-  :global(.app-dialog--workspace .el-dialog__body) {
-    display: block;
-    overflow-y: auto;
   }
 }
 </style>

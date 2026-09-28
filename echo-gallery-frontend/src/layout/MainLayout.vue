@@ -44,7 +44,7 @@ watch(() => route.path, () => {
       size="260px"
       :with-header="false"
       destroy-on-close
-      class="custom-mobile-drawer"
+      class="custom-mobile-drawer app-drawer app-drawer--navigation"
     >
       <LeftSidebar @open-quick-create="openQuickCreate" />
     </el-drawer>
@@ -85,11 +85,11 @@ watch(() => route.path, () => {
 .content-viewport {
   flex: 1;
   min-width: 0;
-  padding: 20px;
+  padding: var(--page-gutter);
 }
 
-/* 🧼 清除 Element Plus 抽屜預設的 Padding，交由內部組件自己決定邊距 */
-:deep(.el-drawer__body) {
+/* 導覽抽屜由 LeftSidebar 自己管理留白，不影響其他內容型 Drawer。 */
+:global(.custom-mobile-drawer .el-drawer__body) {
   padding: 0 !important;
 }
 
@@ -148,7 +148,7 @@ watch(() => route.path, () => {
   }
 
   .content-viewport {
-    padding: 16px;
+    padding: var(--page-gutter);
     width: 100%;
     box-sizing: border-box;
   }
