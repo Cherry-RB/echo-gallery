@@ -6,6 +6,7 @@ import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import CardItem from '../components/CardItem.vue'
+import AppEmptyState from '../components/ui/AppEmptyState.vue'
 import type {
   CardSearchArchiveStatus,
   CardSearchDirection,
@@ -108,12 +109,6 @@ const activeFilterLabels = computed(() => {
   if (filters.minIntervalDays || filters.maxIntervalDays) {
     labels.push(`週期：${filters.minIntervalDays ?? 1}–${filters.maxIntervalDays ?? 365} 天`)
   }
-  if (filters.sortBy !== 'UPDATED_AT' || filters.direction !== 'DESC') {
-    const sortLabels: Record<CardSearchSortBy, string> = {
-      UPDATED_AT: '最近更新', CREATED_AT: '建立時間', NEXT_SHOW_AT: '下次回流', ID: 'Card ID',
-    }
-    labels.push(`排序：${sortLabels[filters.sortBy ?? 'UPDATED_AT']} ${filters.direction === 'ASC' ? '升冪' : '降冪'}`)
-  }
   return labels
 })
 
@@ -136,15 +131,16 @@ const { data: tagsData, isLoading: areTagsLoading } = useQuery<TagPage>({
 const tagOptions = computed(() => (tagsData.value?.content ?? []).map((tag) => ({
   value: tag.id,
   label: `#${tag.name}`,
+  count: tag.cardCount,
 })))
 const selectedTagOptions = computed(() => form.tagIds.map(id =>
-  tagOptions.value.find(option => option.value === id) ?? { value: id, label: `#${id}` }))
+  tagOptions.value.find(option => option.value === id) ?? { value: id, label: `#${id}`, count: undefined }))
 const filteredTagOptions = computed(() => tagOptions.value)
 
 const sameValues = <T,>(left: T[] = [], right: T[] = []) =>
   left.length === right.length && [...left].sort().every((value, index) => value === [...right].sort()[index])
 
-type SearchField = 'id' | 'title' | 'tags' | 'processing' | 'archive' | 'recurrence' | 'interval' | 'sort' | 'direction'
+type SearchField = 'id' | 'title' | 'tags' | 'processing' | 'archive' | 'recurrence' | 'interval'
 
 const fieldMatchesApplied = (field: SearchField) => {
   const applied = appliedFilters.value
@@ -158,8 +154,6 @@ const fieldMatchesApplied = (field: SearchField) => {
     case 'recurrence': return form.recurrenceStatus === (applied.recurrenceStatus ?? 'ALL')
     case 'interval': return (form.recurrenceStatus === 'PAUSED' ? undefined : form.minIntervalDays) === applied.minIntervalDays
       && (form.recurrenceStatus === 'PAUSED' ? undefined : form.maxIntervalDays) === applied.maxIntervalDays
-    case 'sort': return form.sortBy === (applied.sortBy ?? 'UPDATED_AT')
-    case 'direction': return form.direction === (applied.direction ?? 'DESC')
   }
 }
 
@@ -173,8 +167,6 @@ const fieldIsActive = (field: SearchField) => {
     case 'archive': return applied.archiveStatus !== 'ACTIVE'
     case 'recurrence': return applied.recurrenceStatus !== 'ALL'
     case 'interval': return applied.minIntervalDays !== undefined || applied.maxIntervalDays !== undefined
-    case 'sort': return applied.sortBy !== 'UPDATED_AT'
-    case 'direction': return applied.direction !== 'DESC'
   }
 }
 
@@ -184,7 +176,7 @@ const fieldClass = (field: SearchField) => ({
 })
 
 const hasPendingChanges = computed(() => [
-  'id', 'title', 'tags', 'processing', 'archive', 'recurrence', 'interval', 'sort', 'direction',
+  'id', 'title', 'tags', 'processing', 'archive', 'recurrence', 'interval',
 ].some(field => !fieldMatchesApplied(field as SearchField)))
 
 const toggleTag = (tagId: number) => {
@@ -228,6 +220,15 @@ const applySearch = () => {
   page.value = 0
 }
 
+const applySorting = () => {
+  appliedFilters.value = {
+    ...appliedFilters.value,
+    sortBy: form.sortBy,
+    direction: form.direction,
+  }
+  page.value = 0
+}
+
 const clearSearch = () => {
   Object.assign(form, defaultForm())
   applySearch()
@@ -240,18 +241,13 @@ const openDetail = (cardId: string) => {
 
 <template>
   <main class="search-page">
-    <header class="page-heading">
-      <h1>卡片查詢</h1>
-      <p>組合關鍵字與篩選條件，快速找到想回顧的卡片。</p>
-    </header>
-
-    <el-card class="search-panel" shadow="never">
+    <section class="search-workspace">
       <el-form class="compact-search-form" @submit.prevent="applySearch">
-        <section class="filter-section" aria-labelledby="primary-filter-title">
-          <div class="filter-section-heading">
-            <h2 id="primary-filter-title">主要條件</h2>
-            <span>可輸入任一條件開始查詢</span>
-          </div>
+        <div class="search-filter-body">
+          <header class="search-filter-header">
+            <h1>卡片查詢</h1>
+          </header>
+          <section class="filter-section" aria-label="主要查詢條件">
           <div class="primary-filter-row">
           <label class="compact-field id-field" :class="fieldClass('id')">
             <span>Card ID</span>
@@ -262,7 +258,13 @@ const openDetail = (cardId: string) => {
             <el-input v-model="form.title" maxlength="255" clearable placeholder="輸入部分標題" />
           </label>
           <div class="compact-field tag-field" :class="fieldClass('tags')">
-            <span>標籤</span>
+            <div class="tag-filter-toolbar">
+              <span>標籤</span>
+              <el-radio-group v-if="form.tagIds.length >= 2" v-model="form.tagMode" size="small" aria-label="多個標籤的比對方式">
+                <el-radio-button value="OR">或 (OR)</el-radio-button>
+                <el-radio-button value="AND">且 (AND)</el-radio-button>
+              </el-radio-group>
+            </div>
             <div class="picker-control" :class="{ 'has-selection': form.tagIds.length }">
               <el-tag
                 v-for="tag in selectedTagOptions"
@@ -280,9 +282,7 @@ const openDetail = (cardId: string) => {
                 trigger="click"
               >
                 <template #reference>
-                  <el-button class="picker-trigger" :loading="areTagsLoading">
-                    {{ form.tagIds.length ? '更多標籤' : '選擇標籤' }}
-                  </el-button>
+                  <el-button class="picker-trigger" :loading="areTagsLoading">+ 更多標籤</el-button>
                 </template>
                 <div class="filter-popover-content">
                   <el-input v-model="tagSearchQuery" clearable placeholder="搜尋既有標籤…" />
@@ -294,27 +294,17 @@ const openDetail = (cardId: string) => {
                       class="clickable-filter-tag"
                       :effect="form.tagIds.includes(tag.value) ? 'dark' : 'plain'"
                       @click="toggleTag(tag.value)"
-                    >{{ tag.label }}</el-tag>
-                    <span v-if="!areTagsLoading && filteredTagOptions.length === 0" class="empty-option-text">
-                      沒有符合的既有標籤
-                    </span>
+                    >{{ tag.label }}<span class="tag-option-count">（{{ tag.count }}）</span></el-tag>
+                    <span v-if="!areTagsLoading && filteredTagOptions.length === 0" class="empty-option-text">沒有符合的既有標籤</span>
                   </div>
                 </div>
               </el-popover>
             </div>
           </div>
-          <div v-if="form.tagIds.length >= 2" class="compact-field tag-mode-field" :class="fieldClass('tags')">
-            <span>多個標籤</span>
-            <el-segmented v-model="form.tagMode" :options="[{ label: '符合任一', value: 'OR' }, { label: '符合全部', value: 'AND' }]" />
-          </div>
         </div>
         </section>
 
-        <section class="filter-section secondary-section" aria-labelledby="secondary-filter-title">
-          <div class="filter-section-heading">
-            <h2 id="secondary-filter-title">篩選與排序</h2>
-            <span>縮小結果範圍，或調整顯示順序</span>
-          </div>
+          <section class="filter-section secondary-section" aria-label="進階篩選與排序條件">
           <div class="secondary-filter-row">
           <label class="compact-field processing-field" :class="fieldClass('processing')">
             <span>整理狀態</span>
@@ -362,41 +352,10 @@ const openDetail = (cardId: string) => {
             </div>
           </div>
         </div>
-        <div class="sort-section" aria-label="排序結果">
-          <span class="sort-section-label">排序結果</span>
-          <div class="sort-control-group">
-            <label class="compact-field sort-field" :class="fieldClass('sort')">
-              <span>排序依據</span>
-              <el-select v-model="form.sortBy">
-                <el-option label="最近更新" value="UPDATED_AT" />
-                <el-option label="建立時間" value="CREATED_AT" />
-                <el-option label="下次回流" value="NEXT_SHOW_AT" />
-                <el-option label="Card ID" value="ID" />
-              </el-select>
-            </label>
-            <label class="compact-field direction-field" :class="fieldClass('direction')">
-              <span>排序方向</span>
-              <el-select v-model="form.direction">
-                <el-option label="降冪" value="DESC" />
-                <el-option label="升冪" value="ASC" />
-              </el-select>
-            </label>
-          </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
         <div class="search-action-footer" :class="{ 'has-pending': hasPendingChanges }" aria-live="polite">
-          <div class="applied-filters">
-            <el-tag v-if="hasPendingChanges" type="warning" effect="light" round>尚有未套用變更</el-tag>
-            <el-tag v-else type="success" effect="light" round>條件已套用</el-tag>
-            <div class="applied-filter-copy">
-              <span class="applied-filters-label">目前結果</span>
-              <div v-if="activeFilterLabels.length" class="filter-tags">
-                <el-tag v-for="label in activeFilterLabels" :key="label" effect="light" round>{{ label }}</el-tag>
-              </div>
-              <span v-else class="default-filter-note">預設顯示未封存卡片，依最近更新排序</span>
-            </div>
-          </div>
           <div class="search-actions">
             <el-button class="clear-button" @click="clearSearch">清除條件</el-button>
             <el-button class="search-button" type="primary" native-type="submit" :loading="isFetching" :disabled="!hasPendingChanges">
@@ -405,63 +364,87 @@ const openDetail = (cardId: string) => {
           </div>
         </div>
       </el-form>
-    </el-card>
 
-    <section class="results" aria-live="polite">
+      <section class="results" aria-live="polite">
       <div class="result-heading">
-        <h2>查詢結果</h2>
-        <div v-if="result" class="result-summary">
-          <span v-if="visibleRange">顯示第 {{ visibleRange.start }}–{{ visibleRange.end }} 張，共 {{ result.totalElements }} 張</span>
-          <span v-else>共 0 張</span>
-          <span v-if="isFetching && !isLoading" class="fetching-label">更新中…</span>
+        <div class="result-filter-status">
+          <span class="result-filter-label">目前篩選狀態：</span>
+          <el-tag :type="hasPendingChanges ? 'warning' : 'success'" effect="light" round>
+            {{ hasPendingChanges ? '條件尚未套用' : '條件已套用' }}
+          </el-tag>
+          <div v-if="activeFilterLabels.length" class="filter-tags">
+            <el-tag v-for="label in activeFilterLabels" :key="label" class="active-filter-tag" effect="plain">{{ label }}</el-tag>
+          </div>
+          <span v-else class="default-filter-note">未封存卡片・最近更新優先</span>
+        </div>
+        <div class="result-controls">
+          <div class="result-sort-controls" aria-label="結果排序">
+            <span>排序</span>
+            <el-select v-model="form.sortBy" aria-label="排序依據" @change="applySorting">
+              <el-option label="最近更新" value="UPDATED_AT" />
+              <el-option label="建立時間" value="CREATED_AT" />
+              <el-option label="下次回流" value="NEXT_SHOW_AT" />
+              <el-option label="Card ID" value="ID" />
+            </el-select>
+            <el-select v-model="form.direction" aria-label="排序方向" @change="applySorting">
+              <el-option label="降冪" value="DESC" />
+              <el-option label="升冪" value="ASC" />
+            </el-select>
+          </div>
+          <div v-if="result" class="result-summary">
+            <span v-if="visibleRange">顯示第 {{ visibleRange.start }}–{{ visibleRange.end }} 張，共 {{ result.totalElements }} 張</span>
+            <span v-else>共 0 張</span>
+            <span v-if="isFetching && !isLoading" class="fetching-label">更新中…</span>
+          </div>
         </div>
       </div>
 
-      <el-skeleton v-if="isLoading" :rows="6" animated />
-      <el-result v-else-if="isError" icon="warning" title="查詢失敗">
-        <template #extra><el-button type="primary" @click="refetch()">重新查詢</el-button></template>
-      </el-result>
-      <el-empty v-else-if="!result?.content.length" description="沒有符合條件的卡片" />
-      <div v-else class="card-grid" :class="{ fetching: isFetching }">
-        <CardItem
-          v-for="card in result.content"
-          :key="card.id"
-          :data="card"
-          view-mode="text"
-          :board-type="card.isArchived ? 'archived' : 'search'"
-          @open-detail="openDetail(card.id)"
-        />
-      </div>
-
-      <div v-if="result && result.totalElements > PAGE_SIZE" class="pagination-row">
-        <el-pagination
-          layout="prev, pager, next"
-          :current-page="page + 1"
-          :page-size="PAGE_SIZE"
-          :total="result.totalElements"
-          @current-change="(nextPage: number) => page = nextPage - 1"
-        />
-        <span>第 {{ result.page + 1 }} / {{ result.totalPages }} 頁</span>
-      </div>
+        <div class="results-scroll">
+          <el-skeleton v-if="isLoading" :rows="6" animated />
+          <el-result v-else-if="isError" icon="warning" title="查詢失敗">
+            <template #extra><el-button type="primary" @click="refetch()">重新查詢</el-button></template>
+          </el-result>
+          <AppEmptyState v-else-if="!result?.content.length" description="沒有符合條件的卡片" />
+          <template v-else>
+            <div class="card-grid" :class="{ fetching: isFetching }">
+              <CardItem
+                v-for="card in result.content"
+                :key="card.id"
+                :data="card"
+                view-mode="text"
+                :board-type="card.isArchived ? 'archived' : 'search'"
+                @open-detail="openDetail(card.id)"
+              />
+            </div>
+            <div v-if="result.totalElements > PAGE_SIZE" class="pagination-row">
+              <el-pagination
+                background
+                layout="prev, pager, next"
+                :current-page="page + 1"
+                :page-size="PAGE_SIZE"
+                :total="result.totalElements"
+                @current-change="(nextPage: number) => page = nextPage - 1"
+              />
+              <span>第 {{ result.page + 1 }} / {{ result.totalPages }} 頁・每頁 {{ PAGE_SIZE }} 張</span>
+            </div>
+          </template>
+        </div>
+      </section>
     </section>
   </main>
 </template>
 
 <style scoped>
-.search-page { padding: 24px; }
-.page-heading h1, .result-heading h2 { margin: 0; }
-.page-heading p { margin: 8px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); }
-.search-panel { margin-top: 20px; border-color: var(--el-border-color); background: var(--el-bg-color-page); }
-.search-panel :deep(.el-card__body) { padding: 20px; }
-.compact-search-form { display: flex; flex-direction: column; gap: 16px; }
-.filter-section { padding: 16px; border: 1px solid var(--el-border-color-lighter); border-radius: 10px; background: var(--el-bg-color); }
-.filter-section-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
-.filter-section-heading h2 { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 650; }
-.filter-section-heading span { color: var(--el-text-color-secondary); font-size: var(--type-caption); }
-.primary-filter-row { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
-.secondary-filter-row { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
-.compact-field { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
-.compact-field > span { color: var(--el-text-color-regular); font-size: var(--type-meta); font-weight: 600; line-height: 1; }
+.search-page { width: calc(100% + (var(--page-gutter) * 2)); height: 100dvh; margin: calc(var(--page-gutter) * -1); overflow: hidden; }
+.search-workspace { display: grid; height: 100%; grid-template-columns: 336px minmax(0, 1fr); background: var(--el-bg-color-page); }
+.compact-search-form { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color); }
+.search-filter-body { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: var(--space-lg); padding: var(--workspace-padding); overflow-y: auto; }
+.search-filter-header h1 { margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section-title); }
+.filter-section { display: flex; flex-direction: column; gap: var(--space-md); }
+.filter-section-title { margin: 0; font-size: var(--type-card-title); line-height: var(--leading-card-title); }
+.primary-filter-row, .secondary-filter-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-sm); }
+.compact-field { display: flex; min-width: 0; flex-direction: column; gap: var(--space-2xs); }
+.compact-field > span { color: var(--el-text-color-regular); font-size: var(--type-metadata); font-weight: var(--weight-semibold); line-height: var(--leading-metadata); }
 .compact-field :deep(.el-select), .compact-field :deep(.el-select-v2) { width: 100%; }
 .compact-field :deep(.el-input__wrapper),
 .compact-field :deep(.el-select__wrapper) { background: var(--el-bg-color); box-shadow: 0 0 0 1px var(--el-border-color) inset; }
@@ -473,51 +456,49 @@ const openDetail = (cardId: string) => {
 .compact-field.has-pending > span { color: var(--el-color-warning); }
 .compact-field.has-pending :deep(.el-input__wrapper),
 .compact-field.has-pending :deep(.el-select__wrapper) { background: var(--el-color-warning-light-9); box-shadow: 0 0 0 1px var(--el-color-warning-light-5) inset; }
-.picker-control { display: flex; min-height: 32px; align-items: center; flex-wrap: wrap; gap: 6px; padding: 4px 6px; border: 1px solid var(--el-border-color); border-radius: var(--el-border-radius-base); background: var(--el-bg-color); transition: border-color .15s; }
+.tag-filter-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); }
+.tag-filter-toolbar > span { color: var(--el-text-color-regular); font-size: var(--type-metadata); font-weight: var(--weight-semibold); line-height: var(--leading-metadata); }
+.tag-field.is-selected .tag-filter-toolbar > span { color: var(--el-color-primary); }
+.tag-field.has-pending .tag-filter-toolbar > span { color: var(--el-color-warning); }
+.picker-control { display: flex; min-height: 32px; align-items: center; flex-wrap: wrap; gap: var(--space-2xs); padding: 4px 6px; border: 1px solid var(--el-border-color); border-radius: var(--radius-sm); background: var(--el-bg-color); transition: border-color .15s; }
 .picker-control:hover, .picker-control:focus-within { border-color: var(--el-color-primary); }
-.picker-control.has-selection { padding-block: 3px; border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); }
-.compact-field.has-pending .picker-control { border-color: var(--el-color-warning-light-5); background: var(--el-color-warning-light-9); }
-.picker-control.has-selection :deep(.el-tag) { background: var(--el-bg-color); box-shadow: 0 1px 2px rgb(0 0 0 / 8%); font-weight: 600; }
-.picker-control.has-selection :deep(.el-tag__close) { color: currentColor; }
+.picker-control.has-selection { border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); }
+.tag-field.has-pending .picker-control { border-color: var(--el-color-warning-light-5); background: var(--el-color-warning-light-9); }
+.picker-control.has-selection :deep(.el-tag) { background: var(--el-bg-color); }
 .picker-trigger { min-height: 24px; padding-inline: 9px; border-style: dashed; background: var(--el-bg-color); color: var(--el-text-color-regular); }
-.filter-popover-content { display: flex; flex-direction: column; gap: 12px; }
+.filter-popover-content { display: flex; flex-direction: column; gap: var(--space-sm); }
 .popover-subtitle { color: var(--el-text-color-secondary); font-size: var(--type-caption); }
-.popover-tags-list { display: flex; max-height: 220px; flex-wrap: wrap; gap: 8px; overflow-y: auto; }
+.popover-tags-list { display: flex; max-height: 220px; flex-wrap: wrap; gap: var(--space-xs); overflow-y: auto; }
 .clickable-filter-tag { cursor: pointer; user-select: none; }
+.tag-option-count { flex: 0 0 auto; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .empty-option-text { color: var(--el-text-color-secondary); font-size: var(--type-caption); }
-.selection-mark { width: 16px; color: var(--el-color-primary); text-align: center; }
-.id-field { width: 110px; }
-.title-field { flex: 1 1 180px; }
-.tag-field { flex: 1.2 1 220px; }
-.tag-mode-field { min-width: 200px; }
-.archive-field { width: 140px; }
-.recurrence-status-field { width: 140px; }
-.interval-field { width: 240px; }
-.interval-range { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: 6px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
+.secondary-section { padding-top: var(--space-lg); border-top: 1px solid var(--el-border-color-lighter); }
+.interval-range { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .interval-range :deep(.el-input-number) { width: 100%; }
-.sort-field { width: 160px; }
-.direction-field { width: 120px; }
-.sort-section { display: flex; align-items: flex-end; gap: 14px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--el-border-color-lighter); }
-.sort-section-label { padding-bottom: 9px; color: var(--el-text-color-secondary); font-size: var(--type-meta); font-weight: 600; }
-.sort-control-group,
-.search-actions { display: flex; flex: 0 0 auto; align-items: flex-end; gap: 8px; }
+.search-actions { display: grid; flex: 0 0 auto; grid-template-columns: 1fr 1fr; align-items: flex-end; gap: var(--space-xs); }
 .search-button, .clear-button { min-width: 88px; }
-.search-action-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-lighter); }
-.search-action-footer.has-pending { border-color: var(--el-color-warning-light-5); background: var(--el-color-warning-light-9); }
-.applied-filters { display: flex; min-width: 0; align-items: center; gap: 10px; }
-.applied-filter-copy { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 8px; }
-.applied-filters-label { flex: 0 0 auto; color: var(--el-text-color-primary); font-size: var(--type-meta); font-weight: 650; }
-.filter-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.search-action-footer { display: flex; flex: 0 0 auto; align-items: stretch; flex-direction: column; padding: var(--workspace-padding); border-top: 1px solid var(--el-border-color-light); background: var(--el-bg-color); }
+.filter-tags { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
 .default-filter-note { color: var(--el-text-color-secondary); font-size: var(--type-meta); }
-.search-actions { margin-left: auto; }
-.results { margin-top: 28px; }
-.result-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
-.result-summary { display: flex; align-items: center; gap: 10px; color: var(--el-text-color-secondary); }
+.search-actions { width: 100%; margin-left: 0; }
+.results { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; }
+.result-heading { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--workspace-padding); border-bottom: 1px solid var(--el-border-color-light); background: var(--el-bg-color); }
+.result-filter-status { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: var(--space-xs); }
+.result-filter-label { flex: 0 0 auto; color: var(--el-text-color-secondary); font-size: var(--type-secondary); }
+.result-controls { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-md); }
+.result-sort-controls { display: flex; align-items: center; gap: var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-caption); white-space: nowrap; }
+.result-sort-controls :deep(.el-select:first-of-type) { width: 128px; }
+.result-sort-controls :deep(.el-select:last-of-type) { width: 96px; }
+.result-summary { display: flex; align-items: center; gap: var(--space-sm); color: var(--el-text-color-secondary); }
 .fetching-label { color: var(--el-color-primary); }
-.card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; transition: opacity .15s; }
+.results-scroll { min-height: 0; flex: 1; padding: var(--workspace-padding); overflow-y: auto; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-content: start; gap: var(--space-md); transition: opacity .15s; }
+.card-grid :deep(.app-collection-card) { min-width: 0; min-height: 192px; height: 100%; }
 .card-grid.fetching { opacity: .65; }
-.pagination-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; color: var(--el-text-color-secondary); font-size: var(--type-caption); }
-@media (max-width: 1100px) { .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .secondary-filter-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .archive-field, .recurrence-status-field, .interval-field { width: auto; } .sort-section { align-items: flex-start; flex-direction: column; gap: 8px; } .sort-section-label { padding-bottom: 0; } .sort-control-group { width: 100%; } .sort-control-group .compact-field { flex: 1; width: auto; } }
-@media (max-width: 640px) { .search-page { padding: 16px; } .search-panel :deep(.el-card__body) { padding: 12px; } .filter-section { padding: 14px 12px; } .filter-section-heading { align-items: flex-start; flex-direction: column; gap: 4px; } .primary-filter-row, .secondary-filter-row { display: grid; grid-template-columns: 1fr; } .id-field, .title-field, .tag-field, .tag-mode-field { width: auto; } .sort-control-group { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .75fr); } .search-action-footer { align-items: stretch; flex-direction: column; } .search-actions { display: grid; width: 100%; grid-template-columns: 1fr 1fr; margin-left: 0; } .search-button, .clear-button { width: 100%; } .applied-filters { align-items: flex-start; } .applied-filter-copy { align-items: flex-start; flex-direction: column; gap: 6px; } .card-grid { grid-template-columns: 1fr; } .result-heading { align-items: flex-start; gap: 8px; } .result-summary { flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; } .pagination-row { flex-direction: column; gap: 6px; } }
+.results-scroll > :deep(.el-skeleton), .results-scroll > :deep(.el-result), .results-scroll > :deep(.app-empty-state) { min-height: 240px; }
+.pagination-row { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-md); padding: var(--space-lg) 0 var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-caption); }
+@media (max-width: 1200px) { .search-page { height: calc(100dvh - 56px); } }
+@media (max-width: 768px) { .search-page { height: auto; min-height: calc(100dvh - 56px); overflow: visible; } .search-workspace { grid-template-columns: minmax(0, 1fr); } .compact-search-form { overflow: visible; border-right: 0; border-bottom: 1px solid var(--el-border-color-light); } .search-filter-body, .results-scroll { overflow: visible; } .card-grid { flex: none; } }
+@media (max-width: 1024px) { .result-heading { align-items: flex-start; flex-direction: column; } .result-controls { width: 100%; justify-content: space-between; } }
+@media (max-width: 640px) { .search-button, .clear-button { width: 100%; } .card-grid { grid-template-columns: 1fr; } .result-controls { align-items: flex-start; flex-direction: column; gap: var(--space-xs); } .result-sort-controls { width: 100%; } .result-sort-controls :deep(.el-select:first-of-type) { flex: 1; width: auto; } .result-summary { align-items: flex-start; flex-direction: column; gap: var(--space-2xs); text-align: left; } .pagination-row { align-items: center; flex-direction: column; gap: var(--space-xs); } }
 </style>

@@ -11,6 +11,7 @@ import { shouldMarkReviewedOnOpenDetail, type BoardType } from '../../types/boar
 import type { CardDto } from '../../types/card'
 import type { TagPage } from '../../types/tag'
 import CardItem from '../../components/CardItem.vue';
+import AppDialog from '../../components/AppDialog.vue'
 
 // 標籤資料結構：id 是唯一識別，name 只作為顯示用途（可被改名）
 interface TagDto {
@@ -23,6 +24,8 @@ const router = useRouter()
 const { handleReadCard } = useCardStatus()
 const cardsGridWrapperRef = ref<HTMLElement | null>(null)
 const savedCardsScrollTop = ref(0)
+const CARD_PAGE_SIZE = 20
+const cardsPage = ref(1)
 
 // 標籤中心對應的 boardType。只要不讓 shouldMarkReviewedOnOpenDetail 回傳 true，
 // 從這裡點進卡片詳情就不會被判定為「完成本輪回顧」，不會動到 nextShowAt
@@ -41,6 +44,11 @@ function handleOpenDetail(card: CardDto) {
   if (shouldMarkReviewedOnOpenDetail(TAG_BOARD_TYPE)) {
     handleReadCard({ id: card.id, sourceBoard: TAG_BOARD_TYPE })
   }
+}
+
+function handleCardsPageChange(nextPage: number) {
+  cardsPage.value = nextPage
+  cardsGridWrapperRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 onActivated(async () => {
@@ -121,6 +129,20 @@ const { data: cardsData, isLoading: isCardsLoading } = useQuery<CardDto[]>({
   enabled: computed(() => selectedTagIds.value.length > 0),
   // 切換標籤時保留舊資料，避免畫面先閃空再跳出新資料
   placeholderData: keepPreviousData,
+})
+
+watch([selectedTagIds, operator], () => {
+  cardsPage.value = 1
+}, { deep: true })
+
+const pagedCards = computed(() => {
+  const start = (cardsPage.value - 1) * CARD_PAGE_SIZE
+  return (cardsData.value ?? []).slice(start, start + CARD_PAGE_SIZE)
+})
+
+watch(cardsData, (cards) => {
+  const totalPages = Math.max(1, Math.ceil((cards?.length ?? 0) / CARD_PAGE_SIZE))
+  if (cardsPage.value > totalPages) cardsPage.value = totalPages
 })
 
 // =====================================================
@@ -255,8 +277,8 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 
         <!-- 邏輯切換器 AND / OR -->
         <el-radio-group v-model="operator" size="small">
-          <el-radio-button label="OR">或 (OR)</el-radio-button>
-          <el-radio-button label="AND">且 (AND)</el-radio-button>
+          <el-radio-button value="OR">或 (OR)</el-radio-button>
+          <el-radio-button value="AND">且 (AND)</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -295,6 +317,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 
       <el-pagination
         v-if="(tagsData?.totalPages ?? 0) > 1"
+        class="tag-list-pagination"
         small
         background
         layout="prev, pager, next"
@@ -336,7 +359,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
         <template v-if="selectedTagIds.length > 0">
           <div v-if="cardsData && cardsData.length > 0" class="cards-grid">
             <CardItem
-              v-for="card in cardsData"
+              v-for="card in pagedCards"
               :key="card.id"
               :data="card"
               view-mode="text"
@@ -352,14 +375,26 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
           <el-icon class="placeholder-icon"><CollectionTag /></el-icon>
           <p>請在左側勾選標籤，在此處即時聯動檢視筆記卡片</p>
         </div>
+
+        <div v-if="(cardsData?.length ?? 0) > CARD_PAGE_SIZE" class="card-results-pagination">
+          <el-pagination
+            background
+            layout="prev, pager, next"
+            :current-page="cardsPage"
+            :page-size="CARD_PAGE_SIZE"
+            :total="cardsData?.length ?? 0"
+            @current-change="handleCardsPageChange"
+          />
+          <span>第 {{ cardsPage }} / {{ Math.ceil((cardsData?.length ?? 0) / CARD_PAGE_SIZE) }} 頁・每頁 {{ CARD_PAGE_SIZE }} 張</span>
+        </div>
       </div>
     </main>
 
     <!-- ================= 重新命名對話框 (Dialog) ================= -->
-    <el-dialog
+    <AppDialog
       v-model="renameDialogVisible"
       title="重新命名標籤"
-      width="400px"
+      width="min(560px, calc(100vw - 32px))"
       destroy-on-close
       @closed="handleDialogClosed"
     >
@@ -379,7 +414,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
           </el-button>
         </span>
       </template>
-    </el-dialog>
+    </AppDialog>
 
   </div>
 </template>
@@ -388,8 +423,10 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 /* 整體主畫面左右雙欄佈局 (預設案桌面版) */
 .tag-center-container {
   display: flex;
-  height: calc(100dvh - 40px);
+  width: calc(100% + (var(--page-gutter) * 2));
+  height: 100dvh;
   box-sizing: border-box;
+  margin: calc(var(--page-gutter) * -1);
   background-color: var(--el-bg-color-page);
   overflow: hidden;
 }
@@ -402,7 +439,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   border-right: 1px solid var(--el-border-color-light);
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: var(--workspace-padding);
   box-sizing: border-box;
   height: 100%;
 }
@@ -444,6 +481,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 
 /* 標籤清單與滾動條 */
 .tag-checkbox-list {
+  min-height: 0;
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -458,9 +496,10 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 }
 
 .tag-item-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-2xs);
   padding: 4px 8px;
   border-radius: 6px;
   transition: background-color 0.2s;
@@ -471,28 +510,43 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 
 .tag-checkbox {
   display: flex;
+  min-width: 0;
+  width: 100%;
+  height: auto;
+  min-height: 32px;
   align-items: center;
-  flex: 1;
-  margin-right: 8px;
-  overflow: hidden;
+  margin-right: 0;
+  overflow: visible;
 }
 :deep(.el-checkbox__label) {
   display: flex;
+  min-width: 0;
+  width: auto;
+  flex: 1;
   align-items: center;
   gap: 4px;
-  width: 100%;
-  overflow: hidden;
+  line-height: var(--leading-ui);
+  overflow: visible;
 }
 .tag-name {
+  min-width: 0;
+  flex: 1 1 auto;
   color: var(--el-text-color-regular);
   font-size: var(--type-caption);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .tag-count {
+  flex: 0 0 auto;
   color: var(--el-text-color-secondary);
   font-size: var(--type-meta);
+}
+
+.tag-list-pagination {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding-top: var(--space-sm);
 }
 
 .more-action-btn {
@@ -529,7 +583,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 }
 
 .filter-status-bar {
-  padding: 14px 20px;
+  padding: var(--workspace-padding);
   background: var(--el-bg-color);
   border-bottom: 1px solid var(--el-border-color-light);
   display: flex;
@@ -570,7 +624,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 
 .cards-grid-wrapper {
   flex: 1;
-  padding: 20px;
+  padding: var(--workspace-padding);
   overflow-y: auto;
   box-sizing: border-box;
 }
@@ -579,6 +633,15 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
+}
+.card-results-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  padding: var(--space-lg) 0 var(--space-xs);
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-caption);
 }
 .empty-cards, .initial-placeholder {
   display: flex;
@@ -610,7 +673,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
    ===================================================== */
 @media (max-width: 1200px) {
   .tag-center-container {
-    height: calc(100dvh - 88px);
+    height: calc(100dvh - 56px);
   }
 }
 
@@ -618,7 +681,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   .tag-center-container {
     flex-direction: column; /* 改為上下垂直堆疊 */
     height: auto;
-    min-height: calc(100dvh - 88px);
+    min-height: calc(100dvh - 56px);
     overflow-y: auto;
   }
 
@@ -628,6 +691,12 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
     max-height: 320px; /* 限制高度並允許內部捲動，避免標籤區太長 */
     border-right: none;
     border-bottom: 1px solid var(--el-border-color-light);
+  }
+
+  .card-results-pagination {
+    align-items: center;
+    flex-direction: column;
+    gap: var(--space-xs);
   }
 
   .tag-content-panel {

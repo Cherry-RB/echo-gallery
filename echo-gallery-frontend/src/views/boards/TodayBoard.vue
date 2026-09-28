@@ -4,10 +4,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { MasonryWall } from '@yeger/vue-masonry-wall'
 import { useRouter } from 'vue-router'
 import CardItem from '../../components/CardItem.vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import AppEmptyState from '../../components/ui/AppEmptyState.vue'
 import type { CardDto, TodayBatchResponse } from '../../types/card'
 import { cardApi } from '../../utils/api/cardApi'
 import { useCardStatus } from '../../utils/useCardStatus'
 import { resolveNextBatch, todayBatchQueryKey } from '../../utils/todayBatchCache'
+import { collectionLayoutTokens } from '../../utils/designTokens'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -89,14 +92,11 @@ function requestNextBatch() {
 </script>
 
 <template>
-  <section class="today-board">
-    <header class="today-page-header">
-      <h1 class="today-page-title">今日回流</h1>
-      <p class="today-page-description">看看今天與哪些卡片再次相遇。</p>
-    </header>
+  <section class="today-board app-page app-page--collection">
+    <PageHeader title="今日回流" description="看看今天與哪些卡片再次相遇。" />
 
-    <div class="board-surface">
-      <div v-if="isLoading" class="state-message" v-loading="true">正在準備今天的卡片</div>
+    <div class="board-surface app-workspace app-workspace--edge-to-edge">
+      <div v-if="isLoading" class="app-empty-state today-loading-state" v-loading="true">正在準備今天的卡片</div>
 
       <el-result
         v-else-if="isError"
@@ -108,7 +108,7 @@ function requestNextBatch() {
       </el-result>
 
       <template v-else>
-        <masonry-wall v-if="cards.length" :items="cards" :column-width="270" :gap="12">
+        <masonry-wall v-if="cards.length" :items="cards" :column-width="collectionLayoutTokens.masonryColumnWidth" :gap="collectionLayoutTokens.gridGap">
           <template #default="{ item }">
             <CardItem
               :data="item"
@@ -119,9 +119,10 @@ function requestNextBatch() {
           </template>
         </masonry-wall>
 
-        <div v-else class="state-message">
-          {{ hasBatch ? '目前這批已完成' : '今天目前沒有需要回流的卡片' }}
-        </div>
+        <AppEmptyState
+          v-else
+          :description="hasBatch ? '目前這批已完成' : '今天目前沒有需要回流的卡片'"
+        />
 
         <p v-if="noMoreCards" class="notice">今天沒有更多新卡片了</p>
         <p v-if="actionError" class="notice">{{ actionError }}</p>
@@ -148,66 +149,31 @@ function requestNextBatch() {
 <style scoped>
 .today-board {
   width: 100%;
-  max-width: 1240px;
-  margin: 0 auto;
-}
-.today-page-header {
-  margin-bottom: 24px;
-}
-.today-page-title {
-  margin: 0;
-  font-size: var(--type-page-title);
-  line-height: 1.35;
-}
-.today-page-description {
-  margin: 8px 0 0;
-  color: var(--el-text-color-secondary);
-  font-size: var(--type-ui);
-  line-height: var(--leading-ui);
 }
 .board-surface {
-  min-height: calc(100dvh - 160px);
-  padding: 12px;
-  background: var(--el-bg-color-page);
-}
-.state-message {
-  display: flex;
-  min-height: 180px;
-  align-items: center;
-  justify-content: center;
-  color: var(--el-text-color-secondary);
-  text-align: center;
+  min-height: 280px;
 }
 .batch-actions {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: 24px;
+  padding-top: var(--space-lg);
 }
 .batch-action-hint {
-  margin: 8px 0 0;
+  margin: var(--space-xs) 0 0;
   color: var(--el-text-color-secondary);
-  font-size: var(--type-caption);
+  font-size: var(--type-secondary);
   text-align: center;
 }
 .notice {
-  margin: 20px 0 0;
+  margin: var(--space-md) 0 0;
   color: var(--el-text-color-secondary);
   text-align: center;
 }
-@media (max-width: 768px) {
-  .today-board {
-    max-width: none;
-  }
-
-  .today-page-header {
-    margin-bottom: 16px;
-  }
+@media (max-width: 760px) {
   .board-surface {
-    min-height: calc(100dvh - 140px);
-    margin-inline: -16px;
-    padding: 12px 16px;
+    min-height: 240px;
   }
 }
 </style>

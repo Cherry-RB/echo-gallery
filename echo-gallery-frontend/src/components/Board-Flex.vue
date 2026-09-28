@@ -154,16 +154,16 @@ onUnmounted(() => {
         <!-- <el-switch v-model="isTextMode" active-text="Text" inactive-text="Gallery" /> -->
     <!-- </div> -->
 
-  <section class="board-page">
-    <header class="board-page-header">
+  <section class="board-page app-page app-page--collection">
+    <header class="board-page-header app-page-header">
       <div class="board-heading-copy">
-        <h1 class="board-page-title">{{ title }}</h1>
-        <p v-if="description" class="board-description">{{ description }}</p>
+        <h1 class="board-page-title app-page-title">{{ title }}</h1>
+        <p v-if="description" class="board-description app-page-description">{{ description }}</p>
       </div>
       <slot name="header-actions" />
     </header>
 
-    <div class="board-workspace">
+    <div class="board-workspace app-workspace app-workspace--edge-to-edge">
       <div v-if="isLoading && cardList.length === 0" class="board-state">
         載入中...
       </div>
@@ -208,37 +208,12 @@ onUnmounted(() => {
 <style scoped>
 .board-page {
   width: 100%;
-  max-width: 1240px;
-  margin: 0 auto;
-}
-
-.board-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 24px;
 }
 
 .board-heading-copy { min-width: 0; }
 
-.board-page-title {
-  margin: 0;
-  font-size: var(--type-page-title);
-  line-height: 1.35;
-}
-
-.board-description {
-  margin: 8px 0 0;
-  color: var(--el-text-color-secondary);
-  font-size: var(--type-ui);
-  line-height: var(--leading-ui);
-}
-
 .board-workspace {
-  min-height: calc(100dvh - 160px);
-  padding: 12px;
-  background: var(--el-bg-color-page);
+  min-height: 320px;
 }
 
 .feed-container {
@@ -275,21 +250,8 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .board-page {
-    max-width: none;
-  }
-
-  .board-page-header {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
   .board-workspace {
-    min-height: calc(100dvh - 140px);
-    margin-inline: -16px;
-    padding: 12px 16px;
+    min-height: 280px;
   }
 }
 </style>

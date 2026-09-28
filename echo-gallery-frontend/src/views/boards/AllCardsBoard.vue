@@ -87,7 +87,7 @@ const handleViewChange = (value: CardLibraryView) => {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .view-selector > span {

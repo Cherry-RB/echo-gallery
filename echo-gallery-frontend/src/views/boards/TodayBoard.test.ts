@@ -32,6 +32,7 @@ function mountBoard() {
           template: '<div><div v-for="item in items" :key="item.id"><slot :item="item" /></div></div>',
         },
         CardItem: { props: ['data'], template: '<article>{{ data.title }}</article>' },
+        'el-empty': { props: ['description'], template: '<div>{{ description }}<slot /></div>' },
         'el-result': { template: '<div><slot name="extra" /></div>' },
         'el-button': { template: '<button><slot /></button>' },
       },

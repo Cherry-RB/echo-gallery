@@ -218,6 +218,7 @@ const deleteCard = async () => {
   <el-card @click="goToDetail"
   :class="[
     'card-clickable',
+    'app-collection-card',
     { 'card-muted-style': isMuted },
     { disabled: isMuted }
   ]">
@@ -391,18 +392,18 @@ const deleteCard = async () => {
   align-items: center;
   color: var(--el-text-color-secondary);
   font-size: var(--type-meta);
-  gap: 20px; /* 確保左右區塊中間至少有間距 */
+  gap: var(--space-md);
   /* margin-top: 15px; */
 }
 .card-footer-side{
   display: flex;
   align-items: center;
-  gap: 10px
+  gap: var(--space-xs)
 }
 .card-source-row {
   display: flex;
   min-width: 0;
-  margin: -5px 0 8px;
+  margin: 0 0 var(--space-xs);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
 }
@@ -413,7 +414,7 @@ const deleteCard = async () => {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-2xs);
   padding: 0;
   border: 0;
   background: transparent;
@@ -444,7 +445,7 @@ const deleteCard = async () => {
 .tag-container{
   display: flex;
   max-height: 52px;
-  gap: 4px;
+  gap: var(--space-2xs);
   overflow: hidden;
   flex: 1;
   flex-wrap: wrap;
@@ -453,7 +454,7 @@ const deleteCard = async () => {
 .card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   overflow: hidden; /* 防止標題把標籤擠掉 */
 }
 .card-id {
@@ -468,7 +469,7 @@ const deleteCard = async () => {
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-2xs);
 }
 .card-body-content {
   color: var(--el-text-color-regular);
@@ -536,7 +537,7 @@ const deleteCard = async () => {
   /* 瀏覽器不知道怎麼斷行，導致整行直接隱形或破版 */
   overflow-wrap: break-word;
   word-break: break-word;
-  margin: 0 0 10px;
+  margin: 0 0 var(--space-xs);
 }
 .like-count{
   font-weight: 900;
@@ -544,7 +545,7 @@ const deleteCard = async () => {
 .status{
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
 }
 .card-link{
   /* text-decoration: none; */
@@ -613,7 +614,7 @@ const deleteCard = async () => {
   .card-footer {
     align-items: flex-start;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-xs);
   }
   .footer-actions {
     width: 100%;
