@@ -21,6 +21,6 @@ public class DemoCatalog {
         if (result == null || result.cards() == null || result.cards().size() != 15) throw new IllegalStateException("Demo 測資檔不完整：" + library.getKey());
         return result;
     }
-    public record Library(String workTitle, List<Entry> cards) {}
-    public record Entry(String type, String title, String url, String summary, String reason, List<String> tags, Integer intervalDays, Integer dayOffset, String content, String growthStatus, Integer snoozeCount, Boolean archived, String workStatus) {}
+    public record Library(String issueTitle, List<Entry> cards) {}
+    public record Entry(String type, String title, String url, String summary, String reason, List<String> tags, Integer intervalDays, Integer dayOffset, String content, String growthStatus, Integer snoozeCount, Boolean archived, String issueStatus) {}
 }

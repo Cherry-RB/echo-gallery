@@ -21,8 +21,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
-import com.echogallery.work.WorkCardRepository;
-import com.echogallery.work.WorkRepository;
+import com.echogallery.issue.IssueCardRepository;
+import com.echogallery.issue.IssueRepository;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -36,10 +36,10 @@ class CardGrowthStatusIntegrationTests extends IntegrationTestBase {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private WorkCardRepository workCardRepository;
+    private IssueCardRepository issueCardRepository;
 
     @Autowired
-    private WorkRepository workRepository;
+    private IssueRepository issueRepository;
 
     @Autowired
     private CardRepository cardRepository;
@@ -52,8 +52,8 @@ class CardGrowthStatusIntegrationTests extends IntegrationTestBase {
 
     @BeforeEach
     void cleanDatabase() {
-        workCardRepository.deleteAll();
-        workRepository.deleteAll();
+        issueCardRepository.deleteAll();
+        issueRepository.deleteAll();
         cardRepository.deleteAll();
         tagRepository.deleteAll();
         userRepository.deleteAll();

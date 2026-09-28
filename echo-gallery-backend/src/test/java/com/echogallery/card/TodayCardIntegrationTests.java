@@ -32,8 +32,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
-import com.echogallery.work.WorkCardRepository;
-import com.echogallery.work.WorkRepository;
+import com.echogallery.issue.IssueCardRepository;
+import com.echogallery.issue.IssueRepository;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -48,14 +48,14 @@ class TodayCardIntegrationTests extends IntegrationTestBase {
     @Autowired CardRepository cardRepository;
     @Autowired TagRepository tagRepository;
     @Autowired UserRepository userRepository;
-    @Autowired WorkCardRepository workCardRepository;
-    @Autowired WorkRepository workRepository;
+    @Autowired IssueCardRepository issueCardRepository;
+    @Autowired IssueRepository issueRepository;
     @Autowired MutableClock clock;
 
     @BeforeEach
     void cleanDatabase() {
-        workCardRepository.deleteAll();
-        workRepository.deleteAll();
+        issueCardRepository.deleteAll();
+        issueRepository.deleteAll();
         cardRepository.deleteAll();
         tagRepository.deleteAll();
         userRepository.deleteAll();

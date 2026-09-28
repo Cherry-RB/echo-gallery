@@ -22,12 +22,12 @@ import com.echogallery.user.AuthService;
 import com.echogallery.user.User;
 import com.echogallery.user.UserRepository;
 import com.echogallery.util.SecurityUtil;
-import com.echogallery.work.Work;
-import com.echogallery.work.WorkCard;
-import com.echogallery.work.WorkCardStatus;
-import com.echogallery.work.WorkCardRepository;
-import com.echogallery.work.WorkProgressUpdateRepository;
-import com.echogallery.work.WorkRepository;
+import com.echogallery.issue.Issue;
+import com.echogallery.issue.IssueCard;
+import com.echogallery.issue.IssueCardStatus;
+import com.echogallery.issue.IssueCardRepository;
+import com.echogallery.issue.IssueUpdateRepository;
+import com.echogallery.issue.IssueRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,9 +38,9 @@ public class DemoSessionService {
     private final UserRepository userRepository;
     private final CardRepository cardRepository;
     private final TagRepository tagRepository;
-    private final WorkRepository workRepository;
-    private final WorkCardRepository workCardRepository;
-    private final WorkProgressUpdateRepository workProgressUpdateRepository;
+    private final IssueRepository issueRepository;
+    private final IssueCardRepository issueCardRepository;
+    private final IssueUpdateRepository issueUpdateRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
     private final Clock clock;
@@ -110,13 +110,13 @@ public class DemoSessionService {
             entry.tags().forEach(name -> card.getTags().add(tags.get(name)));
             cards.add(cardRepository.save(card));
         }
-        Work work = workRepository.save(Work.builder().user(user).title(catalog.workTitle())
+        Issue issue = issueRepository.save(Issue.builder().user(user).title(catalog.issueTitle())
                 .description("Demo 用的議題素材原型，可查看卡片如何回到目前脈絡。").build());
         for (int cardIndex = 0; cardIndex < catalog.cards().size(); cardIndex++) {
-            String workStatus = catalog.cards().get(cardIndex).workStatus();
-            if (workStatus != null) {
-                workCardRepository.save(WorkCard.builder().work(work).card(cards.get(cardIndex))
-                        .status(WorkCardStatus.valueOf(workStatus)).build());
+            String issueStatus = catalog.cards().get(cardIndex).issueStatus();
+            if (issueStatus != null) {
+                issueCardRepository.save(IssueCard.builder().issue(issue).card(cards.get(cardIndex))
+                        .status(IssueCardStatus.valueOf(issueStatus)).build());
             }
         }
     }
@@ -127,11 +127,11 @@ public class DemoSessionService {
     }
 
     private void clearUserData(User user) {
-        for (Work work : workRepository.findAllByUserId(user.getId())) {
-            workProgressUpdateRepository.deleteByWorkId(work.getId());
-            workCardRepository.deleteByWorkId(work.getId());
+        for (Issue issue : issueRepository.findAllByUserId(user.getId())) {
+            issueUpdateRepository.deleteByIssueId(issue.getId());
+            issueCardRepository.deleteByIssueId(issue.getId());
         }
-        workRepository.deleteAll(workRepository.findAllByUserId(user.getId()));
+        issueRepository.deleteAll(issueRepository.findAllByUserId(user.getId()));
         cardRepository.deleteAll(cardRepository.findAllByUserId(user.getId()));
         cardRepository.flush();
         tagRepository.deleteAll(tagRepository.findAllByUserId(user.getId()));

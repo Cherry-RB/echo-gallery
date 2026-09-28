@@ -33,7 +33,7 @@ import com.echogallery.card.CardRepository;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
-import com.echogallery.work.WorkRepository;
+import com.echogallery.issue.IssueRepository;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -59,14 +59,14 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
     private UserRepository userRepository;
 
     @Autowired
-    private WorkRepository workRepository;
+    private IssueRepository issueRepository;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
 
     @BeforeEach
     void cleanDatabase() {
-        workRepository.deleteAll();
+        issueRepository.deleteAll();
         cardRepository.deleteAll();
         tagRepository.deleteAll();
         userRepository.deleteAll();
@@ -143,17 +143,17 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
         updateCard(ownerToken, seedCardId, "Seed card", false, "SEED");
         updateCard(ownerToken, archivedCardId, "Archived mature card", true, "MATURE");
         updateCard(otherToken, otherCardId, "Other user's mature card", false, "MATURE");
-        createWork(ownerToken, "Unfinished owner work");
-        long completedWorkId = createWork(ownerToken, "Completed owner work");
-        updateWork(ownerToken, completedWorkId, "Completed owner work", "DONE");
-        createWork(otherToken, "Other work");
+        createIssue(ownerToken, "Unfinished owner issue");
+        long completedIssueId = createIssue(ownerToken, "Completed owner issue");
+        updateIssue(ownerToken, completedIssueId, "Completed owner issue", "DONE");
+        createIssue(otherToken, "Other issue");
 
         mockMvc.perform(get("/api/sidebar/stats")
                 .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCards").value(3))
-                .andExpect(jsonPath("$.totalWorks").value(2))
-                .andExpect(jsonPath("$.unfinishedWorks").value(1))
+                .andExpect(jsonPath("$.totalIssues").value(2))
+                .andExpect(jsonPath("$.unfinishedIssues").value(1))
                 .andExpect(jsonPath("$.todayEchoCards").doesNotExist())
                 .andExpect(jsonPath("$.highSnoozeCards").value(0))
                 .andExpect(jsonPath("$.seedCards").value(1))
@@ -298,10 +298,10 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk());
     }
 
-    private long createWork(String token, String title) throws Exception {
-        String body = objectMapper.writeValueAsString(new WorkPayload(title, null, null));
+    private long createIssue(String token, String title) throws Exception {
+        String body = objectMapper.writeValueAsString(new IssuePayload(title, null, null));
 
-        MvcResult result = mockMvc.perform(post("/api/works")
+        MvcResult result = mockMvc.perform(post("/api/issues")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
@@ -311,10 +311,10 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
     }
 
-    private void updateWork(String token, long workId, String title, String workStatus) throws Exception {
-        String body = objectMapper.writeValueAsString(new WorkUpdatePayload(title, null, null, workStatus));
+    private void updateIssue(String token, long issueId, String title, String issueStatus) throws Exception {
+        String body = objectMapper.writeValueAsString(new IssueUpdatePayload(title, null, null, issueStatus));
 
-        mockMvc.perform(put("/api/works/{id}", workId)
+        mockMvc.perform(put("/api/issues/{id}", issueId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
@@ -380,9 +380,9 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
             String growthStatus
     ) {}
 
-    private record WorkPayload(String title, String description, String externalUrl) {}
+    private record IssuePayload(String title, String description, String externalUrl) {}
 
-    private record WorkUpdatePayload(
+    private record IssueUpdatePayload(
             String title,
             String description,
             String externalUrl,

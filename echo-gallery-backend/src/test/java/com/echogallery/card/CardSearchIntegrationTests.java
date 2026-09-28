@@ -24,8 +24,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
-import com.echogallery.work.WorkCardRepository;
-import com.echogallery.work.WorkRepository;
+import com.echogallery.issue.IssueCardRepository;
+import com.echogallery.issue.IssueRepository;
 
 import jakarta.persistence.EntityManagerFactory;
 import tools.jackson.databind.JsonNode;
@@ -36,8 +36,8 @@ class CardSearchIntegrationTests extends IntegrationTestBase {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-    @Autowired private WorkCardRepository workCardRepository;
-    @Autowired private WorkRepository workRepository;
+    @Autowired private IssueCardRepository issueCardRepository;
+    @Autowired private IssueRepository issueRepository;
     @Autowired private CardRepository cardRepository;
     @Autowired private TagRepository tagRepository;
     @Autowired private UserRepository userRepository;
@@ -45,8 +45,8 @@ class CardSearchIntegrationTests extends IntegrationTestBase {
 
     @BeforeEach
     void cleanDatabase() {
-        workCardRepository.deleteAll();
-        workRepository.deleteAll();
+        issueCardRepository.deleteAll();
+        issueRepository.deleteAll();
         cardRepository.deleteAll();
         tagRepository.deleteAll();
         userRepository.deleteAll();

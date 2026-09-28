@@ -12,9 +12,9 @@ import com.echogallery.card.CardStatsProjection;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.tag.TagDto;
 import com.echogallery.util.SecurityUtil;
-import com.echogallery.work.WorkRepository;
-import com.echogallery.work.WorkStatsProjection;
-import com.echogallery.work.WorkStatus;
+import com.echogallery.issue.IssueRepository;
+import com.echogallery.issue.IssueStatsProjection;
+import com.echogallery.issue.IssueStatus;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,7 +24,7 @@ public class SidebarService {
 
     private final CardRepository cardRepository;
     private final TagRepository tagRepository;
-    private final WorkRepository workRepository;
+    private final IssueRepository issueRepository;
 
     @Transactional(readOnly = true)
     public SidebarStatsResponse getSidebarStats() {
@@ -38,14 +38,14 @@ public class SidebarService {
                 CardGrowthStatus.SEED,
                 CardGrowthStatus.GROWING,
                 CardGrowthStatus.MATURE);
-        WorkStatsProjection workStats = workRepository.findStats(
+        IssueStatsProjection issueStats = issueRepository.findStats(
                 userId,
-                List.of(WorkStatus.IDEA, WorkStatus.DRAFT, WorkStatus.ACTIVE));
+                List.of(IssueStatus.IDEA, IssueStatus.DRAFT, IssueStatus.ACTIVE));
 
         return new SidebarStatsResponse(
                 cardStats.getTotalCards(),
-                workStats.getTotalWorks(),
-                workStats.getUnfinishedWorks(),
+                issueStats.getTotalIssues(),
+                issueStats.getUnfinishedIssues(),
                 cardStats.getHighSnoozeCards(),
                 cardStats.getSeedCards(),
                 cardStats.getGrowingCards(),

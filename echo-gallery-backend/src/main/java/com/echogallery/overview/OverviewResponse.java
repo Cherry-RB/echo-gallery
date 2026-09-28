@@ -15,7 +15,7 @@ public record OverviewResponse(
             int pausedCardCount,
             int needsProcessingCardCount,
             int activeExperimentCount,
-            int workWithNextStepCount,
+            int issueWithNextStepCount,
             List<ExperimentTryResponse> experimentTries,
             List<NextStepResponse> nextSteps,
             List<AttentionSignalResponse> attentionSignals) {
@@ -36,7 +36,7 @@ public record OverviewResponse(
     public record GenerativityMetricResponse(int derivedCardCount, int sourceCardCount) {
     }
 
-    public record ClosureMetricResponse(int workWithFollowUpCount) {
+    public record ClosureMetricResponse(int issueWithFollowUpCount) {
     }
 
     public record ActivityResponse(String key, int value) {
@@ -65,7 +65,7 @@ public record OverviewResponse(
     public record LineageCardResponse(Long cardId, String title) {
     }
 
-    public record NextStepResponse(Long workId, String workTitle, String nextStep, ZonedDateTime updatedAt) {
+    public record NextStepResponse(Long issueId, String issueTitle, String nextStep, ZonedDateTime updatedAt) {
     }
 
     public record ExperimentTryResponse(Long experimentId, String experimentTitle, String currentTry) {

@@ -2,8 +2,8 @@ package com.echogallery.sidebar;
 
 public record SidebarStatsResponse(
     long totalCards,
-    long totalWorks,
-    long unfinishedWorks,
+    long totalIssues,
+    long unfinishedIssues,
     long highSnoozeCards,
     long seedCards,
     long growingCards,

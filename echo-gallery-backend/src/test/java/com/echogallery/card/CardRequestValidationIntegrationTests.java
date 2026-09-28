@@ -22,7 +22,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
-import com.echogallery.work.WorkRepository;
+import com.echogallery.issue.IssueRepository;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -46,13 +46,13 @@ class CardRequestValidationIntegrationTests extends IntegrationTestBase {
     private UserRepository userRepository;
 
     @Autowired
-    private WorkRepository workRepository;
+    private IssueRepository issueRepository;
 
     private String token;
 
     @BeforeEach
     void setUp() throws Exception {
-        workRepository.deleteAll();
+        issueRepository.deleteAll();
         cardRepository.deleteAll();
         tagRepository.deleteAll();
         userRepository.deleteAll();

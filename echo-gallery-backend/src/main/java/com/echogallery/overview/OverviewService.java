@@ -31,10 +31,10 @@ import com.echogallery.experiment.ExperimentExplorationRecordRepository;
 import com.echogallery.experiment.ExperimentRepository;
 import com.echogallery.experiment.ExplorationRecordCardRepository;
 import com.echogallery.util.SecurityUtil;
-import com.echogallery.work.WorkCardRepository;
-import com.echogallery.work.WorkProgressUpdate;
-import com.echogallery.work.WorkProgressUpdateRepository;
-import com.echogallery.work.WorkStatus;
+import com.echogallery.issue.IssueCardRepository;
+import com.echogallery.issue.IssueUpdate;
+import com.echogallery.issue.IssueUpdateRepository;
+import com.echogallery.issue.IssueStatus;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -53,8 +53,8 @@ public class OverviewService {
     private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
     private final ExplorationRecordCardRepository explorationRecordCardRepository;
     private final CardRelationRepository cardRelationRepository;
-    private final WorkCardRepository workCardRepository;
-    private final WorkProgressUpdateRepository workProgressUpdateRepository;
+    private final IssueCardRepository issueCardRepository;
+    private final IssueUpdateRepository issueUpdateRepository;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -64,11 +64,11 @@ public class OverviewService {
         ZonedDateTime periodEndAt = ZonedDateTime.now(clock);
         ZonedDateTime periodStartAt = periodEndAt.minusDays(periodDays);
 
-        List<WorkProgressUpdate> latestUpdates = workProgressUpdateRepository.findLatestByUserId(userId);
-        List<WorkProgressUpdate> nextStepUpdates = latestUpdates.stream()
-                .filter(update -> update.getWork().getStatus() != WorkStatus.DONE)
+        List<IssueUpdate> latestUpdates = issueUpdateRepository.findLatestByUserId(userId);
+        List<IssueUpdate> nextStepUpdates = latestUpdates.stream()
+                .filter(update -> update.getIssue().getStatus() != IssueStatus.DONE)
                 .filter(update -> hasText(update.getNextStep()))
-                .sorted(Comparator.comparing(WorkProgressUpdate::getCreatedAt).reversed())
+                .sorted(Comparator.comparing(IssueUpdate::getCreatedAt).reversed())
                 .toList();
 
         int recurringCardCount = safeInt(cardRepository.countRecurringByUserId(userId));
@@ -102,7 +102,7 @@ public class OverviewService {
                 safeInt(cardRelationRepository.countDistinctSourceCardsByUserIdAndCreatedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)));
         OverviewResponse.ClosureMetricResponse closure = new OverviewResponse.ClosureMetricResponse(
-                safeInt(workProgressUpdateRepository.countWorksWithFollowUpAfterNextStep(
+                safeInt(issueUpdateRepository.countIssuesWithFollowUpAfterNextStep(
                         userId, periodStartAt, periodEndAt)));
 
         OverviewResponse.OverviewPeriodResponse period = new OverviewResponse.OverviewPeriodResponse(
@@ -169,13 +169,13 @@ public class OverviewService {
                 activity("reviewed", cardRepository.countByUserIdAndLastOpenAtGreaterThanEqualAndLastOpenAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("experiment-material", experimentCardRepository.countStandaloneMaterialsByUserIdAndAddedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
-                activity("work-linked", workCardRepository.countByWorkUserIdAndLinkedAtGreaterThanEqualAndLinkedAtLessThan(userId, periodStartAt, periodEndAt)),
+                activity("issue-linked", issueCardRepository.countByIssueUserIdAndLinkedAtGreaterThanEqualAndLinkedAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("derived", cardRelationRepository.countDistinctDerivedCardsByUserIdAndCreatedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
                 activity("exploration-record", experimentExplorationRecordRepository
                         .countByExperimentUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                                 userId, periodStartAt, periodEndAt)),
-                activity("work-update", workProgressUpdateRepository.countByWorkUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                activity("issue-update", issueUpdateRepository.countByIssueUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                         userId, periodStartAt, periodEndAt)));
     }
 
@@ -256,9 +256,9 @@ public class OverviewService {
     private record ExperimentCardKey(Long experimentId, Long cardId) {
     }
 
-    private OverviewResponse.NextStepResponse toNextStep(WorkProgressUpdate update) {
+    private OverviewResponse.NextStepResponse toNextStep(IssueUpdate update) {
         return new OverviewResponse.NextStepResponse(
-                update.getWork().getId(), update.getWork().getTitle(), update.getNextStep(), update.getCreatedAt());
+                update.getIssue().getId(), update.getIssue().getTitle(), update.getNextStep(), update.getCreatedAt());
     }
 
     private OverviewResponse.ExperimentTryResponse toExperimentTry(ExperimentExploration exploration) {
