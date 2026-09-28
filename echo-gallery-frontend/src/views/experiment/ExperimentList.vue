@@ -86,18 +86,18 @@ const submit = () => {
 </script>
 
 <template>
-  <section class="experiment-list-page">
-    <header class="page-header">
-      <div>
-        <h1 class="page-title">實驗場</h1>
-        <p class="page-description">讓彼此呼應的卡片聚在一起，持續觀察一個想法會長出什麼。</p>
+  <section class="experiment-list-page app-page app-page--workspace">
+    <header class="page-header app-page-header">
+      <div class="app-page-heading">
+        <h1 class="page-title app-page-title">實驗場</h1>
+        <p class="page-description app-page-description">讓彼此呼應的卡片聚在一起，持續觀察一個想法會長出什麼。</p>
       </div>
-      <div class="page-actions">
+      <div class="page-actions app-page-actions">
         <el-button type="primary" :icon="Plus" @click="openCreate">建立實驗主題</el-button>
       </div>
     </header>
 
-    <div class="experiment-dashboard">
+    <div class="experiment-dashboard app-workspace app-workspace--edge-to-edge">
       <div class="experiment-list-toolbar">
         <el-radio-group v-model="selectedScope" class="status-filter" aria-label="實驗主題篩選">
           <el-radio-button value="ACTIVE">觀察中</el-radio-button>
@@ -190,6 +190,7 @@ const submit = () => {
     v-model="dialogVisible"
     :title="editingId ? '編輯實驗主題' : '建立實驗主題'"
     width="min(680px, calc(100vw - 32px))"
+    scroll-body
     destroy-on-close
   >
     <p class="dialog-intro">先為想探索的方向取個名字；目前想弄懂的事，之後再補也可以。</p>
@@ -222,14 +223,10 @@ const submit = () => {
 </template>
 
 <style scoped>
-.experiment-list-page { width: 100%; max-width: 1240px; margin: 0 auto; box-sizing: border-box; }
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.page-title { margin: 0; font-size: var(--type-page-title); line-height: 1.35; }
-.page-description { margin: 8px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); line-height: var(--leading-ui); }
-.page-actions { display: flex; align-items: center; gap: 12px; }
-.experiment-dashboard { margin-top: 12px; padding: 12px; background: var(--el-bg-color-page); }
+.experiment-list-page { width: 100%; box-sizing: border-box; }
+.experiment-dashboard { margin-top: var(--space-sm); }
 .experiment-list-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-.experiment-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.experiment-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 12px; }
 .experiment-list-card { border-color: var(--el-border-color-light); box-shadow: none; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .experiment-list-card:hover, .experiment-list-card:focus-visible { transform: translateY(-2px); border-color: var(--el-border-color); box-shadow: var(--el-box-shadow-lighter); }
 .experiment-list-card:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
@@ -248,12 +245,12 @@ const submit = () => {
 .soil-summary strong { color: var(--experiment-vivid); font-size: inherit; font-weight: 650; line-height: 1; }
 .experiment-card-footer { margin-top: auto; color: var(--el-text-color-placeholder); font-size: var(--type-meta); text-align: right; }
 .experiment-pagination { justify-content: center; margin-top: 18px; }
-.dialog-intro { margin: -4px 0 18px; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
+.dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .field-counter { width: 100%; margin: 6px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .theme-picker { display: flex; flex-wrap: wrap; gap: 8px; }
 .theme-option { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--el-border-color); border-radius: 7px; background: var(--el-bg-color); color: var(--el-text-color-regular); font: inherit; cursor: pointer; }
 .theme-option > span { width: 14px; height: 14px; border-radius: 50%; background: var(--option-color); }
 .theme-option.active { border-color: color-mix(in srgb, var(--option-color) 40%, var(--el-bg-color)); background: color-mix(in srgb, var(--option-color) 26%, var(--el-bg-color)); color: var(--el-text-color-primary); }
 @media (max-width: 900px) { .experiment-list { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .page-header { align-items: stretch; flex-direction: column; gap: 16px; } .page-actions, .page-actions :deep(.el-button) { width: 100%; } .page-actions :deep(.el-button) { min-width: 0; margin-left: 0; } .experiment-list-toolbar, .status-filter { width: 100%; } .status-filter :deep(.el-radio-button) { flex: 1 1 0; } .status-filter :deep(.el-radio-button__inner) { width: 100%; } .experiment-dashboard { margin-inline: -16px; padding: 12px 16px; } .experiment-list-card :deep(.el-card__body) { padding: 18px; } .experiment-card-content { min-height: 0; grid-template-columns: 1fr; gap: 14px; } .soil-summary-grid { margin-top: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); } .experiment-card-footer { margin-top: 12px; } }
+@media (max-width: 600px) { .page-actions, .page-actions :deep(.el-button) { width: 100%; } .page-actions :deep(.el-button) { min-width: 0; margin-left: 0; } .experiment-list-toolbar, .status-filter { width: 100%; } .status-filter :deep(.el-radio-button) { flex: 1 1 0; } .status-filter :deep(.el-radio-button__inner) { width: 100%; } .experiment-list-card :deep(.el-card__body) { padding: 18px; } .experiment-card-content { min-height: 0; grid-template-columns: 1fr; gap: 14px; } .soil-summary-grid { margin-top: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); } .experiment-card-footer { margin-top: 12px; } }
 </style>

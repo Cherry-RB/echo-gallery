@@ -173,6 +173,7 @@ const wasEdited = (update: WorkProgressUpdate) => (
       v-model="historyDialogVisible"
       title="歷次更新"
       width="min(760px, calc(100vw - 32px))"
+      scroll-body
       destroy-on-close
     >
       <div v-if="isHistoryLoading" class="history-state">

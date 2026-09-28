@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import { useRouter } from 'vue-router'
 import { ArrowLeft, InfoFilled } from '@element-plus/icons-vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
+
+const router = useRouter()
 
 const { data: overview, isLoading, isError, refetch } = useQuery({
   queryKey: ['overview', 'card-return'],
@@ -47,24 +51,20 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 </script>
 
 <template>
-  <section class="card-return-page">
-    <router-link class="back-link" to="/overview">
-      <el-icon><ArrowLeft /></el-icon>
-      返回資訊轉化觀測台
-    </router-link>
-
-    <header class="page-header">
-      <h1>卡片與回流</h1>
-      <p>看看卡片目前的安排，以及接下來的回流節奏。</p>
+  <section class="card-return-page app-page app-page--workspace">
+    <header class="detail-navigation app-detail-navigation">
+      <el-button :icon="ArrowLeft" text @click="router.push('/overview')">返回資訊轉化觀測台</el-button>
     </header>
+
+    <PageHeader class="page-header" title="卡片與回流" description="看看卡片目前的安排，以及接下來的回流節奏。" />
 
     <div v-if="isLoading" class="overview-state">正在整理卡片與回流資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得卡片與回流資料" sub-title="請稍後再試。">
       <template #extra><el-button type="primary" @click="refetch()">重新載入</el-button></template>
     </el-result>
 
-    <div v-else-if="snapshot" class="return-workspace">
-      <div class="page-stack">
+    <div v-else-if="snapshot" class="return-workspace app-workspace app-workspace--edge-to-edge">
+      <div class="page-stack app-stack">
         <section class="panel state-panel" aria-labelledby="card-return-state-title">
           <div class="section-heading">
             <div>
@@ -152,17 +152,11 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 </template>
 
 <style scoped>
-.card-return-page { width: 100%; max-width: 1240px; margin: 0 auto; }
-.back-link { display: inline-flex; align-items: center; gap: 5px; color: var(--el-text-color-secondary); font-size: var(--type-ui); text-decoration: none; }
-.back-link:hover { color: var(--el-color-primary); }
-.page-header { margin: 18px 0 24px; }
-.page-header h1 { margin: 0; font-size: var(--type-page-title); line-height: 1.35; }
-.page-header p { margin: 8px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); line-height: var(--leading-ui); }
+.detail-navigation { margin-bottom: var(--space-md); background: var(--el-bg-color); }
+.page-header { margin: 18px 0 var(--space-lg); }
 .overview-state { padding: 48px 0; color: var(--el-text-color-secondary); text-align: center; }
-.return-workspace { padding: 12px; background: var(--el-bg-color-page); }
-.page-stack { display: flex; flex-direction: column; gap: 16px; }
 .panel, .definition-disclosure { border: 1px solid var(--el-border-color-light); border-radius: 8px; background: var(--el-bg-color); }
-.panel { padding: 20px 24px; }
+.panel { padding: var(--panel-padding); }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .section-eyebrow { display: block; color: var(--el-text-color-secondary); font-size: var(--type-meta); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .section-heading h2 { margin: 4px 0 0; color: var(--el-text-color-primary); font-size: var(--type-section-title); }
@@ -200,5 +194,5 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 .definition-disclosure[open] > summary { color: var(--el-color-primary); }
 .definition-disclosure > p { margin: 0 0 15px; color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
 @media (min-width: 601px) and (max-width: 900px) { .state-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .state-item:nth-child(3n + 1) { padding-left: 0; border-left: 0; } .return-grid { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .card-return-page { max-width: none; } .page-header { margin-bottom: 18px; } .return-workspace { margin-inline: -16px; padding: 12px 16px; } .panel { padding: 18px; border-radius: 8px; } .return-grid { grid-template-columns: minmax(0, 1fr); } .state-grid, .snooze-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; } .state-item, .snooze-item { padding: 10px; border-left: 0; border-top: 1px solid var(--el-border-color-lighter); } .state-item:first-child, .state-item:nth-child(2), .snooze-item:first-child, .snooze-item:nth-child(2) { border-top: 0; } .state-item:nth-child(odd), .snooze-item:nth-child(odd) { padding-left: 0; } .state-item:nth-child(even), .snooze-item:nth-child(even) { border-left: 1px solid var(--el-border-color-lighter); } .state-item:last-child { padding-right: 10px; } .cadence-item { grid-template-columns: 104px minmax(50px, 1fr) 36px; column-gap: 8px; } .forecast-chart { gap: 5px; } .forecast-day > span { font-size: 11px; } .forecast-day > small { font-size: 10px; } .definition-disclosure { padding: 0 18px; border-radius: 8px; } }
+@media (max-width: 600px) { .page-header { margin-bottom: var(--space-4); } .panel { padding: var(--panel-padding); border-radius: var(--panel-radius); } .return-grid { grid-template-columns: minmax(0, 1fr); } .state-grid, .snooze-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; } .state-item, .snooze-item { padding: 10px; border-left: 0; border-top: 1px solid var(--el-border-color-lighter); } .state-item:first-child, .state-item:nth-child(2), .snooze-item:first-child, .snooze-item:nth-child(2) { border-top: 0; } .state-item:nth-child(odd), .snooze-item:nth-child(odd) { padding-left: 0; } .state-item:nth-child(even), .snooze-item:nth-child(even) { border-left: 1px solid var(--el-border-color-lighter); } .state-item:last-child { padding-right: 10px; } .cadence-item { grid-template-columns: 104px minmax(50px, 1fr) 36px; column-gap: 8px; } .forecast-chart { gap: 5px; } .forecast-day > span { font-size: 11px; } .forecast-day > small { font-size: 10px; } .definition-disclosure { padding: 0 var(--panel-padding); border-radius: var(--panel-radius); } }
 </style>

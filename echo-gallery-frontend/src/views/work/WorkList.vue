@@ -9,6 +9,7 @@ import CurrentAssessmentGuide from '../../components/work/CurrentAssessmentGuide
 import AppDialog from '../../components/AppDialog.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
 import WorkProgressUpdateDialog from '../../components/work/WorkProgressUpdateDialog.vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
 import type { CreateWorkRequest, WorkStatus, WorkSummary } from '../../types/work'
 import { formatDate } from '../../utils/formatDate'
 import { workApi } from '../../utils/api/workApi'
@@ -265,27 +266,20 @@ const submitCreateWork = async () => {
 </script>
 
 <template>
-  <section class="work-list-page">
-    <header class="page-header">
-      <div>
-        <h1 class="page-title">議事廳</h1>
-        <p class="page-description">
-          把正在反覆思考或推進的事情放上桌，讓相關素材、現實變化與自己的判斷在同一處相遇
-        </p>
-      </div>
-      <div class="page-actions">
+  <section class="work-list-page app-page app-page--workspace">
+    <PageHeader title="議事廳" description="把正在反覆思考或推進的事情放上桌，讓相關素材、現實變化與自己的判斷在同一處相遇">
+      <template #actions>
         <el-button :icon="Clock" @click="recentDrawerVisible = true">
           近期動態
         </el-button>
         <el-button type="primary" :icon="Plus" @click="openCreateDialog">
           發起議題
         </el-button>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
-    <div class="work-dashboard">
-      <div class="work-content-surface">
-      <div class="work-list-toolbar">
+    <div class="work-dashboard app-workspace app-workspace--edge-to-edge">
+      <div class="work-list-toolbar app-toolbar">
         <div class="work-filter-groups">
           <div class="filter-row">
             <el-radio-group
@@ -372,7 +366,7 @@ const submitCreateWork = async () => {
           v-for="work in workList"
           :key="work.id"
           shadow="never"
-          class="work-card"
+          class="work-card app-summary-card"
           role="link"
           tabindex="0"
           :aria-label="`查看議題：${work.title}`"
@@ -462,7 +456,6 @@ const submitCreateWork = async () => {
           </div>
         </el-card>
       </div>
-      </div>
     </div>
 
     <el-drawer
@@ -470,6 +463,7 @@ const submitCreateWork = async () => {
       title="跨議題近期動態"
       size="min(680px, 100%)"
       destroy-on-close
+      class="app-drawer"
     >
       <section class="recent-updates-panel" aria-label="最近十二筆跨議題更新">
         <header class="recent-updates-heading">
@@ -530,6 +524,7 @@ const submitCreateWork = async () => {
       v-model="createDialogVisible"
       title="發起議題"
       width="min(620px, calc(100vw - 32px))"
+      scroll-body
       destroy-on-close
       @closed="resetCreateForm"
     >
@@ -633,36 +628,9 @@ const submitCreateWork = async () => {
 <style scoped>
 .work-list-page {
   width: 100%;
-  max-width: 1240px;
-  margin: 0 auto;
   box-sizing: border-box;
 }
 
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: var(--type-page-title);
-  line-height: 1.35;
-}
-
-.page-description {
-  margin-top: 8px;
-  color: var(--el-text-color-secondary);
-  font-size: var(--type-ui);
-  line-height: var(--leading-ui);
-}
-
-.page-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 
 .status-filter {
   flex: 0 0 auto;
@@ -672,21 +640,21 @@ const submitCreateWork = async () => {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
 }
 
 .work-filter-groups {
   display: grid;
   justify-items: end;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .filter-row {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: var(--space-sm);
 }
 
 .scope-arrow {
@@ -696,11 +664,11 @@ const submitCreateWork = async () => {
 
 .phase-popover {
   display: grid;
-  gap: 4px;
+  gap: var(--space-2xs);
 }
 
 .phase-popover strong {
-  padding: 4px 8px 8px;
+  padding: var(--space-2xs) var(--space-xs) var(--space-xs);
   color: var(--el-text-color-primary);
   font-size: var(--type-caption);
 }
@@ -709,9 +677,9 @@ const submitCreateWork = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 10px;
+  padding: var(--space-xs) var(--space-sm);
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--el-text-color-regular);
   font: inherit;
@@ -738,7 +706,7 @@ const submitCreateWork = async () => {
 }
 
 .create-intro {
-  margin: -4px 0 18px;
+  margin: 0 0 var(--space-md);
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
   line-height: var(--leading-ui);
@@ -767,20 +735,16 @@ const submitCreateWork = async () => {
 
 .work-dashboard {
   display: block;
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: var(--space-sm);
+  padding: var(--workspace-padding);
   background: var(--el-bg-color-page);
-}
-
-.work-content-surface {
-  min-width: 0;
 }
 
 .loading-grid,
 .work-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 .work-card {
@@ -808,7 +772,7 @@ const submitCreateWork = async () => {
 }
 
 .work-card :deep(.el-card__body) {
-  padding: 24px 26px;
+  padding: var(--panel-padding);
 }
 
 .work-card-layout {
@@ -821,7 +785,7 @@ const submitCreateWork = async () => {
   display: flex;
   height: 100%;
   min-width: 0;
-  padding-right: 24px;
+  padding-right: var(--panel-padding);
   flex-direction: column;
 }
 
@@ -836,11 +800,11 @@ const submitCreateWork = async () => {
 .status-label {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-xs);
   color: var(--el-text-color-secondary);
   font-size: var(--type-meta);
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-sm);
 }
 
 .status-dot {
@@ -881,7 +845,7 @@ const submitCreateWork = async () => {
 
 .work-description {
   display: -webkit-box;
-  margin: 8px 0 0;
+  margin: var(--space-xs) 0 0;
   overflow: hidden;
   color: var(--el-text-color-regular);
   font-size: var(--type-body);
@@ -892,12 +856,12 @@ const submitCreateWork = async () => {
 }
 
 .work-overview-field {
-  margin-top: 14px;
+  margin-top: var(--space-md);
 }
 
 .work-overview-field > span {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-2xs);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
   font-weight: 600;
@@ -927,15 +891,15 @@ const submitCreateWork = async () => {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-xs);
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
 }
 
 .work-latest-progress {
   min-width: 0;
-  padding: 22px 24px;
-  border-radius: 10px;
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
   background: var(--el-fill-color-light);
 }
 
@@ -943,13 +907,13 @@ const submitCreateWork = async () => {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 .latest-progress-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 .work-latest-progress > header time {
@@ -960,12 +924,12 @@ const submitCreateWork = async () => {
 
 .work-progress-fields {
   display: grid;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 .work-progress-fields section > span {
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: var(--space-2xs);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
   font-weight: 600;
@@ -979,7 +943,7 @@ const submitCreateWork = async () => {
 }
 
 .work-next-step {
-  padding: 4px 0 0;
+  padding: var(--space-2xs) 0 0;
   border: 0;
   background: transparent;
 }
@@ -1006,7 +970,7 @@ const submitCreateWork = async () => {
 }
 
 .no-progress-update {
-  margin: 4px 0 0;
+  margin: var(--space-2xs) 0 0;
   color: var(--el-text-color-placeholder);
   font-size: var(--type-caption);
   line-height: var(--leading-ui);
@@ -1015,7 +979,7 @@ const submitCreateWork = async () => {
 .material-info {
   display: inline-flex;
   align-items: baseline;
-  gap: 4px;
+  gap: var(--space-2xs);
 }
 
 .material-divider {
@@ -1025,9 +989,9 @@ const submitCreateWork = async () => {
 .work-card-footer {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-sm);
   margin-top: auto;
-  padding-top: 20px;
+  padding-top: var(--space-lg);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
 }
@@ -1066,7 +1030,7 @@ const submitCreateWork = async () => {
 
 .recent-updates-panel {
   min-width: 0;
-  padding: 0 24px 28px;
+  padding: 0 0 var(--space-md);
 }
 
 .recent-updates-heading {
@@ -1250,12 +1214,6 @@ const submitCreateWork = async () => {
     margin: 0;
   }
 
-  .page-header {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 16px;
-  }
-
   .page-actions {
     width: 100%;
     display: grid;
@@ -1304,8 +1262,8 @@ const submitCreateWork = async () => {
   }
 
   .work-dashboard {
-    margin-inline: -16px;
-    padding: 12px 16px;
+    margin-inline: calc(var(--page-gutter) * -1);
+    padding: var(--workspace-padding) var(--page-gutter);
   }
 
   .external-link {

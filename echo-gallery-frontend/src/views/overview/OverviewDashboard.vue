@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { InfoFilled } from '@element-plus/icons-vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewAttentionSignal, OverviewPeriodDays } from '../../types/overview'
 
@@ -104,19 +105,16 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 </script>
 
 <template>
-  <section class="overview-page">
-    <header class="overview-header">
-      <h1 class="page-title">資訊轉化觀測台</h1>
-      <p class="page-description">看見此刻狀態，以及最近留下了什麼。</p>
-    </header>
+  <section class="overview-page app-page app-page--workspace">
+    <PageHeader title="資訊轉化觀測台" description="看見此刻狀態，以及最近留下了什麼。" />
 
     <div v-if="isLoading" class="overview-state">正在整理觀測資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得觀測資料" sub-title="請稍後再試。">
       <template #extra><el-button type="primary" @click="refetch()">重新載入</el-button></template>
     </el-result>
 
-    <div v-else-if="overview" class="overview-workspace">
-      <div class="overview-stack">
+    <div v-else-if="overview" class="overview-workspace app-workspace app-workspace--edge-to-edge">
+      <div class="overview-stack app-stack">
       <section v-if="current.experimentTries.length" class="experiment-tries-panel" aria-labelledby="overview-experiment-tries-title">
         <div class="section-title-row">
           <div>
@@ -284,16 +282,10 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 </template>
 
 <style scoped>
-.overview-page { width: 100%; max-width: 1240px; margin: 0 auto; }
-.overview-header { margin-bottom: 22px; }
 .section-eyebrow { display: block; color: var(--el-text-color-secondary); font-size: var(--type-meta); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.page-title { margin: 0; font-size: var(--type-page-title); line-height: 1.35; }
-.page-description { margin: 8px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); line-height: var(--leading-ui); }
-.overview-workspace { padding: 12px; background: var(--el-bg-color-page); }
-.overview-stack { display: flex; flex-direction: column; gap: 16px; }
 .overview-state { padding: 48px 0; color: var(--el-text-color-secondary); text-align: center; }
 .current-strip, .experiment-tries-panel, .action-panel, .period-section, .content-panel, .activity-disclosure { border: 1px solid var(--el-border-color-light); border-radius: 8px; background: var(--el-bg-color); }
-.current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: 20px 24px; }
+.current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: var(--panel-padding); }
 .section-title-row, .period-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .section-title-row h2, .period-heading h2 { margin: 4px 0 0; font-size: var(--type-section-title); }
 .section-title-row > a { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
@@ -352,5 +344,5 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .activity-item strong { font-size: 18px; }
 .activity-item span { overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) { .current-stat-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .current-stat:nth-child(4) { padding-left: 0; border-left: 0; } .experiment-try-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .action-grid, .content-grid { grid-template-columns: 1fr; } .activity-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .overview-page { max-width: none; } .overview-header { margin-bottom: 18px; } .overview-workspace { margin-inline: -16px; padding: 12px 16px; } .overview-stack { gap: 12px; } .current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: 18px; border-radius: 8px; } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .current-stat:last-child { grid-column: 1 / -1; padding-right: 0; } .experiment-try-list { grid-template-columns: 1fr; gap: 8px; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: 1fr; gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 18px; border-radius: 8px; } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: var(--panel-padding); border-radius: var(--panel-radius); } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .current-stat:last-child { grid-column: 1 / -1; padding-right: 0; } .experiment-try-list { grid-template-columns: 1fr; gap: 8px; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: 1fr; gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 var(--panel-padding); border-radius: var(--panel-radius); } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

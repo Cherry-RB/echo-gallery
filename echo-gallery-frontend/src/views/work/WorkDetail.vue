@@ -257,8 +257,8 @@ const submitUpdateWork = async () => {
 </script>
 
 <template>
-  <section class="work-detail-page">
-    <header class="detail-navigation">
+  <section class="work-detail-page app-page">
+    <header class="detail-navigation app-detail-navigation">
       <el-button :icon="ArrowLeft" text @click="goBack">
         返回議事廳
       </el-button>
@@ -461,6 +461,7 @@ const submitUpdateWork = async () => {
       v-model="editDialogVisible"
       :title="editDialogTitle"
       width="min(680px, calc(100vw - 32px))"
+      scroll-body
       destroy-on-close
       @closed="resetEditForm"
     >
@@ -558,7 +559,7 @@ const submitUpdateWork = async () => {
 <style scoped>
 .work-detail-page {
   width: 100%;
-  height: calc(100dvh - 40px);
+  height: calc(100dvh - (var(--page-gutter) * 2));
   overflow: hidden;
   background: var(--el-bg-color-page);
 }
@@ -567,9 +568,9 @@ const submitUpdateWork = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-md);
   min-height: 48px;
-  padding: 8px 16px;
+  padding: var(--space-sm) var(--space-md);
   box-sizing: border-box;
   border-bottom: 1px solid var(--el-border-color-light);
   background: var(--el-bg-color);
@@ -578,7 +579,7 @@ const submitUpdateWork = async () => {
 .detail-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-lg);
 }
 
 .detail-actions :deep(.el-button) {
@@ -587,7 +588,7 @@ const submitUpdateWork = async () => {
 
 .detail-edit-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .status-select {
@@ -595,9 +596,9 @@ const submitUpdateWork = async () => {
 }
 
 .state-surface {
-  padding: 32px;
+  padding: var(--panel-padding);
   border: 1px solid var(--el-border-color-light);
-  border-radius: 10px;
+  border-radius: var(--panel-radius);
   background: var(--el-bg-color);
   box-shadow: var(--el-box-shadow-lighter);
 }
@@ -617,7 +618,7 @@ const submitUpdateWork = async () => {
 
 .issue-overview-panel {
   height: 100%;
-  padding: 16px;
+  padding: var(--workspace-padding);
   box-sizing: border-box;
   background: var(--el-bg-color);
   overflow-y: auto;
@@ -625,7 +626,7 @@ const submitUpdateWork = async () => {
 
 .issue-updates-panel {
   height: 100%;
-  padding: 14px 16px;
+  padding: var(--workspace-padding);
   box-sizing: border-box;
   border-left: 1px solid var(--el-border-color-lighter);
   background: var(--el-bg-color-page);
@@ -636,7 +637,7 @@ const submitUpdateWork = async () => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--space-lg);
 }
 
 .title-group {
@@ -645,7 +646,7 @@ const submitUpdateWork = async () => {
 
 .detail-eyebrow {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-xs);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
   letter-spacing: 0.12em;
@@ -662,7 +663,7 @@ const submitUpdateWork = async () => {
 
 .phase-track {
   display: grid;
-  margin: 24px 0 0;
+  margin: var(--space-lg) 0 0;
   padding: 0;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   list-style: none;
@@ -674,7 +675,7 @@ const submitUpdateWork = async () => {
   align-items: center;
   min-width: 0;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--space-xs);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
   text-align: center;
@@ -722,8 +723,8 @@ const submitUpdateWork = async () => {
 }
 
 .overview-group + .overview-group {
-  margin-top: 26px;
-  padding-top: 26px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
   border-top: 1px solid var(--el-border-color-lighter);
 }
 
@@ -732,14 +733,14 @@ const submitUpdateWork = async () => {
 }
 
 .focus-section {
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
   border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .detail-section {
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
   border-top: 1px solid var(--el-border-color-lighter);
 }
 
@@ -749,15 +750,15 @@ const submitUpdateWork = async () => {
 
 .updates-side-card,
 .materials-side-card {
-  padding: 20px;
+  padding: var(--panel-padding);
   border: 1px solid var(--el-border-color-light);
-  border-radius: 10px;
+  border-radius: var(--panel-radius);
   background: var(--el-bg-color);
   box-shadow: var(--el-box-shadow-lighter);
 }
 
 .materials-side-card {
-  margin-top: 16px;
+  margin-top: var(--space-md);
 }
 
 .materials-side-card :deep(.material-surface) {
@@ -773,14 +774,14 @@ const submitUpdateWork = async () => {
 }
 
 .overview-heading {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-sm);
 }
 
 .overview-heading.with-action {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  gap: var(--space-md);
 }
 
 .overview-heading h2 {
@@ -790,7 +791,7 @@ const submitUpdateWork = async () => {
 }
 
 .overview-heading p {
-  margin: 4px 0 0;
+  margin: var(--space-2xs) 0 0;
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
   line-height: var(--leading-ui);
@@ -807,7 +808,7 @@ const submitUpdateWork = async () => {
 }
 
 .assessment-content {
-  margin-top: 16px;
+  margin-top: var(--space-md);
 }
 
 .assessment-content :deep(.expandable-content),
@@ -824,8 +825,8 @@ const submitUpdateWork = async () => {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 10px;
+  gap: var(--space-xs) var(--space-sm);
+  margin-top: var(--space-sm);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-ui);
   line-height: var(--leading-ui);
@@ -853,11 +854,11 @@ const submitUpdateWork = async () => {
 }
 
 .background-content {
-  margin-top: 20px;
+  margin-top: var(--space-md);
 }
 
 .context-empty {
-  margin: 16px 0 0;
+  margin: var(--space-md) 0 0;
   color: var(--el-text-color-placeholder);
   font-size: var(--type-caption);
 }
@@ -930,7 +931,7 @@ const submitUpdateWork = async () => {
 .external-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   color: var(--el-color-primary);
   font-size: var(--type-ui);
   text-decoration: none;
@@ -944,14 +945,14 @@ const submitUpdateWork = async () => {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
-  gap: 14px 28px;
-  margin: 20px 0 0;
-  padding-top: 18px;
+  gap: var(--space-sm) var(--space-lg);
+  margin: var(--space-md) 0 0;
+  padding-top: var(--space-md);
   border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .time-metadata dd {
-  margin: 4px 0 0;
+  margin: var(--space-2xs) 0 0;
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
 }

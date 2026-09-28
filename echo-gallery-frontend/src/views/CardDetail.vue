@@ -407,10 +407,10 @@ const {
 </script>
 
 <template>
-  <div class="detail-container">
+  <div class="detail-container app-page app-page--contained">
     <template v-if="!isCreateMode">
       <section class="card-detail-experience">
-        <header class="detail-navigation">
+        <header class="detail-navigation app-detail-navigation">
           <el-button :icon="ArrowLeft" text @click="goBack">返回</el-button>
 
           <div v-if="fetchedCard" class="detail-navigation-actions">
@@ -630,7 +630,7 @@ const {
               <header class="property-heading">
                 <div>
                   <span class="property-eyebrow">實驗場</span>
-                  <h2>實驗主題與思想脈絡</h2>
+                  <h2>實驗脈絡</h2>
                 </div>
                 <div class="experiment-context-actions">
                   <el-button text size="small" @click="router.push('/experiments')">前往實驗場</el-button>
@@ -851,8 +851,8 @@ const {
                     </el-tag>
                     <!-- 創建卡片狀態 -->
                     <el-radio-group v-else v-model="cardData.type" size="small">
-                      <el-radio-button label="note">筆記</el-radio-button>
-                      <el-radio-button label="link">連結</el-radio-button>
+                      <el-radio-button value="note">筆記</el-radio-button>
+                      <el-radio-button value="link">連結</el-radio-button>
                     </el-radio-group>
                   </el-form-item>
                   <span v-if="!isCreateMode" class="detail-card-id">#{{ cardData.id }}</span>
@@ -1172,8 +1172,9 @@ const {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: 20px;
-  max-width: 1300px;
+  padding: 0;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
 }
 
 .recurrence-status-row {
@@ -1367,19 +1368,13 @@ const {
 .card-detail-experience {
   overflow: hidden;
   border: 1px solid var(--el-border-color-light);
-  border-radius: 10px;
+  border-radius: var(--panel-radius);
   background: var(--el-bg-color);
   box-shadow: var(--el-box-shadow-lighter);
 }
 
 .detail-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   min-height: 52px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--el-border-color-light);
 }
 
 .detail-navigation-actions,
@@ -1390,12 +1385,12 @@ const {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .detail-state {
   min-height: 420px;
-  padding: 32px;
+  padding: var(--space-xl);
 }
 
 .reading-layout {
@@ -1406,22 +1401,22 @@ const {
 
 .card-reading-panel {
   min-width: 0;
-  padding: 32px clamp(24px, 4vw, 56px) 48px;
+  padding: var(--panel-padding) clamp(var(--panel-padding), 4vw, 56px) var(--space-3xl);
 }
 
 .card-reading-panel article {
   width: 100%;
-  max-width: 760px;
+  max-width: var(--reading-max-width);
   margin: 0 auto;
 }
 
 .card-reading-heading {
-  padding-bottom: 28px;
+  padding-bottom: var(--space-lg);
 }
 
 .card-reading-heading h1 {
   min-width: 0;
-  margin-top: 10px;
+  margin-top: var(--space-sm);
   overflow-wrap: anywhere;
   font-size: var(--type-detail-title);
   line-height: var(--leading-title);
@@ -1433,24 +1428,24 @@ const {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  gap: var(--space-md);
 }
 
 .reading-tags {
-  margin-top: 14px;
+  margin-top: var(--space-md);
 }
 
 .reading-cover {
   display: block;
   width: 100%;
   max-height: 440px;
-  margin-bottom: 30px;
-  border-radius: 10px;
+  margin-bottom: var(--space-xl);
+  border-radius: var(--radius-md);
   object-fit: cover;
 }
 
 .reading-section {
-  padding: 26px 0;
+  padding: var(--space-lg) 0;
   border-top: 1px solid var(--el-border-color-lighter);
 }
 
@@ -1463,14 +1458,14 @@ const {
 }
 
 .section-heading p {
-  margin: 4px 0 0;
+  margin: var(--space-2xs) 0 0;
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
   line-height: var(--leading-ui);
 }
 
 .reading-copy {
-  margin: 16px 0 0;
+  margin: var(--space-md) 0 0;
   color: var(--el-text-color-regular);
   font-size: var(--type-body);
   line-height: var(--leading-body);
@@ -1492,8 +1487,8 @@ const {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 14px;
+  gap: var(--space-xs) var(--space-sm);
+  margin-top: var(--space-md);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-ui);
 }
@@ -1517,15 +1512,15 @@ const {
 
 .card-properties-panel {
   min-width: 0;
-  padding: 20px;
+  padding: var(--panel-padding);
   border-left: 1px solid var(--el-border-color-lighter);
   background: var(--el-bg-color-page);
 }
 
 .property-card {
-  padding: 18px;
+  padding: var(--space-md);
   border: 1px solid var(--el-border-color-light);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--el-bg-color);
   box-shadow: var(--el-box-shadow-lighter);
 }
@@ -1533,12 +1528,12 @@ const {
 .property-card + .property-card,
 .property-card + :deep(.el-card),
 .card-properties-panel :deep(.el-card) + .system-metadata {
-  margin-top: 14px;
+  margin-top: var(--space-md);
 }
 
 .property-eyebrow {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-2xs);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
   letter-spacing: 0.08em;
@@ -1546,7 +1541,7 @@ const {
 
 .property-description,
 .property-hint {
-  margin: 12px 0 0;
+  margin: var(--space-sm) 0 0;
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
   line-height: var(--leading-ui);
@@ -1557,26 +1552,26 @@ const {
 }
 
 .property-actions {
-  margin-top: 14px;
+  margin-top: var(--space-md);
 }
 
 .full-width-action {
   width: 100%;
-  margin-top: 14px;
+  margin-top: var(--space-md);
 }
 
 .property-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 16px 0 0;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0 0;
 }
 
 .property-list > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-md);
 }
 
 .property-list dt {
@@ -1593,8 +1588,8 @@ const {
 .star-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 0;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) 0;
   border: 0;
   background: transparent;
   color: var(--el-text-color-primary);
@@ -1610,9 +1605,9 @@ const {
 .system-metadata {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-top: 16px;
-  padding: 0 4px;
+  gap: var(--space-2xs);
+  margin-top: var(--space-md);
+  padding: 0 var(--space-2xs);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
 }
@@ -1620,8 +1615,8 @@ const {
 .readonly-type-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
   color: var(--el-text-color-secondary);
   font-size: var(--type-ui);
 }
@@ -1707,13 +1702,28 @@ const {
 }
 
 .experiment-context-card {
-  margin-top: 16px;
+  margin-top: var(--space-md);
 }
 
 .experiment-context-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: var(--space-xs);
+  margin-top: 0;
+}
+
+.experiment-context-card .property-heading > div:first-child {
+  min-width: max-content;
+}
+
+.experiment-context-card .property-heading h2 {
+  white-space: nowrap;
+}
+
+.experiment-context-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .experiment-context-list {

@@ -9,6 +9,7 @@ import QuickCreateCardDialog from '../../components/QuickCreateCardDialog.vue'
 import CardPickerDialog from '../../components/CardPickerDialog.vue'
 import AppDialog from '../../components/AppDialog.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
+import CardPickerSelectionSummary from '../../components/ui/CardPickerSelectionSummary.vue'
 import type { CardContentRequest, CardDto } from '../../types/card'
 import type { ExperimentCardDto, ExperimentExplorationDto, ExperimentRequest, ExperimentStage } from '../../types/experiment'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
@@ -590,7 +591,7 @@ const handleGrownCard = async (_card: CardDto) => {
 </script>
 
 <template>
-  <section class="experiment-detail-page">
+  <section class="experiment-detail-page app-page">
     <header class="detail-navigation">
       <el-button :icon="ArrowLeft" text @click="goBack">返回實驗場</el-button>
       <div v-if="experimentQuery.data.value" class="detail-actions">
@@ -742,7 +743,7 @@ const handleGrownCard = async (_card: CardDto) => {
     </main>
   </section>
 
-  <AppDialog v-model="tryDialogVisible" :title="tryDialogMode === 'COMPOSE' ? '試一件小事' : '常用試法'" width="min(560px, calc(100vw - 32px))">
+  <AppDialog v-model="tryDialogVisible" :title="tryDialogMode === 'COMPOSE' ? '試一件小事' : '常用試法'" width="min(560px, calc(100vw - 32px))" scroll-body>
     <template v-if="tryDialogMode === 'COMPOSE'">
       <p class="dialog-intro">先寫下一件容易開始的小事。它會留在「目前想試」，等你記下發現時再決定要不要一起收進一筆探索紀錄。</p>
       <label class="try-suggestion-label" for="try-suggestion-select">從既有試法開始（可選）</label>
@@ -805,23 +806,25 @@ const handleGrownCard = async (_card: CardDto) => {
     <template #footer><el-button @click="observationDialogVisible = false">取消</el-button><el-button type="primary" :disabled="!observationDraft.trim()" @click="saveObservation">留下這次發現</el-button></template>
   </AppDialog>
 
-  <AppDialog v-model="exportVisible" title="整理探索紀錄" width="min(760px, calc(100vw - 32px))">
+  <AppDialog v-model="exportVisible" title="整理探索紀錄" width="min(760px, calc(100vw - 32px))" scroll-body>
     <p class="dialog-intro">把選取的探索紀錄整理成 Card 內容。成功後會保留原紀錄，並標示它已整理到哪張卡片。</p>
     <section class="export-dialog-section">
       <h3>收錄哪些紀錄？</h3>
       <div class="export-record-list">
-        <label v-for="record in exportRecords" :key="record.id" class="export-record-option">
-          <input
-            type="checkbox"
-            :checked="selectedExportRecordIds.includes(record.id)"
-            @change="toggleExportRecord(record.id)"
-          >
+        <el-checkbox
+          v-for="record in exportRecords"
+          :key="record.id"
+          class="multi-select-option export-record-option"
+          :class="{ selected: selectedExportRecordIds.includes(record.id) }"
+          :model-value="selectedExportRecordIds.includes(record.id)"
+          @change="toggleExportRecord(record.id)"
+        >
           <span class="export-record-content">
             <time>{{ formatDate(record.createdAt, 'YYYY/MM/DD HH:mm') }}</time>
             <strong v-if="record.tryText">試：{{ record.tryText }}</strong>
             <strong>發現：{{ record.discovery }}</strong>
           </span>
-        </label>
+        </el-checkbox>
       </div>
     </section>
     <section class="export-dialog-section">
@@ -872,7 +875,7 @@ const handleGrownCard = async (_card: CardDto) => {
     @created="handleExportCardCreated"
   />
 
-  <AppDialog v-model="comparisonVisible" title="並排看材料" class="experiment-comparison-dialog" width="min(900px, calc(100vw - 32px))">
+  <AppDialog v-model="comparisonVisible" title="並排看材料" class="experiment-comparison-dialog" width="min(900px, calc(100vw - 32px))" scroll-body>
     <section class="comparison-workspace" aria-label="並排比較卡片">
       <div class="comparison-grid">
         <article v-for="card in comparingCards" :key="card.cardId" class="comparison-card">
@@ -892,7 +895,7 @@ const handleGrownCard = async (_card: CardDto) => {
     </template>
   </AppDialog>
 
-  <AppDialog v-model="editVisible" title="編輯實驗主題">
+  <AppDialog v-model="editVisible" title="編輯實驗主題" width="min(680px, calc(100vw - 32px))" scroll-body>
     <el-form label-position="top" @submit.prevent="submitEdit">
       <el-form-item label="實驗主題名稱" required>
         <el-input v-model="editForm.title" maxlength="255" />
@@ -934,10 +937,7 @@ const handleGrownCard = async (_card: CardDto) => {
         <h3>實驗場設定</h3>
         <p>選取卡片後，設定它在這個實驗主題中的位置。</p>
       </header>
-      <div class="plant-selected-card" :class="{ empty: !selectedCard }">
-        <span>已選擇</span>
-        <p class="plant-selected-card-content">{{ selectedCard ? `#${selectedCard.id}　${selectedCard.title}` : '請先從左側選擇一張卡片。' }}</p>
-      </div>
+      <CardPickerSelectionSummary :card="selectedCard" class="plant-selected-card" />
       <el-form label-position="top">
         <el-form-item label="放入土壤"><el-radio-group v-model="addStage"><el-radio-button v-for="stage in stages" :key="stage.value" :value="stage.value">{{ getStageControlLabel(stage) }}</el-radio-button></el-radio-group></el-form-item>
         <el-form-item label="種植備註（選填）"><el-input v-model="addNote" type="textarea" :rows="4" maxlength="1000" placeholder="這張卡為什麼適合放在這個實驗主題？" /><p class="field-counter">總字數：{{ getTextLength(addNote) }} / 1000</p></el-form-item>
@@ -973,10 +973,16 @@ const handleGrownCard = async (_card: CardDto) => {
         <el-form-item label="來源卡片" required>
           <el-skeleton v-if="sourceCardsQuery.isLoading.value" :rows="3" animated />
           <div v-else class="source-picker">
-            <div v-for="card in sourceCards" :key="card.cardId" class="source-card-option">
-              <el-checkbox :model-value="growContext.sourceCardIds.includes(card.cardId)" @change="toggleSource(card.cardId)" />
+            <el-checkbox
+              v-for="card in sourceCards"
+              :key="card.cardId"
+              class="multi-select-option source-card-option"
+              :class="{ selected: growContext.sourceCardIds.includes(card.cardId) }"
+              :model-value="growContext.sourceCardIds.includes(card.cardId)"
+              @change="toggleSource(card.cardId)"
+            >
               <span class="source-card-title">{{ card.cardTitle }}</span>
-            </div>
+            </el-checkbox>
           </div>
           <p v-if="!sourceCardsQuery.isLoading.value && sourceCards.length === 0" class="field-counter">這個實驗主題還沒有卡片可作為來源。</p>
         </el-form-item>
@@ -995,7 +1001,7 @@ const handleGrownCard = async (_card: CardDto) => {
 </template>
 
 <style scoped>
-.experiment-detail-page { width: 100%; height: calc(100dvh - 40px); overflow: hidden; background: var(--el-bg-color-page); }
+.experiment-detail-page { width: 100%; height: calc(100dvh - (var(--page-gutter) * 2)); overflow: hidden; background: var(--el-bg-color-page); }
 .detail-navigation { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; padding: 8px 16px; box-sizing: border-box; border-bottom: 1px solid var(--el-border-color-light); background: var(--el-bg-color); }
 .detail-actions { display: flex; align-items: center; gap: 20px; }
 .detail-actions :deep(.el-button) { min-width: 120px; }
@@ -1007,10 +1013,10 @@ const handleGrownCard = async (_card: CardDto) => {
 .property-status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--el-text-color-placeholder); }
 .property-status-active { background: var(--el-color-primary); }
 .property-status-archived { background: var(--el-text-color-placeholder); }
-.state-surface { margin: 16px; padding: 32px; border: 1px solid var(--el-border-color-light); border-radius: 10px; background: var(--el-bg-color); box-shadow: var(--el-box-shadow-lighter); }
+.state-surface { margin: var(--workspace-padding); padding: var(--panel-padding); border: 1px solid var(--el-border-color-light); border-radius: var(--panel-radius); background: var(--el-bg-color); box-shadow: var(--el-box-shadow-lighter); }
 .experiment-detail-content { height: calc(100% - 48px); overflow-y: auto; }
-.experiment-overview-panel { padding: 28px 32px; border-bottom: 1px solid var(--el-border-color-lighter); background: var(--el-bg-color); }
-.experiment-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; max-width: 1240px; margin: 0 auto; }
+.experiment-overview-panel { padding: var(--panel-padding); border-bottom: 1px solid var(--el-border-color-lighter); background: var(--el-bg-color); }
+.experiment-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-lg); max-width: var(--content-max-width); margin: 0 auto; }
 .detail-eyebrow { display: block; margin-bottom: 6px; color: var(--el-text-color-placeholder); font-size: var(--type-meta); letter-spacing: 0.12em; }
 .experiment-heading h1 { margin: 0; font-size: var(--type-detail-title); line-height: var(--leading-title); overflow-wrap: anywhere; }
 .experiment-heading p { max-width: 760px; margin: 12px 0 0; font-size: var(--type-ui); line-height: var(--leading-ui); white-space: pre-line; }
@@ -1019,7 +1025,7 @@ const handleGrownCard = async (_card: CardDto) => {
 .experiment-heading .experiment-hypothesis { padding-left: 12px; border-left: 3px solid var(--experiment-accent); color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: 600; }
 .experiment-heading .experiment-description { color: var(--el-text-color-secondary); font-size: var(--type-ui); }
 .experiment-primary-actions { display: flex; flex: 0 0 auto; gap: 8px; }
-.exploration-workspace { max-width: 1272px; margin: 20px auto 0; padding: 20px 24px; box-sizing: border-box; border: 1px solid var(--el-border-color-light); border-radius: 10px; background: var(--el-bg-color); box-shadow: var(--el-box-shadow-lighter); }
+.exploration-workspace { max-width: var(--content-max-width); margin: var(--workspace-padding) auto 0; padding: var(--panel-padding); box-sizing: border-box; border: 1px solid var(--el-border-color-light); border-radius: var(--panel-radius); background: var(--el-bg-color); box-shadow: var(--el-box-shadow-lighter); }
 .exploration-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .exploration-heading h2 { margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section); }
 .exploration-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
@@ -1052,7 +1058,7 @@ const handleGrownCard = async (_card: CardDto) => {
 .exploration-export-links button:hover, .exploration-export-links button:focus-visible { text-decoration: underline; }
 .exploration-footnote { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--el-border-color-lighter); color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
 .exploration-footnote :deep(.el-button) { flex: 0 0 auto; margin-left: 0; }
-.soil-workspace { max-width: 1320px; margin: 0 auto; padding: 24px; box-sizing: border-box; }
+.soil-workspace { max-width: var(--content-max-width); margin: 0 auto; padding: var(--panel-padding); box-sizing: border-box; }
 .comparison-workspace { padding: 4px 0; }
 .comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .comparison-card, .comparison-placeholder { min-width: 0; padding: 16px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); }
@@ -1080,7 +1086,7 @@ const handleGrownCard = async (_card: CardDto) => {
 .soil-heading p { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .soil-heading > span { color: var(--el-text-color-placeholder); font-size: var(--type-meta); font-variant-numeric: tabular-nums; }
 .soil-pagination { justify-content: center; margin-top: 14px; }
-.dialog-intro { margin: -4px 0 18px; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
+.dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .try-suggestion-label, .try-input-label { display: block; margin-bottom: 6px; color: var(--el-text-color-regular); font-size: var(--type-caption); }
 .try-suggestion-select { width: 100%; margin-bottom: 12px; }
 .try-secondary-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
@@ -1102,9 +1108,10 @@ const handleGrownCard = async (_card: CardDto) => {
 .export-dialog-section:first-of-type { margin-top: 0; }
 .export-dialog-section h3, .export-dialog-section > label { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); }
 .export-record-list { display: grid; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 4px; }
-.export-record-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 8px; padding: 10px 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); cursor: pointer; }
-.export-record-option:has(input:checked) { border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); }
-.export-record-option input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--el-color-primary); }
+.multi-select-option { display: grid; width: 100%; height: auto; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: var(--space-xs); box-sizing: border-box; margin: 0; padding: var(--space-xs) var(--space-sm); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--el-fill-color-extra-light); white-space: normal; }
+.multi-select-option.selected { border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); }
+.multi-select-option :deep(.el-checkbox__input) { margin-top: 2px; }
+.multi-select-option :deep(.el-checkbox__label) { min-width: 0; padding-left: 0; color: inherit; white-space: normal; }
 .export-record-content { display: grid; min-width: 0; gap: 4px; }
 .export-record-content time { color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .export-record-content strong { color: var(--el-text-color-regular); font-size: var(--type-caption); font-weight: 400; line-height: var(--leading-ui); overflow-wrap: anywhere; }
@@ -1113,22 +1120,16 @@ const handleGrownCard = async (_card: CardDto) => {
 .export-preview > span { display: block; margin-bottom: 8px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .export-preview pre { max-height: 260px; margin: 0; overflow: auto; color: var(--el-text-color-regular); font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: pre-wrap; overflow-wrap: anywhere; }
 .field-counter { width: 100%; margin: 6px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.dialog-card-title { margin: -6px 0 14px; font-weight: 600; }
+.dialog-card-title { margin: 0 0 var(--space-sm); font-weight: 600; }
 .dialog-hint { margin: 8px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .plant-settings-heading { margin-bottom: 18px; }
 .plant-settings-heading h3 { margin: 0; font-size: var(--type-card-title); }
 .plant-settings-heading p { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
-.plant-selected-card { display: grid; width: 100%; min-height: 84px; box-sizing: border-box; align-content: center; gap: 5px; margin: 0 0 20px; padding: 10px 12px; border: 1px solid var(--el-border-color); border-radius: 7px; background: var(--el-fill-color); }
-.plant-selected-card > span { color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.plant-selected-card-content { margin: 0; color: var(--el-text-color-placeholder); font-size: var(--type-caption); line-height: var(--leading-ui); overflow-wrap: anywhere; }
-.plant-selected-card:not(.empty) .plant-selected-card-content { color: var(--el-text-color-primary); }
-.plant-selected-card.empty { background: var(--el-fill-color-extra-light); }
+.plant-selected-card { margin-bottom: var(--space-lg); }
 .experiment-grow-context { margin: 0; padding: 4px 0 0 20px; border-left: 1px solid var(--el-border-color-lighter); background: transparent; }
 .experiment-grow-context :deep(.el-form-item:last-child) { margin-bottom: 0; }
 .experiment-grow-context :deep(.el-radio-group) { display: flex; flex-wrap: wrap; }
-.source-picker { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 7px; background: var(--el-fill-color-light); }
-.source-card-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 8px; min-width: 0; }
-.source-card-option :deep(.el-checkbox) { margin-top: 2px; }
+.source-picker { display: grid; gap: var(--space-xs); }
 .source-card-title { display: -webkit-box; overflow: hidden; color: var(--el-text-color-regular); font-size: var(--type-caption); line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .theme-picker { display: flex; flex-wrap: wrap; gap: 8px; }
 .theme-option { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--el-border-color); border-radius: 7px; background: var(--el-bg-color); color: var(--el-text-color-regular); font: inherit; cursor: pointer; }
