@@ -170,7 +170,7 @@ const confirm = () => {
 .card-metadata { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 6px; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .selection-label { flex: 0 0 auto; color: var(--el-color-primary); font-size: var(--type-caption); }
 .load-more-row { display: flex; justify-content: center; padding: 16px 0; }
-.card-picker-settings { align-self: start; min-width: 0; padding: 18px; overflow: visible; border: 1px solid var(--el-border-color-lighter); border-radius: 9px; background: var(--el-fill-color-extra-light); }
+.card-picker-settings { align-self: start; min-width: 0; padding: 18px; overflow: visible; border: 1px solid var(--el-border-color-lighter); border-radius: 9px; background: var(--surface-subtle); }
 .card-picker-settings--plain { padding: 4px 0 0 20px; border: 0; border-left: 1px solid var(--el-border-color-lighter); border-radius: 0; background: transparent; }
 .card-picker-settings h3 { margin: 0 0 12px; font-size: var(--type-card-title); }
 .selected-card-title { margin: 0; color: var(--el-text-color-primary); font-weight: 600; line-height: 1.6; }

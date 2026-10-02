@@ -300,7 +300,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .current-stat > span, .period-figure > div > span { margin-left: 3px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .current-stat small { display: block; margin-top: 5px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .experiment-try-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-.experiment-try-item { min-width: 0; padding: 13px 14px; overflow: hidden; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.experiment-try-item { min-width: 0; padding: 13px 14px; overflow: hidden; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-summary); color: inherit; cursor: pointer; font: inherit; text-align: left; }
 .experiment-try-item > span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
 .experiment-try-item > strong { display: -webkit-box; margin-top: 6px; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .experiment-try-item:hover, .experiment-try-item:focus-visible { border-color: var(--el-color-primary-light-5); }
@@ -316,7 +316,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .attention-panel { background: var(--el-bg-color); }
 .attention-item { display: flex; gap: 10px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--el-border-color-lighter); }
 .attention-item:first-child { padding-top: 0; border-top: 0; }
-.attention-item > span { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: var(--el-fill-color-light); color: var(--el-text-color-secondary); font-size: 12px; }
+.attention-item > span { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: var(--surface-subtle); color: var(--el-text-color-secondary); font-size: 12px; }
 .attention-item h3 { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; }
 .attention-item button, .context-link { margin-top: 5px; padding: 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); }
 .period-section { background: var(--el-bg-color); }
@@ -340,7 +340,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .activity-disclosure summary { padding: 16px 0; color: var(--el-text-color-secondary); cursor: pointer; font-size: var(--type-ui); }
 .activity-disclosure[open] summary { color: var(--el-color-primary); }
 .activity-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 0 18px; }
-.activity-item { display: flex; align-items: baseline; gap: 4px; min-width: 0; padding: 10px; border-radius: 8px; background: var(--el-fill-color-light); }
+.activity-item { display: flex; align-items: baseline; gap: 4px; min-width: 0; padding: 10px; border-radius: 8px; background: var(--surface-summary); }
 .activity-item strong { font-size: 18px; }
 .activity-item span { overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) { .current-stat-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .current-stat:nth-child(4) { padding-left: 0; border-left: 0; } .experiment-try-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .action-grid, .content-grid { grid-template-columns: 1fr; } .activity-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

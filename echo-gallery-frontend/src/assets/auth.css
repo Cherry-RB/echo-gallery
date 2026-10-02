@@ -6,7 +6,7 @@
   min-height: 100dvh;
   padding: var(--space-lg) var(--page-gutter);
   position: relative;
-  background-color: var(--el-bg-color-page);
+  background-color: var(--surface-page);
 }
 .auth-theme-switcher {
   position: absolute;

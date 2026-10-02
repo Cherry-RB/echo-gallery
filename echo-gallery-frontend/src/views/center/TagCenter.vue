@@ -427,7 +427,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   height: 100dvh;
   box-sizing: border-box;
   margin: calc(var(--page-gutter) * -1);
-  background-color: var(--el-bg-color-page);
+  background-color: var(--surface-page);
   overflow: hidden;
 }
 
@@ -578,7 +578,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--el-bg-color-page);
+  background: var(--surface-page);
   overflow: hidden;
 }
 

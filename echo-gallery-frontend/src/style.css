@@ -75,6 +75,12 @@
   --reading-max-width: 760px;
   --panel-radius: var(--radius-md);
 
+  /* 中性 surface 依語意分層；元件不得直接選擇 Element Plus 灰階。 */
+  --surface-page: var(--el-bg-color-page);
+  --surface-collection: var(--el-fill-color-light);
+  --surface-summary: var(--el-fill-color-lighter);
+  --surface-subtle: var(--el-fill-color-extra-light);
+
   --el-font-family: var(--sans);
   --el-font-size-base: var(--type-ui);
 
@@ -273,7 +279,7 @@ code {
 
 .app-workspace {
   padding: var(--workspace-padding);
-  background: var(--el-bg-color-page);
+  background: var(--surface-page);
 }
 
 .app-stack {

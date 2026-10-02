@@ -178,7 +178,7 @@ const { data: hotTags, isLoading: isTagsLoading } = useQuery({
 }
 .custom-tag {
   border: none !important;
-  background-color: var(--el-fill-color-light) !important;
+  background-color: var(--surface-subtle) !important;
   color: var(--el-text-color-primary) !important;
   font-weight: 500;
 }

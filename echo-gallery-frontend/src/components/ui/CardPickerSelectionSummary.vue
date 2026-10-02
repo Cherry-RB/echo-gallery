@@ -29,7 +29,7 @@ defineProps<{
 
 .card-picker-selection-summary.empty {
   border-color: var(--el-border-color-lighter);
-  background: var(--el-fill-color-extra-light);
+  background: var(--surface-subtle);
 }
 
 .card-picker-selection-summary > span,

@@ -436,7 +436,7 @@ const openDetail = (cardId: string) => {
 
 <style scoped>
 .search-page { width: calc(100% + (var(--page-gutter) * 2)); height: 100dvh; margin: calc(var(--page-gutter) * -1); overflow: hidden; }
-.search-workspace { display: grid; height: 100%; grid-template-columns: 336px minmax(0, 1fr); background: var(--el-bg-color-page); }
+.search-workspace { display: grid; height: 100%; grid-template-columns: 336px minmax(0, 1fr); background: var(--surface-page); }
 .compact-search-form { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border-right: 1px solid var(--el-border-color-light); background: var(--el-bg-color); }
 .search-filter-body { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: var(--space-lg); padding: var(--workspace-padding); overflow-y: auto; }
 .search-filter-header h1 { margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section-title); }

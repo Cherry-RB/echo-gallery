@@ -23,7 +23,7 @@ Echo Gallery 以共享的 visual grammar 維持一致性，而不是讓所有畫
 | Collection | `src/views/boards/TodayBoard.vue`、`src/components/Board-Flex.vue` |
 | Persistent filter rail + result workspace | `src/views/SearchView.vue`、`src/views/center/TagCenter.vue` |
 | Workspace | `src/views/issue/IssueList.vue` |
-| Detail | `src/views/CardDetail.vue` |
+| Detail | `src/views/CardDetail.vue`、`src/views/issue/IssueDetail.vue` |
 
 ### Dialog references
 
@@ -127,9 +127,23 @@ Structure: `detail navigation → primary content → secondary context / action
 
 - Use for Card, Issue and Experiment detail.
 - Long reading content uses `--reading-max-width`; details may use an adjacent property/context area where it has a distinct semantic purpose.
+- Structured detail dashboards may use a two-column primary grid followed by full-width feedback or supporting sections. Use grid, dividers and typography within a panel instead of wrapping every value in another card.
 - On mobile, split layouts stack; do not preserve desktop side columns by shrinking them.
 
 ## Surface taxonomy
+
+### Neutral surface hierarchy
+
+Use the project semantic tokens below instead of selecting Element Plus grey tokens in feature CSS. They preserve the same hierarchy in light and dark themes.
+
+| Token | Layer | Use |
+| --- | --- | --- |
+| `--surface-page` | 1 | outer page / workspace canvas |
+| `--surface-collection` | 2 | a grey canvas that contains smaller white cards, such as material or result collections |
+| `--surface-summary` | 3 | a large, self-contained multi-field summary with no white child cards, such as current state or a timeline event |
+| `--surface-subtle` | 4 | low-emphasis utility content, previews, readonly hints and empty-state support |
+
+Do not stack these neutral surfaces merely for decoration. A collection canvas owns white child cards; a summary surface owns its fields through grid and dividers; a subtle surface must not become a primary reading panel.
 
 | Surface | Purpose | Treatment |
 | --- | --- | --- |
@@ -198,7 +212,6 @@ Dialog visual language follows the baseline Element Plus rhythm preserved by `Ap
 | Exception | Reason |
 | --- | --- |
 | Card Detail reading width and property rail | reading and metadata have distinct cognitive roles |
-| Issue Detail split workspace | issue context, updates and materials are deliberately concurrent |
 | Experiment stage colour | stage identity is domain information, not decoration |
 | Masonry collection | variable card length requires masonry placement; it still uses Collection Shell spacing |
 | Navigation drawer | temporary navigation has edge-overlay interaction |
@@ -254,7 +267,7 @@ This inventory records the current production UI scope. `Compliant` means the su
 | Card Search | Compliant | Collection Shell persistent filter rail + result workspace |
 | Tag Center | Compliant | Persistent filter rail + result workspace; tag selection is its rail-specific semantics |
 | Issue List | Compliant | Workspace Shell |
-| Issue Detail | Compliant exception | concurrent detail workspace |
+| Issue Detail | Compliant | Detail Shell with system snapshot, current decision and full-width feedback geometry |
 | Experiment List | Compliant | Workspace / collection variant |
 | Experiment Detail | Compliant | Detail Shell with stage semantics |
 | Overview, Return Overview | Compliant | Workspace Shell shared with Issue List; aggregate-stat geometry is internal content only |

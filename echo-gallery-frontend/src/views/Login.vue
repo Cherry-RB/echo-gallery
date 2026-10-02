@@ -186,7 +186,7 @@ const isFormValid = computed(() => {
   gap: 8px;
   padding: 12px 14px;
   border-left: 2px solid var(--el-color-primary-light-5);
-  background: var(--el-fill-color-lighter);
+  background: var(--surface-summary);
 }
 
 .demo-selection-title {
