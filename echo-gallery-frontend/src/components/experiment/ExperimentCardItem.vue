@@ -32,7 +32,7 @@ const handleCommand = (card: ExperimentCardDto, command: string) => {
         {{ card.cardTitle }}
       </button>
 
-      <p v-if="card.cardNote" class="experiment-card-excerpt"><span>卡片筆記</span>{{ card.cardNote }}</p>
+      <p v-if="card.cardNote" class="experiment-card-excerpt">{{ card.cardNote }}</p>
 
       <div class="experiment-card-metadata">
         <span class="card-id">#{{ card.cardId }}</span>
@@ -95,7 +95,6 @@ const handleCommand = (card: ExperimentCardDto, command: string) => {
 }
 
 .experiment-card-excerpt { display: -webkit-box; margin: 10px 0 0; overflow: hidden; color: var(--el-text-color-regular); font-size: var(--type-caption); line-height: var(--leading-ui); overflow-wrap: anywhere; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-.experiment-card-excerpt span { flex: 0 0 auto; margin-right: 8px; color: var(--el-text-color-placeholder); }
 .compare-toggle { margin-top: 12px; padding: 0; border: 0; background: none; color: var(--el-color-primary); font: inherit; font-size: var(--type-caption); cursor: pointer; }
 .compare-toggle:hover, .compare-toggle:focus-visible { text-decoration: underline; }
 

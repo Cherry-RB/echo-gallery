@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, ArrowLeft, Delete, Edit, MagicStick, Plus } from '@element-plus/icons-vue'
 import ExperimentCardItem from '../../components/experiment/ExperimentCardItem.vue'
+import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import QuickCreateCardDialog from '../../components/QuickCreateCardDialog.vue'
 import CardPickerDialog from '../../components/CardPickerDialog.vue'
 import AppDialog from '../../components/AppDialog.vue'
@@ -45,6 +46,7 @@ const editingFavoriteTryDraft = ref('')
 const observationDialogVisible = ref(false)
 const observationDraft = ref('')
 const includeTryInDiscovery = ref(true)
+const historyDialogVisible = ref(false)
 const exportVisible = ref(false)
 const exportCreateVisible = ref(false)
 const exportDestination = ref<'NEW' | 'EXISTING'>('NEW')
@@ -59,6 +61,8 @@ const isExporting = ref(false)
 watch(experimentId, () => {
   tryDialogVisible.value = false
   observationDialogVisible.value = false
+  historyDialogVisible.value = false
+  exportVisible.value = false
 })
 
 const setExploration = (value: ExperimentExplorationDto) => {
@@ -229,6 +233,11 @@ const openExport = () => {
   selectedExportCardId.value = null
   pendingExportRecordIds.value = []
   exportVisible.value = true
+}
+
+const organizeFromHistory = () => {
+  historyDialogVisible.value = false
+  openExport()
 }
 
 const toggleExportRecord = (recordId: number) => {
@@ -592,7 +601,7 @@ const handleGrownCard = async (_card: CardDto) => {
 
 <template>
   <section class="experiment-detail-page app-page">
-    <header class="detail-navigation">
+    <header class="detail-navigation app-detail-navigation">
       <el-button :icon="ArrowLeft" text @click="goBack">返回實驗場</el-button>
       <div v-if="experimentQuery.data.value" class="detail-actions">
         <el-dropdown trigger="click" @command="archiveMutation.mutate($event === 'archive')">
@@ -610,8 +619,8 @@ const handleGrownCard = async (_card: CardDto) => {
           </template>
         </el-dropdown>
         <div class="detail-edit-actions">
-          <el-button type="danger" plain :icon="Delete" :loading="deleteMutation.isPending.value" @click="confirmDeleteExperiment">永久刪除</el-button>
           <el-button type="primary" plain :icon="Edit" @click="openEdit">編輯實驗主題</el-button>
+          <el-button type="danger" plain :icon="Delete" :loading="deleteMutation.isPending.value" @click="confirmDeleteExperiment">永久刪除</el-button>
         </div>
       </div>
     </header>
@@ -629,29 +638,30 @@ const handleGrownCard = async (_card: CardDto) => {
           <div>
             <span class="detail-eyebrow">實驗主題</span>
             <h1>{{ experimentQuery.data.value.title }}</h1>
-            <span class="experiment-focus-label">目前想弄懂</span>
-            <ExpandableText
-              class="experiment-hypothesis"
-              :content="experimentQuery.data.value.hypothesis || '還沒有寫下問題；也可以先從下方材料開始。'"
-              :lines="4"
-            />
-            <ExpandableText
-              v-if="experimentQuery.data.value.description"
-              class="experiment-description"
-              :content="experimentQuery.data.value.description"
-              :lines="5"
-            />
-          </div>
-          <div class="experiment-primary-actions">
-            <el-button type="primary" :icon="Plus" @click="openAdd">種入卡片</el-button>
-            <el-button :icon="MagicStick" :disabled="experimentQuery.data.value.seedCount + experimentQuery.data.value.growingCount + experimentQuery.data.value.matureCount === 0" @click="openGrow()">長出新卡</el-button>
           </div>
         </div>
       </section>
 
+      <section class="experiment-inquiry" aria-labelledby="experiment-inquiry-title">
+        <header class="section-heading">
+          <h2 id="experiment-inquiry-title">目前想弄懂</h2>
+        </header>
+        <ExpandableText
+          v-if="experimentQuery.data.value.hypothesis"
+          class="experiment-hypothesis"
+          :content="experimentQuery.data.value.hypothesis"
+          :lines="5"
+        />
+        <p v-else class="quiet-empty">還沒有寫下問題；也可以先從探索或材料開始。</p>
+      </section>
+
       <section class="exploration-workspace" aria-label="這次想怎麼探索">
         <header class="exploration-heading">
-          <div><span class="detail-eyebrow">接著從這裡開始</span><h2>這次想怎麼探索？</h2></div>
+          <h2>這次想怎麼探索？</h2>
+          <div v-if="!explorationQuery.isLoading.value && !explorationQuery.isError.value" class="exploration-actions">
+            <time v-if="latestObservation?.createdAt" :datetime="latestObservation.createdAt">{{ formatDate(latestObservation.createdAt) }}</time>
+            <el-button v-if="exploration.records.length" @click="historyDialogVisible = true">探索紀錄</el-button>
+          </div>
         </header>
         <el-skeleton v-if="explorationQuery.isLoading.value" :rows="3" animated />
         <el-result v-else-if="explorationQuery.isError.value" icon="error" title="無法載入探索資料" sub-title="請稍後再試。">
@@ -659,52 +669,27 @@ const handleGrownCard = async (_card: CardDto) => {
         </el-result>
         <template v-else>
         <div class="exploration-overview">
-          <div class="exploration-snapshot">
-            <span>目前想試</span>
+          <div class="exploration-snapshot current-try-snapshot">
+            <div class="exploration-snapshot-heading">
+              <span>目前想試</span>
+              <el-button text type="primary" @click="openTryDialog">{{ exploration.currentTry ? '編輯試法' : '設定試法' }}</el-button>
+            </div>
             <p>{{ exploration.currentTry || '還沒有想試的事，可以先看看材料。' }}</p>
           </div>
           <div class="exploration-snapshot">
-            <span>最近一次觀察</span>
+            <div class="exploration-snapshot-heading">
+              <span>最近一次觀察</span>
+              <el-button text type="primary" @click="openObservationDialog">記下發現</el-button>
+            </div>
             <p>{{ latestObservation?.text || '尚未留下觀察。試過、沒試成或改變想法，都可以記在這裡。' }}</p>
-            <time v-if="latestObservation?.createdAt" :datetime="latestObservation.createdAt">{{ formatDate(latestObservation.createdAt) }}</time>
           </div>
         </div>
-        <div class="exploration-actions">
-          <el-button v-if="exploration.currentTry" type="primary" @click="openObservationDialog">記下發生了什麼</el-button>
-          <el-button v-else type="primary" @click="openTryDialog">試一件小事</el-button>
-          <el-button v-if="exploration.currentTry" @click="openTryDialog">換個試法</el-button>
-          <el-button v-else @click="openObservationDialog">記下一點發現</el-button>
-          <el-button @click="materialsRef?.scrollIntoView({ behavior: 'smooth', block: 'start' })">看看材料</el-button>
-          <el-button v-if="exploration.records.length" @click="openExport">整理成卡片</el-button>
-          <el-button text @click="router.push('/experiments')">這次先放著</el-button>
-        </div>
-        <details v-if="exploration.records.length" class="exploration-history">
-          <summary>查看探索紀錄{{ exploration.records.length ? `（${exploration.records.length} 筆發現）` : '' }}</summary>
-          <ol v-if="exploration.records.length">
-            <li v-for="record in exploration.records" :key="record.id">
-              <div class="exploration-history-meta">
-                <time :datetime="record.createdAt">{{ formatDate(record.createdAt) }}</time>
-                <el-button text type="danger" size="small" @click="deleteExplorationRecord(record.id)">刪除</el-button>
-              </div>
-              <div class="exploration-record-flow">
-                <template v-if="record.tryText">
-                  <div><span>試法</span><p>{{ record.tryText }}</p></div>
-                  <span class="exploration-record-arrow" aria-hidden="true">↓</span>
-                </template>
-                <div><span>發現</span><p>{{ record.discovery }}</p></div>
-              </div>
-              <div v-if="record.exports.length" class="exploration-record-exports">
-                <span>已整理至 {{ record.exports.length }} 張卡片</span>
-                <div class="exploration-export-links">
-                  <button v-for="recordExport in record.exports" :key="`${recordExport.cardId}-${recordExport.exportedAt}`" type="button" @click="router.push(`/card/${recordExport.cardId}`)">{{ recordExport.cardTitle }}</button>
-                </div>
-              </div>
-            </li>
-          </ol>
-        </details>
         <div class="exploration-footnote">
           <span>探索紀錄會同步保存；整理成卡片後，原紀錄仍會保留。</span>
-          <el-button v-if="exploration.currentTry || exploration.records.length || exploration.favoriteTries.length" text type="danger" size="small" @click="clearExploration">清除探索資料</el-button>
+          <div class="exploration-utility-actions">
+            <el-button text @click="materialsRef?.scrollIntoView({ behavior: 'smooth', block: 'start' })">看看材料</el-button>
+            <el-button v-if="exploration.currentTry || exploration.records.length || exploration.favoriteTries.length" text type="danger" size="small" @click="clearExploration">清除探索資料</el-button>
+          </div>
         </div>
         </template>
       </section>
@@ -712,16 +697,23 @@ const handleGrownCard = async (_card: CardDto) => {
       <section ref="materialsRef" class="soil-workspace" aria-label="實驗主題中的卡片土壤">
         <header class="soil-workspace-heading">
           <div><h2>材料與線索</h2><p>土壤表示卡片在這裡的角色，不必依序前進。選一兩張卡可以並排閱讀。</p></div>
-          <el-button :disabled="comparingCards.length === 0" @click="comparisonVisible = true">並排看材料{{ comparingCards.length ? `（${comparingCards.length}/2）` : '' }}</el-button>
+          <div class="material-primary-actions">
+            <el-button type="primary" :icon="Plus" @click="openAdd">種入卡片</el-button>
+            <el-button :icon="MagicStick" :disabled="experimentQuery.data.value.seedCount + experimentQuery.data.value.growingCount + experimentQuery.data.value.matureCount === 0" @click="openGrow()">長出新卡</el-button>
+          </div>
         </header>
-        <div class="soil-filters" role="group" aria-label="依卡片角色篩選">
-          <button type="button" :class="{ active: selectedStage === 'ALL' }" :aria-pressed="selectedStage === 'ALL'" @click="selectedStage = 'ALL'">全部</button>
-          <button v-for="stage in stages" :key="stage.value" type="button" :class="{ active: selectedStage === stage.value }" :aria-pressed="selectedStage === stage.value" @click="selectedStage = stage.value">
-            {{ getStageControlLabel(stage) }} {{ stageCount(stage.value) }}
-          </button>
+        <div class="soil-toolbar">
+          <div class="soil-filters" role="group" aria-label="依卡片角色篩選">
+            <button type="button" :class="{ active: selectedStage === 'ALL' }" :aria-pressed="selectedStage === 'ALL'" @click="selectedStage = 'ALL'">全部</button>
+            <button v-for="stage in stages" :key="stage.value" type="button" :class="{ active: selectedStage === stage.value }" :aria-pressed="selectedStage === stage.value" @click="selectedStage = stage.value">
+              {{ getStageControlLabel(stage) }} {{ stageCount(stage.value) }}
+            </button>
+          </div>
+          <el-button :disabled="comparingCards.length === 0" @click="comparisonVisible = true">並排看材料{{ comparingCards.length ? `（${comparingCards.length}/2）` : '' }}</el-button>
         </div>
         <el-empty v-if="selectedStage === 'ALL' && experimentQuery.data.value.seedCount + experimentQuery.data.value.growingCount + experimentQuery.data.value.matureCount === 0" description="還沒有材料。先放入一張讓你想繼續看的卡片即可。" :image-size="72" />
-        <div class="soil-grid">
+        <div class="soil-collection-canvas">
+          <div class="soil-grid">
           <template v-for="stage in stages" :key="stage.value">
           <section v-if="selectedStage === stage.value || (selectedStage === 'ALL' && stageCount(stage.value) > 0)" class="soil-column">
             <header class="soil-heading">
@@ -739,9 +731,36 @@ const handleGrownCard = async (_card: CardDto) => {
           </section>
           </template>
         </div>
+        </div>
+      </section>
+
+      <section class="experiment-supporting" aria-label="實驗主題補充資訊">
+        <details>
+          <summary>主題說明</summary>
+          <div class="supporting-content">
+            <ExpandableText
+              v-if="experimentQuery.data.value.description"
+              :content="experimentQuery.data.value.description"
+              :lines="10"
+            />
+            <p v-else class="quiet-empty">尚未補充主題說明。</p>
+          </div>
+        </details>
+        <dl class="experiment-metadata">
+          <div><dt>建立時間</dt><dd>{{ formatDate(experimentQuery.data.value.createdAt) }}</dd></div>
+          <div><dt>最近活動</dt><dd>{{ formatDate(experimentQuery.data.value.updatedAt) }}</dd></div>
+        </dl>
       </section>
     </main>
   </section>
+
+  <ExperimentExplorationHistoryDialog
+    v-model="historyDialogVisible"
+    :records="exploration.records"
+    @delete="deleteExplorationRecord"
+    @organize="organizeFromHistory"
+    @open-card="router.push(`/card/${$event}`)"
+  />
 
   <AppDialog v-model="tryDialogVisible" :title="tryDialogMode === 'COMPOSE' ? '試一件小事' : '常用試法'" width="min(560px, calc(100vw - 32px))" scroll-body>
     <template v-if="tryDialogMode === 'COMPOSE'">
@@ -806,55 +825,61 @@ const handleGrownCard = async (_card: CardDto) => {
     <template #footer><el-button @click="observationDialogVisible = false">取消</el-button><el-button type="primary" :disabled="!observationDraft.trim()" @click="saveObservation">留下這次發現</el-button></template>
   </AppDialog>
 
-  <AppDialog v-model="exportVisible" title="整理探索紀錄" width="min(760px, calc(100vw - 32px))" scroll-body>
+  <AppDialog v-model="exportVisible" title="整理探索紀錄" width="min(980px, calc(100vw - 32px))" scroll-body>
     <p class="dialog-intro">把選取的探索紀錄整理成 Card 內容。成功後會保留原紀錄，並標示它已整理到哪張卡片。</p>
-    <section class="export-dialog-section">
-      <h3>收錄哪些紀錄？</h3>
-      <div class="export-record-list">
-        <el-checkbox
-          v-for="record in exportRecords"
-          :key="record.id"
-          class="multi-select-option export-record-option"
-          :class="{ selected: selectedExportRecordIds.includes(record.id) }"
-          :model-value="selectedExportRecordIds.includes(record.id)"
-          @change="toggleExportRecord(record.id)"
-        >
-          <span class="export-record-content">
-            <time>{{ formatDate(record.createdAt, 'YYYY/MM/DD HH:mm') }}</time>
-            <strong v-if="record.tryText">試：{{ record.tryText }}</strong>
-            <strong>發現：{{ record.discovery }}</strong>
-          </span>
-        </el-checkbox>
+    <div class="export-workspace">
+      <section class="export-selection-pane">
+        <h3>選擇探索紀錄</h3>
+        <div class="export-record-list">
+          <el-checkbox
+            v-for="record in exportRecords"
+            :key="record.id"
+            class="multi-select-option export-record-option"
+            :class="{ selected: selectedExportRecordIds.includes(record.id) }"
+            :model-value="selectedExportRecordIds.includes(record.id)"
+            @change="toggleExportRecord(record.id)"
+          >
+            <span class="export-record-content">
+              <time>{{ formatDate(record.createdAt, 'YYYY/MM/DD HH:mm') }}</time>
+              <span class="export-record-fields">
+                <span><small>試法</small>{{ record.tryText || '這次直接留下發現。' }}</span>
+                <span><small>發現</small>{{ record.discovery }}</span>
+              </span>
+            </span>
+          </el-checkbox>
+        </div>
+      </section>
+      <div class="export-settings-pane">
+        <section class="export-dialog-section">
+          <h3>整理到哪裡？</h3>
+          <el-radio-group v-model="exportDestination">
+            <el-radio-button value="NEW">新增卡片</el-radio-button>
+            <el-radio-button value="EXISTING">加入既有卡片</el-radio-button>
+          </el-radio-group>
+          <template v-if="exportDestination === 'EXISTING'">
+            <el-select v-model="selectedExportCardId" class="export-card-select" placeholder="選擇這個實驗場中的卡片" :loading="sourceCardsQuery.isLoading.value">
+              <el-option v-for="card in sourceCards" :key="card.cardId" :label="card.cardTitle" :value="card.cardId" />
+            </el-select>
+            <p v-if="!sourceCardsQuery.isLoading.value && !sourceCards.length" class="dialog-hint">這個實驗場目前沒有卡片可加入。</p>
+            <p v-else-if="selectedExportCard && !exportableRecordIds.length" class="dialog-hint">所選紀錄都已整理到這張卡片；可改選其他紀錄或其他卡片。</p>
+          </template>
+        </section>
+        <section class="export-dialog-section">
+          <label for="export-topic">主題</label>
+          <el-input id="export-topic" v-model="exportTopic" maxlength="255" placeholder="例如：畫畫來來來" />
+          <p class="dialog-hint">會出現在整理內容的標頭；可自由修改。</p>
+          <template v-if="exportDestination === 'NEW'">
+            <label for="export-title">卡片標題（選填）</label>
+            <el-input id="export-title" v-model="exportTitle" maxlength="255" :placeholder="defaultExportTitle" />
+            <p class="dialog-hint">留空時會自動使用上方格式；下一步仍可編輯完整卡片。</p>
+          </template>
+        </section>
+        <section v-if="exportContent" class="export-preview">
+          <span>將寫入的內容</span>
+          <pre>{{ exportContent }}</pre>
+        </section>
       </div>
-    </section>
-    <section class="export-dialog-section">
-      <h3>整理到哪裡？</h3>
-      <el-radio-group v-model="exportDestination">
-        <el-radio-button value="NEW">新增卡片</el-radio-button>
-        <el-radio-button value="EXISTING">加入既有卡片</el-radio-button>
-      </el-radio-group>
-      <template v-if="exportDestination === 'EXISTING'">
-        <el-select v-model="selectedExportCardId" class="export-card-select" placeholder="選擇這個實驗場中的卡片" :loading="sourceCardsQuery.isLoading.value">
-          <el-option v-for="card in sourceCards" :key="card.cardId" :label="card.cardTitle" :value="card.cardId" />
-        </el-select>
-        <p v-if="!sourceCardsQuery.isLoading.value && !sourceCards.length" class="dialog-hint">這個實驗場目前沒有卡片可加入。</p>
-        <p v-else-if="selectedExportCard && !exportableRecordIds.length" class="dialog-hint">所選紀錄都已整理到這張卡片；可改選其他紀錄或其他卡片。</p>
-      </template>
-    </section>
-    <section class="export-dialog-section">
-      <label for="export-topic">主題</label>
-      <el-input id="export-topic" v-model="exportTopic" maxlength="255" placeholder="例如：畫畫來來來" />
-      <p class="dialog-hint">會出現在整理內容的標頭；可自由修改。</p>
-      <template v-if="exportDestination === 'NEW'">
-        <label for="export-title">卡片標題（選填）</label>
-        <el-input id="export-title" v-model="exportTitle" maxlength="255" :placeholder="defaultExportTitle" />
-        <p class="dialog-hint">留空時會自動使用上方格式；下一步仍可編輯完整卡片。</p>
-      </template>
-    </section>
-    <section v-if="exportContent" class="export-preview">
-      <span>將寫入的內容</span>
-      <pre>{{ exportContent }}</pre>
-    </section>
+    </div>
     <template #footer>
       <el-button :disabled="isExporting" @click="exportVisible = false">取消</el-button>
       <el-button v-if="exportDestination === 'NEW'" type="primary" :disabled="!canExport" @click="openCreateExportCard">繼續建立卡片</el-button>
@@ -1000,67 +1025,79 @@ const handleGrownCard = async (_card: CardDto) => {
 </template>
 
 <style scoped>
-.experiment-detail-page { width: 100%; height: calc(100dvh - (var(--page-gutter) * 2)); overflow: hidden; background: var(--el-bg-color-page); }
-.detail-navigation { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; padding: 8px 16px; box-sizing: border-box; border-bottom: 1px solid var(--el-border-color-light); background: var(--el-bg-color); }
-.detail-actions { display: flex; align-items: center; gap: 20px; }
-.detail-actions :deep(.el-button) { min-width: 120px; }
-.detail-edit-actions { display: flex; gap: 8px; }
-.status-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 120px; padding: 7px 10px; border: 1px solid var(--el-border-color); border-radius: 7px; background: var(--el-fill-color-blank); color: var(--el-text-color-regular); font: inherit; white-space: nowrap; cursor: pointer; }
+.experiment-detail-page {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  background: var(--surface-page);
+}
+.detail-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color);
+}
+.detail-actions { display: flex; align-items: center; gap: var(--space-xs); }
+.detail-edit-actions { display: flex; gap: var(--space-xs); }
+.status-trigger { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-width: 120px; padding: 7px 10px; border: 1px solid var(--el-border-color); border-radius: var(--radius-sm); background: var(--el-fill-color-blank); color: var(--el-text-color-regular); font: inherit; white-space: nowrap; cursor: pointer; }
 .status-trigger:hover, .status-trigger:focus-visible { border-color: var(--el-color-primary-light-5); color: var(--el-color-primary); }
 .status-trigger:disabled { cursor: wait; opacity: 0.65; }
 .status-trigger-arrow { margin-left: 2px; color: var(--el-text-color-placeholder); }
 .property-status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--el-text-color-placeholder); }
 .property-status-active { background: var(--el-color-primary); }
 .property-status-archived { background: var(--el-text-color-placeholder); }
-.state-surface { margin: var(--workspace-padding); padding: var(--panel-padding); border: 1px solid var(--el-border-color-light); border-radius: var(--panel-radius); background: var(--el-bg-color); box-shadow: var(--el-box-shadow-lighter); }
-.experiment-detail-content { height: calc(100% - 48px); overflow-y: auto; }
-.experiment-overview-panel { padding: var(--panel-padding); border-bottom: 1px solid var(--el-border-color-lighter); background: var(--el-bg-color); }
-.experiment-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-lg); max-width: var(--content-max-width); margin: 0 auto; }
-.detail-eyebrow { display: block; margin-bottom: 6px; color: var(--el-text-color-placeholder); font-size: var(--type-meta); letter-spacing: 0.12em; }
-.experiment-heading h1 { margin: 0; font-size: var(--type-detail-title); line-height: var(--leading-title); overflow-wrap: anywhere; }
-.experiment-heading p { max-width: 760px; margin: 12px 0 0; font-size: var(--type-ui); line-height: var(--leading-ui); white-space: pre-line; }
-.experiment-heading .experiment-hypothesis,
-.experiment-heading .experiment-description { max-width: 760px; margin: 12px 0 0; line-height: var(--leading-ui); }
-.experiment-heading .experiment-hypothesis { padding-left: 12px; border-left: 3px solid var(--experiment-accent); color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: 600; }
-.experiment-heading .experiment-description { color: var(--el-text-color-secondary); font-size: var(--type-ui); }
-.experiment-primary-actions { display: flex; flex: 0 0 auto; gap: 8px; }
-.exploration-workspace { max-width: var(--content-max-width); margin: var(--workspace-padding) auto 0; padding: var(--panel-padding); box-sizing: border-box; border: 1px solid var(--el-border-color-light); border-radius: var(--panel-radius); background: var(--el-bg-color); box-shadow: var(--el-box-shadow-lighter); }
-.exploration-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.state-surface,
+.experiment-detail-content {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.state-surface { padding: var(--panel-padding); }
+.experiment-detail-content {
+  display: grid;
+  gap: var(--space-lg);
+  padding: var(--workspace-padding);
+}
+.experiment-overview-panel { padding: var(--space-md) 0 0; }
+.experiment-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-lg); }
+.detail-eyebrow { display: block; color: var(--el-text-color-placeholder); font-size: var(--type-meta); font-weight: 600; letter-spacing: 0.08em; }
+.experiment-heading h1 { margin: var(--space-xs) 0 0; font-size: var(--type-detail-title); line-height: var(--leading-title); overflow-wrap: anywhere; }
+.experiment-inquiry,
+.exploration-workspace,
+.soil-workspace,
+.experiment-supporting {
+  padding: var(--panel-padding);
+  box-sizing: border-box;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--radius-md);
+  background: var(--el-bg-color);
+}
+.experiment-inquiry { border-left: 3px solid var(--experiment-accent); }
+.section-heading { margin-bottom: var(--space-md); }
+.section-heading h2 { margin: var(--space-2xs) 0 0; font-size: var(--type-section-title); line-height: var(--leading-section); }
+.experiment-hypothesis :deep(.expandable-content) { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-prominent); font-weight: 500; line-height: 1.7; }
+.quiet-empty { margin: 0; color: var(--el-text-color-placeholder); font-size: var(--type-caption); line-height: var(--leading-ui); }
+.exploration-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); }
 .exploration-heading h2 { margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section); }
-.exploration-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
-.exploration-snapshot { min-width: 0; min-height: 108px; padding: 14px 16px; box-sizing: border-box; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); }
-.exploration-snapshot > span { color: var(--el-text-color-secondary); font-size: var(--type-caption); }
-.exploration-snapshot p { margin: 10px 0 0; color: var(--el-text-color-primary); font-size: var(--type-ui); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
-.exploration-snapshot time { display: block; margin-top: 8px; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.exploration-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.exploration-overview { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); margin-top: var(--space-md); padding: var(--space-md); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-summary); }
+.exploration-snapshot { min-width: 0; padding-right: var(--space-lg); }
+.exploration-snapshot + .exploration-snapshot { padding-right: 0; padding-left: var(--space-lg); border-left: 1px solid var(--el-border-color-lighter); }
+.exploration-snapshot-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.exploration-snapshot-heading > span { color: var(--el-text-color-secondary); font-size: var(--type-caption); font-weight: var(--weight-medium); line-height: var(--leading-ui); }
+.exploration-snapshot-heading :deep(.el-button) { flex: 0 0 auto; margin-left: 0; }
+.exploration-snapshot p { margin: var(--space-2xs) 0 0; color: var(--el-text-color-primary); font-size: var(--type-ui); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
+.exploration-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-xs); }
 .exploration-actions :deep(.el-button) { margin-left: 0; }
-.exploration-history { margin-top: 18px; color: var(--el-text-color-regular); font-size: var(--type-caption); }
-.exploration-history summary { width: fit-content; color: var(--el-color-primary); cursor: pointer; }
-.exploration-history ol { display: grid; gap: 10px; max-height: 400px; overflow-y: auto; margin: 12px 0 0; padding: 0 4px 0 0; list-style: none; }
-.exploration-history li { padding: 10px 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 7px; }
-.exploration-history-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-.exploration-history-meta :deep(.el-button) { margin-left: 0; }
-.exploration-history-meta strong { color: var(--el-text-color-primary); font-weight: 600; }
-.exploration-history-meta span { color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.exploration-history time { color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.exploration-history p { margin: 6px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
-.exploration-record-flow { display: grid; gap: 8px; margin-top: 8px; }
-.exploration-record-flow > div { padding-left: 10px; border-left: 2px solid var(--el-border-color); }
-.exploration-record-flow > div:last-child { border-left-color: var(--el-color-primary-light-5); }
-.exploration-record-flow span { display: block; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
-.exploration-record-flow p { margin: 3px 0 0; color: var(--el-text-color-primary); line-height: var(--leading-ui); }
-.exploration-record-arrow { padding-left: 5px; color: var(--el-text-color-placeholder); line-height: 1; }
-.exploration-record-exports { display: grid; gap: 6px; margin-top: 12px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
-.exploration-export-links { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px 12px; }
-.exploration-export-links button { max-width: 100%; padding: 0; overflow: hidden; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
-.exploration-export-links button::before { content: '・'; color: var(--el-text-color-placeholder); }
-.exploration-export-links button:hover, .exploration-export-links button:focus-visible { text-decoration: underline; }
-.exploration-footnote { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--el-border-color-lighter); color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
-.exploration-footnote :deep(.el-button) { flex: 0 0 auto; margin-left: 0; }
-.soil-workspace { max-width: var(--content-max-width); margin: 0 auto; padding: var(--panel-padding); box-sizing: border-box; }
+.exploration-actions time { align-self: center; color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); white-space: nowrap; }
+.exploration-footnote { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--el-border-color-lighter); color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
+.exploration-utility-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-sm); }
+.exploration-utility-actions :deep(.el-button) { margin-left: 0; }
 .comparison-workspace { padding: 4px 0; }
 .comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.comparison-card, .comparison-placeholder { min-width: 0; padding: 16px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); }
+.comparison-card, .comparison-placeholder { min-width: 0; padding: 16px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-summary); }
 .comparison-card-title { padding: 0; border: 0; background: none; color: var(--el-text-color-primary); font: inherit; font-weight: 600; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 .comparison-card-title:hover, .comparison-card-title:focus-visible { color: var(--el-color-primary); }
 .comparison-card p { margin: 12px 0 0; color: var(--el-text-color-regular); font-size: var(--type-caption); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
@@ -1069,22 +1106,33 @@ const handleGrownCard = async (_card: CardDto) => {
 .comparison-hint { margin: 16px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 :global(.experiment-comparison-dialog .el-dialog__footer) { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 :global(.experiment-comparison-dialog .el-dialog__footer .el-button) { margin-left: 0; }
-.soil-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.soil-filters button { padding: 7px 12px; border: 1px solid var(--el-border-color); border-radius: 7px; background: var(--el-bg-color); color: var(--el-text-color-regular); font: inherit; font-size: var(--type-ui); cursor: pointer; }
+.soil-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-md); }
+.soil-filters { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.soil-filters button { padding: 7px var(--space-sm); border: 1px solid var(--el-border-color); border-radius: var(--radius-sm); background: var(--el-bg-color); color: var(--el-text-color-regular); font: inherit; font-size: var(--type-ui); cursor: pointer; }
 .soil-filters button.active { border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
 .soil-filters button:hover, .soil-filters button:focus-visible { border-color: var(--el-color-primary-light-5); }
-.soil-workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.soil-workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-md); }
 .soil-workspace-heading h2 { margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section); }
-.soil-workspace-heading p { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); }
-.soil-grid { display: grid; gap: 16px; align-items: start; }
-.soil-column { min-width: 0; padding: 18px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); }
-.experiment-card-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.soil-workspace-heading p { margin: var(--space-2xs) 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); }
+.material-primary-actions { display: flex; flex: 0 0 auto; gap: var(--space-xs); }
+.soil-collection-canvas { padding: var(--space-md); border-radius: var(--radius-md); background: var(--surface-collection); }
+.soil-grid { display: grid; gap: var(--space-lg); align-items: start; }
+.soil-column { min-width: 0; padding-top: var(--space-md); border-top: 1px solid var(--el-border-color-lighter); }
+.experiment-card-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
 .experiment-card-list :deep(.experiment-card-item + .experiment-card-item) { margin-top: 0; }
 .soil-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .soil-heading h3 { margin: 0; font-size: var(--type-card-title); }
 .soil-heading p { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .soil-heading > span { color: var(--el-text-color-placeholder); font-size: var(--type-meta); font-variant-numeric: tabular-nums; }
 .soil-pagination { justify-content: center; margin-top: 14px; }
+.experiment-supporting { padding-block: 0; }
+.experiment-supporting details summary { padding: var(--space-md) 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); font-weight: 600; cursor: pointer; }
+.experiment-supporting details[open] summary { color: var(--el-text-color-primary); }
+.supporting-content { max-width: var(--reading-max-width); padding-bottom: var(--space-lg); }
+.supporting-content :deep(.expandable-content) { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-body); line-height: var(--leading-body); }
+.experiment-metadata { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-lg); margin: 0; padding: var(--space-md) 0; border-top: 1px solid var(--el-border-color-lighter); }
+.experiment-metadata dt { color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
+.experiment-metadata dd { margin: var(--space-2xs) 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); }
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .try-suggestion-label, .try-input-label { display: block; margin-bottom: 6px; color: var(--el-text-color-regular); font-size: var(--type-caption); }
 .try-suggestion-select { width: 100%; margin-bottom: 12px; }
@@ -1095,27 +1143,33 @@ const handleGrownCard = async (_card: CardDto) => {
 .favorite-try-create > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .favorite-try-create > div :deep(.el-button) { margin-left: 0; }
 .favorite-try-list { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; }
-.favorite-try-list li { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); }
+.favorite-try-list li { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-subtle); }
 .favorite-try-list p { margin: 0; color: var(--el-text-color-primary); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
 .favorite-try-row-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .favorite-try-row-actions :deep(.el-button) { margin-left: 0; }
-.discovery-try-choice { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); }
+.discovery-try-choice { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-subtle); }
 .discovery-try-choice p { margin: 0 0 10px; line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
 .discovery-try-choice p span { display: block; margin-bottom: 3px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .discovery-try-choice small { display: block; margin-top: 6px; color: var(--el-text-color-secondary); }
-.export-dialog-section { display: grid; gap: 10px; margin-top: 22px; }
-.export-dialog-section:first-of-type { margin-top: 0; }
+.export-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-lg); align-items: start; }
+.export-selection-pane { min-width: 0; }
+.export-selection-pane > h3 { margin: 0 0 var(--space-sm); color: var(--el-text-color-primary); font-size: var(--type-card-title); }
+.export-settings-pane { min-width: 0; padding-left: var(--space-lg); border-left: 1px solid var(--el-border-color-lighter); }
+.export-dialog-section { display: grid; gap: var(--space-sm); }
+.export-dialog-section + .export-dialog-section { margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--el-border-color-lighter); }
 .export-dialog-section h3, .export-dialog-section > label { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); }
-.export-record-list { display: grid; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 4px; }
-.multi-select-option { display: grid; width: 100%; height: auto; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: var(--space-xs); box-sizing: border-box; margin: 0; padding: var(--space-xs) var(--space-sm); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--el-fill-color-extra-light); white-space: normal; }
+.export-record-list { display: grid; gap: var(--space-xs); }
+.multi-select-option { display: grid; width: 100%; height: auto; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: var(--space-xs); box-sizing: border-box; margin: 0; padding: var(--space-xs) var(--space-sm); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-subtle); white-space: normal; }
 .multi-select-option.selected { border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); }
 .multi-select-option :deep(.el-checkbox__input) { margin-top: 2px; }
 .multi-select-option :deep(.el-checkbox__label) { min-width: 0; padding-left: 0; color: inherit; white-space: normal; }
 .export-record-content { display: grid; min-width: 0; gap: 4px; }
 .export-record-content time { color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.export-record-content strong { color: var(--el-text-color-regular); font-size: var(--type-caption); font-weight: 400; line-height: var(--leading-ui); overflow-wrap: anywhere; }
+.export-record-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+.export-record-fields > span { min-width: 0; color: var(--el-text-color-regular); font-size: var(--type-caption); line-height: var(--leading-ui); overflow-wrap: anywhere; }
+.export-record-fields small { display: block; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .export-card-select { width: 100%; }
-.export-preview { margin-top: 22px; padding: 14px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-extra-light); }
+.export-preview { margin-top: var(--space-lg); padding: var(--space-md); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-subtle); }
 .export-preview > span { display: block; margin-bottom: 8px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .export-preview pre { max-height: 260px; margin: 0; overflow: auto; color: var(--el-text-color-regular); font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: pre-wrap; overflow-wrap: anywhere; }
 .field-counter { width: 100%; margin: 6px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
@@ -1134,8 +1188,37 @@ const handleGrownCard = async (_card: CardDto) => {
 .theme-option { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--el-border-color); border-radius: 7px; background: var(--el-bg-color); color: var(--el-text-color-regular); font: inherit; cursor: pointer; }
 .theme-option > span { width: 14px; height: 14px; border-radius: 50%; background: var(--option-color); }
 .theme-option.active { border-color: color-mix(in srgb, var(--option-color) 40%, var(--el-bg-color)); background: color-mix(in srgb, var(--option-color) 26%, var(--el-bg-color)); color: var(--el-text-color-primary); }
-@media (max-width: 1200px) and (min-width: 901px) { .experiment-detail-page { height: calc(100dvh - 88px); } }
-@media (max-width: 900px) { .experiment-detail-page { width: 100%; height: auto; margin: 0; min-height: calc(100dvh - 56px); overflow: visible; } .experiment-detail-content { height: auto; overflow: visible; } }
-@media (max-width: 720px) { .comparison-grid, .experiment-card-list, .exploration-overview { grid-template-columns: 1fr; } .comparison-placeholder { min-height: 90px; } .soil-workspace-heading { align-items: flex-start; flex-direction: column; } .experiment-heading { flex-direction: column; } .experiment-primary-actions { width: 100%; } .experiment-primary-actions :deep(.el-button) { flex: 1; } .experiment-grow-context { padding: 20px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } }
-@media (max-width: 600px) { .detail-navigation { align-items: center; flex-wrap: wrap; padding: 14px 16px; } .detail-navigation > :first-child { flex-basis: 100%; justify-content: flex-start; } .detail-actions { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; } .detail-actions > :first-child { grid-column: 1 / -1; width: 100%; } .detail-edit-actions { display: contents; } .status-trigger, .detail-actions :deep(.el-button) { width: 100%; min-width: 0; padding-inline: 6px; font-size: 12px; } .detail-actions :deep(.el-button) { margin-left: 0; } .experiment-overview-panel { padding: 24px 18px; } .exploration-workspace { margin: 12px 12px 0; padding: 18px 16px; } .exploration-heading { flex-wrap: wrap; } .exploration-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .exploration-actions :deep(.el-button) { min-width: 0; padding-inline: 6px; } .exploration-footnote { align-items: flex-start; flex-direction: column; } .soil-workspace { padding: 18px 12px; } }
+@media (max-width: 900px) {
+  .exploration-overview { grid-template-columns: minmax(0, 1fr); }
+  .exploration-snapshot { padding-right: 0; }
+  .exploration-snapshot + .exploration-snapshot { margin-top: var(--space-md); padding-top: var(--space-md); padding-left: 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; }
+  .export-workspace { grid-template-columns: minmax(0, 1fr); }
+  .export-settings-pane { padding-top: var(--space-lg); padding-left: 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; }
+}
+
+@media (max-width: 760px) {
+  .detail-navigation { align-items: stretch; flex-direction: column; }
+  .detail-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .detail-actions > :first-child { grid-column: 1 / -1; }
+  .detail-edit-actions { display: contents; }
+  .status-trigger,
+  .detail-actions :deep(.el-button) { width: 100%; min-width: 0; margin-left: 0; }
+  .soil-workspace-heading { align-items: flex-start; flex-direction: column; }
+  .material-primary-actions { width: 100%; }
+  .material-primary-actions :deep(.el-button) { flex: 1; min-width: 0; margin-left: 0; }
+  .soil-toolbar { align-items: stretch; flex-direction: column; }
+  .soil-toolbar > :deep(.el-button) { width: 100%; margin-left: 0; }
+  .comparison-grid,
+  .experiment-card-list { grid-template-columns: minmax(0, 1fr); }
+  .export-record-fields { grid-template-columns: minmax(0, 1fr); }
+  .comparison-placeholder { min-height: 90px; }
+  .experiment-grow-context { padding: var(--space-lg) 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; }
+}
+
+@media (max-width: 480px) {
+  .exploration-heading { flex-direction: column; }
+  .exploration-actions { width: 100%; justify-content: space-between; }
+  .exploration-actions :deep(.el-button) { min-width: 0; margin-left: 0; padding-inline: var(--space-xs); }
+  .exploration-footnote { align-items: flex-start; flex-direction: column; }
+}
 </style>
