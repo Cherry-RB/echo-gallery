@@ -4,15 +4,13 @@ import { computed, ref } from 'vue'
 const props = defineProps<{ modelValue?: string | null }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const assessmentTemplate = `目前局勢：
+const assessmentTemplate = `尚未放入結構欄位的補充：
 
-這可能意味著：
+例外或反例：
 
-可行方針：
+仍待理解的未知：
 
-限制、風險與退路：
-
-目前傾向：`
+其他備註：`
 
 const expanded = ref(false)
 const hasContent = computed(() => Boolean(props.modelValue?.trim()))
@@ -32,16 +30,16 @@ const applyTemplate = () => {
       :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
-      {{ expanded ? '收起研判框架' : '使用研判框架' }}
+      {{ expanded ? '收起補充提示' : '查看補充研判提示' }}
     </button>
 
-    <aside v-if="expanded" class="guide-panel" aria-label="整體研判填寫提示">
-      <p>需要整理思緒時，可從這些角度開始；不必逐項回答。</p>
+    <aside v-if="expanded" class="guide-panel" aria-label="補充研判填寫提示">
+      <p>主要狀態、迴路、瓶頸與槓桿優先放入上方結構欄位；這裡只保留無法或不值得拆開的補充。</p>
       <ul>
-        <li>目前局勢與新訊號</li>
-        <li>可能的解讀與關鍵未知</li>
-        <li>可用資源、限制與風險</li>
-        <li>可行方針、退路與目前傾向</li>
+        <li>重要例外與反例</li>
+        <li>尚未確定如何分類的未知</li>
+        <li>需要保留的舊版長篇研判</li>
+        <li>其他必要背景或風險</li>
       </ul>
       <button
         type="button"

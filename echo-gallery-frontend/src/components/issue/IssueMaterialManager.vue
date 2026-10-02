@@ -88,7 +88,7 @@ const addCardMutation = useMutation({
   mutationFn: (card: CardDto) => issueApi.addIssueCard(props.issueId, { cardId: Number(card.id) }),
   onSuccess: async () => {
     await refreshMaterialQueries()
-    ElMessage.success('卡片已加入議題素材池')
+    ElMessage.success('卡片已加入證據與情報')
     addCardDialogVisible.value = false
   },
 })
@@ -170,8 +170,10 @@ const confirmRemoveCard = async (card: IssueCard) => {
   <section class="material-surface" aria-labelledby="material-heading">
     <header class="material-heading-row">
       <div>
-        <h2 id="material-heading">參考素材</h2>
-        <p>讓曾經留下的內容進入這個議題；真正影響思考、創作或行動後，再標記為已運用。</p>
+        <span class="material-eyebrow">EVIDENCE</span>
+        <h2 id="material-heading">證據與情報</h2>
+        <p>讓曾經保存的內容進入這個議題；真正支持、挑戰或改變目前系統模型後，再標記為已運用。</p>
+        <span class="material-counts">素材池 {{ candidateTotal }}｜已用 {{ usedTotal }}</span>
       </div>
       <el-button type="primary" plain :icon="Plus" @click="addCardDialogVisible = true">
         加入卡片
@@ -202,7 +204,7 @@ const confirmRemoveCard = async (card: IssueCard) => {
         <el-empty
           v-if="candidateCards.length === 0"
           :image-size="72"
-          description="還沒有參考素材。可從曾經收藏的卡片中帶入不同觀點。"
+          description="還沒有證據與情報。可從曾經保存的卡片中帶入不同觀點。"
         />
 
         <article v-for="card in candidateCards" :key="card.id" class="material-card">
@@ -345,7 +347,7 @@ const confirmRemoveCard = async (card: IssueCard) => {
         :rows="5"
         maxlength="1000"
         show-word-limit
-        placeholder="記錄這張卡片對此議題的用途、啟發或可能支持的判斷（選填）"
+        placeholder="可自由註記：支持｜…、挑戰｜…、背景｜…、未知｜…（選填）"
         @keydown.ctrl.enter="submitNote"
         @keydown.meta.enter="submitNote"
       />
@@ -364,7 +366,7 @@ const confirmRemoveCard = async (card: IssueCard) => {
     <CardPickerDialog
       v-model="addCardDialogVisible"
       title="加入議題素材"
-      description="從曾經保存的卡片中，選擇與這個議題相關、值得一起考慮的內容。已加入的卡片不會重複顯示。"
+      description="從曾經保存的卡片中，選擇可能支持、挑戰或改變目前系統模型的內容。已加入的卡片不會重複顯示。"
       archive-status="ACTIVE"
       confirm-label="加入議題素材"
       settings-style="plain"
@@ -376,7 +378,7 @@ const confirmRemoveCard = async (card: IssueCard) => {
       <template #settings="{ selectedCard }">
         <h3 class="material-picker-heading">加入議題</h3>
         <CardPickerSelectionSummary :card="selectedCard" />
-        <p class="material-picker-hint">加入後會先成為參考素材；真正影響思考或行動時，再標記為已運用。</p>
+        <p class="material-picker-hint">加入後會先進入素材池；真正支持、挑戰或改變系統模型時，再標記為已運用。</p>
       </template>
     </CardPickerDialog>
   </section>
@@ -411,9 +413,25 @@ const confirmRemoveCard = async (card: IssueCard) => {
   margin: 0;
 }
 
+.material-eyebrow {
+  display: block;
+  color: var(--el-text-color-placeholder);
+  font-size: var(--type-meta);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
 .material-heading-row h2 {
+  margin-top: var(--space-2xs);
   font-size: var(--type-section-title);
   line-height: var(--leading-section);
+}
+
+.material-counts {
+  display: block;
+  margin-top: var(--space-xs);
+  color: var(--el-text-color-placeholder);
+  font-size: var(--type-meta);
 }
 
 .material-heading-row p {
@@ -434,7 +452,7 @@ const confirmRemoveCard = async (card: IssueCard) => {
   padding: 18px;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
-  background: var(--el-fill-color-extra-light);
+  background: var(--surface-collection);
 }
 
 .used-column {
@@ -568,13 +586,13 @@ const confirmRemoveCard = async (card: IssueCard) => {
   padding-top: 14px;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .material-columns {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 760px) {
   .material-surface {
     padding: 20px 16px;
   }

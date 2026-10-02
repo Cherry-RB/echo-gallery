@@ -8,12 +8,12 @@ import lombok.Setter;
 @Setter
 public class IssueUpdateRequest {
 
-    @Size(max = 50000, message = "最近改變不可超過 50000 個字")
+    @Size(max = 50000, message = "新訊號不可超過 50000 個字")
     private String changeSummary;
 
-    @Size(max = 50000, message = "目前看法不可超過 50000 個字")
+    @Size(max = 50000, message = "模型更新不可超過 50000 個字")
     private String assessment;
 
-    @Size(max = 50000, message = "下一步不可超過 50000 個字")
+    @Size(max = 50000, message = "介入或等待不可超過 50000 個字")
     private String nextStep;
 }

@@ -64,7 +64,7 @@ describe('AddCardToIssueDialog', () => {
 
     await flushPromises()
     expect(wrapper.text()).toContain('Echo Gallery 下一階段')
-    expect(wrapper.text()).toContain('推進中')
+    expect(wrapper.text()).toContain('介入／觀察')
 
     await wrapper.find('button').trigger('click')
     await flushPromises()

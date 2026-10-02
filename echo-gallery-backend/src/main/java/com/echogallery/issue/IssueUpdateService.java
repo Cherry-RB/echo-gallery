@@ -103,7 +103,7 @@ public class IssueUpdateService {
         String assessment = normalizeOptionalText(request.getAssessment());
         String nextStep = normalizeOptionalText(request.getNextStep());
         if (changeSummary == null && assessment == null && nextStep == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "請至少填寫一項議題更新內容");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "請至少填寫一項系統訊號內容");
         }
         return new NormalizedContent(changeSummary, assessment, nextStep);
     }

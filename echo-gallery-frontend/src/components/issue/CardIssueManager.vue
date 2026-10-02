@@ -3,8 +3,9 @@ import { computed, ref } from 'vue'
 import { FolderOpened, Plus } from '@element-plus/icons-vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
-import type { IssueCardStatus, IssueStatus } from '../../types/issue'
+import type { IssueCardStatus } from '../../types/issue'
 import { issueApi } from '../../utils/api/issueApi'
+import { issueStatusMeta } from '../../utils/issueStatus'
 import AddCardToIssueDialog from './AddCardToIssueDialog.vue'
 
 const props = defineProps<{ cardId: string }>()
@@ -16,14 +17,6 @@ type StatusTagType = 'primary' | 'success' | 'warning' | 'info'
 const relationStatusMeta: Record<IssueCardStatus, { label: string; type: StatusTagType }> = {
   CANDIDATE: { label: '素材池', type: 'info' },
   USED: { label: '已運用', type: 'success' },
-}
-
-const issueStatusMeta: Record<IssueStatus, string> = {
-  IDEA: '探索中',
-  DRAFT: '已釐清',
-  ACTIVE: '推進中',
-  DONE: '已完成',
-  ARCHIVED: '已封存',
 }
 
 const {
@@ -91,7 +84,7 @@ const openIssue = (issueId: number) => {
             {{ relationStatusMeta[relation.status].label }}
           </el-tag>
           <span v-if="relation.issueStatus === 'ARCHIVED'" class="archived-label">
-            {{ issueStatusMeta[relation.issueStatus] }}
+            {{ issueStatusMeta[relation.issueStatus].label }}
           </span>
         </span>
         <span v-if="relation.note" class="relation-note">{{ relation.note }}</span>
@@ -146,7 +139,7 @@ const openIssue = (issueId: number) => {
   padding: 10px;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
-  background: var(--el-fill-color-extra-light);
+  background: var(--surface-subtle);
   flex-direction: column;
   align-items: flex-start;
   gap: 7px;

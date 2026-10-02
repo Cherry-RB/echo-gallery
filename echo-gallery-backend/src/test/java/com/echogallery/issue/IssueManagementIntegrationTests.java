@@ -70,12 +70,101 @@ class IssueManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.objective").doesNotExist())
                 .andExpect(jsonPath("$.description").value("初稿說明"))
                 .andExpect(jsonPath("$.currentAssessment").doesNotExist())
+                .andExpect(jsonPath("$.keyStates").doesNotExist())
+                .andExpect(jsonPath("$.dominantLoops").doesNotExist())
+                .andExpect(jsonPath("$.primaryConstraint").doesNotExist())
+                .andExpect(jsonPath("$.leveragePoint").doesNotExist())
+                .andExpect(jsonPath("$.watchSignals").doesNotExist())
+                .andExpect(jsonPath("$.nonInterventionNote").doesNotExist())
                 .andExpect(jsonPath("$.outcomeCriteria").doesNotExist())
                 .andExpect(jsonPath("$.status").value("IDEA"))
                 .andExpect(jsonPath("$.externalUrl").value("https://example.com/draft"))
                 .andExpect(jsonPath("$.completedAt").doesNotExist())
                 .andExpect(jsonPath("$.createdAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists());
+    }
+
+    @Test
+    void createUpdateAndStatusChangePreserveSystemDashboardFields() throws Exception {
+        String token = register("dashboard-owner", "dashboard-owner@example.com");
+        MvcResult createResult = mockMvc.perform(post("/api/issues")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new DashboardCreatePayload(
+                        "轉職系統",
+                        "如何取得足夠的市場回饋？",
+                        "轉職背景",
+                        "保留的完整補充研判",
+                        "市場資訊增加；可用能量偏低",
+                        "市場接觸 → 真實回饋 → 聚焦學習",
+                        "Target Market 樣本不足",
+                        "主動接觸產品型公司",
+                        "回覆、面談與重複能力缺口",
+                        "單次拒絕不修改定位",
+                        "取得足夠樣本後收斂",
+                        "https://example.com/execution"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.keyStates").value("市場資訊增加；可用能量偏低"))
+                .andExpect(jsonPath("$.dominantLoops").value("市場接觸 → 真實回饋 → 聚焦學習"))
+                .andExpect(jsonPath("$.primaryConstraint").value("Target Market 樣本不足"))
+                .andExpect(jsonPath("$.leveragePoint").value("主動接觸產品型公司"))
+                .andExpect(jsonPath("$.watchSignals").value("回覆、面談與重複能力缺口"))
+                .andExpect(jsonPath("$.nonInterventionNote").value("單次拒絕不修改定位"))
+                .andExpect(jsonPath("$.currentAssessment").value("保留的完整補充研判"))
+                .andReturn();
+
+        long issueId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(put("/api/issues/{id}", issueId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new DashboardUpdatePayload(
+                        "轉職系統",
+                        "如何取得足夠的市場回饋？",
+                        "轉職背景",
+                        "保留的完整補充研判",
+                        "市場資訊持續增加",
+                        "市場接觸 → 真實回饋 → 聚焦學習",
+                        "Target Market 樣本不足",
+                        "主動接觸產品型公司",
+                        "回覆、面談與重複能力缺口",
+                        "少量樣本不足以重寫履歷",
+                        "取得足夠樣本後收斂",
+                        "ACTIVE",
+                        "https://example.com/execution"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.keyStates").value("市場資訊持續增加"))
+                .andExpect(jsonPath("$.nonInterventionNote").value("少量樣本不足以重寫履歷"))
+                .andExpect(jsonPath("$.currentAssessment").value("保留的完整補充研判"));
+
+        mockMvc.perform(put("/api/issues/{id}", issueId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new DashboardUpdatePayload(
+                        "轉職系統",
+                        "如何取得足夠的市場回饋？",
+                        "轉職背景",
+                        "保留的完整補充研判",
+                        "市場資訊持續增加",
+                        "市場接觸 → 真實回饋 → 聚焦學習",
+                        "Target Market 樣本不足",
+                        "主動接觸產品型公司",
+                        "回覆、面談與重複能力缺口",
+                        "少量樣本不足以重寫履歷",
+                        "取得足夠樣本後收斂",
+                        "DONE",
+                        "https://example.com/execution"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DONE"))
+                .andExpect(jsonPath("$.completedAt").exists())
+                .andExpect(jsonPath("$.keyStates").value("市場資訊持續增加"))
+                .andExpect(jsonPath("$.dominantLoops").value("市場接觸 → 真實回饋 → 聚焦學習"))
+                .andExpect(jsonPath("$.primaryConstraint").value("Target Market 樣本不足"))
+                .andExpect(jsonPath("$.leveragePoint").value("主動接觸產品型公司"))
+                .andExpect(jsonPath("$.watchSignals").value("回覆、面談與重複能力缺口"))
+                .andExpect(jsonPath("$.nonInterventionNote").value("少量樣本不足以重寫履歷"))
+                .andExpect(jsonPath("$.currentAssessment").value("保留的完整補充研判"));
     }
 
     @Test
@@ -309,6 +398,35 @@ class IssueManagementIntegrationTests extends IntegrationTestBase {
             String objective,
             String description,
             String currentAssessment,
+            String outcomeCriteria,
+            String status,
+            String externalUrl) {}
+
+    private record DashboardCreatePayload(
+            String title,
+            String objective,
+            String description,
+            String currentAssessment,
+            String keyStates,
+            String dominantLoops,
+            String primaryConstraint,
+            String leveragePoint,
+            String watchSignals,
+            String nonInterventionNote,
+            String outcomeCriteria,
+            String externalUrl) {}
+
+    private record DashboardUpdatePayload(
+            String title,
+            String objective,
+            String description,
+            String currentAssessment,
+            String keyStates,
+            String dominantLoops,
+            String primaryConstraint,
+            String leveragePoint,
+            String watchSignals,
+            String nonInterventionNote,
             String outcomeCriteria,
             String status,
             String externalUrl) {}

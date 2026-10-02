@@ -5,51 +5,44 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import CurrentAssessmentGuide from '../../components/issue/CurrentAssessmentGuide.vue'
 import AppDialog from '../../components/AppDialog.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
+import CurrentAssessmentGuide from '../../components/issue/CurrentAssessmentGuide.vue'
 import IssueMaterialManager from '../../components/issue/IssueMaterialManager.vue'
 import IssueUpdates from '../../components/issue/IssueUpdates.vue'
-import type { UpdateIssueRequest, IssueStatus } from '../../types/issue'
-import { formatDate } from '../../utils/formatDate'
+import type { IssueStatus, UpdateIssueRequest } from '../../types/issue'
 import { issueApi } from '../../utils/api/issueApi'
+import { formatDate } from '../../utils/formatDate'
+import { toIssueUpdateRequest } from '../../utils/issueRequest'
+import { issueStatusMeta, issueStatusOptions } from '../../utils/issueStatus'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 const queryClient = useQueryClient()
 
-const issueStatusMeta: Record<IssueStatus, { label: string }> = {
-  IDEA: { label: '探索中' },
-  DRAFT: { label: '已釐清' },
-  ACTIVE: { label: '推進中' },
-  DONE: { label: '已完成' },
-  ARCHIVED: { label: '已封存' },
-}
-
-const issueStatusOptions: Array<{ value: IssueStatus; label: string }> = [
-  { value: 'IDEA', label: '探索中' },
-  { value: 'DRAFT', label: '已釐清' },
-  { value: 'ACTIVE', label: '推進中' },
-  { value: 'DONE', label: '已完成' },
-  { value: 'ARCHIVED', label: '已封存' },
-]
-
-const phaseStatuses: Array<{ value: IssueStatus; label: string }> = [
-  { value: 'IDEA', label: '探索' },
-  { value: 'DRAFT', label: '已釐清' },
-  { value: 'ACTIVE', label: '推進' },
-  { value: 'DONE', label: '完成' },
-]
+type EditSection =
+  | 'basic'
+  | 'systemSnapshot'
+  | 'currentDecision'
+  | 'supplementalAssessment'
+  | 'criteria'
+  | 'executionLink'
+  | 'background'
 
 const editDialogVisible = ref(false)
-type EditSection = 'all' | 'basic' | 'assessment' | 'background' | 'criteria' | 'link'
-const editSection = ref<EditSection>('all')
+const editSection = ref<EditSection>('basic')
 const editFormRef = ref<FormInstance>()
 const editForm = reactive<UpdateIssueRequest>({
   title: '',
   objective: '',
   description: '',
   currentAssessment: '',
+  keyStates: '',
+  dominantLoops: '',
+  primaryConstraint: '',
+  leveragePoint: '',
+  watchSignals: '',
+  nonInterventionNote: '',
   outcomeCriteria: '',
   externalUrl: '',
   status: 'IDEA',
@@ -64,7 +57,6 @@ const validateOptionalUrl = (
     callback()
     return
   }
-
   try {
     const url = new URL(value)
     if ((url.protocol === 'http:' || url.protocol === 'https:') && url.hostname) {
@@ -74,34 +66,33 @@ const validateOptionalUrl = (
   } catch {
     // 交由下方統一回傳驗證錯誤。
   }
-
   callback(new Error('請輸入有效的 HTTP 或 HTTPS 連結'))
 }
+
+const longTextRule = (label: string) => ([
+  { max: 50000, message: `${label}不可超過 50000 個字`, trigger: 'blur' },
+])
 
 const editFormRules: FormRules<UpdateIssueRequest> = {
   title: [
     { required: true, message: '請輸入議題名稱', trigger: 'blur' },
     { max: 255, message: '議題名稱不可超過 255 個字', trigger: 'blur' },
   ],
-  objective: [
-    { max: 50000, message: '議題焦點不可超過 50000 個字', trigger: 'blur' },
-  ],
-  description: [
-    { max: 50000, message: '背景與脈絡不可超過 50000 個字', trigger: 'blur' },
-  ],
-  currentAssessment: [
-    { max: 50000, message: '整體研判不可超過 50000 個字', trigger: 'blur' },
-  ],
-  outcomeCriteria: [
-    { max: 50000, message: '結案或重議條件不可超過 50000 個字', trigger: 'blur' },
-  ],
+  objective: longTextRule('本輪系統問題'),
+  description: longTextRule('背景與脈絡'),
+  currentAssessment: longTextRule('補充研判'),
+  keyStates: longTextRule('關鍵狀態'),
+  dominantLoops: longTextRule('主導迴路'),
+  primaryConstraint: longTextRule('主要瓶頸'),
+  leveragePoint: longTextRule('當前槓桿點'),
+  watchSignals: longTextRule('待觀察訊號'),
+  nonInterventionNote: longTextRule('暫不介入或延遲提醒'),
+  outcomeCriteria: longTextRule('收斂或重議條件'),
   externalUrl: [
     { max: 2048, message: '外部連結不可超過 2048 個字', trigger: 'blur' },
     { validator: validateOptionalUrl, trigger: 'blur' },
   ],
-  status: [
-    { required: true, message: '請選擇議題狀態', trigger: 'change' },
-  ],
+  status: [{ required: true, message: '請選擇目前模式', trigger: 'change' }],
 }
 
 const {
@@ -114,22 +105,15 @@ const {
   queryFn: () => issueApi.getIssue(props.id),
 })
 
-const currentPhaseIndex = computed(() => {
-  if (!issue.value) return -1
-  return phaseStatuses.findIndex((phase) => phase.value === issue.value?.status)
-})
-
-const editDialogTitle = computed(() => {
-  const titles: Record<EditSection, string> = {
-    all: '編輯議題',
-    basic: '編輯議題焦點',
-    assessment: '編輯整體研判',
-    background: '編輯背景與脈絡',
-    criteria: '編輯結案／重議條件',
-    link: '編輯相關連結',
-  }
-  return titles[editSection.value]
-})
+const editDialogTitle = computed(() => ({
+  basic: '編輯議題與系統問題',
+  systemSnapshot: '編輯系統快照',
+  currentDecision: '編輯當前決策',
+  supplementalAssessment: '編輯補充研判',
+  criteria: '編輯收斂／重議條件',
+  executionLink: '編輯執行／成果入口',
+  background: '編輯背景與脈絡',
+})[editSection.value])
 
 const updateMutation = useMutation({
   mutationFn: (data: UpdateIssueRequest) => issueApi.updateIssue(props.id, data),
@@ -142,20 +126,13 @@ const updateMutation = useMutation({
     ElMessage.success('議題更新成功')
     editDialogVisible.value = false
   },
+  onError: () => ElMessage.error('更新議題失敗，請稍後再試'),
 })
 
 const statusMutation = useMutation({
   mutationFn: (status: IssueStatus) => {
     if (!issue.value) throw new Error('議題尚未載入')
-    return issueApi.updateIssue(props.id, {
-      title: issue.value.title,
-      objective: issue.value.objective,
-      description: issue.value.description,
-      currentAssessment: issue.value.currentAssessment,
-      outcomeCriteria: issue.value.outcomeCriteria,
-      externalUrl: issue.value.externalUrl,
-      status,
-    })
+    return issueApi.updateIssue(props.id, toIssueUpdateRequest(issue.value, status))
   },
   onSuccess: async (updatedIssue) => {
     queryClient.setQueryData(['issue', String(props.id)], updatedIssue)
@@ -163,11 +140,9 @@ const statusMutation = useMutation({
       queryClient.invalidateQueries({ queryKey: ['issues'] }),
       queryClient.invalidateQueries({ queryKey: ['sidebar', 'stats'] }),
     ])
-    ElMessage.success(`議題已改為「${issueStatusMeta[updatedIssue.status].label}」`)
+    ElMessage.success(`目前模式已改為「${issueStatusMeta[updatedIssue.status].label}」`)
   },
-  onError: () => {
-    ElMessage.error('更新議題階段失敗，請稍後再試')
-  },
+  onError: () => ElMessage.error('更新目前模式失敗，請稍後再試'),
 })
 
 const deleteMutation = useMutation({
@@ -181,9 +156,7 @@ const deleteMutation = useMutation({
     ElMessage.success('議題已永久刪除')
     router.replace({ name: 'IssueList' })
   },
-  onError: () => {
-    ElMessage.error('刪除議題失敗，請稍後再試')
-  },
+  onError: () => ElMessage.error('刪除議題失敗，請稍後再試'),
 })
 
 const changeIssueStatus = (status: IssueStatus) => {
@@ -201,7 +174,6 @@ const goBack = () => {
 
 const confirmDeleteIssue = async () => {
   if (!issue.value || deleteMutation.isPending.value) return
-
   try {
     await ElMessageBox.confirm(
       `「${issue.value.title}」及其所有議題更新、素材關聯都會永久刪除；原始卡片不會被刪除。`,
@@ -218,38 +190,33 @@ const confirmDeleteIssue = async () => {
   }
 }
 
-const openEditDialog = (section: EditSection = 'all') => {
+const openEditDialog = (section: EditSection) => {
   if (!issue.value) return
-
   editSection.value = section
-  editForm.title = issue.value.title
-  editForm.objective = issue.value.objective ?? ''
-  editForm.description = issue.value.description ?? ''
-  editForm.currentAssessment = issue.value.currentAssessment ?? ''
-  editForm.outcomeCriteria = issue.value.outcomeCriteria ?? ''
-  editForm.externalUrl = issue.value.externalUrl ?? ''
-  editForm.status = issue.value.status
+  Object.assign(editForm, toIssueUpdateRequest(issue.value))
   editDialogVisible.value = true
 }
 
-const resetEditForm = () => {
-  editSection.value = 'all'
-  editFormRef.value?.clearValidate()
-}
+const resetEditForm = () => editFormRef.value?.clearValidate()
+const normalizeText = (value?: string | null) => value?.trim() || null
 
 const submitUpdateIssue = async () => {
   if (!editFormRef.value) return
-
   await editFormRef.value.validate((valid) => {
     if (!valid) return
-
     updateMutation.mutate({
       title: editForm.title.trim(),
-      objective: editForm.objective?.trim() || null,
-      description: editForm.description?.trim() || null,
-      currentAssessment: editForm.currentAssessment?.trim() || null,
-      outcomeCriteria: editForm.outcomeCriteria?.trim() || null,
-      externalUrl: editForm.externalUrl?.trim() || null,
+      objective: normalizeText(editForm.objective),
+      description: normalizeText(editForm.description),
+      currentAssessment: normalizeText(editForm.currentAssessment),
+      keyStates: normalizeText(editForm.keyStates),
+      dominantLoops: normalizeText(editForm.dominantLoops),
+      primaryConstraint: normalizeText(editForm.primaryConstraint),
+      leveragePoint: normalizeText(editForm.leveragePoint),
+      watchSignals: normalizeText(editForm.watchSignals),
+      nonInterventionNote: normalizeText(editForm.nonInterventionNote),
+      outcomeCriteria: normalizeText(editForm.outcomeCriteria),
+      externalUrl: normalizeText(editForm.externalUrl),
       status: editForm.status,
     })
   })
@@ -259,15 +226,13 @@ const submitUpdateIssue = async () => {
 <template>
   <section class="issue-detail-page app-page">
     <header class="detail-navigation app-detail-navigation">
-      <el-button :icon="ArrowLeft" text @click="goBack">
-        返回議事廳
-      </el-button>
+      <el-button :icon="ArrowLeft" text @click="goBack">返回議事廳</el-button>
       <div v-if="issue" class="detail-actions">
         <el-dropdown trigger="click" @command="(status: IssueStatus) => changeIssueStatus(status)">
           <button type="button" class="status-trigger" :disabled="statusMutation.isPending.value">
-            <span class="property-status-dot" :class="`property-status-${issue.status.toLowerCase()}`"></span>
+            <span class="status-dot" :class="`status-${issueStatusMeta[issue.status].tone}`"></span>
             <span>{{ issueStatusMeta[issue.status].label }}</span>
-            <el-icon class="status-trigger-arrow"><ArrowDown /></el-icon>
+            <el-icon><ArrowDown /></el-icon>
           </button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -283,33 +248,24 @@ const submitUpdateIssue = async () => {
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <div class="detail-edit-actions">
-          <el-button
-            type="danger"
-            plain
-            :icon="Delete"
-            :loading="deleteMutation.isPending.value"
-            @click="confirmDeleteIssue"
-          >
-            刪除議題
-          </el-button>
-          <el-button type="primary" plain :icon="Edit" @click="openEditDialog('all')">
-            編輯議題
-          </el-button>
-        </div>
+        <el-button type="primary" plain :icon="Edit" @click="openEditDialog('basic')">編輯議題</el-button>
+        <el-button
+          type="danger"
+          plain
+          :icon="Delete"
+          :loading="deleteMutation.isPending.value"
+          @click="confirmDeleteIssue"
+        >
+          永久刪除
+        </el-button>
       </div>
     </header>
 
     <div v-if="isLoading" class="state-surface" aria-label="議題詳情載入中">
       <el-skeleton :rows="8" animated />
     </div>
-
     <div v-else-if="isError" class="state-surface">
-      <el-result
-        icon="error"
-        title="無法載入議題"
-        sub-title="議題可能不存在，或目前無法連線"
-      >
+      <el-result icon="error" title="無法載入議題" sub-title="議題可能不存在，或目前無法連線">
         <template #extra>
           <el-button @click="goBack">返回列表</el-button>
           <el-button type="primary" @click="refetch()">重新載入</el-button>
@@ -317,145 +273,131 @@ const submitUpdateIssue = async () => {
       </el-result>
     </div>
 
-    <div v-else-if="issue" class="detail-layout">
-      <main class="issue-overview-panel" aria-label="議題整體資訊">
-        <article>
-          <section class="overview-group overview-primary-group" aria-label="議題主軸">
-            <div class="detail-heading">
-              <div class="title-group">
-                <span class="detail-eyebrow">議題</span>
-                <h1 class="issue-title">{{ issue.title }}</h1>
-              </div>
+    <main v-else-if="issue" class="cockpit">
+      <header class="cockpit-header">
+        <span class="detail-eyebrow">議題名稱</span>
+        <h1>{{ issue.title }}</h1>
+        <span class="current-mode">目前模式 · {{ issueStatusMeta[issue.status].label }}</span>
+      </header>
+
+      <section class="system-question" aria-labelledby="system-question-title">
+        <header class="section-heading with-action">
+          <div>
+            <h2 id="system-question-title">本輪系統問題</h2>
+          </div>
+          <button type="button" class="inline-edit-button" @click="openEditDialog('basic')">編輯</button>
+        </header>
+        <ExpandableText v-if="issue.objective" :content="issue.objective" :lines="5" />
+        <p v-else class="empty-copy">這一輪想靠哪些現實資料，把問題往前推進？</p>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="dashboard-panel" aria-labelledby="snapshot-title">
+          <header class="section-heading with-action">
+            <div>
+              <h2 id="snapshot-title">系統快照</h2>
             </div>
-
-            <ol class="phase-track" aria-label="議題階段">
-              <li
-                v-for="(phase, index) in phaseStatuses"
-                :key="phase.value"
-                :class="{
-                  active: index === currentPhaseIndex,
-                  passed: currentPhaseIndex >= 0 && index < currentPhaseIndex,
-                }"
-              >
-                <span class="phase-marker" aria-hidden="true"></span>
-                <span>{{ phase.label }}</span>
-              </li>
-            </ol>
-
-            <section class="focus-section" aria-labelledby="focus-title">
-              <header class="overview-heading">
-                <h2 id="focus-title">議題焦點</h2>
-              </header>
-              <ExpandableText
-                v-if="issue.objective"
-                class="focus-content"
-                :content="issue.objective"
-                :lines="5"
-              />
-              <div v-else class="quiet-empty-state">
-                <p>這個議題最需要回答、釐清或推進什麼？</p>
-                <button type="button" class="inline-edit-button" @click="openEditDialog('basic')">補上焦點</button>
-              </div>
-            </section>
-
-            <section class="detail-section" aria-labelledby="assessment-title">
-              <header class="overview-heading with-action">
-                <div>
-                  <h2 id="assessment-title">整體研判</h2>
-                  <p>綜合一路累積的資訊，留下目前對整件事較穩定的理解。</p>
-                </div>
-                <button type="button" class="inline-edit-button" @click="openEditDialog('assessment')">編輯</button>
-              </header>
-              <ExpandableText
-                v-if="issue.currentAssessment"
-                class="assessment-content"
-                :content="issue.currentAssessment"
-                :lines="8"
-              />
-              <div v-else class="quiet-empty-state">
-                <p>還沒有形成整體研判。可以先累積素材與經驗，不必急著下結論。</p>
-              </div>
-            </section>
-          </section>
-
-          <section class="overview-group" aria-label="議題判準與成果">
-            <section aria-labelledby="criteria-title">
-            <header class="overview-heading with-action">
-              <div>
-                <h2 id="criteria-title">結案／重議條件</h2>
-                <p>什麼情況代表這一輪已有結論，或需要重新議定？</p>
-              </div>
-              <button type="button" class="inline-edit-button" @click="openEditDialog('criteria')">編輯</button>
-            </header>
-            <ExpandableText v-if="issue.outcomeCriteria" :content="issue.outcomeCriteria" :lines="5" />
-            <p v-else class="context-empty">尚未設定；需要形成判準時再補充。</p>
-          </section>
-
-            <section class="detail-section compact-section" aria-labelledby="reference-title">
-              <header class="overview-heading with-action">
-                <h2 id="reference-title">成果連結</h2>
-                <button type="button" class="inline-edit-button" @click="openEditDialog('link')">編輯</button>
-              </header>
-              <a
-                v-if="issue.externalUrl"
-                :href="issue.externalUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="external-link"
-              >
-                <el-icon><Link /></el-icon>
-                <span>開啟連結</span>
-              </a>
-              <p v-else class="context-empty">尚未加入成果連結。</p>
-            </section>
-          </section>
-
-          <section class="overview-group" aria-label="背景與議題時間">
-            <section aria-labelledby="background-title">
-              <header class="overview-heading with-action">
-                <div>
-                  <h2 id="background-title">背景與脈絡</h2>
-                  <p>需要回顧這件事為何出現時，再展開閱讀。</p>
-                </div>
-                <button type="button" class="inline-edit-button" @click="openEditDialog('background')">編輯</button>
-              </header>
-              <ExpandableText
-                v-if="issue.description"
-                class="background-content"
-                :content="issue.description"
-                :lines="5"
-              />
-              <p v-else class="context-empty">尚未補充背景；需要時再填即可。</p>
-            </section>
-
-            <dl class="time-metadata">
-              <div class="property-row">
-                <dt>建立時間</dt>
-                <dd>{{ formatDate(issue.createdAt) }}</dd>
-              </div>
-              <div class="property-row">
-                <dt>最後更新</dt>
-                <dd>{{ formatDate(issue.updatedAt) }}</dd>
-              </div>
-              <div v-if="issue.completedAt">
-                <dt>完成時間</dt>
-                <dd>{{ formatDate(issue.completedAt) }}</dd>
-              </div>
-            </dl>
-          </section>
-
-        </article>
-      </main>
-
-      <aside class="issue-updates-panel" aria-label="議題更新資訊">
-        <section class="updates-side-card" aria-label="最近推進">
-          <IssueUpdates :issue-id="props.id" />
+            <button type="button" class="inline-edit-button" @click="openEditDialog('systemSnapshot')">編輯</button>
+          </header>
+          <div class="dashboard-field">
+            <h3>關鍵狀態</h3>
+            <ExpandableText v-if="issue.keyStates" :content="issue.keyStates" :lines="7" />
+            <p v-else class="empty-copy">還沒有整理關鍵狀態。只留下目前真正影響局勢的幾項即可。</p>
+          </div>
+          <div class="dashboard-field">
+            <h3>主導迴路</h3>
+            <ExpandableText v-if="issue.dominantLoops" :content="issue.dominantLoops" :lines="8" />
+            <p v-else class="empty-copy">還沒有辨認主導迴路。先累積真實訊號，不必為了填欄位硬找因果。</p>
+          </div>
         </section>
-        <section class="materials-side-card" aria-label="參考素材">
-          <IssueMaterialManager :issue-id="props.id" />
+
+        <section class="dashboard-panel" aria-labelledby="decision-title">
+          <header class="section-heading with-action">
+            <div>
+              <h2 id="decision-title">當前決策</h2>
+            </div>
+            <button type="button" class="inline-edit-button" @click="openEditDialog('currentDecision')">編輯</button>
+          </header>
+          <div class="dashboard-field">
+            <h3>主要瓶頸</h3>
+            <ExpandableText v-if="issue.primaryConstraint" :content="issue.primaryConstraint" :lines="4" />
+            <p v-else class="empty-copy">尚未辨認主要瓶頸。若目前還在探索，可以先保持空白。</p>
+          </div>
+          <div class="dashboard-field">
+            <h3>當前槓桿點</h3>
+            <ExpandableText v-if="issue.leveragePoint" :content="issue.leveragePoint" :lines="4" />
+            <p v-else class="empty-copy">尚未選定介入位置。不是每個議題現在都需要行動。</p>
+          </div>
+          <div class="dashboard-field">
+            <h3>待觀察訊號</h3>
+            <ExpandableText v-if="issue.watchSignals" :content="issue.watchSignals" :lines="6" />
+            <p v-else class="empty-copy">還沒有設定。採取介入後，再留下真正需要等待的現實回饋。</p>
+          </div>
+          <div class="dashboard-field">
+            <h3>暫不介入／延遲提醒</h3>
+            <ExpandableText v-if="issue.nonInterventionNote" :content="issue.nonInterventionNote" :lines="5" />
+            <p v-else class="empty-copy">沒有特別需要避免過度反應的訊號時，可以保持空白。</p>
+          </div>
         </section>
-      </aside>
-    </div>
+      </div>
+
+      <IssueUpdates :issue-id="props.id" />
+
+      <section class="execution-panel" aria-labelledby="execution-title">
+        <header class="section-heading with-action">
+          <div>
+            <h2 id="execution-title">執行／成果入口</h2>
+            <p>真正需要拆解、執行或查看成果時，從這裡前往外部工作區。</p>
+          </div>
+          <button type="button" class="inline-edit-button" @click="openEditDialog('executionLink')">編輯</button>
+        </header>
+        <a
+          v-if="issue.externalUrl"
+          :href="issue.externalUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="external-link"
+        >
+          <el-icon><Link /></el-icon>
+          <span>前往執行／成果工作區</span>
+        </a>
+        <p v-else class="empty-copy">尚未設定。真正需要拆解、執行或查看成果時再加入。</p>
+      </section>
+
+      <IssueMaterialManager :issue-id="props.id" />
+
+      <section class="supporting-panel" aria-label="低頻議題資訊">
+        <details class="supporting-disclosure">
+          <summary>收斂／重議條件</summary>
+          <div class="supporting-content">
+            <button type="button" class="inline-edit-button" @click="openEditDialog('criteria')">編輯</button>
+            <ExpandableText v-if="issue.outcomeCriteria" :content="issue.outcomeCriteria" :lines="8" />
+            <p v-else class="empty-copy">尚未設定；需要形成判準時再補充。</p>
+          </div>
+        </details>
+        <details class="supporting-disclosure">
+          <summary>補充研判</summary>
+          <div class="supporting-content">
+            <button type="button" class="inline-edit-button" @click="openEditDialog('supplementalAssessment')">編輯</button>
+            <ExpandableText v-if="issue.currentAssessment" :content="issue.currentAssessment" :lines="10" />
+            <p v-else class="empty-copy">沒有需要補充的長篇研判時，可以保持空白。</p>
+          </div>
+        </details>
+        <details class="supporting-disclosure">
+          <summary>背景與脈絡</summary>
+          <div class="supporting-content">
+            <button type="button" class="inline-edit-button" @click="openEditDialog('background')">編輯</button>
+            <ExpandableText v-if="issue.description" :content="issue.description" :lines="8" />
+            <p v-else class="empty-copy">尚未補充背景；需要時再填即可。</p>
+          </div>
+        </details>
+        <dl class="time-metadata">
+          <div><dt>建立時間</dt><dd>{{ formatDate(issue.createdAt) }}</dd></div>
+          <div><dt>最後更新</dt><dd>{{ formatDate(issue.updatedAt) }}</dd></div>
+          <div v-if="issue.completedAt"><dt>收斂時間</dt><dd>{{ formatDate(issue.completedAt) }}</dd></div>
+        </dl>
+      </section>
+    </main>
 
     <AppDialog
       v-model="editDialogVisible"
@@ -472,83 +414,115 @@ const submitUpdateIssue = async () => {
         label-position="top"
         @submit.prevent="submitUpdateIssue"
       >
-        <el-form-item v-if="editSection === 'all' || editSection === 'basic'" label="議題名稱" prop="title">
-          <el-input v-model="editForm.title" maxlength="255" />
-        </el-form-item>
+        <template v-if="editSection === 'basic'">
+          <el-form-item label="議題名稱" prop="title">
+            <el-input v-model="editForm.title" maxlength="255" />
+          </el-form-item>
+          <el-form-item label="本輪系統問題" prop="objective">
+            <el-input
+              v-model="editForm.objective"
+              type="textarea"
+              :rows="3"
+              maxlength="50000"
+              placeholder="這一輪需要靠什麼現實資料，讓你比現在更接近答案？（選填）"
+            />
+          </el-form-item>
+          <el-form-item label="目前模式" prop="status">
+            <el-select v-model="editForm.status" class="status-select">
+              <el-option
+                v-for="option in issueStatusOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+        </template>
 
-        <el-form-item v-if="editSection === 'all' || editSection === 'basic'" label="議題焦點" prop="objective">
-          <el-input
-            v-model="editForm.objective"
-            type="textarea"
-            :rows="2"
-            maxlength="50000"
-            placeholder="這個議題最需要回答、釐清或推進什麼？（選填）"
-          />
-        </el-form-item>
+        <template v-if="editSection === 'systemSnapshot'">
+          <el-form-item label="關鍵狀態" prop="keyStates">
+            <el-input
+              v-model="editForm.keyStates"
+              type="textarea"
+              :rows="6"
+              maxlength="50000"
+              placeholder="哪些重要存量或狀態正在累積、停滯或耗損？（選填）"
+            />
+          </el-form-item>
+          <el-form-item label="主導迴路" prop="dominantLoops">
+            <el-input
+              v-model="editForm.dominantLoops"
+              type="textarea"
+              :rows="6"
+              maxlength="50000"
+              placeholder="哪一條因果循環最能解釋系統目前的狀態？（選填）"
+            />
+          </el-form-item>
+        </template>
 
-        <el-form-item v-if="editSection === 'all' || editSection === 'background'" label="背景與脈絡" prop="description">
-          <el-input
-            v-model="editForm.description"
-            type="textarea"
-            :rows="3"
-            maxlength="50000"
-            placeholder="哪些經歷、條件或變化，使這件事值得處理？（選填）"
-          />
-        </el-form-item>
+        <template v-if="editSection === 'currentDecision'">
+          <el-form-item label="主要瓶頸" prop="primaryConstraint">
+            <el-input v-model="editForm.primaryConstraint" type="textarea" :rows="3" maxlength="50000" />
+          </el-form-item>
+          <el-form-item label="當前槓桿點" prop="leveragePoint">
+            <el-input v-model="editForm.leveragePoint" type="textarea" :rows="3" maxlength="50000" />
+          </el-form-item>
+          <el-form-item label="待觀察訊號" prop="watchSignals">
+            <el-input v-model="editForm.watchSignals" type="textarea" :rows="4" maxlength="50000" />
+          </el-form-item>
+          <el-form-item label="暫不介入／延遲提醒" prop="nonInterventionNote">
+            <el-input v-model="editForm.nonInterventionNote" type="textarea" :rows="4" maxlength="50000" />
+          </el-form-item>
+        </template>
 
-        <el-form-item v-if="editSection === 'all' || editSection === 'assessment'" label="整體研判" prop="currentAssessment">
+        <el-form-item
+          v-if="editSection === 'supplementalAssessment'"
+          label="補充研判"
+          prop="currentAssessment"
+        >
           <CurrentAssessmentGuide v-model="editForm.currentAssessment" />
           <el-input
             v-model="editForm.currentAssessment"
             type="textarea"
-            :rows="5"
+            :rows="7"
             maxlength="50000"
-            placeholder="綜合長期累積的資訊，你如何理解整個議題？（選填）"
+            placeholder="補充無法或不值得放進結構欄位的思考（選填）"
           />
         </el-form-item>
 
-        <el-form-item v-if="editSection === 'all' || editSection === 'criteria'" label="結案／重議條件" prop="outcomeCriteria">
+        <el-form-item v-if="editSection === 'criteria'" label="收斂／重議條件" prop="outcomeCriteria">
           <el-input
             v-model="editForm.outcomeCriteria"
             type="textarea"
-            :rows="2"
+            :rows="5"
             maxlength="50000"
-            placeholder="何時算有結論？出現什麼變化時需要重新議定？（選填）"
+            placeholder="什麼情況可以收斂？發生什麼重大變化時需要重新議定？（選填）"
           />
         </el-form-item>
 
-        <el-form-item v-if="editSection === 'all' || editSection === 'link'" label="相關連結" prop="externalUrl">
+        <el-form-item v-if="editSection === 'executionLink'" label="執行／成果入口" prop="externalUrl">
           <el-input
             v-model="editForm.externalUrl"
             maxlength="2048"
-            placeholder="外部工作區、文件或成果連結（選填）"
+            placeholder="Trello、GitHub、稿件、文件或其他工作區（選填）"
           />
+          <p class="field-helper">第一版支援一個 HTTP 或 HTTPS 連結。</p>
         </el-form-item>
 
-        <el-form-item v-if="editSection === 'all'" label="議題階段" prop="status">
-          <el-select v-model="editForm.status" class="status-select">
-            <el-option
-              v-for="option in issueStatusOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
+        <el-form-item v-if="editSection === 'background'" label="背景與脈絡" prop="description">
+          <el-input
+            v-model="editForm.description"
+            type="textarea"
+            :rows="7"
+            maxlength="50000"
+            placeholder="為什麼這個議題會存在？（選填）"
+          />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button
-          :disabled="updateMutation.isPending.value"
-          @click="editDialogVisible = false"
-        >
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="updateMutation.isPending.value"
-          @click="submitUpdateIssue"
-        >
+        <el-button :disabled="updateMutation.isPending.value" @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="updateMutation.isPending.value" @click="submitUpdateIssue">
           儲存變更
         </el-button>
       </template>
@@ -559,9 +533,9 @@ const submitUpdateIssue = async () => {
 <style scoped>
 .issue-detail-page {
   width: 100%;
-  height: calc(100dvh - (var(--page-gutter) * 2));
-  overflow: hidden;
-  background: var(--el-bg-color-page);
+  min-height: 100%;
+  box-sizing: border-box;
+  background: var(--surface-page);
 }
 
 .detail-navigation {
@@ -569,9 +543,7 @@ const submitUpdateIssue = async () => {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  min-height: 48px;
   padding: var(--space-sm) var(--space-md);
-  box-sizing: border-box;
   border-bottom: 1px solid var(--el-border-color-light);
   background: var(--el-bg-color);
 }
@@ -579,240 +551,123 @@ const submitUpdateIssue = async () => {
 .detail-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
-}
-
-.detail-actions :deep(.el-button) {
-  min-width: 120px;
-}
-
-.detail-edit-actions {
-  display: flex;
   gap: var(--space-xs);
 }
 
-.status-select {
-  width: 100%;
+.state-surface,
+.cockpit {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .state-surface {
   padding: var(--panel-padding);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: var(--panel-radius);
-  background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-lighter);
 }
 
-.detail-layout {
+.cockpit {
   display: grid;
-  height: calc(100% - 48px);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  overflow: hidden;
-}
-
-.issue-overview-panel,
-.issue-updates-panel {
-  min-width: 0;
-}
-
-.issue-overview-panel {
-  height: 100%;
-  padding: var(--workspace-padding);
-  box-sizing: border-box;
-  background: var(--el-bg-color);
-  overflow-y: auto;
-}
-
-.issue-updates-panel {
-  height: 100%;
-  padding: var(--workspace-padding);
-  box-sizing: border-box;
-  border-left: 1px solid var(--el-border-color-lighter);
-  background: var(--el-bg-color-page);
-  overflow-y: auto;
-}
-
-.detail-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
   gap: var(--space-lg);
+  padding: var(--workspace-padding);
 }
 
-.title-group {
-  min-width: 0;
+.cockpit-header {
+  position: relative;
+  padding: var(--space-md) 0 0;
 }
 
 .detail-eyebrow {
   display: block;
-  margin-bottom: var(--space-xs);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
 }
 
-.issue-title {
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: break-word;
-  word-break: break-word;
+.cockpit-header h1 {
+  margin: var(--space-xs) 0 0;
+  padding-right: 150px;
   font-size: var(--type-detail-title);
   line-height: var(--leading-title);
+  overflow-wrap: anywhere;
 }
 
-.phase-track {
-  display: grid;
-  margin: var(--space-lg) 0 0;
-  padding: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  list-style: none;
-}
-
-.phase-track li {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-xs);
-  color: var(--el-text-color-placeholder);
-  font-size: var(--type-meta);
-  text-align: center;
-}
-
-.phase-track li:not(:last-child)::after {
+.current-mode {
   position: absolute;
-  top: 5px;
-  left: calc(50% + 7px);
-  width: calc(100% - 14px);
-  height: 2px;
-  background: var(--el-border-color-lighter);
-  content: '';
+  top: var(--space-lg);
+  right: 0;
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-caption);
 }
 
-.phase-marker {
-  position: relative;
-  z-index: 1;
-  width: 12px;
-  height: 12px;
-  box-sizing: border-box;
-  border: 2px solid var(--el-border-color);
-  border-radius: 50%;
-  background: var(--el-bg-color);
-}
-
-.phase-track li.passed,
-.phase-track li.active {
-  color: var(--el-text-color-regular);
-}
-
-.phase-track li.passed::after {
-  background: var(--el-color-primary-light-5);
-}
-
-.phase-track li.passed .phase-marker {
-  border-color: var(--el-color-primary-light-3);
-  background: var(--el-color-primary-light-3);
-}
-
-.phase-track li.active .phase-marker {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--el-color-primary-light-9);
-}
-
-.overview-group + .overview-group {
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--el-border-color-lighter);
-}
-
-.overview-group {
-  padding: 0;
-}
-
-.focus-section {
-  margin-top: var(--space-lg);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--el-border-color-lighter);
-}
-
-.detail-section {
-  margin-top: var(--space-lg);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--el-border-color-lighter);
-}
-
-.compact-section {
-  padding-bottom: 2px;
-}
-
-.updates-side-card,
-.materials-side-card {
+.system-question,
+.dashboard-panel,
+.execution-panel,
+.supporting-panel {
   padding: var(--panel-padding);
   border: 1px solid var(--el-border-color-light);
-  border-radius: var(--panel-radius);
+  border-radius: var(--radius-md);
   background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-lighter);
 }
 
-.materials-side-card {
-  margin-top: var(--space-md);
+.system-question {
+  border-left: 3px solid var(--el-color-primary-light-5);
 }
 
-.materials-side-card :deep(.material-surface) {
-  margin-top: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+.section-heading {
+  margin-bottom: var(--space-md);
 }
 
-.materials-side-card :deep(.material-columns) {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.overview-heading {
-  margin-bottom: var(--space-sm);
-}
-
-.overview-heading.with-action {
+.section-heading.with-action {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-md);
 }
 
-.overview-heading h2 {
-  margin: 0;
+.section-heading h2 {
+  margin: var(--space-2xs) 0 0;
   font-size: var(--type-section-title);
   line-height: var(--leading-section);
 }
 
-.overview-heading p {
+.section-heading p {
   margin: var(--space-2xs) 0 0;
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
   line-height: var(--leading-ui);
 }
 
-.focus-content :deep(.expandable-content) {
+.system-question :deep(.expandable-content) {
   margin: 0;
   color: var(--el-text-color-primary);
   font-size: var(--type-prominent);
   font-weight: 500;
   line-height: 1.7;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
 }
 
-.assessment-content {
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.dashboard-field + .dashboard-field {
   margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
-.assessment-content :deep(.expandable-content),
-.background-content :deep(.expandable-content) {
+.dashboard-field h3 {
+  margin: 0 0 var(--space-xs);
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-caption);
+  font-weight: 600;
+}
+
+.dashboard-field :deep(.expandable-content),
+.supporting-content :deep(.expandable-content) {
   margin: 0;
   color: var(--el-text-color-primary);
   font-size: var(--type-body);
@@ -821,19 +676,11 @@ const submitUpdateIssue = async () => {
   white-space: pre-wrap;
 }
 
-.quiet-empty-state {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-xs) var(--space-sm);
-  margin-top: var(--space-sm);
-  color: var(--el-text-color-placeholder);
-  font-size: var(--type-ui);
-  line-height: var(--leading-ui);
-}
-
-.quiet-empty-state p {
+.empty-copy {
   margin: 0;
+  color: var(--el-text-color-placeholder);
+  font-size: var(--type-caption);
+  line-height: var(--leading-ui);
 }
 
 .inline-edit-button {
@@ -849,83 +696,7 @@ const submitUpdateIssue = async () => {
 
 .inline-edit-button:hover,
 .inline-edit-button:focus-visible {
-  color: var(--el-color-primary-light-3);
   text-decoration: underline;
-}
-
-.background-content {
-  margin-top: var(--space-md);
-}
-
-.context-empty {
-  margin: var(--space-md) 0 0;
-  color: var(--el-text-color-placeholder);
-  font-size: var(--type-caption);
-}
-
-.time-metadata dt {
-  color: var(--el-text-color-placeholder);
-  font-size: var(--type-meta);
-}
-
-.status-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 120px;
-  padding: 7px 10px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 7px;
-  background: var(--el-fill-color-blank);
-  color: var(--el-text-color-regular);
-  font: inherit;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.status-trigger:hover,
-.status-trigger:focus-visible {
-  border-color: var(--el-color-primary-light-5);
-  color: var(--el-color-primary);
-}
-
-.status-trigger:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-
-.status-trigger-arrow {
-  margin-left: 2px;
-  color: var(--el-text-color-placeholder);
-}
-
-.property-status-dot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--el-text-color-placeholder);
-}
-
-.property-status-idea {
-  background: var(--el-color-info);
-}
-
-.property-status-draft {
-  background: var(--el-color-warning);
-}
-
-.property-status-active {
-  background: var(--el-color-primary);
-}
-
-.property-status-done {
-  background: var(--el-color-success);
-}
-
-.property-status-archived {
-  background: var(--el-text-color-placeholder);
 }
 
 .external-link {
@@ -941,14 +712,49 @@ const submitUpdateIssue = async () => {
   color: var(--el-color-primary-light-3);
 }
 
+.supporting-panel {
+  padding-block: 0;
+}
+
+.supporting-disclosure + .supporting-disclosure {
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.supporting-disclosure > summary {
+  padding: var(--space-md) 0;
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-ui);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.supporting-disclosure[open] > summary {
+  color: var(--el-text-color-primary);
+}
+
+.supporting-content {
+  position: relative;
+  padding: 0 var(--space-xl) var(--space-lg) 0;
+}
+
+.supporting-content > .inline-edit-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
 .time-metadata {
   display: flex;
-  align-items: flex-start;
   flex-wrap: wrap;
-  gap: var(--space-sm) var(--space-lg);
-  margin: var(--space-md) 0 0;
-  padding-top: var(--space-md);
+  gap: var(--space-md) var(--space-lg);
+  margin: 0;
+  padding: var(--space-md) 0;
   border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.time-metadata dt {
+  color: var(--el-text-color-placeholder);
+  font-size: var(--type-meta);
 }
 
 .time-metadata dd {
@@ -957,131 +763,104 @@ const submitUpdateIssue = async () => {
   font-size: var(--type-caption);
 }
 
-@media (max-width: 1200px) and (min-width: 901px) {
-  .issue-detail-page {
-    height: calc(100dvh - 88px);
-  }
+.status-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-width: 120px;
+  padding: 7px 10px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--radius-sm);
+  background: var(--el-fill-color-blank);
+  color: var(--el-text-color-regular);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status-trigger:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--el-text-color-placeholder);
+}
+
+.status-exploring { background: var(--el-color-info); }
+.status-modeling { background: var(--el-color-warning); }
+.status-intervening { background: var(--el-color-primary); }
+.status-converged { background: var(--el-color-success); }
+
+.status-select {
+  width: 100%;
+}
+
+.field-helper {
+  margin: var(--space-xs) 0 0;
+  color: var(--el-text-color-placeholder);
+  font-size: var(--type-meta);
+}
+
+.cockpit :deep(.material-surface) {
+  margin-top: 0;
 }
 
 @media (max-width: 900px) {
-  .issue-detail-page {
-    width: 100%;
-    height: auto;
-    margin: 0;
-    min-height: calc(100dvh - 56px);
-    overflow: visible;
-  }
-
-  .detail-navigation {
-    min-height: auto;
-  }
-
-  .detail-layout {
-    height: auto;
-    grid-template-columns: 1fr;
-    overflow: visible;
-  }
-
-  .issue-overview-panel {
-    height: auto;
-    padding: 18px;
-    overflow: visible;
-  }
-
-  .issue-updates-panel {
-    height: auto;
-    margin-top: 38px;
-    padding: 18px;
-    border-top: 1px solid var(--el-border-color-lighter);
-    border-left: 0;
-    overflow: visible;
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-@media (max-width: 600px) {
-  .state-surface {
-    padding: 20px 16px;
-  }
-
+@media (max-width: 760px) {
   .detail-navigation {
-    align-items: center;
-    flex-wrap: wrap;
-    padding: 14px 16px;
-  }
-
-  .detail-navigation > :first-child {
-    flex-basis: 100%;
-    justify-content: flex-start;
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .detail-actions {
     display: grid;
-    width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin: 0;
   }
 
   .detail-actions > :first-child {
     grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .detail-actions,
-  .detail-edit-actions {
-    min-width: 0;
-  }
-
-  .detail-edit-actions {
-    display: contents;
   }
 
   .status-trigger {
     width: 100%;
-    min-width: 0;
-    padding-inline: 6px;
   }
 
-  .detail-actions :deep(.el-button) {
-    width: 100%;
-    min-width: 0;
-    margin-left: 0;
-    padding-inline: 6px;
-    font-size: 12px;
+  .cockpit-header h1 {
+    padding-right: 0;
   }
 
-  .updates-side-card,
-  .materials-side-card {
-    padding: 20px 18px;
+  .current-mode {
+    position: static;
+    display: block;
+    margin-top: var(--space-xs);
   }
 
-  .detail-heading {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .overview-heading.with-action {
-    gap: 12px;
-  }
-
-  .phase-track {
-    margin-top: 24px;
+  .system-question,
+  .dashboard-panel,
+  .execution-panel {
+    padding: var(--panel-padding);
   }
 }
 
-@media (max-width: 420px) {
-  .detail-navigation {
-    flex-wrap: wrap;
+@media (max-width: 480px) {
+  .detail-actions :deep(.el-button) {
+    width: 100%;
+    margin-left: 0;
   }
 
-  .detail-navigation > :first-child {
-    flex-basis: 100%;
-    justify-content: flex-start;
-  }
-
-  .detail-actions {
-    margin: 0;
+  .section-heading.with-action {
+    gap: var(--space-sm);
   }
 }
 </style>

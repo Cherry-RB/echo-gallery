@@ -70,6 +70,12 @@ public class IssueService {
                 .objective(normalizeOptionalText(request.getObjective()))
                 .description(request.getDescription())
                 .currentAssessment(normalizeOptionalText(request.getCurrentAssessment()))
+                .keyStates(normalizeOptionalText(request.getKeyStates()))
+                .dominantLoops(normalizeOptionalText(request.getDominantLoops()))
+                .primaryConstraint(normalizeOptionalText(request.getPrimaryConstraint()))
+                .leveragePoint(normalizeOptionalText(request.getLeveragePoint()))
+                .watchSignals(normalizeOptionalText(request.getWatchSignals()))
+                .nonInterventionNote(normalizeOptionalText(request.getNonInterventionNote()))
                 .outcomeCriteria(normalizeOptionalText(request.getOutcomeCriteria()))
                 .externalUrl(normalizeOptionalText(request.getExternalUrl()))
                 .build();
@@ -86,6 +92,12 @@ public class IssueService {
         issue.setObjective(normalizeOptionalText(request.getObjective()));
         issue.setDescription(request.getDescription());
         issue.setCurrentAssessment(normalizeOptionalText(request.getCurrentAssessment()));
+        issue.setKeyStates(normalizeOptionalText(request.getKeyStates()));
+        issue.setDominantLoops(normalizeOptionalText(request.getDominantLoops()));
+        issue.setPrimaryConstraint(normalizeOptionalText(request.getPrimaryConstraint()));
+        issue.setLeveragePoint(normalizeOptionalText(request.getLeveragePoint()));
+        issue.setWatchSignals(normalizeOptionalText(request.getWatchSignals()));
+        issue.setNonInterventionNote(normalizeOptionalText(request.getNonInterventionNote()));
         issue.setOutcomeCriteria(normalizeOptionalText(request.getOutcomeCriteria()));
         issue.setExternalUrl(normalizeOptionalText(request.getExternalUrl()));
         updateStatus(issue, request.getStatus());
@@ -144,6 +156,12 @@ public class IssueService {
         response.setObjective(issue.getObjective());
         response.setDescription(issue.getDescription());
         response.setCurrentAssessment(issue.getCurrentAssessment());
+        response.setKeyStates(issue.getKeyStates());
+        response.setDominantLoops(issue.getDominantLoops());
+        response.setPrimaryConstraint(issue.getPrimaryConstraint());
+        response.setLeveragePoint(issue.getLeveragePoint());
+        response.setWatchSignals(issue.getWatchSignals());
+        response.setNonInterventionNote(issue.getNonInterventionNote());
         response.setOutcomeCriteria(issue.getOutcomeCriteria());
         response.setStatus(issue.getStatus());
         response.setExternalUrl(issue.getExternalUrl());

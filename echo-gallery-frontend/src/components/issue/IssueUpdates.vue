@@ -4,10 +4,10 @@ import { Delete, Edit, MoreFilled, Plus } from '@element-plus/icons-vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { IssueUpdate } from '../../types/issue'
-import { formatDate } from '../../utils/formatDate'
 import { issueApi } from '../../utils/api/issueApi'
-import ExpandableText from '../ExpandableText.vue'
+import { formatDate } from '../../utils/formatDate'
 import AppDialog from '../AppDialog.vue'
+import ExpandableText from '../ExpandableText.vue'
 import IssueUpdateDialog from './IssueUpdateDialog.vue'
 
 const props = defineProps<{ issueId: string | number }>()
@@ -15,6 +15,8 @@ const queryClient = useQueryClient()
 const updateDialogVisible = ref(false)
 const historyDialogVisible = ref(false)
 const editingUpdate = ref<IssueUpdate | null>(null)
+const pendingHistoryEdit = ref<IssueUpdate | null>(null)
+const reopenHistoryAfterEdit = ref(false)
 const historyPage = ref(0)
 const historyPageSize = 10
 
@@ -30,7 +32,7 @@ const {
   refetch,
 } = useQuery({
   queryKey: summaryQueryKey,
-  queryFn: () => issueApi.getIssueUpdates(props.issueId, 0, 5),
+  queryFn: () => issueApi.getIssueUpdates(props.issueId, 0, 1),
 })
 
 const {
@@ -44,9 +46,7 @@ const {
   enabled: historyDialogVisible,
 })
 
-const summaryUpdates = computed(() => summaryPage.value?.items ?? [])
-const latestUpdate = computed(() => summaryUpdates.value[0] ?? null)
-const earlierUpdates = computed(() => summaryUpdates.value.slice(1, 5))
+const latestUpdate = computed(() => summaryPage.value?.items[0] ?? null)
 const historyUpdates = computed(() => historyPageData.value?.items ?? [])
 
 const invalidateUpdateQueries = async () => {
@@ -61,19 +61,34 @@ const deleteMutation = useMutation({
   mutationFn: (updateId: number) => issueApi.deleteIssueUpdate(props.issueId, updateId),
   onSuccess: async () => {
     await invalidateUpdateQueries()
-    ElMessage.success('議題更新已刪除')
+    ElMessage.success('系統訊號已刪除')
   },
-  onError: () => ElMessage.error('刪除議題更新失敗，請稍後再試'),
+  onError: () => ElMessage.error('刪除系統訊號失敗，請稍後再試'),
 })
 
 const openCreateDialog = () => {
   editingUpdate.value = null
+  reopenHistoryAfterEdit.value = false
   updateDialogVisible.value = true
 }
 
-const openEditDialog = (update: IssueUpdate) => {
-  editingUpdate.value = update
+const requestEditFromHistory = (update: IssueUpdate) => {
+  pendingHistoryEdit.value = update
+  historyDialogVisible.value = false
+}
+
+const handleHistoryClosed = () => {
+  if (!pendingHistoryEdit.value) return
+  editingUpdate.value = pendingHistoryEdit.value
+  pendingHistoryEdit.value = null
+  reopenHistoryAfterEdit.value = true
   updateDialogVisible.value = true
+}
+
+const handleUpdateDialogClosed = () => {
+  if (!reopenHistoryAfterEdit.value) return
+  reopenHistoryAfterEdit.value = false
+  historyDialogVisible.value = true
 }
 
 const openHistoryDialog = () => {
@@ -84,8 +99,8 @@ const openHistoryDialog = () => {
 const confirmDelete = async (update: IssueUpdate) => {
   try {
     await ElMessageBox.confirm(
-      '刪除這次議題更新？刪除後無法復原，但不會改動議題的整體資料。',
-      '刪除議題更新',
+      '刪除這次系統訊號？刪除後無法復原，但不會改動議題的系統快照或當前決策。',
+      '刪除系統訊號',
       {
         confirmButtonText: '刪除',
         cancelButtonText: '取消',
@@ -108,91 +123,86 @@ const wasEdited = (update: IssueUpdate) => (
   <section class="updates-panel" aria-labelledby="updates-title">
     <header class="updates-heading">
       <div>
-        <h2 id="updates-title">最近推進</h2>
-        <p>從最新變化看見此刻的判斷，以及準備往哪裡走。</p>
+        <h2 id="updates-title">最新系統訊號</h2>
+        <p>只呈現世界最新回傳的一筆資料；歷史訊號可另行展開。</p>
       </div>
-      <el-button type="primary" plain :icon="Plus" @click="openCreateDialog">提出近況</el-button>
+      <div class="updates-actions">
+        <time v-if="latestUpdate" :datetime="latestUpdate.createdAt">
+          {{ formatDate(latestUpdate.createdAt, 'YYYY/MM/DD') }}
+        </time>
+        <button v-if="latestUpdate" type="button" class="text-action" @click="openHistoryDialog">
+          歷次更新
+        </button>
+        <el-button type="primary" plain :icon="Plus" @click="openCreateDialog">記錄訊號</el-button>
+      </div>
     </header>
 
-    <div v-if="isLoading" class="updates-state">
-      <el-skeleton :rows="4" animated />
-    </div>
+    <div v-if="isLoading" class="updates-state"><el-skeleton :rows="3" animated /></div>
     <div v-else-if="isError" class="updates-state error-state">
-      <p>目前無法載入議題近況。</p>
+      <p>目前無法載入系統訊號。</p>
       <el-button text type="primary" @click="refetch()">重新載入</el-button>
     </div>
-
-    <template v-else-if="latestUpdate">
-      <ol class="update-timeline" aria-label="最近五筆議題近況">
-        <li class="timeline-entry latest-timeline-entry">
-          <span class="timeline-dot" aria-hidden="true"></span>
-          <article class="update-record">
-            <header class="update-entry-header">
-              <span>最新更新</span>
-              <time :datetime="latestUpdate.createdAt">
-                {{ formatDate(latestUpdate.createdAt, 'YYYY/MM/DD HH:mm') }}{{ wasEdited(latestUpdate) ? ' · 已編輯' : '' }}
-              </time>
-            </header>
-            <section v-if="latestUpdate.changeSummary" class="update-block">
-              <h3>最近有什麼改變？</h3>
-              <ExpandableText :content="latestUpdate.changeSummary" :lines="6" />
-            </section>
-            <section v-if="latestUpdate.assessment" class="update-block">
-              <h3>現在怎麼看？</h3>
-              <ExpandableText :content="latestUpdate.assessment" :lines="6" />
-            </section>
-            <section v-if="latestUpdate.nextStep" class="next-step-block">
-              <h3>所以接下來呢？</h3>
-              <ExpandableText :content="latestUpdate.nextStep" :lines="4" />
-            </section>
-          </article>
-        </li>
-        <li v-for="update in earlierUpdates" :key="update.id" class="timeline-entry compact-timeline-entry">
-          <span class="timeline-dot" aria-hidden="true"></span>
-          <article class="compact-update-record">
-            <div class="compact-update-line">
-              <ExpandableText
-                :content="update.changeSummary || '這次未記錄事件變化。'"
-                :lines="1"
-              />
-              <time :datetime="update.createdAt">{{ formatDate(update.createdAt, 'MM/DD HH:mm') }}</time>
-            </div>
-          </article>
-        </li>
-      </ol>
-
-      <button type="button" class="history-button" @click="openHistoryDialog">查看歷次更新</button>
-    </template>
-
+    <div v-else-if="latestUpdate" class="feedback-grid">
+      <section>
+        <h3>新訊號</h3>
+        <ExpandableText
+          v-if="latestUpdate.changeSummary"
+          :content="latestUpdate.changeSummary"
+          :lines="5"
+        />
+        <p v-else class="field-empty">這次未記錄新事件或結果。</p>
+      </section>
+      <section>
+        <h3>模型更新</h3>
+        <ExpandableText
+          v-if="latestUpdate.assessment"
+          :content="latestUpdate.assessment"
+          :lines="5"
+        />
+        <p v-else class="field-empty">這次未記錄模型變化。</p>
+      </section>
+      <section>
+        <h3>介入／等待</h3>
+        <ExpandableText
+          v-if="latestUpdate.nextStep"
+          :content="latestUpdate.nextStep"
+          :lines="5"
+        />
+        <p v-else class="field-empty">這次未記錄介入方向或等待訊號。</p>
+      </section>
+    </div>
     <div v-else class="updates-empty">
-      <p>還沒有近況。等局勢真的有變化時，再留下一次快照就好。</p>
-      <button type="button" @click="openCreateDialog">寫下第一筆近況</button>
+      <p>目前沒有新的系統回饋。局勢沒有變化時，不需要為了維護議題而更新。</p>
+      <button type="button" class="text-action" @click="openCreateDialog">記下第一筆系統訊號</button>
     </div>
 
     <AppDialog
       v-model="historyDialogVisible"
-      title="歷次更新"
-      width="min(760px, calc(100vw - 32px))"
+      title="歷次系統訊號"
+      width="min(900px, calc(100vw - 32px))"
       scroll-body
       destroy-on-close
+      @closed="handleHistoryClosed"
     >
-      <div v-if="isHistoryLoading" class="history-state">
-        <el-skeleton :rows="6" animated />
-      </div>
+      <p class="history-intro">依時間回顧世界回傳的訊號，以及當時對系統的理解與介入選擇。</p>
+      <div v-if="isHistoryLoading" class="history-state"><el-skeleton :rows="6" animated /></div>
       <div v-else-if="isHistoryError" class="history-state error-state">
-        <p>目前無法載入歷次更新。</p>
+        <p>目前無法載入歷次系統訊號。</p>
         <el-button text type="primary" @click="refetchHistory()">重新載入</el-button>
       </div>
       <ol v-else-if="historyUpdates.length" class="history-list">
-        <li v-for="update in historyUpdates" :key="update.id" class="history-item">
-          <span class="timeline-dot" aria-hidden="true"></span>
-          <article class="update-record">
+        <li v-for="(update, index) in historyUpdates" :key="update.id" class="history-item">
+          <span class="timeline-marker" aria-hidden="true"></span>
+          <article class="history-entry">
             <header>
-              <time :datetime="update.createdAt">
-                {{ formatDate(update.createdAt, 'YYYY/MM/DD HH:mm') }}{{ wasEdited(update) ? ' · 已編輯' : '' }}
-              </time>
-              <el-dropdown trigger="click" @command="(command: string) => command === 'edit' ? openEditDialog(update) : confirmDelete(update)">
-                <button type="button" class="more-button" aria-label="議題更新操作">
+              <div class="history-time">
+                <span v-if="historyPage === 0 && index === 0" class="latest-label">最新</span>
+                <time :datetime="update.createdAt">
+                  {{ formatDate(update.createdAt, 'YYYY/MM/DD HH:mm') }}{{ wasEdited(update) ? ' · 已編輯' : '' }}
+                </time>
+              </div>
+              <el-dropdown trigger="click" @command="(command: string) => command === 'edit' ? requestEditFromHistory(update) : confirmDelete(update)">
+                <button type="button" class="more-button" :aria-label="`${formatDate(update.createdAt, 'YYYY/MM/DD HH:mm')} 系統訊號操作`">
                   <el-icon><MoreFilled /></el-icon>
                 </button>
                 <template #dropdown>
@@ -204,213 +214,90 @@ const wasEdited = (update: IssueUpdate) => (
               </el-dropdown>
             </header>
             <div class="history-fields">
-              <section v-if="update.changeSummary">
-                <span>最近有什麼改變？</span>
-                <ExpandableText :content="update.changeSummary" :lines="5" />
+              <section>
+                <span>新訊號</span>
+                <p :class="{ 'field-empty': !update.changeSummary }">{{ update.changeSummary || '尚未記錄' }}</p>
               </section>
-              <section v-if="update.assessment">
-                <span>現在怎麼看？</span>
-                <ExpandableText :content="update.assessment" :lines="5" />
+              <section>
+                <span>模型更新</span>
+                <p :class="{ 'field-empty': !update.assessment }">{{ update.assessment || '尚未記錄' }}</p>
               </section>
-              <section v-if="update.nextStep" class="history-next-step">
-                <span>所以接下來呢？</span>
-                <ExpandableText :content="update.nextStep" :lines="4" />
+              <section>
+                <span>介入／等待</span>
+                <p :class="{ 'field-empty': !update.nextStep }">{{ update.nextStep || '尚未記錄' }}</p>
               </section>
             </div>
           </article>
         </li>
       </ol>
-      <p v-else class="history-empty">這個議題還沒有更新紀錄。</p>
+      <p v-else class="history-empty">這個議題還沒有系統訊號。</p>
 
       <template #footer>
         <div class="history-pagination">
           <span>第 {{ historyPage + 1 }} 頁 · 每頁最多 {{ historyPageSize }} 筆</span>
           <div>
-            <el-button :disabled="historyPage === 0" @click="historyPage -= 1">上一頁</el-button>
-            <el-button :disabled="!historyPageData?.hasNext" @click="historyPage += 1">下一頁</el-button>
+            <el-button :disabled="historyPage === 0" @click="historyPage -= 1">較新的訊號</el-button>
+            <el-button :disabled="!historyPageData?.hasNext" @click="historyPage += 1">較舊的訊號</el-button>
           </div>
         </div>
       </template>
     </AppDialog>
 
-    <IssueUpdateDialog v-model="updateDialogVisible" :issue-id="issueId" :update="editingUpdate" />
+    <IssueUpdateDialog
+      v-model="updateDialogVisible"
+      :issue-id="issueId"
+      :update="editingUpdate"
+      @closed="handleUpdateDialogClosed"
+    />
   </section>
 </template>
 
 <style scoped>
 .updates-panel {
   min-width: 0;
+  padding: var(--panel-padding);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--radius-md);
+  background: var(--el-bg-color);
 }
 
 .updates-heading,
-.update-entry-header,
+.updates-actions,
 .history-item article > header,
 .history-pagination {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-md);
 }
 
 .updates-heading h2 {
-  margin: 0 0 6px;
+  margin: var(--space-2xs) 0 0;
   font-size: var(--type-section-title);
   line-height: var(--leading-section);
 }
 
 .updates-heading p {
-  margin: 0;
+  margin: var(--space-2xs) 0 0;
   color: var(--el-text-color-secondary);
   font-size: var(--type-caption);
   line-height: var(--leading-ui);
 }
 
-.update-timeline,
-.history-list {
-  margin: 24px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.timeline-entry,
-.history-item {
-  position: relative;
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  gap: 12px;
-  padding-bottom: 24px;
-}
-
-.timeline-entry::before,
-.history-item::before {
-  position: absolute;
-  top: 12px;
-  bottom: 0;
-  left: 5px;
-  width: 1px;
-  background: var(--el-border-color-light);
-  content: '';
-}
-
-.timeline-entry:last-child::before,
-.history-item:last-child::before {
-  display: none;
-}
-
-.timeline-dot {
-  z-index: 1;
-  width: 11px;
-  height: 11px;
-  margin-top: 4px;
-  border: 2px solid var(--el-bg-color);
-  border-radius: 50%;
-  background: var(--el-color-primary-light-5);
-  box-shadow: 0 0 0 1px var(--el-color-primary-light-5);
-}
-
-.latest-timeline-entry .timeline-dot {
-  background: var(--el-color-primary);
-  box-shadow: 0 0 0 3px var(--el-color-primary-light-9);
-}
-
-.timeline-entry article,
-.history-item article {
-  min-width: 0;
-}
-
-.update-record {
-  padding: 16px;
-  border-radius: 10px;
-  background: var(--el-fill-color-light);
-}
-
-.update-entry-header {
-  color: var(--el-text-color-placeholder);
-  font-size: var(--type-meta);
-}
-
-.update-entry-header > span {
-  color: var(--el-text-color-primary);
-  font-weight: 700;
-}
-
-.update-entry-header time,
-.history-item time {
+.updates-actions {
+  align-items: center;
   flex: 0 0 auto;
+  gap: var(--space-sm);
+}
+
+.updates-actions time,
+.history-item time {
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
 }
 
-.update-block {
-  margin-top: 14px;
-}
-
-.update-block h3,
-.next-step-block h3 {
-  margin: 0 0 4px;
-  color: var(--el-text-color-placeholder);
-  font-size: var(--type-meta);
-  font-weight: 600;
-}
-
-.update-block :deep(.expandable-content) {
-  margin: 0;
-  color: var(--el-text-color-regular);
-  font-size: var(--type-ui);
-  line-height: 1.65;
-}
-
-.next-step-block {
-  margin-top: 14px;
-  padding-top: 2px;
-}
-
-.next-step-block h3 {
-  color: var(--el-text-color-placeholder);
-}
-
-.next-step-block :deep(.expandable-content) {
-  color: var(--el-color-primary);
-}
-
-.compact-update-record {
-  min-width: 0;
-  padding: 0;
-}
-
-.compact-timeline-entry {
-  padding-bottom: 10px;
-}
-
-.compact-update-line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.compact-update-line time {
-  white-space: nowrap;
-  color: var(--el-text-color-placeholder);
-  font-size: var(--type-meta);
-}
-
-.compact-update-line :deep(.expandable-text) {
-  min-width: 0;
-}
-
-.compact-update-line :deep(.expandable-content) {
-  margin: 0;
-  color: var(--el-text-color-regular);
-  font-size: var(--type-ui);
-  line-height: 1.65;
-}
-
-.compact-update-line :deep(.expand-button) {
-  display: none;
-}
-
-.history-button {
+.text-action,
+.more-button {
   padding: 0;
   border: 0;
   background: transparent;
@@ -420,102 +307,234 @@ const wasEdited = (update: IssueUpdate) => (
   cursor: pointer;
 }
 
-.history-button:hover,
-.history-button:focus-visible {
-  text-decoration: underline;
+.feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--surface-summary);
 }
 
+.feedback-grid > section {
+  min-width: 0;
+  padding-right: var(--space-md);
+}
+
+.feedback-grid > section:last-child { padding-right: 0; }
+.feedback-grid > section + section {
+  padding-left: var(--space-md);
+  border-left: 1px solid var(--el-border-color-lighter);
+}
+
+.feedback-grid h3,
+.history-fields section > span {
+  margin: 0 0 var(--space-2xs);
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+
+.feedback-grid :deep(.expandable-content) {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: var(--type-ui);
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.field-empty,
 .updates-state,
 .updates-empty,
 .history-state,
 .history-empty {
-  margin-top: 22px;
-  padding: 22px;
-  border-radius: 8px;
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
-  text-align: center;
+  color: var(--el-text-color-placeholder);
+  font-size: var(--type-caption);
+  line-height: var(--leading-ui);
 }
 
-.updates-empty p,
-.error-state p,
-.history-empty {
-  margin-bottom: 0;
-}
-
-.updates-empty button {
-  margin-top: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--el-color-primary);
-  cursor: pointer;
-}
+.field-empty { margin: 0; }
+.updates-state,
+.updates-empty { margin-top: var(--space-lg); }
+.updates-empty p { margin: 0 0 var(--space-xs); }
 
 .history-list {
-  min-height: 0;
+  position: relative;
+  margin: 0;
+  padding: 0 0 0 var(--space-xs);
+  list-style: none;
+}
+
+.history-intro {
+  margin: 0 0 var(--space-md);
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-caption);
+  line-height: var(--leading-ui);
 }
 
 .history-item {
-  padding-bottom: 24px;
-}
-
-.history-item article {
-  padding: 16px;
-}
-
-.more-button {
-  padding: 2px 5px;
-  border: 0;
-  background: transparent;
-  color: var(--el-text-color-secondary);
-  cursor: pointer;
-}
-
-.history-fields {
+  position: relative;
   display: grid;
-  gap: 14px;
-  margin-top: 14px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--space-sm);
+  padding: 0 0 var(--space-sm);
 }
 
-.history-fields section > span {
+.history-entry {
+  min-width: 0;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--surface-summary);
+}
+
+.timeline-marker {
+  position: relative;
   display: block;
-  margin-bottom: 4px;
-  color: var(--el-text-color-placeholder);
+  min-height: 100%;
+}
+
+.timeline-marker::before {
+  position: absolute;
+  top: 10px;
+  bottom: -12px;
+  left: 9px;
+  width: 1px;
+  background: var(--el-border-color);
+  content: '';
+}
+
+.timeline-marker::after {
+  position: absolute;
+  top: 6px;
+  left: 5px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--el-bg-color);
+  border-radius: 50%;
+  background: var(--el-color-primary);
+  box-shadow: 0 0 0 1px var(--el-color-primary-light-5);
+  content: '';
+}
+
+.history-item:last-child .timeline-marker::before {
+  bottom: auto;
+  height: 8px;
+}
+
+.history-time {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.latest-label {
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-sm);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   font-size: var(--type-meta);
   font-weight: 600;
 }
 
-.history-fields :deep(.expandable-content) {
+.more-button {
+  color: var(--el-text-color-secondary);
+}
+
+.history-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: var(--space-sm);
+}
+
+.history-fields section {
+  min-width: 0;
+  padding-right: var(--space-sm);
+}
+
+.history-fields section + section {
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--el-border-color-lighter);
+}
+
+.history-fields section:last-child {
+  padding-right: 0;
+}
+
+.history-fields section > span { display: block; }
+
+.history-entry > header { align-items: center; }
+
+.history-fields p {
   margin: 0;
-  color: var(--el-text-color-regular);
+  color: var(--el-text-color-primary);
   font-size: var(--type-ui);
-  line-height: 1.65;
-}
-
-.history-next-step {
-  padding-top: 2px;
-}
-
-.history-next-step :deep(.expandable-content) {
-  color: var(--el-color-primary);
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .history-pagination {
-  align-items: center;
   width: 100%;
+  align-items: center;
 }
 
 .history-pagination > span {
-  color: var(--el-text-color-placeholder);
+  color: var(--el-text-color-secondary);
   font-size: var(--type-meta);
 }
 
-@media (max-width: 600px) {
-  .updates-heading,
+@media (max-width: 760px) {
+  .updates-heading {
+    flex-direction: column;
+  }
+
+  .updates-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .feedback-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feedback-grid > section {
+    padding: 0;
+  }
+
+  .feedback-grid > section + section {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    padding-left: 0;
+    border-top: 1px solid var(--el-border-color-lighter);
+    border-left: 0;
+  }
+
+  .feedback-grid > section:last-child {
+    padding-bottom: 0;
+  }
+
   .history-pagination {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .history-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .history-fields section {
+    padding-right: 0;
+  }
+
+  .history-fields section + section {
+    margin-top: var(--space-sm);
+    padding-top: var(--space-sm);
+    padding-left: 0;
+    border-top: 1px solid var(--el-border-color-lighter);
+    border-left: 0;
   }
 }
 </style>

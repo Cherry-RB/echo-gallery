@@ -60,6 +60,24 @@ public class Issue {
     @Column(name = "current_assessment", columnDefinition = "TEXT")
     private String currentAssessment;
 
+    @Column(name = "key_states", columnDefinition = "TEXT")
+    private String keyStates;
+
+    @Column(name = "dominant_loops", columnDefinition = "TEXT")
+    private String dominantLoops;
+
+    @Column(name = "primary_constraint", columnDefinition = "TEXT")
+    private String primaryConstraint;
+
+    @Column(name = "leverage_point", columnDefinition = "TEXT")
+    private String leveragePoint;
+
+    @Column(name = "watch_signals", columnDefinition = "TEXT")
+    private String watchSignals;
+
+    @Column(name = "non_intervention_note", columnDefinition = "TEXT")
+    private String nonInterventionNote;
+
     @Column(name = "outcome_criteria", columnDefinition = "TEXT")
     private String outcomeCriteria;
 

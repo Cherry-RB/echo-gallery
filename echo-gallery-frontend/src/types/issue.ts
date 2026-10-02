@@ -9,6 +9,12 @@ export interface IssueContentRequest {
   objective?: string | null
   description?: string | null
   currentAssessment?: string | null
+  keyStates?: string | null
+  dominantLoops?: string | null
+  primaryConstraint?: string | null
+  leveragePoint?: string | null
+  watchSignals?: string | null
+  nonInterventionNote?: string | null
   outcomeCriteria?: string | null
   externalUrl?: string | null
 }
@@ -81,6 +87,12 @@ export interface IssueDetail {
   objective: string | null
   description: string | null
   currentAssessment: string | null
+  keyStates: string | null
+  dominantLoops: string | null
+  primaryConstraint: string | null
+  leveragePoint: string | null
+  watchSignals: string | null
+  nonInterventionNote: string | null
   outcomeCriteria: string | null
   status: IssueStatus
   externalUrl: string | null

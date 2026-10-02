@@ -2,8 +2,9 @@
 import { computed } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
-import type { IssueStatus, IssueSummary } from '../../types/issue'
+import type { IssueSummary } from '../../types/issue'
 import { issueApi } from '../../utils/api/issueApi'
+import { issueStatusMeta } from '../../utils/issueStatus'
 import AppDialog from '../AppDialog.vue'
 
 const props = defineProps<{
@@ -16,14 +17,6 @@ const emit = defineEmits<{
 }>()
 
 const queryClient = useQueryClient()
-
-const issueStatusMeta: Record<IssueStatus, string> = {
-  IDEA: '探索中',
-  DRAFT: '已釐清',
-  ACTIVE: '推進中',
-  DONE: '已完成',
-  ARCHIVED: '已封存',
-}
 
 const dialogVisible = computed({
   get: () => props.modelValue,
@@ -105,7 +98,7 @@ const addIssueMutation = useMutation({
       <div v-for="issue in availableIssues" :key="issue.id" class="issue-option">
         <div class="issue-option-content">
           <strong>{{ issue.title }}</strong>
-          <span>{{ issueStatusMeta[issue.status] }}</span>
+          <span>{{ issueStatusMeta[issue.status].label }}</span>
         </div>
         <el-button
           type="primary"

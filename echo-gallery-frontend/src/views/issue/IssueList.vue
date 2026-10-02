@@ -10,33 +10,26 @@ import AppDialog from '../../components/AppDialog.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
 import IssueUpdateDialog from '../../components/issue/IssueUpdateDialog.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
-import type { CreateIssueRequest, IssueStatus, IssueSummary } from '../../types/issue'
+import type { CreateIssueRequest, IssueSummary } from '../../types/issue'
 import { formatDate } from '../../utils/formatDate'
 import { issueApi } from '../../utils/api/issueApi'
-
-const issueStatusMeta: Record<IssueStatus, { label: string; tone: string }> = {
-  IDEA: { label: '探索中', tone: 'exploring' },
-  DRAFT: { label: '已釐清', tone: 'clarified' },
-  ACTIVE: { label: '推進中', tone: 'advancing' },
-  DONE: { label: '已完成', tone: 'completed' },
-  ARCHIVED: { label: '已封存', tone: 'archived' },
-}
+import { issueStatusMeta } from '../../utils/issueStatus'
 
 type IssueScope = 'OPEN' | 'DONE' | 'ARCHIVED' | 'ALL'
 type OpenPhase = 'ALL' | 'IDEA' | 'DRAFT' | 'ACTIVE'
 
 const issueScopeOptions: Array<{ value: IssueScope; label: string }> = [
   { value: 'OPEN', label: '進行中' },
-  { value: 'DONE', label: '已完成' },
-  { value: 'ARCHIVED', label: '已封存' },
+  { value: 'DONE', label: '收斂' },
+  { value: 'ARCHIVED', label: '封存' },
   { value: 'ALL', label: '全部' },
 ]
 
 const openPhaseOptions: Array<{ value: OpenPhase; label: string }> = [
-  { value: 'ALL', label: '所有階段' },
-  { value: 'IDEA', label: '探索中' },
-  { value: 'DRAFT', label: '已釐清' },
-  { value: 'ACTIVE', label: '推進中' },
+  { value: 'ALL', label: '所有模式' },
+  { value: 'IDEA', label: '探索' },
+  { value: 'DRAFT', label: '建模' },
+  { value: 'ACTIVE', label: '介入／觀察' },
 ]
 
 const queryClient = useQueryClient()
@@ -88,16 +81,16 @@ const createFormRules: FormRules<CreateIssueRequest> = {
     { max: 255, message: '議題名稱不可超過 255 個字', trigger: 'blur' },
   ],
   objective: [
-    { max: 50000, message: '議題焦點不可超過 50000 個字', trigger: 'blur' },
+    { max: 50000, message: '本輪系統問題不可超過 50000 個字', trigger: 'blur' },
   ],
   description: [
     { max: 50000, message: '背景與脈絡不可超過 50000 個字', trigger: 'blur' },
   ],
   currentAssessment: [
-    { max: 50000, message: '整體研判不可超過 50000 個字', trigger: 'blur' },
+    { max: 50000, message: '補充研判不可超過 50000 個字', trigger: 'blur' },
   ],
   outcomeCriteria: [
-    { max: 50000, message: '結案或重議條件不可超過 50000 個字', trigger: 'blur' },
+    { max: 50000, message: '收斂或重議條件不可超過 50000 個字', trigger: 'blur' },
   ],
   externalUrl: [
     { max: 2048, message: '外部連結不可超過 2048 個字', trigger: 'blur' },
@@ -270,7 +263,7 @@ const submitCreateIssue = async () => {
     <PageHeader title="議事廳" description="把正在反覆思考或推進的事情放上桌，讓相關素材、現實變化與自己的判斷在同一處相遇">
       <template #actions>
         <el-button :icon="Clock" @click="recentDrawerVisible = true">
-          近期動態
+          近期訊號
         </el-button>
         <el-button type="primary" :icon="Plus" @click="openCreateDialog">
           發起議題
@@ -383,15 +376,15 @@ const submitCreateIssue = async () => {
               <h2 class="issue-title" :title="issue.title">{{ issue.title }}</h2>
 
               <div class="issue-overview-field">
-                <span>議題焦點</span>
+                <span>本輪系統問題</span>
                 <p v-if="issue.objective || issue.description" class="issue-description">
                   {{ issue.objective || issue.description }}
                 </p>
-                <p v-else class="issue-description empty-objective">這個議題最需要回答、釐清或推進什麼？</p>
+                <p v-else class="issue-description empty-objective">這一輪想靠哪些現實資料，把問題往前推進？</p>
               </div>
 
               <div class="issue-overview-field criteria-preview">
-                <span>結案／重議條件</span>
+                <span>收斂／重議條件</span>
                 <p :class="{ 'empty-objective': !issue.outcomeCriteria }">
                   {{ issue.outcomeCriteria || '尚未設定' }}
                 </p>
@@ -422,7 +415,7 @@ const submitCreateIssue = async () => {
 
             <section class="issue-latest-progress">
               <header>
-                <span class="card-section-label">最新更新</span>
+                <span class="card-section-label">最新系統訊號</span>
                 <div class="latest-progress-actions">
                   <time
                     v-if="getLatestIssueProgressLead(issue) && issue.latestProgressAt"
@@ -431,26 +424,26 @@ const submitCreateIssue = async () => {
                     {{ formatUpdatedAt(issue.latestProgressAt) }}
                   </time>
                   <button type="button" class="quick-update-button" @click.stop="openQuickUpdate(issue.id)">
-                    ＋ 提出近況
+                    ＋ 記錄訊號
                   </button>
                 </div>
               </header>
               <div v-if="getLatestIssueProgressLead(issue)" class="issue-progress-fields">
                 <section v-if="issue.latestProgressChangeSummary">
-                  <span>最近有什麼改變？</span>
+                  <span>新訊號</span>
                   <ExpandableText :content="issue.latestProgressChangeSummary" :lines="3" />
                 </section>
                 <section v-if="issue.latestProgressAssessment">
-                  <span>現在怎麼看？</span>
+                  <span>模型更新</span>
                   <ExpandableText :content="issue.latestProgressAssessment" :lines="3" />
                 </section>
                 <section v-if="issue.latestProgressNextStep" class="issue-next-step">
-                  <span>所以接下來呢？</span>
+                  <span>介入／等待</span>
                   <ExpandableText :content="issue.latestProgressNextStep" :lines="2" />
                 </section>
               </div>
               <p v-else class="no-progress-update">
-                還沒有近況。有新的變化、判斷或下一步時，再留下一次快照。
+                目前沒有新的系統回饋。局勢沒有變化時，不需要為了維護議題而更新。
               </p>
             </section>
           </div>
@@ -460,7 +453,7 @@ const submitCreateIssue = async () => {
 
     <el-drawer
       v-model="recentDrawerVisible"
-      title="跨議題近期動態"
+      title="跨議題近期訊號"
       size="min(680px, 100%)"
       destroy-on-close
       class="app-drawer"
@@ -475,7 +468,7 @@ const submitCreateIssue = async () => {
           <el-skeleton :rows="4" animated />
         </div>
         <div v-else-if="isRecentUpdatesError" class="recent-updates-state">
-          <p>目前無法載入最近推進。</p>
+          <p>目前無法載入近期系統訊號。</p>
           <el-button text type="primary" @click="refetchRecentUpdates()">重新載入</el-button>
         </div>
         <div v-else-if="recentUpdateList.length === 0" class="recent-updates-empty">
@@ -495,15 +488,15 @@ const submitCreateIssue = async () => {
               </button>
               <div class="recent-update-fields">
                 <section v-if="update.changeSummary">
-                  <span>最近有什麼改變？</span>
+                  <span>新訊號</span>
                   <ExpandableText :content="update.changeSummary" :lines="3" />
                 </section>
                 <section v-if="update.assessment">
-                  <span>現在怎麼看？</span>
+                  <span>模型更新</span>
                   <ExpandableText :content="update.assessment" :lines="3" />
                 </section>
                 <section v-if="update.nextStep" class="recent-next-step">
-                  <span>所以接下來呢？</span>
+                  <span>介入／等待</span>
                   <ExpandableText :content="update.nextStep" :lines="2" />
                 </section>
               </div>
@@ -545,13 +538,13 @@ const submitCreateIssue = async () => {
           />
         </el-form-item>
 
-        <el-form-item label="議題焦點" prop="objective">
+        <el-form-item label="本輪系統問題" prop="objective">
           <el-input
             v-model="createForm.objective"
             type="textarea"
             :rows="2"
             maxlength="50000"
-            placeholder="這個議題最需要回答、釐清或推進什麼？（選填）"
+            placeholder="這一輪需要靠什麼現實資料，讓你比現在更接近答案？（選填）"
           />
         </el-form-item>
 
@@ -575,18 +568,18 @@ const submitCreateIssue = async () => {
             />
           </el-form-item>
 
-          <el-form-item label="整體研判" prop="currentAssessment">
+          <el-form-item label="補充研判" prop="currentAssessment">
             <CurrentAssessmentGuide v-model="createForm.currentAssessment" />
             <el-input
               v-model="createForm.currentAssessment"
               type="textarea"
               :rows="5"
               maxlength="50000"
-              placeholder="綜合長期累積的資訊，你如何理解整個議題？（選填）"
+              placeholder="補充無法或不值得放進結構欄位的思考（選填）"
             />
           </el-form-item>
 
-          <el-form-item label="結案／重議條件" prop="outcomeCriteria">
+          <el-form-item label="收斂／重議條件" prop="outcomeCriteria">
             <el-input
               v-model="createForm.outcomeCriteria"
               type="textarea"
@@ -596,11 +589,11 @@ const submitCreateIssue = async () => {
             />
           </el-form-item>
 
-          <el-form-item label="相關連結" prop="externalUrl">
+          <el-form-item label="執行／成果入口" prop="externalUrl">
             <el-input
               v-model="createForm.externalUrl"
               maxlength="2048"
-              placeholder="外部工作區、文件或成果連結（選填）"
+              placeholder="Trello、GitHub、稿件、文件或其他工作區（選填）"
             />
           </el-form-item>
         </div>
@@ -816,15 +809,15 @@ const submitCreateIssue = async () => {
   background: var(--el-color-info);
 }
 
-.status-clarified .status-dot {
+.status-modeling .status-dot {
   background: var(--el-color-warning);
 }
 
-.status-advancing .status-dot {
+.status-intervening .status-dot {
   background: var(--el-color-primary);
 }
 
-.status-completed .status-dot {
+.status-converged .status-dot {
   background: var(--el-color-success);
 }
 
@@ -898,7 +891,7 @@ const submitCreateIssue = async () => {
   min-width: 0;
   padding: var(--space-lg);
   border-radius: var(--radius-md);
-  background: var(--el-fill-color-light);
+  background: var(--surface-summary);
 }
 
 .issue-latest-progress > header {
@@ -1051,7 +1044,7 @@ const submitCreateIssue = async () => {
   min-width: 22px;
   padding: 2px 7px;
   border-radius: 999px;
-  background: var(--el-fill-color-light);
+  background: var(--surface-subtle);
   color: var(--el-text-color-secondary);
   font-size: var(--type-meta);
   text-align: center;
@@ -1103,7 +1096,7 @@ const submitCreateIssue = async () => {
   grid-column: 2;
   padding: 16px;
   border-radius: 10px;
-  background: var(--el-fill-color-light);
+  background: var(--surface-summary);
   min-width: 0;
   color: inherit;
   text-align: left;

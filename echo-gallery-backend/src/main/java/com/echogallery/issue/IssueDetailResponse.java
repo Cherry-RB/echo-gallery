@@ -11,6 +11,12 @@ public class IssueDetailResponse {
     private String objective;
     private String description;
     private String currentAssessment;
+    private String keyStates;
+    private String dominantLoops;
+    private String primaryConstraint;
+    private String leveragePoint;
+    private String watchSignals;
+    private String nonInterventionNote;
     private String outcomeCriteria;
     private IssueStatus status;
     private String externalUrl;

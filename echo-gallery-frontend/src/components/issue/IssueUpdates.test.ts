@@ -73,15 +73,15 @@ describe('IssueUpdates', () => {
     })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text().includes('提出近況'))?.trigger('click')
-    const submitButtons = wrapper.findAll('button').filter((button) => button.text().includes('提出近況'))
+    await wrapper.findAll('button').find((button) => button.text().includes('記錄訊號'))?.trigger('click')
+    const submitButtons = wrapper.findAll('button').filter((button) => button.text().includes('記錄訊號'))
     await submitButtons.at(-1)?.trigger('click')
 
     expect(wrapper.text()).toContain('至少寫下一項')
     expect(issueApi.createIssueUpdate).not.toHaveBeenCalled()
   })
 
-  it('任一欄位有內容即可提出近況', async () => {
+  it('任一欄位有內容即可記錄系統訊號', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const wrapper = mount(IssueUpdates, {
       props: { issueId: 7 },
@@ -89,9 +89,9 @@ describe('IssueUpdates', () => {
     })
     await flushPromises()
 
-    await wrapper.findAll('button').find((button) => button.text().includes('提出近況'))?.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('記錄訊號'))?.trigger('click')
     await wrapper.get('textarea').setValue(' 取得新回饋 ')
-    const submitButtons = wrapper.findAll('button').filter((button) => button.text().includes('提出近況'))
+    const submitButtons = wrapper.findAll('button').filter((button) => button.text().includes('記錄訊號'))
     await submitButtons.at(-1)?.trigger('click')
     await flushPromises()
 
@@ -126,15 +126,15 @@ describe('IssueUpdates', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('最近有什麼改變？')
+    expect(wrapper.text()).toContain('新訊號')
     expect(wrapper.text()).toContain('收到新的市場回饋')
-    expect(wrapper.text()).toContain('現在怎麼看？')
+    expect(wrapper.text()).toContain('模型更新')
     expect(wrapper.text()).toContain('原本的方向仍值得推進')
-    expect(wrapper.text()).toContain('所以接下來呢？')
+    expect(wrapper.text()).toContain('介入／等待')
     expect(wrapper.text()).toContain('安排下一次訪談')
   })
 
-  it('初始只查詢五筆，後續更新只呈現日期與改變內容', async () => {
+  it('初始只查詢最新一筆，不在 dashboard 展開其他歷史', async () => {
     vi.mocked(issueApi.getIssueUpdates).mockResolvedValue({
       items: Array.from({ length: 5 }, (_, index) => ({
         id: 10 - index,
@@ -158,11 +158,11 @@ describe('IssueUpdates', () => {
 
     await flushPromises()
 
-    expect(issueApi.getIssueUpdates).toHaveBeenCalledWith(7, 0, 5)
+    expect(issueApi.getIssueUpdates).toHaveBeenCalledWith(7, 0, 1)
     expect(wrapper.text()).toContain('研判 1')
     expect(wrapper.text()).not.toContain('研判 2')
     expect(wrapper.text()).not.toContain('下一步 5')
-    expect(wrapper.text()).toContain('變化 5')
+    expect(wrapper.text()).not.toContain('變化 5')
   })
 
   it('開啟歷次更新後才查詢十筆歷程', async () => {
@@ -189,9 +189,43 @@ describe('IssueUpdates', () => {
     await flushPromises()
 
     expect(issueApi.getIssueUpdates).toHaveBeenCalledTimes(1)
-    await wrapper.findAll('button').find((button) => button.text().includes('查看歷次更新'))?.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('歷次更新'))?.trigger('click')
     await flushPromises()
 
     expect(issueApi.getIssueUpdates).toHaveBeenCalledWith(7, 0, 10)
+  })
+
+  it('歷次訊號完整顯示三個同層欄位與時間方向分頁', async () => {
+    vi.mocked(issueApi.getIssueUpdates).mockImplementation(async (_issueId, _page, size) => ({
+      items: [{
+        id: 3,
+        issueId: 7,
+        issueTitle: '測試議題',
+        changeSummary: '收到使用者訪談回饋',
+        assessment: '原先假設只得到部分支持',
+        nextStep: '再等待兩筆不同來源的訊號',
+        createdAt: '2026-09-07T00:00:00Z',
+        updatedAt: '2026-09-07T00:00:00Z',
+      }],
+      page: 0,
+      size: size ?? 10,
+      hasNext: true,
+    }))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const wrapper = mount(IssueUpdates, {
+      props: { issueId: 7 },
+      global: globalOptions(queryClient),
+    })
+    await flushPromises()
+
+    await wrapper.findAll('button').find(button => button.text().includes('歷次更新'))?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('歷次系統訊號')
+    expect(wrapper.text()).toContain('收到使用者訪談回饋')
+    expect(wrapper.text()).toContain('原先假設只得到部分支持')
+    expect(wrapper.text()).toContain('再等待兩筆不同來源的訊號')
+    expect(wrapper.text()).toContain('較新的訊號')
+    expect(wrapper.text()).toContain('較舊的訊號')
   })
 })
