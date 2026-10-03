@@ -1,5 +1,6 @@
 package com.echogallery.issue;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.time.ZonedDateTime;
@@ -15,6 +16,17 @@ public interface IssueUpdateRepository extends JpaRepository<IssueUpdate, Long> 
     Slice<IssueUpdate> findByIssueIdOrderByCreatedAtDescIdDesc(Long issueId, Pageable pageable);
 
     Optional<IssueUpdate> findByIdAndIssueId(Long id, Long issueId);
+
+    long countByIssueId(Long issueId);
+
+    @Query("""
+            SELECT progressUpdate.issue.id AS issueId,
+                   COUNT(progressUpdate.id) AS updateCount
+            FROM IssueUpdate progressUpdate
+            WHERE progressUpdate.issue.id IN :issueIds
+            GROUP BY progressUpdate.issue.id
+            """)
+    List<IssueUpdateCount> countByIssueIds(@Param("issueIds") Collection<Long> issueIds);
 
     void deleteByIssueId(Long issueId);
 

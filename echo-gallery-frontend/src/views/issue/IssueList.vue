@@ -9,6 +9,7 @@ import CurrentAssessmentGuide from '../../components/issue/CurrentAssessmentGuid
 import AppDialog from '../../components/AppDialog.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
 import IssueUpdateDialog from '../../components/issue/IssueUpdateDialog.vue'
+import IssueUpdates from '../../components/issue/IssueUpdates.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import type { CreateIssueRequest, IssueSummary } from '../../types/issue'
 import { formatDate } from '../../utils/formatDate'
@@ -39,6 +40,8 @@ const recentDrawerVisible = ref(false)
 const phasePopoverVisible = ref(false)
 const quickUpdateVisible = ref(false)
 const quickUpdateIssueId = ref<number | null>(null)
+const historyIssueId = ref<number | null>(null)
+const historyVisible = ref(false)
 const showCreateDetails = ref(false)
 const selectedScope = ref<IssueScope>('OPEN')
 const selectedOpenPhase = ref<OpenPhase>('ALL')
@@ -182,6 +185,10 @@ const openCreateDialog = () => {
 const openQuickUpdate = (issueId: number) => {
   quickUpdateIssueId.value = issueId
   quickUpdateVisible.value = true
+}
+const openHistory = (issueId: number) => {
+  historyIssueId.value = issueId
+  historyVisible.value = true
 }
 
 const selectOpenPhase = (phase: OpenPhase) => {
@@ -428,6 +435,7 @@ const submitCreateIssue = async () => {
                   <button type="button" class="quick-update-button" @click.stop="openQuickUpdate(issue.id)">
                     ＋ 記錄
                   </button>
+                  <button v-if="(issue.progressUpdateCount ?? 0) > 0" type="button" class="progress-update-count" :aria-label="`查看 ${issue.progressUpdateCount ?? 0} 筆近況更新`" @click.stop="openHistory(issue.id)">{{ issue.progressUpdateCount ?? 0 }}</button>
                 </div>
               </header>
               <div v-if="getLatestIssueProgressLead(issue)" class="issue-progress-fields">
@@ -513,6 +521,12 @@ const submitCreateIssue = async () => {
       v-model="quickUpdateVisible"
       :issue-id="quickUpdateIssueId"
       @closed="quickUpdateIssueId = null"
+    />
+    <IssueUpdates
+      v-if="historyIssueId !== null"
+      v-model="historyVisible"
+      :issue-id="historyIssueId"
+      history-only
     />
 
     <AppDialog
@@ -961,6 +975,8 @@ const submitCreateIssue = async () => {
 .quick-update-button:focus-visible {
   text-decoration: underline;
 }
+.progress-update-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
+.progress-update-count:hover, .progress-update-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 
 .no-progress-update {
   margin: var(--space-2xs) 0 0;
@@ -1201,7 +1217,7 @@ const submitCreateIssue = async () => {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 760px) {
   .issue-list-page {
     width: 100%;
     margin: 0;

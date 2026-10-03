@@ -35,7 +35,8 @@ public class IssueUpdateService {
                 updateSlice.getContent().stream().map(this::toResponse).toList(),
                 page,
                 size,
-                updateSlice.hasNext());
+                updateSlice.hasNext(),
+                updateRepository.countByIssueId(issueId));
     }
 
     @Transactional(readOnly = true)

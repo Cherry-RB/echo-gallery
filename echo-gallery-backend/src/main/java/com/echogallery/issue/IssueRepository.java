@@ -33,6 +33,7 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
                 w.status,
                 w.completedAt,
                 w.updatedAt,
+                (SELECT COUNT(progressUpdate.id) FROM IssueUpdate progressUpdate WHERE progressUpdate.issue = w),
                 SUM(CASE WHEN wc.status = :candidateStatus THEN 1 ELSE 0 END),
                 SUM(CASE WHEN wc.status = :usedStatus THEN 1 ELSE 0 END)
             )

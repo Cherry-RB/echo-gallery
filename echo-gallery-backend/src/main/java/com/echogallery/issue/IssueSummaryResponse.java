@@ -22,6 +22,7 @@ public class IssueSummaryResponse {
     private String latestProgressChangeSummary;
     private String latestProgressAssessment;
     private String latestProgressNextStep;
+    private Long progressUpdateCount;
     private Long candidateCount;
     private Long usedCount;
 
@@ -36,6 +37,7 @@ public class IssueSummaryResponse {
             IssueStatus status,
             ZonedDateTime completedAt,
             ZonedDateTime updatedAt,
+            Long progressUpdateCount,
             Long candidateCount,
             Long usedCount) {
         this.id = id;
@@ -48,6 +50,7 @@ public class IssueSummaryResponse {
         this.status = status;
         this.completedAt = completedAt;
         this.updatedAt = updatedAt;
+        this.progressUpdateCount = progressUpdateCount;
         this.candidateCount = candidateCount;
         this.usedCount = usedCount;
     }

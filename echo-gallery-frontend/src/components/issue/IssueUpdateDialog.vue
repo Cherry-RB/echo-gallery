@@ -57,6 +57,7 @@ const saveMutation = useMutation({
       queryClient.invalidateQueries({ queryKey: ['issue-progress-updates', String(props.issueId)] }),
       queryClient.invalidateQueries({ queryKey: ['recent-issue-progress-updates'] }),
       queryClient.invalidateQueries({ queryKey: ['issues'] }),
+      queryClient.invalidateQueries({ queryKey: ['overview'] }),
     ])
     emit('saved', savedUpdate)
     ElMessage.success(props.update ? '系統訊號已修改' : '系統訊號已記錄')

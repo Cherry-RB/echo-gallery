@@ -10,10 +10,27 @@ import AppDialog from '../AppDialog.vue'
 import ExpandableText from '../ExpandableText.vue'
 import IssueUpdateDialog from './IssueUpdateDialog.vue'
 
-const props = defineProps<{ issueId: string | number }>()
+const props = withDefaults(defineProps<{
+  issueId: string | number
+  historyOnly?: boolean
+  modelValue?: boolean
+}>(), {
+  historyOnly: false,
+  modelValue: false,
+})
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+}>()
 const queryClient = useQueryClient()
 const updateDialogVisible = ref(false)
-const historyDialogVisible = ref(false)
+const inlineHistoryDialogVisible = ref(false)
+const historyDialogVisible = computed({
+  get: () => props.historyOnly ? props.modelValue : inlineHistoryDialogVisible.value,
+  set: (value: boolean) => {
+    if (props.historyOnly) emit('update:modelValue', value)
+    else inlineHistoryDialogVisible.value = value
+  },
+})
 const editingUpdate = ref<IssueUpdate | null>(null)
 const pendingHistoryEdit = ref<IssueUpdate | null>(null)
 const reopenHistoryAfterEdit = ref(false)
@@ -33,6 +50,7 @@ const {
 } = useQuery({
   queryKey: summaryQueryKey,
   queryFn: () => issueApi.getIssueUpdates(props.issueId, 0, 1),
+  enabled: computed(() => !props.historyOnly),
 })
 
 const {
@@ -54,6 +72,7 @@ const invalidateUpdateQueries = async () => {
     queryClient.invalidateQueries({ queryKey: ['issue-progress-updates', String(props.issueId)] }),
     queryClient.invalidateQueries({ queryKey: ['recent-issue-progress-updates'] }),
     queryClient.invalidateQueries({ queryKey: ['issues'] }),
+    queryClient.invalidateQueries({ queryKey: ['overview'] }),
   ])
 }
 
@@ -120,7 +139,8 @@ const wasEdited = (update: IssueUpdate) => (
 </script>
 
 <template>
-  <section class="updates-panel" aria-labelledby="updates-title">
+  <section :class="['updates-panel', { 'history-only': historyOnly }]" aria-labelledby="updates-title">
+    <template v-if="!historyOnly">
     <header class="updates-heading">
       <div>
         <h2 id="updates-title">最新系統訊號</h2>
@@ -132,6 +152,7 @@ const wasEdited = (update: IssueUpdate) => (
         </time>
         <button v-if="latestUpdate" type="button" class="text-action" @click="openHistoryDialog">
           歷次更新
+          <span class="progress-update-count">{{ summaryPage?.totalCount ?? 0 }}</span>
         </button>
         <el-button type="primary" plain :icon="Plus" @click="openCreateDialog">記錄訊號</el-button>
       </div>
@@ -175,6 +196,7 @@ const wasEdited = (update: IssueUpdate) => (
       <p>目前沒有新的系統回饋。局勢沒有變化時，不需要為了維護議題而更新。</p>
       <button type="button" class="text-action" @click="openCreateDialog">記下第一筆系統訊號</button>
     </div>
+    </template>
 
     <AppDialog
       v-model="historyDialogVisible"
@@ -260,6 +282,7 @@ const wasEdited = (update: IssueUpdate) => (
   border-radius: var(--radius-md);
   background: var(--el-bg-color);
 }
+.history-only { display: contents; }
 
 .updates-heading,
 .updates-actions,
@@ -306,6 +329,8 @@ const wasEdited = (update: IssueUpdate) => (
   font-size: var(--type-caption);
   cursor: pointer;
 }
+.text-action { display: inline-flex; align-items: center; gap: var(--space-xs); }
+.progress-update-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 
 .feedback-grid {
   display: grid;

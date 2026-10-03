@@ -53,6 +53,7 @@ export interface IssueSummary {
   latestProgressChangeSummary: string | null
   latestProgressAssessment: string | null
   latestProgressNextStep: string | null
+  progressUpdateCount?: number
   candidateCount: number
   usedCount: number
 }
@@ -79,6 +80,7 @@ export interface IssueUpdatePage {
   page: number
   size: number
   hasNext: boolean
+  totalCount?: number
 }
 
 export interface IssueDetail {

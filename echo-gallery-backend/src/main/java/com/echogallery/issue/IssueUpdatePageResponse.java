@@ -6,5 +6,6 @@ public record IssueUpdatePageResponse(
         List<IssueUpdateResponse> items,
         int page,
         int size,
-        boolean hasNext) {
+        boolean hasNext,
+        long totalCount) {
 }

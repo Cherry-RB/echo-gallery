@@ -84,7 +84,8 @@ class IssueUpdateIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.items[1].issueTitle").value("轉職方向探索"))
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(5))
-                .andExpect(jsonPath("$.hasNext").value(false));
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.totalCount").value(2));
 
         mockMvc.perform(get("/api/issues/{issueId}/updates", issueId)
                 .param("page", "0")
@@ -109,7 +110,8 @@ class IssueUpdateIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$[0].latestProgressAt").exists())
                 .andExpect(jsonPath("$[0].latestProgressChangeSummary").value("第二家公司邀請面試"))
                 .andExpect(jsonPath("$[0].latestProgressAssessment").value("目前方向得到初步驗證"))
-                .andExpect(jsonPath("$[0].latestProgressNextStep").value("準備第二輪面試"));
+                .andExpect(jsonPath("$[0].latestProgressNextStep").value("準備第二輪面試"))
+                .andExpect(jsonPath("$[0].progressUpdateCount").value(2));
 
         mockMvc.perform(put("/api/issues/{issueId}/updates/{updateId}", issueId, firstUpdateId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
