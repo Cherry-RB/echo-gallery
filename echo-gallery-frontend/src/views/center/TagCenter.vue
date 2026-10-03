@@ -252,7 +252,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
     <aside class="tag-sidebar-panel" v-loading="isTagsLoading">
       <div class="panel-header">
         <h2 class="panel-title">
-          <el-icon><CollectionTag /></el-icon> 標籤中心
+          <el-icon><CollectionTag /></el-icon> 標籤查詢
         </h2>
       </div>
 

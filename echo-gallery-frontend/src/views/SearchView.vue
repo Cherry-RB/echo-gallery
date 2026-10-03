@@ -19,6 +19,7 @@ import type { TagPage } from '../types/tag'
 import { cardApi } from '../utils/api/cardApi'
 import { tagApi } from '../utils/api/tagApi'
 import { cardSearchQueryKey } from '../utils/cardSearch'
+import { Search } from '@element-plus/icons-vue'
 
 const PAGE_SIZE = 20
 const router = useRouter()
@@ -245,7 +246,7 @@ const openDetail = (cardId: string) => {
       <el-form class="compact-search-form" @submit.prevent="applySearch">
         <div class="search-filter-body">
           <header class="search-filter-header">
-            <h1>卡片查詢</h1>
+            <h1><el-icon><Search /></el-icon> 卡片查詢</h1>
           </header>
           <section class="filter-section" aria-label="主要查詢條件">
           <div class="primary-filter-row">
