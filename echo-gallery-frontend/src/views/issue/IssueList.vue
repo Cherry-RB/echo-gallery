@@ -430,9 +430,15 @@ const submitCreateIssue = async () => {
               </span>
               <span class="material-divider" aria-hidden="true">·</span>
               <div class="material-summary" aria-label="議題素材統計">
-                <span class="material-info">素材 {{ issue.candidateCount }}</span>
+                <span class="material-info">
+                  <span class="material-label">素材</span>
+                  <span class="material-count">{{ issue.candidateCount }}</span>
+                </span>
                 <span class="material-divider" aria-hidden="true">·</span>
-                <span class="material-info used-material-info">已運用 {{ issue.usedCount }}</span>
+                <span class="material-info used-material-info">
+                  <span class="material-label">已運用</span>
+                  <span class="material-count">{{ issue.usedCount }}</span>
+                </span>
               </div>
               <span class="issue-data-updated">{{ formatUpdatedAt(issueActivityAt(issue.updatedAt, issue.latestProgressAt)) }}</span>
             </footer>
@@ -981,6 +987,19 @@ const submitCreateIssue = async () => {
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-2xs);
+}
+
+.material-label {
+  color: var(--el-text-color-placeholder);
+  font-size: var(--type-meta);
+}
+
+.material-count {
+  color: var(--el-text-color-regular);
+  font-size: var(--type-meta);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .material-divider {
