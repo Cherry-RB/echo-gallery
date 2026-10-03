@@ -3,6 +3,7 @@ import { Delete, Edit, MoreFilled } from '@element-plus/icons-vue'
 import type { ExperimentExplorationRecordDto } from '../../types/experiment'
 import { formatDate } from '../../utils/formatDate'
 import AppDialog from '../AppDialog.vue'
+import ExpandableText from '../ExpandableText.vue'
 
 withDefaults(defineProps<{
   modelValue: boolean
@@ -62,11 +63,13 @@ const emit = defineEmits<{
         <div class="record-fields">
           <section>
             <span>試法</span>
-            <p :class="{ empty: !record.tryText }">{{ record.tryText || '這次直接留下發現。' }}</p>
+            <ExpandableText v-if="record.tryText" :content="record.tryText" :lines="6" />
+            <p v-else class="empty">這次直接留下發現。</p>
           </section>
           <section>
             <span>發現</span>
-            <p :class="{ empty: !record.discovery }">{{ record.discovery || '尚未記下發現' }}</p>
+            <ExpandableText v-if="record.discovery" :content="record.discovery" :lines="6" />
+            <p v-else class="empty">尚未記下發現</p>
           </section>
         </div>
 

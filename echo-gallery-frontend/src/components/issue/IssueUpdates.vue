@@ -238,15 +238,18 @@ const wasEdited = (update: IssueUpdate) => (
             <div class="history-fields">
               <section>
                 <span>新訊號</span>
-                <p :class="{ 'field-empty': !update.changeSummary }">{{ update.changeSummary || '尚未記錄' }}</p>
+                <ExpandableText v-if="update.changeSummary" :content="update.changeSummary" :lines="5" />
+                <p v-else class="field-empty">尚未記錄</p>
               </section>
               <section>
                 <span>模型更新</span>
-                <p :class="{ 'field-empty': !update.assessment }">{{ update.assessment || '尚未記錄' }}</p>
+                <ExpandableText v-if="update.assessment" :content="update.assessment" :lines="5" />
+                <p v-else class="field-empty">尚未記錄</p>
               </section>
               <section>
                 <span>介入／等待</span>
-                <p :class="{ 'field-empty': !update.nextStep }">{{ update.nextStep || '尚未記錄' }}</p>
+                <ExpandableText v-if="update.nextStep" :content="update.nextStep" :lines="5" />
+                <p v-else class="field-empty">尚未記錄</p>
               </section>
             </div>
           </article>
