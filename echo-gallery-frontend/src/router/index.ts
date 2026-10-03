@@ -120,6 +120,11 @@ const routes = [
       component: () => import('../views/overview/OverviewDashboard.vue')
     },
     {
+      path: 'overview/recent',
+      name: 'OverviewRecent',
+      component: () => import('../views/overview/OverviewRecent.vue')
+    },
+    {
       path: 'overview/cards',
       name: 'CardReturnOverview',
       component: () => import('../views/overview/CardReturnOverview.vue')

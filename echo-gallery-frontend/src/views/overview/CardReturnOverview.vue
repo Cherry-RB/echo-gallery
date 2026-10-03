@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { useRouter } from 'vue-router'
-import { ArrowLeft, InfoFilled } from '@element-plus/icons-vue'
+import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
+import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
-
-const router = useRouter()
 
 const { data: overview, isLoading, isError, refetch } = useQuery({
   queryKey: ['overview', 'card-return'],
@@ -15,6 +13,7 @@ const { data: overview, isLoading, isError, refetch } = useQuery({
 
 const snapshot = computed(() => overview.value)
 const stateItems = computed(() => snapshot.value ? [
+  { key: 'today-return', label: '今日回流', value: snapshot.value.state.todayReturnPoolCount, unit: '張' },
   { key: 'recurring', label: '回流中', value: snapshot.value.state.recurringCardCount, unit: '張' },
   { key: 'paused', label: '暫停中', value: snapshot.value.state.pausedCardCount, unit: '張' },
   { key: 'archived', label: '已封存', value: snapshot.value.state.archivedCardCount, unit: '張' },
@@ -52,11 +51,9 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 
 <template>
   <section class="card-return-page app-page app-page--workspace">
-    <header class="detail-navigation app-detail-navigation">
-      <el-button :icon="ArrowLeft" text @click="router.push('/overview')">返回總覽</el-button>
-    </header>
-
-    <PageHeader class="page-header" title="卡片與回流" description="看看卡片目前的安排，以及接下來的回流節奏。" />
+    <PageHeader class="page-header" title="回流狀態" description="看看卡片目前的安排，以及接下來的回流節奏。">
+      <template #actions><OverviewNavigation /></template>
+    </PageHeader>
 
     <div v-if="isLoading" class="overview-state">正在整理卡片與回流資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得卡片與回流資料" sub-title="請稍後再試。">
@@ -152,8 +149,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 </template>
 
 <style scoped>
-.detail-navigation { margin-bottom: var(--space-md); background: var(--el-bg-color); }
-.page-header { margin: 18px 0 var(--space-lg); }
+.page-header { margin-bottom: var(--space-lg); }
 .overview-state { padding: 48px 0; color: var(--el-text-color-secondary); text-align: center; }
 .panel, .definition-disclosure { border: 1px solid var(--el-border-color-light); border-radius: 8px; background: var(--el-bg-color); }
 .panel { padding: var(--panel-padding); }
@@ -161,7 +157,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 .section-eyebrow { display: block; color: var(--el-text-color-secondary); font-size: var(--type-meta); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .section-heading h2 { margin: 4px 0 0; color: var(--el-text-color-primary); font-size: var(--type-section-title); }
 .info-icon { margin-top: 4px; color: var(--el-text-color-placeholder); cursor: help; }
-.state-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 16px; }
+.state-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-top: 16px; }
 .state-item { min-width: 0; padding: 3px 14px; border-left: 1px solid var(--el-border-color-lighter); }
 .state-item:first-child { padding-left: 0; border-left: 0; }
 .state-item:last-child { padding-right: 0; }

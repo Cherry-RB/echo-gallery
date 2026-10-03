@@ -5,6 +5,7 @@ export interface OverviewResponse {
   periodStartAt: string
   periodEndAt: string
   current: {
+    todayReturnPoolCount: number
     recurringCardCount: number
     pausedCardCount: number
     needsProcessingCardCount: number
@@ -57,6 +58,13 @@ export interface OverviewNextStep {
   progressUpdateCount: number
 }
 
+export interface OverviewRecentResponse {
+  periodDays: OverviewPeriodDays
+  periodStartAt: string
+  periodEndAt: string
+  period: OverviewResponse['period']
+}
+
 export interface OverviewExperimentTry {
   experimentId: number
   experimentTitle: string
@@ -71,6 +79,7 @@ export interface OverviewAttentionSignal {
 
 export interface CardReturnOverviewResponse {
   state: {
+    todayReturnPoolCount: number
     recurringCardCount: number
     pausedCardCount: number
     archivedCardCount: number

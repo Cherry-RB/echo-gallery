@@ -10,6 +10,7 @@ public record CardReturnOverviewResponse(
         List<SnoozeBandResponse> snoozeBands) {
 
     public record CardStateResponse(
+            int todayReturnPoolCount,
             int recurringCardCount,
             int pausedCardCount,
             int archivedCardCount,

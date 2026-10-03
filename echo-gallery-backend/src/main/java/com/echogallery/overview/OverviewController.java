@@ -15,10 +15,15 @@ public class OverviewController {
 
     private final OverviewService overviewService;
 
-    @GetMapping
-    public ResponseEntity<OverviewResponse> getOverview(
+    @GetMapping("/current")
+    public ResponseEntity<OverviewResponse.OverviewCurrentResponse> getCurrentOverview() {
+        return ResponseEntity.ok(overviewService.getCurrentOverview());
+    }
+
+    @GetMapping("/recent")
+    public ResponseEntity<OverviewRecentResponse> getRecentOverview(
             @RequestParam(name = "periodDays", defaultValue = "30") int periodDays) {
-        return ResponseEntity.ok(overviewService.getOverview(periodDays));
+        return ResponseEntity.ok(overviewService.getRecentOverview(periodDays));
     }
 
     @GetMapping("/card-return")

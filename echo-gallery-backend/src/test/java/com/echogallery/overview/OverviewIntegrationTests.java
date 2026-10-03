@@ -66,19 +66,24 @@ class OverviewIntegrationTests extends IntegrationTestBase {
         long emptyExperimentId = objectMapper.readTree(emptyExperimentResult.getResponse().getContentAsString())
                 .get("id").asLong();
 
-        mockMvc.perform(get("/api/overview")
+        mockMvc.perform(get("/api/overview/current")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.todayReturnPoolCount").isNumber())
+                .andExpect(jsonPath("$.recurringCardCount").isNumber())
+                .andExpect(jsonPath("$.experimentTries.length()").value(2))
+                .andExpect(jsonPath("$.experimentTries[0].experimentId").value(emptyExperimentId))
+                .andExpect(jsonPath("$.experimentTries[0].currentTry").value(""))
+                .andExpect(jsonPath("$.experimentTries[0].explorationRecordCount").value(0))
+                .andExpect(jsonPath("$.experimentTries[1].experimentId").value(experimentId))
+                .andExpect(jsonPath("$.experimentTries[1].currentTry").value("晚餐後畫兩分鐘"))
+                .andExpect(jsonPath("$.experimentTries[1].explorationRecordCount").value(1));
+
+        mockMvc.perform(get("/api/overview/recent")
                         .param("periodDays", "30")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.periodDays").value(30))
-                .andExpect(jsonPath("$.current.recurringCardCount").isNumber())
-                .andExpect(jsonPath("$.current.experimentTries.length()").value(2))
-                .andExpect(jsonPath("$.current.experimentTries[0].experimentId").value(emptyExperimentId))
-                .andExpect(jsonPath("$.current.experimentTries[0].currentTry").value(""))
-                .andExpect(jsonPath("$.current.experimentTries[0].explorationRecordCount").value(0))
-                .andExpect(jsonPath("$.current.experimentTries[1].experimentId").value(experimentId))
-                .andExpect(jsonPath("$.current.experimentTries[1].currentTry").value("晚餐後畫兩分鐘"))
-                .andExpect(jsonPath("$.current.experimentTries[1].explorationRecordCount").value(1))
                 .andExpect(jsonPath("$.period.flow.reengagedCardCount").isNumber())
                 .andExpect(jsonPath("$.period.activities.length()").value(8))
                 .andExpect(jsonPath("$.period.recentExperimentMaterials").isArray());
@@ -86,6 +91,7 @@ class OverviewIntegrationTests extends IntegrationTestBase {
         mockMvc.perform(get("/api/overview/card-return")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state.todayReturnPoolCount").isNumber())
                 .andExpect(jsonPath("$.state.recurringCardCount").isNumber())
                 .andExpect(jsonPath("$.cadenceBands.length()").value(7))
                 .andExpect(jsonPath("$.forecastDays.length()").value(7))
@@ -96,7 +102,7 @@ class OverviewIntegrationTests extends IntegrationTestBase {
     void rejectsUnsupportedObservationPeriod() throws Exception {
         String token = register("overview-period", "overview-period@example.com");
 
-        mockMvc.perform(get("/api/overview")
+        mockMvc.perform(get("/api/overview/recent")
                         .param("periodDays", "14")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isBadRequest());

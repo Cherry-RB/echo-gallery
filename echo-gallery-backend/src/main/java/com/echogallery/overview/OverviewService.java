@@ -61,11 +61,24 @@ public class OverviewService {
     private final Clock clock;
 
     @Transactional(readOnly = true)
-    public OverviewResponse getOverview(int periodDays) {
+    public OverviewResponse.OverviewCurrentResponse getCurrentOverview() {
+        return buildCurrentOverview(SecurityUtil.getCurrentUserId(), ZonedDateTime.now(clock));
+    }
+
+    @Transactional(readOnly = true)
+    public OverviewRecentResponse getRecentOverview(int periodDays) {
         validatePeriodDays(periodDays);
         Long userId = SecurityUtil.getCurrentUserId();
         ZonedDateTime periodEndAt = ZonedDateTime.now(clock);
         ZonedDateTime periodStartAt = periodEndAt.minusDays(periodDays);
+        return new OverviewRecentResponse(
+                periodDays,
+                periodStartAt,
+                periodEndAt,
+                buildPeriodOverview(userId, periodStartAt, periodEndAt));
+    }
+
+    private OverviewResponse.OverviewCurrentResponse buildCurrentOverview(Long userId, ZonedDateTime now) {
 
         List<IssueUpdate> latestUpdates = issueUpdateRepository.findLatestByUserId(userId);
         List<IssueUpdate> nextStepUpdates = latestUpdates.stream()
@@ -108,6 +121,10 @@ public class OverviewService {
                 .toList();
 
         OverviewResponse.OverviewCurrentResponse current = new OverviewResponse.OverviewCurrentResponse(
+                safeInt(cardRepository.countTodayReturnPoolByUserId(
+                        userId,
+                        now.toLocalDate().atStartOfDay(clock.getZone()),
+                        now.toLocalDate().plusDays(1).atStartOfDay(clock.getZone()))),
                 recurringCardCount,
                 pausedCardCount,
                 needsProcessingCardCount,
@@ -119,6 +136,13 @@ public class OverviewService {
                         .toList(),
                 attentionSignals(needsProcessingCardCount, highSnoozeCardCount));
 
+        return current;
+    }
+
+    private OverviewResponse.OverviewPeriodResponse buildPeriodOverview(
+            Long userId,
+            ZonedDateTime periodStartAt,
+            ZonedDateTime periodEndAt) {
         int reviewedCardCount = safeInt(cardRepository.countByUserIdAndLastOpenAtGreaterThanEqualAndLastOpenAtLessThan(
                 userId, periodStartAt, periodEndAt));
         OverviewResponse.FlowMetricResponse flow = new OverviewResponse.FlowMetricResponse(
@@ -133,20 +157,22 @@ public class OverviewService {
                 safeInt(issueUpdateRepository.countIssuesWithFollowUpAfterNextStep(
                         userId, periodStartAt, periodEndAt)));
 
-        OverviewResponse.OverviewPeriodResponse period = new OverviewResponse.OverviewPeriodResponse(
+        return new OverviewResponse.OverviewPeriodResponse(
                 flow,
                 generativity,
                 closure,
                 buildActivities(userId, periodStartAt, periodEndAt),
                 findDerivedCards(userId, periodStartAt, periodEndAt),
                 findRecentExperimentMaterials(userId, periodStartAt, periodEndAt));
-        return new OverviewResponse(periodDays, periodStartAt, periodEndAt, current, period);
     }
 
     @Transactional(readOnly = true)
     public CardReturnOverviewResponse getCardReturnOverview() {
         Long userId = SecurityUtil.getCurrentUserId();
+        ZonedDateTime startOfToday = ZonedDateTime.now(clock).toLocalDate().atStartOfDay(clock.getZone());
+        ZonedDateTime startOfTomorrow = startOfToday.plusDays(1);
         CardReturnOverviewResponse.CardStateResponse state = new CardReturnOverviewResponse.CardStateResponse(
+                safeInt(cardRepository.countTodayReturnPoolByUserId(userId, startOfToday, startOfTomorrow)),
                 safeInt(cardRepository.countRecurringByUserId(userId)),
                 safeInt(cardRepository.countPausedByUserId(userId)),
                 safeInt(cardRepository.countByUserIdAndIsArchivedTrue(userId)),
@@ -163,7 +189,6 @@ public class OverviewService {
                 cadenceBand("91-180", userId, 91, 180),
                 cadenceBand("181+", userId, 181, 365));
 
-        ZonedDateTime startOfToday = ZonedDateTime.now(clock).toLocalDate().atStartOfDay(clock.getZone());
         ZonedDateTime forecastEndAt = startOfToday.plusDays(7);
         Map<LocalDate, Integer> forecastCounts = cardRepository.findForecastCardsByUserId(
                         userId, startOfToday, forecastEndAt)

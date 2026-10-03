@@ -104,6 +104,25 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
     long countByUserIdAndLastOfferedAtGreaterThanEqualAndLastOfferedAtLessThan(
             Long userId, ZonedDateTime startAt, ZonedDateTime endAt);
 
+    @Query("""
+            SELECT COUNT(c)
+            FROM Card c
+            WHERE c.user.id = :userId
+              AND c.isArchived = false
+              AND (
+                  (c.lastOfferedAt >= :startOfToday AND c.lastOfferedAt < :startOfTomorrow)
+                  OR (
+                      c.nextShowAt IS NOT NULL
+                      AND c.nextShowAt < :startOfTomorrow
+                      AND (c.lastOfferedAt IS NULL OR c.lastOfferedAt < :startOfToday)
+                  )
+              )
+            """)
+    long countTodayReturnPoolByUserId(
+            @Param("userId") Long userId,
+            @Param("startOfToday") ZonedDateTime startOfToday,
+            @Param("startOfTomorrow") ZonedDateTime startOfTomorrow);
+
     long countByUserIdAndLastOpenAtGreaterThanEqualAndLastOpenAtLessThan(
             Long userId, ZonedDateTime startAt, ZonedDateTime endAt);
 

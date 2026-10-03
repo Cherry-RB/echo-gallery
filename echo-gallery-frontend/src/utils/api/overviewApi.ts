@@ -1,9 +1,13 @@
-import type { CardReturnOverviewResponse, OverviewPeriodDays, OverviewResponse } from '../../types/overview'
+import type { CardReturnOverviewResponse, OverviewPeriodDays, OverviewRecentResponse, OverviewResponse } from '../../types/overview'
 import request from './request'
 
 export const overviewApi = {
-  getOverview(periodDays: OverviewPeriodDays): Promise<OverviewResponse> {
-    return request({ url: '/overview', method: 'GET', params: { periodDays } })
+  getCurrentOverview(): Promise<OverviewResponse['current']> {
+    return request({ url: '/overview/current', method: 'GET' })
+  },
+
+  getRecentOverview(periodDays: OverviewPeriodDays): Promise<OverviewRecentResponse> {
+    return request({ url: '/overview/recent', method: 'GET', params: { periodDays } })
   },
 
   getCardReturnOverview(): Promise<CardReturnOverviewResponse> {

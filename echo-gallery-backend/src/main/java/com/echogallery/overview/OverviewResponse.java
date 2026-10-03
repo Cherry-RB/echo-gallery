@@ -11,6 +11,7 @@ public record OverviewResponse(
         OverviewPeriodResponse period) {
 
     public record OverviewCurrentResponse(
+            int todayReturnPoolCount,
             int recurringCardCount,
             int pausedCardCount,
             int needsProcessingCardCount,

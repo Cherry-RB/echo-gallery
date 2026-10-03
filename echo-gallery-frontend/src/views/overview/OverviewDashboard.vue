@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
+import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
 import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
@@ -12,10 +13,9 @@ import { experimentApi } from '../../utils/api/experimentApi'
 import IssueUpdateDialog from '../../components/issue/IssueUpdateDialog.vue'
 import IssueUpdates from '../../components/issue/IssueUpdates.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
-import type { OverviewAttentionSignal, OverviewPeriodDays } from '../../types/overview'
+import type { OverviewAttentionSignal } from '../../types/overview'
 import type { ExperimentExplorationRecordDto } from '../../types/experiment'
 
-const selectedPeriod = ref<OverviewPeriodDays>(30)
 const router = useRouter()
 const queryClient = useQueryClient()
 const quickUpdateIssueId = ref<number | null>(null)
@@ -29,11 +29,12 @@ const quickRecordVisible = ref(false)
 const historyExperimentId = ref<number | null>(null)
 const historyVisible = ref(false)
 const { data: overview, isLoading, isError, refetch } = useQuery({
-  queryKey: computed(() => ['overview', selectedPeriod.value]),
-  queryFn: () => overviewApi.getOverview(selectedPeriod.value),
+  queryKey: ['overview', 'current'],
+  queryFn: overviewApi.getCurrentOverview,
 })
 
-const current = computed(() => overview.value?.current ?? {
+const current = computed(() => overview.value ?? {
+  todayReturnPoolCount: 0,
   recurringCardCount: 0,
   pausedCardCount: 0,
   needsProcessingCardCount: 0,
@@ -43,14 +44,6 @@ const current = computed(() => overview.value?.current ?? {
   nextSteps: [],
   attentionSignals: [],
 })
-const period = computed(() => overview.value?.period ?? {
-  flow: { reengagedCardCount: 0, reviewedCardCount: 0 },
-  generativity: { derivedCardCount: 0, sourceCardCount: 0 },
-  closure: { issueWithFollowUpCount: 0 },
-  activities: [],
-  derivedCards: [],
-  recentExperimentMaterials: [],
-})
 const historyQuery = useQuery({
   queryKey: computed(() => ['experiment-exploration', historyExperimentId.value]),
   queryFn: () => experimentApi.getExploration(historyExperimentId.value!),
@@ -58,38 +51,12 @@ const historyQuery = useQuery({
 })
 
 const currentItems = computed(() => [
+  { key: 'today-return', label: '今日回流', value: current.value.todayReturnPoolCount, unit: '張卡片' },
   { key: 'recurring', label: '回流中', value: current.value.recurringCardCount, unit: '張卡片' },
   { key: 'paused', label: '暫停中', value: current.value.pausedCardCount, unit: '張卡片' },
   { key: 'processing', label: '待整理', value: current.value.needsProcessingCardCount, unit: '張卡片' },
   { key: 'experiments', label: '活躍實驗場', value: current.value.activeExperimentCount, unit: '個' },
   { key: 'next-steps', label: '已有下一步的議題', value: current.value.issueWithNextStepCount, unit: '個' },
-])
-
-const periodFigures = computed(() => [
-  {
-    key: 'reengaged',
-    value: period.value.flow.reengagedCardCount,
-    unit: '張',
-    label: '舊卡重新參與',
-    description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`,
-    explanation: '建立於這段時間之前，且在這段時間重新被閱讀、放入實驗場、帶入議題或成為衍生來源的卡片。不是越高越好。',
-  },
-  {
-    key: 'derived',
-    value: period.value.generativity.derivedCardCount,
-    unit: '張',
-    label: '由既有內容長出',
-    description: `${period.value.generativity.sourceCardCount} 張既有卡片成為來源`,
-    explanation: '保留一張或多張來源卡關係而建立的新卡；單純新增收藏或放入實驗場不計入。',
-  },
-  {
-    key: 'follow-up',
-    value: period.value.closure.issueWithFollowUpCount,
-    unit: '個議題',
-    label: '下一步後留下更新',
-    description: '代表議題後續有新的研判或經驗',
-    explanation: '議題曾留下 nextStep，之後又新增進度。這不是任務完成數，也不能證明 nextStep 已執行。',
-  },
 ])
 
 const attentionItems = computed(() => (current.value.attentionSignals ?? []).map(signal => ({
@@ -99,17 +66,6 @@ const attentionItems = computed(() => (current.value.attentionSignals ?? []).map
     : `${signal.cardCount} 張卡片累積多次稍後再看`,
   actionLabel: signal.key === 'processing' ? '查看待整理卡片' : '查看稍後再看',
 })))
-
-const activityDefinitions = {
-  created: '新增卡片',
-  offered: 'Today 再次出現',
-  reviewed: '完成回顧',
-  'experiment-material': '放入實驗場',
-  'issue-linked': '帶入議題',
-  derived: '長出新卡',
-  'exploration-record': '留下探索發現',
-  'issue-update': '議題更新',
-} as const
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', {
   month: 'numeric',
@@ -167,7 +123,8 @@ const openHistory = (experimentId: number) => {
 }
 const openCardReturn = () => router.push('/overview/cards')
 const openCurrentItem = (key: string) => {
-  if (key === 'experiments') router.push('/experiments')
+  if (key === 'today-return') router.push('/board/today')
+  else if (key === 'experiments') router.push('/experiments')
   else if (key === 'next-steps') router.push('/issues')
   else openCardReturn()
 }
@@ -176,7 +133,9 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
 <template>
   <section class="overview-page app-page app-page--workspace">
-    <PageHeader title="總覽" description="掌握現在能往前走的事，以及值得回看的訊號。" />
+    <PageHeader title="現在行動" description="掌握現在能往前走的事，以及值得回看的訊號。">
+      <template #actions><OverviewNavigation /></template>
+    </PageHeader>
 
     <div v-if="isLoading" class="overview-state">正在整理觀測資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得觀測資料" sub-title="請稍後再試。">
@@ -284,83 +243,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         </div>
       </section>
 
-      <section class="period-section" aria-labelledby="overview-period-title">
-        <div class="period-heading">
-          <div>
-            <span class="section-eyebrow">回看近期</span>
-            <h2 id="overview-period-title">這段時間留下了什麼</h2>
-          </div>
-          <el-radio-group v-model="selectedPeriod" class="period-switcher" aria-label="觀測時間範圍">
-            <el-radio-button :value="7">近 7 天</el-radio-button>
-            <el-radio-button :value="30">近 30 天</el-radio-button>
-            <el-radio-button :value="90">近 90 天</el-radio-button>
-          </el-radio-group>
-        </div>
-        <div class="period-figures">
-          <article v-for="figure in periodFigures" :key="figure.key" class="period-figure">
-            <div><strong>{{ figure.value }}</strong><span>{{ figure.unit }}</span></div>
-            <h3>{{ figure.label }}</h3>
-            <p>{{ figure.description }}</p>
-            <el-tooltip :content="figure.explanation" placement="top">
-              <el-icon class="info-icon"><InfoFilled /></el-icon>
-            </el-tooltip>
-          </article>
-        </div>
-      </section>
-
-      <div class="content-grid">
-        <section class="content-panel" aria-labelledby="overview-derived-title">
-          <div class="section-title-row">
-            <div>
-              <span class="section-eyebrow">新理解</span>
-              <h2 id="overview-derived-title">近期長出的東西</h2>
-            </div>
-          </div>
-          <div v-if="period.derivedCards.length" class="content-list">
-            <article v-for="card in period.derivedCards.slice(0, 3)" :key="card.cardId" class="content-card">
-              <button type="button" class="content-card-main" @click="openCard(card.cardId)">
-                <span>{{ formatDate(card.createdAt) }} 長出</span>
-                <h3>{{ card.title }}</h3>
-              </button>
-              <p>來自 {{ card.sourceCards.map(source => source.title).join('・') }}</p>
-              <button type="button" class="context-link" @click="openExperiment(card.experimentId)">{{ card.experimentTitle }}</button>
-            </article>
-          </div>
-          <p v-else class="empty-copy">這段時間沒有保留來源關係的新卡。</p>
-        </section>
-
-        <section class="content-panel" aria-labelledby="overview-materials-title">
-          <div class="section-title-row">
-            <div>
-              <span class="section-eyebrow">材料聚集</span>
-              <h2 id="overview-materials-title">近期進入實驗場的材料</h2>
-            </div>
-            <el-tooltip content="這些是近期放入實驗場、但不是從既有卡片衍生而來的材料；它們不計入「長出的東西」。" placement="top">
-              <el-icon class="info-icon"><InfoFilled /></el-icon>
-            </el-tooltip>
-          </div>
-          <div v-if="period.recentExperimentMaterials.length" class="content-list">
-            <article v-for="material in period.recentExperimentMaterials.slice(0, 3)" :key="`${material.experimentId}-${material.cardId}`" class="content-card">
-              <button type="button" class="content-card-main" @click="openCard(material.cardId)">
-                <span>{{ formatDate(material.addedAt) }} · {{ material.sourceKind === 'EXPLORATION' ? '探索整理' : '放入材料' }}</span>
-                <h3>{{ material.title }}</h3>
-              </button>
-              <button type="button" class="context-link" @click="openExperiment(material.experimentId)">{{ material.experimentTitle }}</button>
-            </article>
-          </div>
-          <p v-else class="empty-copy">這段時間沒有新放入實驗場的材料。</p>
-        </section>
-      </div>
-
-      <details class="activity-disclosure">
-        <summary>查看近 {{ selectedPeriod }} 天的完整活動</summary>
-        <div class="activity-list">
-          <div v-for="activity in period.activities" :key="activity.key" class="activity-item">
-            <strong>{{ activity.value }}</strong>
-            <span>{{ activityDefinitions[activity.key] }}</span>
-          </div>
-        </div>
-      </details>
       </div>
     </div>
 
@@ -408,7 +290,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .section-title-row > a { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
 .section-title-row > a:hover { text-decoration: underline; }
 .info-icon { margin-top: 4px; color: var(--el-text-color-placeholder); cursor: help; }
-.current-stat-list { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 16px; }
+.current-stat-list { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 16px; }
 .current-stat { min-width: 0; padding: 3px 14px; border: 0; border-left: 1px solid var(--el-border-color-lighter); background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
 .current-stat:first-child { padding-left: 0; border-left: 0; }
 .current-stat:last-child { padding-right: 0; }
@@ -473,5 +355,5 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .activity-item strong { font-size: 18px; }
 .activity-item span { overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) { .current-stat-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .current-stat:nth-child(4) { padding-left: 0; border-left: 0; } .experiment-try-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .action-grid, .content-grid { grid-template-columns: 1fr; } .activity-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: var(--panel-padding); border-radius: var(--panel-radius); } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .current-stat:last-child { grid-column: 1 / -1; padding-right: 0; } .experiment-try-list { grid-template-columns: 1fr; gap: 8px; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: 1fr; gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 var(--panel-padding); border-radius: var(--panel-radius); } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: var(--panel-padding); border-radius: var(--panel-radius); } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .experiment-try-list { grid-template-columns: 1fr; gap: 8px; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: 1fr; gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 var(--panel-padding); border-radius: var(--panel-radius); } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
