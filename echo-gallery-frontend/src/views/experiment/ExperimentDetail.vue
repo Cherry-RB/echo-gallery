@@ -597,7 +597,7 @@ const handleGrownCard = async (_card: CardDto) => {
         <div class="soil-collection-canvas">
           <div class="soil-grid">
           <template v-for="stage in stages" :key="stage.value">
-          <section v-if="selectedStage === stage.value || (selectedStage === 'ALL' && stageCount(stage.value) > 0)" class="soil-column">
+          <section v-if="selectedStage === stage.value || (selectedStage === 'ALL' && stageCount(stage.value) > 0)" :class="['soil-column', `soil-column-${stage.value.toLowerCase()}`]">
             <header class="soil-heading">
               <div><h3>{{ stage.title }}</h3><p>{{ stage.hint }}</p></div>
               <span>{{ stageCount(stage.value) }}</span>
@@ -925,7 +925,7 @@ const handleGrownCard = async (_card: CardDto) => {
 .exploration-history-trigger:hover, .exploration-history-trigger:focus-visible { color: var(--el-color-primary-light-3); }
 .exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .exploration-actions time { align-self: center; color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); white-space: nowrap; }
-.exploration-footnote { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--el-border-color-lighter); color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
+.exploration-footnote { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
 .exploration-utility-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-sm); }
 .exploration-utility-actions :deep(.el-button) { margin-left: 0; }
 .comparison-workspace { padding: 4px 0; }
@@ -951,6 +951,7 @@ const handleGrownCard = async (_card: CardDto) => {
 .soil-collection-canvas { padding: var(--space-md); border-radius: var(--radius-md); background: var(--surface-collection); }
 .soil-grid { display: grid; gap: var(--space-lg); align-items: start; }
 .soil-column { min-width: 0; padding-top: var(--space-md); border-top: 1px solid var(--el-border-color-lighter); }
+.soil-column-seed { padding-top: 0; border-top: 0; }
 .experiment-card-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
 .experiment-card-list :deep(.experiment-card-item + .experiment-card-item) { margin-top: 0; }
 .soil-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
