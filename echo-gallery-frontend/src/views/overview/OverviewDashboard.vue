@@ -220,8 +220,8 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         <section class="action-panel" aria-labelledby="overview-next-step-title">
           <div class="section-title-row">
             <div>
-              <span class="section-eyebrow">現在可以往前走</span>
-              <h2 id="overview-next-step-title">已經想得夠清楚的方向</h2>
+              <span class="section-eyebrow">議事廳</span>
+              <h2 id="overview-next-step-title">現在可以往前走</h2>
             </div>
             <el-tooltip content="nextStep 是已留下的方向，不是待辦事項，也不表示必須立刻完成。" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
