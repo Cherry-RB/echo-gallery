@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { ArrowDown, Clock, Link, Plus } from '@element-plus/icons-vue'
+import { ArrowDown, Clock, Plus } from '@element-plus/icons-vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
@@ -227,15 +227,6 @@ const issueActivityAt = (updatedAt: string, latestProgressAt: string | null) => 
     : updatedAt
 }
 
-const getHostname = (url: string) => {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return '相關連結'
-  }
-}
-
-
 const resetCreateForm = () => {
   createForm.title = ''
   createForm.objective = ''
@@ -375,15 +366,13 @@ const submitCreateIssue = async () => {
           @keydown.space.prevent="openIssueDetail(issue.id)"
         >
           <div class="issue-card-layout">
-            <section class="issue-overview">
-              <span class="status-label" :class="`status-${issueStatusMeta[issue.status].tone}`">
-                <span class="status-dot" aria-hidden="true"></span>
-                {{ issueStatusMeta[issue.status].label }}
-              </span>
+            <header class="issue-card-header">
               <el-tooltip :content="issue.title" :show-after="400" placement="top" popper-class="content-tooltip">
                 <h2 class="issue-title">{{ issue.title }}</h2>
               </el-tooltip>
+            </header>
 
+            <section class="issue-overview">
               <div class="issue-overview-field">
                 <span>本輪系統問題</span>
                 <el-tooltip v-if="issue.objective || issue.description" :content="issue.objective || issue.description" :show-after="400" placement="top" popper-class="content-tooltip">
@@ -391,38 +380,9 @@ const submitCreateIssue = async () => {
                 </el-tooltip>
                 <p v-else class="issue-description empty-objective">這一輪想靠哪些現實資料，把問題往前推進？</p>
               </div>
-
-              <div class="issue-overview-field criteria-preview">
-                <span>收斂／重議條件</span>
-                <el-tooltip :content="issue.outcomeCriteria || '尚未設定'" :show-after="400" placement="top" popper-class="content-tooltip">
-                  <p :class="{ 'empty-objective': !issue.outcomeCriteria }">{{ issue.outcomeCriteria || '尚未設定' }}</p>
-                </el-tooltip>
-              </div>
-
-              <footer class="issue-card-footer">
-                <div class="material-summary" aria-label="議題素材統計">
-                  <span class="material-info">素材 {{ issue.candidateCount }}</span>
-                  <span class="material-divider" aria-hidden="true">·</span>
-                  <span class="material-info used-material-info">已運用 {{ issue.usedCount }}</span>
-                </div>
-                <a
-                  v-if="issue.externalUrl"
-                  :href="issue.externalUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="external-link"
-                  :title="issue.externalUrl"
-                  @click.stop
-                  @keydown.stop
-                >
-                  <el-icon><Link /></el-icon>
-                  <span>{{ getHostname(issue.externalUrl) }}</span>
-                </a>
-                <span class="issue-data-updated">議題資料 · {{ formatUpdatedAt(issue.updatedAt) }}</span>
-              </footer>
             </section>
 
-            <section class="issue-latest-progress">
+            <section v-if="getLatestIssueProgressLead(issue)" class="issue-latest-progress">
               <header>
                 <span class="card-section-label">最新系統訊號</span>
                 <div class="latest-progress-actions">
@@ -438,24 +398,44 @@ const submitCreateIssue = async () => {
                   <button v-if="(issue.progressUpdateCount ?? 0) > 0" type="button" class="progress-update-count" :aria-label="`查看 ${issue.progressUpdateCount ?? 0} 筆近況更新`" @click.stop="openHistory(issue.id)">{{ issue.progressUpdateCount ?? 0 }}</button>
                 </div>
               </header>
-              <div v-if="getLatestIssueProgressLead(issue)" class="issue-progress-fields">
+              <div class="issue-progress-fields">
                 <section v-if="issue.latestProgressChangeSummary">
                   <span>新訊號</span>
-                  <ExpandableText :content="issue.latestProgressChangeSummary" :lines="3" />
+                  <ExpandableText :content="issue.latestProgressChangeSummary" :lines="2" />
                 </section>
                 <section v-if="issue.latestProgressAssessment">
                   <span>模型更新</span>
-                  <ExpandableText :content="issue.latestProgressAssessment" :lines="3" />
+                  <ExpandableText :content="issue.latestProgressAssessment" :lines="2" />
                 </section>
                 <section v-if="issue.latestProgressNextStep" class="issue-next-step">
                   <span>介入／等待</span>
                   <ExpandableText :content="issue.latestProgressNextStep" :lines="2" />
                 </section>
               </div>
-              <p v-else class="no-progress-update">
-                目前沒有新的系統回饋。局勢沒有變化時，不需要為了維護議題而更新。
-              </p>
             </section>
+            <div v-else class="no-progress-row">
+              <p class="no-progress-update">尚未留下近況；局勢有變化時，再回來記錄即可。</p>
+              <div class="issue-card-actions">
+                <button type="button" class="quick-update-button" @click.stop="openQuickUpdate(issue.id)">
+                  ＋ 記錄
+                </button>
+                <button v-if="(issue.progressUpdateCount ?? 0) > 0" type="button" class="progress-update-count" :aria-label="`查看 ${issue.progressUpdateCount ?? 0} 筆近況更新`" @click.stop="openHistory(issue.id)">{{ issue.progressUpdateCount ?? 0 }}</button>
+              </div>
+            </div>
+
+            <footer class="issue-card-footer">
+              <span class="status-label" :class="`status-${issueStatusMeta[issue.status].tone}`">
+                <span class="status-dot" aria-hidden="true"></span>
+                {{ issueStatusMeta[issue.status].label }}
+              </span>
+              <span class="material-divider" aria-hidden="true">·</span>
+              <div class="material-summary" aria-label="議題素材統計">
+                <span class="material-info">素材 {{ issue.candidateCount }}</span>
+                <span class="material-divider" aria-hidden="true">·</span>
+                <span class="material-info used-material-info">已運用 {{ issue.usedCount }}</span>
+              </div>
+              <span class="issue-data-updated">{{ formatUpdatedAt(issueActivityAt(issue.updatedAt, issue.latestProgressAt)) }}</span>
+            </footer>
           </div>
         </el-card>
       </div>
@@ -750,7 +730,8 @@ const submitCreateIssue = async () => {
 .loading-grid,
 .issue-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: var(--space-sm);
 }
 
@@ -783,17 +764,24 @@ const submitCreateIssue = async () => {
 }
 
 .issue-card-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  align-items: stretch;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
 }
 
 .issue-overview {
-  display: flex;
-  height: 100%;
   min-width: 0;
-  padding-right: var(--panel-padding);
-  flex-direction: column;
+}
+
+.issue-card-header {
+  min-width: 0;
+}
+
+.issue-card-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-xs);
 }
 
 .card-section-label {
@@ -811,7 +799,7 @@ const submitCreateIssue = async () => {
   color: var(--el-text-color-secondary);
   font-size: var(--type-meta);
   font-weight: 600;
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-xs);
 }
 
 .status-dot {
@@ -847,7 +835,7 @@ const submitCreateIssue = async () => {
   font-size: var(--type-card-title);
   line-height: var(--leading-section);
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .issue-description {
@@ -859,7 +847,7 @@ const submitCreateIssue = async () => {
   line-height: var(--leading-body);
   overflow-wrap: break-word;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 3;
 }
 
 .issue-overview-field {
@@ -879,17 +867,6 @@ const submitCreateIssue = async () => {
   margin-top: 0;
 }
 
-.criteria-preview > p {
-  display: -webkit-box;
-  margin-bottom: 0;
-  overflow: hidden;
-  color: var(--el-text-color-regular);
-  font-size: var(--type-caption);
-  line-height: var(--leading-ui);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
 .empty-objective {
   color: var(--el-text-color-placeholder);
 }
@@ -905,9 +882,10 @@ const submitCreateIssue = async () => {
 
 .issue-latest-progress {
   min-width: 0;
-  padding: var(--space-lg);
+  padding: var(--space-md);
   border-radius: var(--radius-md);
   background: var(--surface-summary);
+  margin-top: var(--space-md);
 }
 
 .issue-latest-progress > header {
@@ -931,7 +909,13 @@ const submitCreateIssue = async () => {
 
 .issue-progress-fields {
   display: grid;
-  gap: var(--space-sm);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: var(--space-md);
+}
+
+.issue-progress-fields section + section {
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--el-border-color-lighter);
 }
 
 .issue-progress-fields section > span {
@@ -979,10 +963,18 @@ const submitCreateIssue = async () => {
 .progress-update-count:hover, .progress-update-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 
 .no-progress-update {
-  margin: var(--space-2xs) 0 0;
+  margin: 0;
   color: var(--el-text-color-placeholder);
   font-size: var(--type-caption);
   line-height: var(--leading-ui);
+}
+
+.no-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .material-info {
@@ -999,35 +991,18 @@ const submitCreateIssue = async () => {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  margin-top: auto;
-  padding-top: var(--space-lg);
+  margin-top: var(--space-md);
   color: var(--el-text-color-placeholder);
   font-size: var(--type-meta);
 }
 
-.external-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--el-text-color-placeholder);
-  max-width: min(220px, 45%);
-  min-width: 0;
-  text-decoration: none;
+.issue-card-footer .status-label {
+  margin-bottom: 0;
 }
 
 .issue-data-updated {
   margin-left: auto;
   white-space: nowrap;
-}
-
-.external-link span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.external-link:hover {
-  color: var(--el-color-primary-light-3);
 }
 
 .updated-at {
@@ -1203,17 +1178,9 @@ const submitCreateIssue = async () => {
 }
 
 @media (max-width: 900px) {
-  .issue-card-layout {
+  .loading-grid,
+  .issue-list {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .issue-overview {
-    padding-right: 0;
-  }
-
-  .issue-latest-progress {
-    margin-top: 20px;
-    padding: 18px;
   }
 }
 
@@ -1270,8 +1237,24 @@ const submitCreateIssue = async () => {
     padding: 18px;
   }
 
-  .external-link {
-    max-width: 50%;
+  .issue-card-layout {
+    display: flex;
+  }
+
+  .no-progress-row {
+    align-items: flex-start;
+  }
+
+  .issue-progress-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .issue-progress-fields section + section {
+    padding-top: var(--space-sm);
+    padding-left: 0;
+    border-top: 1px solid var(--el-border-color-lighter);
+    border-left: 0;
   }
 }
 </style>
