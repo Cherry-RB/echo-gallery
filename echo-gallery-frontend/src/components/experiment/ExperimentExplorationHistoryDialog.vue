@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import { Delete, MoreFilled } from '@element-plus/icons-vue'
+import { Delete, Edit, MoreFilled } from '@element-plus/icons-vue'
 import type { ExperimentExplorationRecordDto } from '../../types/experiment'
 import { formatDate } from '../../utils/formatDate'
 import AppDialog from '../AppDialog.vue'
 
-defineProps<{
+withDefaults(defineProps<{
   modelValue: boolean
   records: ExperimentExplorationRecordDto[]
-}>()
+  manageable?: boolean
+  showOrganize?: boolean
+  loading?: boolean
+}>(), {
+  manageable: true,
+  showOrganize: true,
+  loading: false,
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  edit: [record: ExperimentExplorationRecordDto]
   delete: [recordId: number]
   organize: []
   'open-card': [cardId: number]
@@ -28,7 +36,8 @@ const emit = defineEmits<{
   >
     <p class="history-intro">回顧曾經試過什麼、留下什麼發現，以及後來整理到了哪裡。</p>
 
-    <ol v-if="records.length" class="history-list">
+    <el-skeleton v-if="loading" :rows="3" animated />
+    <ol v-else-if="records.length" class="history-list">
       <li v-for="(record, index) in records" :key="record.id" class="history-record">
         <span class="timeline-marker" aria-hidden="true"></span>
         <article class="record-entry">
@@ -37,12 +46,13 @@ const emit = defineEmits<{
             <span v-if="index === 0" class="latest-label">最新</span>
             <time :datetime="record.createdAt">{{ formatDate(record.createdAt, 'YYYY/MM/DD HH:mm') }}</time>
           </div>
-          <el-dropdown trigger="click" @command="emit('delete', record.id)">
+          <el-dropdown v-if="manageable" trigger="click" @command="(command: 'edit' | 'delete') => command === 'edit' ? emit('edit', record) : emit('delete', record.id)">
             <button type="button" class="more-button" :aria-label="`${formatDate(record.createdAt, 'YYYY/MM/DD HH:mm')} 探索紀錄操作`">
               <el-icon><MoreFilled /></el-icon>
             </button>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="edit" :icon="Edit">編輯</el-dropdown-item>
                 <el-dropdown-item command="delete" :icon="Delete">刪除</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -56,7 +66,7 @@ const emit = defineEmits<{
           </section>
           <section>
             <span>發現</span>
-            <p>{{ record.discovery }}</p>
+            <p :class="{ empty: !record.discovery }">{{ record.discovery || '尚未記下發現' }}</p>
           </section>
         </div>
 
@@ -78,7 +88,7 @@ const emit = defineEmits<{
     </ol>
     <p v-else class="history-empty">還沒有探索紀錄。等真正試過或發現了什麼，再回來留下即可。</p>
 
-    <template v-if="records.length" #footer>
+    <template v-if="records.length && showOrganize" #footer>
       <div class="history-footer">
         <span>整理成卡片後，原探索紀錄仍會保留。</span>
         <el-button type="primary" plain @click="emit('organize')">整理成卡片</el-button>

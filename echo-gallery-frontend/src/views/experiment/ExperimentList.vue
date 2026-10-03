@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { MoreFilled, Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import type { ExperimentDto, ExperimentRequest } from '../../types/experiment'
+import type { ExperimentDto, ExperimentExplorationRecordDto, ExperimentRequest } from '../../types/experiment'
 import { formatDate } from '../../utils/formatDate'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import { experimentApi } from '../../utils/api/experimentApi'
 import { experimentThemeOptions, getExperimentThemeStyle } from '../../utils/experimentTheme'
 import AppDialog from '../../components/AppDialog.vue'
 import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
+import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
 
 const router = useRouter()
@@ -21,7 +22,10 @@ const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
 const quickRecordExperimentId = ref<number | null>(null)
 const quickRecordMode = ref<'TRY' | 'DISCOVERY'>('TRY')
+const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
 const quickRecordVisible = ref(false)
+const historyExperimentId = ref<number | null>(null)
+const historyVisible = ref(false)
 const form = reactive<ExperimentRequest>({ title: '', hypothesis: '', description: '', themeColor: 'LEAF' })
 
 const experimentsQuery = useQuery({
@@ -29,6 +33,11 @@ const experimentsQuery = useQuery({
   queryFn: () => experimentApi.getExperiments(selectedScope.value === 'ARCHIVED', currentPage.value, 20)
 })
 const experiments = computed(() => experimentsQuery.data.value?.content ?? [])
+const historyQuery = useQuery({
+  queryKey: computed(() => ['experiment-exploration', historyExperimentId.value]),
+  queryFn: () => experimentApi.getExploration(historyExperimentId.value!),
+  enabled: computed(() => historyVisible.value && historyExperimentId.value !== null),
+})
 
 watch(selectedScope, () => {
   currentPage.value = 0
@@ -84,7 +93,42 @@ const handleCardCommand = (experiment: ExperimentDto, command: string) => {
 const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
   quickRecordExperimentId.value = experimentId
   quickRecordMode.value = mode
+  editingExplorationRecord.value = null
   quickRecordVisible.value = true
+}
+
+const editExplorationRecord = (record: ExperimentExplorationRecordDto) => {
+  if (historyExperimentId.value === null) return
+  quickRecordExperimentId.value = historyExperimentId.value
+  quickRecordMode.value = 'DISCOVERY'
+  editingExplorationRecord.value = record
+  quickRecordVisible.value = true
+}
+
+const deleteExplorationRecord = async (recordId: number) => {
+  if (historyExperimentId.value === null) return
+  try {
+    await ElMessageBox.confirm('刪除這筆探索紀錄？已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
+      confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning',
+    })
+  } catch {
+    return
+  }
+  try {
+    await experimentApi.deleteExplorationRecord(historyExperimentId.value, recordId)
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['experiment-exploration', historyExperimentId.value] }),
+      queryClient.invalidateQueries({ queryKey: ['experiments'] }),
+    ])
+    ElMessage.success('探索紀錄已刪除。')
+  } catch {
+    ElMessage.error('刪除探索紀錄失敗，請稍後再試。')
+  }
+}
+
+const openHistory = (experimentId: number) => {
+  historyExperimentId.value = experimentId
+  historyVisible.value = true
 }
 
 const submit = () => {
@@ -167,7 +211,7 @@ const submit = () => {
             <aside class="experiment-summary-side">
               <header class="experiment-card-header">
                 <ExperimentQuickRecordAction @select="openQuickRecord(experiment.id, $event)" />
-                <span v-if="experiment.explorationRecordCount > 0" class="exploration-record-count" :aria-label="`已有 ${experiment.explorationRecordCount} 筆探索紀錄`">{{ experiment.explorationRecordCount }}</span>
+                <button v-if="experiment.explorationRecordCount > 0" type="button" class="exploration-record-count" :aria-label="`查看 ${experiment.explorationRecordCount} 筆探索紀錄`" @click.stop="openHistory(experiment.id)">{{ experiment.explorationRecordCount }}</button>
                 <el-dropdown trigger="click" @command="handleCardCommand(experiment, $event)">
                   <el-button text circle :icon="MoreFilled" aria-label="實驗主題操作" @click.stop />
                   <template #dropdown>
@@ -243,7 +287,20 @@ const submit = () => {
     v-model="quickRecordVisible"
     :experiment-id="quickRecordExperimentId"
     :mode="quickRecordMode"
-    @closed="quickRecordExperimentId = null"
+    :record="editingExplorationRecord"
+    @closed="quickRecordExperimentId = null; editingExplorationRecord = null"
+  />
+
+  <ExperimentExplorationHistoryDialog
+    v-if="historyExperimentId !== null"
+    v-model="historyVisible"
+    :records="historyQuery.data.value?.records ?? []"
+    :loading="historyQuery.isLoading.value"
+    manageable
+    :show-organize="false"
+    @edit="editExplorationRecord"
+    @delete="deleteExplorationRecord"
+    @open-card="router.push(`/card/${$event}`)"
   />
 </template>
 
@@ -263,7 +320,8 @@ const submit = () => {
 .experiment-hypothesis { display: -webkit-box; margin: 9px 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
 .experiment-hypothesis.empty { color: var(--el-text-color-placeholder); font-weight: 400; }
 .experiment-current-try-label { display: block; margin-bottom: 3px; color: var(--el-color-primary); font-size: var(--type-meta); font-weight: 600; }
-.exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
+.exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
+.exploration-record-count:hover, .exploration-record-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .experiment-summary-side { display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
 .soil-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 20px; padding: 15px 14px; border: 1px solid color-mix(in srgb, var(--experiment-vivid) 40%, var(--el-bg-color)); border-radius: 12px; background: color-mix(in srgb, var(--experiment-vivid) 26%, var(--el-bg-color)); }
 .soil-summary { display: flex; align-items: center; justify-content: center; min-width: 0; gap: 4px; font-size: var(--type-card-title); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -278,5 +336,5 @@ const submit = () => {
 .theme-option > span { width: 14px; height: 14px; border-radius: 50%; background: var(--option-color); }
 .theme-option.active { border-color: color-mix(in srgb, var(--option-color) 40%, var(--el-bg-color)); background: color-mix(in srgb, var(--option-color) 26%, var(--el-bg-color)); color: var(--el-text-color-primary); }
 @media (max-width: 900px) { .experiment-list { grid-template-columns: 1fr; } }
-@media (max-width: 600px) { .page-actions, .page-actions :deep(.el-button) { width: 100%; } .page-actions :deep(.el-button) { min-width: 0; margin-left: 0; } .experiment-list-toolbar, .status-filter { width: 100%; } .status-filter :deep(.el-radio-button) { flex: 1 1 0; } .status-filter :deep(.el-radio-button__inner) { width: 100%; } .experiment-list-card :deep(.el-card__body) { padding: 18px; } .experiment-card-content { min-height: 0; grid-template-columns: 1fr; gap: 14px; } .soil-summary-grid { margin-top: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); } .experiment-card-footer { margin-top: 12px; } }
+@media (max-width: 760px) { .page-actions, .page-actions :deep(.el-button) { width: 100%; } .page-actions :deep(.el-button) { min-width: 0; margin-left: 0; } .experiment-list-toolbar, .status-filter { width: 100%; } .status-filter :deep(.el-radio-button) { flex: 1 1 0; } .status-filter :deep(.el-radio-button__inner) { width: 100%; } .experiment-list-card :deep(.el-card__body) { padding: 18px; } .experiment-card-content { min-height: 0; grid-template-columns: 1fr; gap: 14px; } .soil-summary-grid { margin-top: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); } .experiment-card-footer { margin-top: 12px; } }
 </style>

@@ -66,6 +66,9 @@ export const experimentApi = {
   createExplorationRecord(experimentId: number, discovery: string, includeCurrentTry: boolean): Promise<ExperimentExplorationDto> {
     return request({ url: `/experiments/${experimentId}/exploration/records`, method: 'POST', data: { discovery, includeCurrentTry } })
   },
+  updateExplorationRecord(experimentId: number, recordId: number, tryText: string, discovery: string): Promise<ExperimentExplorationDto> {
+    return request({ url: `/experiments/${experimentId}/exploration/records/${recordId}`, method: 'PUT', data: { tryText, discovery } })
+  },
   deleteExplorationRecord(experimentId: number, recordId: number): Promise<void> {
     return request({ url: `/experiments/${experimentId}/exploration/records/${recordId}`, method: 'DELETE' })
   },

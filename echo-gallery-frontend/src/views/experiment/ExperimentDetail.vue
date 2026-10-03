@@ -13,7 +13,7 @@ import AppDialog from '../../components/AppDialog.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
 import CardPickerSelectionSummary from '../../components/ui/CardPickerSelectionSummary.vue'
 import type { CardContentRequest, CardDto } from '../../types/card'
-import type { ExperimentCardDto, ExperimentExplorationDto, ExperimentRequest, ExperimentStage } from '../../types/experiment'
+import type { ExperimentCardDto, ExperimentExplorationDto, ExperimentExplorationRecordDto, ExperimentRequest, ExperimentStage } from '../../types/experiment'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import { formatDate } from '../../utils/formatDate'
 import { experimentApi } from '../../utils/api/experimentApi'
@@ -36,6 +36,7 @@ const latestObservation = computed(() => {
 })
 const explorationEditorVisible = ref(false)
 const explorationEditorMode = ref<'TRY' | 'DISCOVERY'>('TRY')
+const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
 const historyDialogVisible = ref(false)
 const exportVisible = ref(false)
 const exportCreateVisible = ref(false)
@@ -59,8 +60,9 @@ const setExploration = (value: ExperimentExplorationDto) => {
   void queryClient.invalidateQueries({ queryKey: ['experiments'] })
 }
 
-const openExplorationEditor = (mode: 'TRY' | 'DISCOVERY') => {
+const openExplorationEditor = (mode: 'TRY' | 'DISCOVERY', record: ExperimentExplorationRecordDto | null = null) => {
   explorationEditorMode.value = mode
+  editingExplorationRecord.value = record
   explorationEditorVisible.value = true
 }
 
@@ -537,7 +539,10 @@ const handleGrownCard = async (_card: CardDto) => {
           <h2>這次想怎麼探索？</h2>
           <div v-if="!explorationQuery.isLoading.value && !explorationQuery.isError.value" class="exploration-actions">
             <time v-if="latestObservation?.createdAt" :datetime="latestObservation.createdAt">{{ formatDate(latestObservation.createdAt) }}</time>
-            <el-button v-if="exploration.records.length" @click="historyDialogVisible = true">探索紀錄</el-button>
+            <button v-if="exploration.records.length" type="button" class="exploration-history-trigger" @click="historyDialogVisible = true">
+              <span>探索紀錄</span>
+              <span class="exploration-record-count">{{ exploration.records.length }}</span>
+            </button>
           </div>
         </header>
         <el-skeleton v-if="explorationQuery.isLoading.value" :rows="3" animated />
@@ -546,19 +551,19 @@ const handleGrownCard = async (_card: CardDto) => {
         </el-result>
         <template v-else>
         <div class="exploration-overview">
-          <div class="exploration-snapshot current-try-snapshot">
+          <div :class="['exploration-snapshot', 'current-try-snapshot', { 'is-next-action': !exploration.currentTry }]">
             <div class="exploration-snapshot-heading">
-              <span>目前想試</span>
-              <el-button text type="primary" @click="openExplorationEditor('TRY')">{{ exploration.currentTry ? '編輯試法' : '設定試法' }}</el-button>
+              <span>{{ exploration.currentTry ? '目前想試' : '1．設定試法' }}</span>
+              <el-button :text="Boolean(exploration.currentTry)" type="primary" size="small" @click="openExplorationEditor('TRY')">{{ exploration.currentTry ? '編輯試法' : '設定試法' }}</el-button>
             </div>
-            <p>{{ exploration.currentTry || '還沒有想試的事，可以先看看材料。' }}</p>
+            <p :class="{ empty: !exploration.currentTry }">{{ exploration.currentTry || '還沒有想試的事，可以先看看材料。' }}</p>
           </div>
-          <div class="exploration-snapshot">
+          <div :class="['exploration-snapshot', { 'is-next-action': Boolean(exploration.currentTry) && !latestObservation }]">
             <div class="exploration-snapshot-heading">
-              <span>最近一次觀察</span>
-              <el-button text type="primary" @click="openExplorationEditor('DISCOVERY')">記下發現</el-button>
+              <span>{{ latestObservation ? '最近一次觀察' : '2．記下發現' }}</span>
+              <el-button :text="!exploration.currentTry || Boolean(latestObservation)" type="primary" size="small" @click="openExplorationEditor('DISCOVERY')">{{ exploration.currentTry || latestObservation ? '記下發現' : '直接記下發現' }}</el-button>
             </div>
-            <p>{{ latestObservation?.text || '尚未留下觀察。試過、沒試成或改變想法，都可以記在這裡。' }}</p>
+            <p :class="{ empty: !latestObservation }">{{ latestObservation?.text || (exploration.currentTry ? '試過、沒試成或改變想法，都可以記在這裡。' : '設定試法後，再留下觀察；也可以直接記錄現在的發現。') }}</p>
           </div>
         </div>
         <div class="exploration-footnote">
@@ -634,6 +639,7 @@ const handleGrownCard = async (_card: CardDto) => {
   <ExperimentExplorationHistoryDialog
     v-model="historyDialogVisible"
     :records="exploration.records"
+    @edit="openExplorationEditor('DISCOVERY', $event)"
     @delete="deleteExplorationRecord"
     @organize="organizeFromHistory"
     @open-card="router.push(`/card/${$event}`)"
@@ -643,6 +649,8 @@ const handleGrownCard = async (_card: CardDto) => {
     v-model="explorationEditorVisible"
     :experiment-id="experimentId"
     :mode="explorationEditorMode"
+    :record="editingExplorationRecord"
+    @closed="editingExplorationRecord = null"
   />
 
   <AppDialog v-model="exportVisible" title="整理探索紀錄" width="min(980px, calc(100vw - 32px))" scroll-body>
@@ -908,9 +916,14 @@ const handleGrownCard = async (_card: CardDto) => {
 .exploration-snapshot-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 .exploration-snapshot-heading > span { color: var(--el-text-color-secondary); font-size: var(--type-caption); font-weight: var(--weight-medium); line-height: var(--leading-ui); }
 .exploration-snapshot-heading :deep(.el-button) { flex: 0 0 auto; margin-left: 0; }
+.exploration-snapshot.is-next-action .exploration-snapshot-heading > span { color: var(--el-color-primary); font-weight: var(--weight-semibold); }
 .exploration-snapshot p { margin: var(--space-2xs) 0 0; color: var(--el-text-color-primary); font-size: var(--type-ui); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
+.exploration-snapshot p.empty { color: var(--el-text-color-placeholder); font-size: var(--type-caption); }
 .exploration-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-xs); }
 .exploration-actions :deep(.el-button) { margin-left: 0; }
+.exploration-history-trigger { display: inline-flex; align-items: center; gap: var(--space-xs); padding: var(--space-2xs) 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: nowrap; }
+.exploration-history-trigger:hover, .exploration-history-trigger:focus-visible { color: var(--el-color-primary-light-3); }
+.exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .exploration-actions time { align-self: center; color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); white-space: nowrap; }
 .exploration-footnote { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--el-border-color-lighter); color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
 .exploration-utility-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-sm); }

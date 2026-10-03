@@ -128,6 +128,22 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
         long recordId = objectMapper.readTree(recordResult.getResponse().getContentAsString())
                 .get("records").get(0).get("id").asLong();
 
+        mockMvc.perform(put("/api/experiments/{id}/exploration/records/{recordId}", experimentId, recordId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"tryText\":\"updated try\",\"discovery\":\"updated useful change\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.records[0].tryText").value("updated try"))
+                .andExpect(jsonPath("$.records[0].discovery").value("updated useful change"));
+
+        mockMvc.perform(put("/api/experiments/{id}/exploration/records/{recordId}", experimentId, recordId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"tryText\":\"updated try\",\"discovery\":\"\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.records[0].tryText").value("updated try"))
+                .andExpect(jsonPath("$.records[0].discovery").value(""));
+
         mockMvc.perform(get("/api/experiments")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())

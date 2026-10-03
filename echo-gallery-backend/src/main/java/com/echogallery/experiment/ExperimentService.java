@@ -302,6 +302,26 @@ public class ExperimentService {
     }
 
     @Transactional
+    public ExperimentExplorationResponse updateExplorationRecord(
+            Long experimentId,
+            Long recordId,
+            ExperimentExplorationRecordUpdateRequest request) {
+        Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
+        ExperimentExplorationRecord record = experimentExplorationRecordRepository
+                .findByIdAndExperimentId(recordId, experimentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到探索紀錄"));
+        String tryText = normalizeOptionalText(request.tryText());
+        String discovery = normalizeOptionalText(request.discovery());
+        if (tryText == null && discovery == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "試法與發現不可同時為空白");
+        }
+        record.setTryText(tryText);
+        record.setDiscovery(discovery == null ? "" : discovery);
+        touchExperiment(experiment);
+        return toExplorationResponse(experimentId);
+    }
+
+    @Transactional
     public void clearExploration(Long experimentId) {
         Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
         experimentExplorationRecordRepository.deleteByExperimentId(experimentId);

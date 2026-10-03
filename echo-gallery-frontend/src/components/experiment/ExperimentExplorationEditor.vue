@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { ExperimentExplorationDto } from '../../types/experiment'
+import type { ExperimentExplorationDto, ExperimentExplorationRecordDto } from '../../types/experiment'
 import { experimentApi } from '../../utils/api/experimentApi'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import AppDialog from '../AppDialog.vue'
@@ -14,6 +14,7 @@ const props = defineProps<{
   modelValue: boolean
   experimentId: number
   mode: EditorMode
+  record?: ExperimentExplorationRecordDto | null
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +34,7 @@ const selectedTrySuggestion = ref('')
 const newFavoriteTryDraft = ref('')
 const editingFavoriteTry = ref<string | null>(null)
 const editingFavoriteTryDraft = ref('')
+const recordTryDraft = ref('')
 const discoveryDraft = ref('')
 const includeTryInDiscovery = ref(true)
 const saving = ref(false)
@@ -60,7 +62,8 @@ watch([visible, () => props.mode, explorationQuery.isSuccess], ([isVisible, mode
     selectedTrySuggestion.value = ''
   }
   if (mode === 'DISCOVERY') {
-    discoveryDraft.value = ''
+    recordTryDraft.value = props.record?.tryText ?? ''
+    discoveryDraft.value = props.record?.discovery ?? ''
     includeTryInDiscovery.value = true
   }
   initializedMode.value = mode
@@ -86,7 +89,7 @@ const setExploration = async (value: ExperimentExplorationDto) => {
 
 const saveTry = async () => {
   const currentTry = trimToTextLength(tryDraft.value, 500).trim()
-  if (!currentTry || saving.value) return
+  if (saving.value) return
   if (currentTry === exploration.value.currentTry) {
     close()
     return
@@ -106,15 +109,19 @@ const saveTry = async () => {
 
 const saveDiscovery = async () => {
   const discovery = trimToTextLength(discoveryDraft.value, 1000).trim()
-  if (!discovery || saving.value) return
+  const tryText = trimToTextLength(recordTryDraft.value, 500).trim()
+  if (saving.value) return
+  if (props.record && !tryText && !discovery) {
+    ElMessage.warning('試法與發現不可同時清空，請保留至少一項內容。')
+    return
+  }
+  if (!props.record && !discovery) return
 
   saving.value = true
   try {
-    await setExploration(await experimentApi.createExplorationRecord(
-      props.experimentId,
-      discovery,
-      includeTryInDiscovery.value,
-    ))
+    await setExploration(props.record
+      ? await experimentApi.updateExplorationRecord(props.experimentId, props.record.id, tryText, discovery)
+      : await experimentApi.createExplorationRecord(props.experimentId, discovery, includeTryInDiscovery.value))
     ElMessage.success('已留下這次發現')
     close()
   } catch {
@@ -202,7 +209,7 @@ const removeFavoriteTry = async (text: string) => {
 <template>
   <AppDialog
     v-model="visible"
-    :title="mode === 'TRY' ? (tryPane === 'COMPOSE' ? '試一件小事' : '常用試法') : '記下發生了什麼'"
+    :title="mode === 'TRY' ? (tryPane === 'COMPOSE' ? '試一件小事' : '常用試法') : (record ? '編輯探索紀錄' : '記下發生了什麼')"
     width="min(560px, calc(100vw - 32px))"
     scroll-body
     @closed="handleClosed"
@@ -225,7 +232,9 @@ const removeFavoriteTry = async (text: string) => {
       <label class="try-input-label" for="try-draft">這次想試什麼？</label>
       <el-input id="try-draft" v-model="tryDraft" type="textarea" :rows="4" maxlength="500" placeholder="例如：晚餐後拿起紙筆，隨意畫兩分鐘。" aria-label="這次想試的小事" @input="selectedTrySuggestion = ''" />
       <p class="field-counter">{{ getTextLength(tryDraft) }} / 500</p>
-      <div class="try-secondary-actions"><el-button text size="small" @click="openFavoriteManagement">管理常用試法</el-button></div>
+      <div class="try-secondary-actions">
+        <el-button text size="small" @click="openFavoriteManagement">管理常用試法</el-button>
+      </div>
     </template>
     <template v-else-if="mode === 'TRY'">
       <p class="dialog-intro">將想反覆使用的起點放在這裡。最多保存 3 種；修改或移除不會影響已留下的探索紀錄。</p>
@@ -250,10 +259,16 @@ const removeFavoriteTry = async (text: string) => {
       <p v-else class="empty-copy">尚未保存常用試法。</p>
     </template>
     <template v-else>
-      <p class="dialog-intro">試過、沒能開始、或想法變了，都可以寫一句。每次儲存只會產生一筆探索紀錄。</p>
-      <el-input v-model="discoveryDraft" type="textarea" :rows="5" maxlength="1000" placeholder="例如：沒畫成；原來我把紙筆收得太遠了。" aria-label="這次發生了什麼" />
+      <p class="dialog-intro">{{ record ? '可修改這筆紀錄的試法與發現；清空其中一欄後儲存即可。' : '試過、沒能開始、或想法變了，都可以寫一句。每次儲存只會產生一筆探索紀錄。' }}</p>
+      <template v-if="record">
+        <label class="record-input-label" for="record-try-draft">試法</label>
+        <el-input id="record-try-draft" v-model="recordTryDraft" type="textarea" :rows="3" maxlength="500" placeholder="尚未記下試法" aria-label="這筆紀錄的試法" />
+        <p class="field-counter">{{ getTextLength(recordTryDraft) }} / 500</p>
+        <label class="record-input-label record-discovery-label" for="record-discovery-draft">發現</label>
+      </template>
+      <el-input :id="record ? 'record-discovery-draft' : undefined" v-model="discoveryDraft" type="textarea" :rows="5" maxlength="1000" placeholder="例如：沒畫成；原來我把紙筆收得太遠了。" aria-label="這次發生了什麼" />
       <p class="field-counter">{{ getTextLength(discoveryDraft) }} / 1000</p>
-      <div v-if="exploration.currentTry" class="discovery-try-choice">
+      <div v-if="exploration.currentTry && !record" class="discovery-try-choice">
         <p><span>目前試法</span>{{ exploration.currentTry }}</p>
         <el-checkbox v-model="includeTryInDiscovery">把它一起留在這筆探索紀錄</el-checkbox>
         <small v-if="includeTryInDiscovery">儲存後會清空目前試法，並形成「試法 → 發現」的一筆紀錄。</small>
@@ -266,8 +281,8 @@ const removeFavoriteTry = async (text: string) => {
       </template>
       <template v-else>
         <el-button @click="close">取消</el-button>
-        <el-button v-if="mode === 'TRY'" type="primary" :loading="saving" :disabled="!tryDraft.trim()" @click="saveTry">留下這個試法</el-button>
-        <el-button v-else type="primary" :loading="saving" :disabled="!discoveryDraft.trim()" @click="saveDiscovery">留下這次發現</el-button>
+        <el-button v-if="mode === 'TRY'" type="primary" :loading="saving" @click="saveTry">儲存試法</el-button>
+        <el-button v-else type="primary" :loading="saving" :disabled="!record && !discoveryDraft.trim()" @click="saveDiscovery">{{ record ? '儲存探索紀錄' : '留下這次發現' }}</el-button>
       </template>
     </template>
   </AppDialog>
@@ -279,6 +294,8 @@ const removeFavoriteTry = async (text: string) => {
 .try-suggestion-label, .try-input-label, .favorite-try-create > label { display: block; margin-bottom: var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
 .try-suggestion-select { width: 100%; margin-bottom: var(--space-md); }
 .try-secondary-actions { display: flex; justify-content: flex-end; margin-top: var(--space-xs); }
+.record-input-label { display: block; margin: 0 0 var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
+.record-discovery-label { margin-top: var(--space-md); }
 .discovery-try-choice { margin-top: var(--space-md); padding: var(--space-sm) var(--space-md); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-subtle); }
 .discovery-try-choice p { margin: 0 0 var(--space-sm); color: var(--el-text-color-regular); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
 .discovery-try-choice p span { display: block; margin-bottom: var(--space-2xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); }

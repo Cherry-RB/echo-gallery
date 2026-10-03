@@ -139,6 +139,14 @@ public class ExperimentController {
         return ResponseEntity.ok(experimentService.createExplorationRecord(experimentId, request));
     }
 
+    @PutMapping("/{experimentId}/exploration/records/{recordId}")
+    public ResponseEntity<ExperimentExplorationResponse> updateExplorationRecord(
+            @PathVariable("experimentId") Long experimentId,
+            @PathVariable("recordId") Long recordId,
+            @Valid @RequestBody ExperimentExplorationRecordUpdateRequest request) {
+        return ResponseEntity.ok(experimentService.updateExplorationRecord(experimentId, recordId, request));
+    }
+
     @DeleteMapping("/{experimentId}/exploration/records/{recordId}")
     public ResponseEntity<Void> deleteExplorationRecord(
             @PathVariable("experimentId") Long experimentId,
