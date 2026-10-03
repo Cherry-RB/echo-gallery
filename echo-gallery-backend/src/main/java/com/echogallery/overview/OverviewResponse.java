@@ -65,10 +65,10 @@ public record OverviewResponse(
     public record LineageCardResponse(Long cardId, String title) {
     }
 
-    public record NextStepResponse(Long issueId, String issueTitle, String nextStep, ZonedDateTime updatedAt) {
+    public record NextStepResponse(Long issueId, String issueTitle, String nextStep, ZonedDateTime updatedAt, long progressUpdateCount) {
     }
 
-    public record ExperimentTryResponse(Long experimentId, String experimentTitle, String currentTry) {
+    public record ExperimentTryResponse(Long experimentId, String experimentTitle, String currentTry, long explorationRecordCount) {
     }
 
     public record AttentionSignalResponse(String key, int cardCount) {

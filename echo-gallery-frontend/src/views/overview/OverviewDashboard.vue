@@ -1,22 +1,33 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
+import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
+import { experimentApi } from '../../utils/api/experimentApi'
 import IssueUpdateDialog from '../../components/issue/IssueUpdateDialog.vue'
+import IssueUpdates from '../../components/issue/IssueUpdates.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewAttentionSignal, OverviewPeriodDays } from '../../types/overview'
+import type { ExperimentExplorationRecordDto } from '../../types/experiment'
 
 const selectedPeriod = ref<OverviewPeriodDays>(30)
 const router = useRouter()
+const queryClient = useQueryClient()
 const quickUpdateIssueId = ref<number | null>(null)
 const quickUpdateVisible = ref(false)
+const issueHistoryId = ref<number | null>(null)
+const issueHistoryVisible = ref(false)
 const quickRecordExperimentId = ref<number | null>(null)
 const quickRecordMode = ref<'TRY' | 'DISCOVERY'>('TRY')
+const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
 const quickRecordVisible = ref(false)
+const historyExperimentId = ref<number | null>(null)
+const historyVisible = ref(false)
 const { data: overview, isLoading, isError, refetch } = useQuery({
   queryKey: computed(() => ['overview', selectedPeriod.value]),
   queryFn: () => overviewApi.getOverview(selectedPeriod.value),
@@ -39,6 +50,11 @@ const period = computed(() => overview.value?.period ?? {
   activities: [],
   derivedCards: [],
   recentExperimentMaterials: [],
+})
+const historyQuery = useQuery({
+  queryKey: computed(() => ['experiment-exploration', historyExperimentId.value]),
+  queryFn: () => experimentApi.getExploration(historyExperimentId.value!),
+  enabled: computed(() => historyVisible.value && historyExperimentId.value !== null),
 })
 
 const currentItems = computed(() => [
@@ -107,10 +123,47 @@ const openQuickUpdate = (issueId: number) => {
   quickUpdateIssueId.value = issueId
   quickUpdateVisible.value = true
 }
+const openIssueHistory = (issueId: number) => {
+  issueHistoryId.value = issueId
+  issueHistoryVisible.value = true
+}
 const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
   quickRecordExperimentId.value = experimentId
   quickRecordMode.value = mode
+  editingExplorationRecord.value = null
   quickRecordVisible.value = true
+}
+const editExplorationRecord = (record: ExperimentExplorationRecordDto) => {
+  if (historyExperimentId.value === null) return
+  quickRecordExperimentId.value = historyExperimentId.value
+  quickRecordMode.value = 'DISCOVERY'
+  editingExplorationRecord.value = record
+  quickRecordVisible.value = true
+}
+const deleteExplorationRecord = async (recordId: number) => {
+  if (historyExperimentId.value === null) return
+  try {
+    await ElMessageBox.confirm('刪除這筆探索紀錄？已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
+      confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning',
+    })
+  } catch {
+    return
+  }
+  try {
+    await experimentApi.deleteExplorationRecord(historyExperimentId.value, recordId)
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['experiment-exploration', historyExperimentId.value] }),
+      queryClient.invalidateQueries({ queryKey: ['experiments'] }),
+      queryClient.invalidateQueries({ queryKey: ['overview'] }),
+    ])
+    ElMessage.success('探索紀錄已刪除。')
+  } catch {
+    ElMessage.error('刪除探索紀錄失敗，請稍後再試。')
+  }
+}
+const openHistory = (experimentId: number) => {
+  historyExperimentId.value = experimentId
+  historyVisible.value = true
 }
 const openCardReturn = () => router.push('/overview/cards')
 const openCurrentItem = (key: string) => {
@@ -136,7 +189,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         <div class="section-title-row">
           <div>
             <span class="section-eyebrow">實驗場</span>
-            <h2 id="overview-experiment-tries-title">目前想試</h2>
+            <h2 id="overview-experiment-tries-title">進行中的實驗</h2>
           </div>
           <router-link to="/experiments">查看全部</router-link>
         </div>
@@ -150,11 +203,15 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
               <el-tooltip :content="experimentTry.experimentTitle" :show-after="400" placement="top" popper-class="content-tooltip">
                 <span>{{ experimentTry.experimentTitle }}</span>
               </el-tooltip>
-              <el-tooltip :content="experimentTry.currentTry" :show-after="400" placement="top" popper-class="content-tooltip">
+              <el-tooltip v-if="experimentTry.currentTry" :content="experimentTry.currentTry" :show-after="400" placement="top" popper-class="content-tooltip">
                 <strong>{{ experimentTry.currentTry }}</strong>
               </el-tooltip>
+              <p v-else class="experiment-try-empty">還沒有想試的事，可以先看看材料。</p>
             </button>
-            <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
+            <div class="experiment-try-record-action">
+              <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
+              <button v-if="experimentTry.explorationRecordCount > 0" type="button" class="exploration-record-count" :aria-label="`查看 ${experimentTry.explorationRecordCount} 筆探索紀錄`" @click.stop="openHistory(experimentTry.experimentId)">{{ experimentTry.explorationRecordCount }}</button>
+            </div>
           </article>
         </div>
       </section>
@@ -177,7 +234,10 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
                 <el-tooltip :content="step.nextStep" :show-after="400" placement="top" popper-class="content-tooltip"><strong>{{ step.nextStep }}</strong></el-tooltip>
                 <small>更新於 {{ formatDate(step.updatedAt) }}</small>
               </button>
-              <button type="button" class="quick-update-button" @click="openQuickUpdate(step.issueId)">＋ 記錄</button>
+              <div class="next-step-update-action">
+                <button type="button" class="quick-update-button" @click="openQuickUpdate(step.issueId)">＋ 記錄</button>
+                <button v-if="step.progressUpdateCount > 0" type="button" class="progress-update-count" :aria-label="`查看 ${step.progressUpdateCount} 筆近況更新`" @click="openIssueHistory(step.issueId)">{{ step.progressUpdateCount }}</button>
+              </div>
             </article>
           </div>
           <p v-else class="empty-copy">目前沒有已留下下一步的議題。</p>
@@ -310,12 +370,30 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       :issue-id="quickUpdateIssueId"
       @closed="quickUpdateIssueId = null"
     />
+    <IssueUpdates
+      v-if="issueHistoryId !== null"
+      v-model="issueHistoryVisible"
+      :issue-id="issueHistoryId"
+      history-only
+    />
     <ExperimentExplorationEditor
       v-if="quickRecordExperimentId !== null"
       v-model="quickRecordVisible"
       :experiment-id="quickRecordExperimentId"
       :mode="quickRecordMode"
-      @closed="quickRecordExperimentId = null"
+      :record="editingExplorationRecord"
+      @closed="quickRecordExperimentId = null; editingExplorationRecord = null"
+    />
+    <ExperimentExplorationHistoryDialog
+      v-if="historyExperimentId !== null"
+      v-model="historyVisible"
+      :records="historyQuery.data.value?.records ?? []"
+      :loading="historyQuery.isLoading.value"
+      manageable
+      :show-organize="false"
+      @edit="editExplorationRecord"
+      @delete="deleteExplorationRecord"
+      @open-card="openCard"
     />
   </section>
 </template>
@@ -343,19 +421,27 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .experiment-try-main { min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
 .experiment-try-main span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
 .experiment-try-main strong { display: -webkit-box; margin-top: 6px; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.experiment-try-empty { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .experiment-try-item:hover, .experiment-try-item:focus-within { border-color: var(--el-color-primary-light-5); }
 .experiment-try-main:hover strong, .experiment-try-main:focus-visible strong { color: var(--el-color-primary); }
+.experiment-try-record-action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-xs); margin-left: var(--space-sm); }
+.exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
+.exploration-record-count:hover, .exploration-record-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .action-grid, .content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .next-step-list, .attention-list, .content-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-.next-step-item { display: flex; align-items: flex-start; gap: var(--space-sm); width: 100%; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); }
+.next-step-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: flex-start; min-width: 0; column-gap: var(--space-sm); width: 100%; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); }
 .next-step-item:first-child { padding-top: 0; border-top: 0; }
-.next-step-main { min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.next-step-main { display: block; width: 100%; min-width: 0; overflow: hidden; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.next-step-main :deep(.el-tooltip__trigger) { display: block; max-width: 100%; overflow: hidden; }
 .next-step-main span, .content-card-main > span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
 .next-step-main strong { display: -webkit-box; margin-top: 5px; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .next-step-main small { display: block; margin-top: 6px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .next-step-main:hover strong, .next-step-main:focus-visible strong, .content-card-main:hover h3, .context-link:hover { color: var(--el-color-primary); }
 .quick-update-button { flex: 0 0 auto; padding: 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: nowrap; }
 .quick-update-button:hover, .quick-update-button:focus-visible { color: var(--el-color-primary-light-3); text-decoration: underline; }
+.next-step-update-action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-xs); white-space: nowrap; }
+.progress-update-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
+.progress-update-count:hover, .progress-update-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .attention-panel { background: var(--el-bg-color); }
 .attention-item { display: flex; gap: 10px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--el-border-color-lighter); }
 .attention-item:first-child { padding-top: 0; border-top: 0; }
@@ -387,5 +473,5 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .activity-item strong { font-size: 18px; }
 .activity-item span { overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) { .current-stat-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .current-stat:nth-child(4) { padding-left: 0; border-left: 0; } .experiment-try-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .action-grid, .content-grid { grid-template-columns: 1fr; } .activity-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: var(--panel-padding); border-radius: var(--panel-radius); } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .current-stat:last-child { grid-column: 1 / -1; padding-right: 0; } .experiment-try-list { grid-template-columns: 1fr; gap: 8px; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: 1fr; gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 var(--panel-padding); border-radius: var(--panel-radius); } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: var(--panel-padding); border-radius: var(--panel-radius); } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .current-stat:last-child { grid-column: 1 / -1; padding-right: 0; } .experiment-try-list { grid-template-columns: 1fr; gap: 8px; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: 1fr; gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 var(--panel-padding); border-radius: var(--panel-radius); } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

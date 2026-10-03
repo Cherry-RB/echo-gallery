@@ -23,9 +23,11 @@ import com.echogallery.card.CardRepository;
 import com.echogallery.experiment.CardRelation;
 import com.echogallery.experiment.CardRelationRepository;
 import com.echogallery.experiment.CardRelationType;
+import com.echogallery.experiment.Experiment;
 import com.echogallery.experiment.ExperimentCard;
 import com.echogallery.experiment.ExperimentCardRepository;
 import com.echogallery.experiment.ExperimentExploration;
+import com.echogallery.experiment.ExperimentExplorationRecordCount;
 import com.echogallery.experiment.ExperimentExplorationRepository;
 import com.echogallery.experiment.ExperimentExplorationRecordRepository;
 import com.echogallery.experiment.ExperimentRepository;
@@ -33,6 +35,7 @@ import com.echogallery.experiment.ExplorationRecordCardRepository;
 import com.echogallery.util.SecurityUtil;
 import com.echogallery.issue.IssueCardRepository;
 import com.echogallery.issue.IssueUpdate;
+import com.echogallery.issue.IssueUpdateCount;
 import com.echogallery.issue.IssueUpdateRepository;
 import com.echogallery.issue.IssueStatus;
 import lombok.RequiredArgsConstructor;
@@ -70,15 +73,38 @@ public class OverviewService {
                 .filter(update -> hasText(update.getNextStep()))
                 .sorted(Comparator.comparing(IssueUpdate::getCreatedAt).reversed())
                 .toList();
+        List<IssueUpdate> visibleNextStepUpdates = nextStepUpdates.stream().limit(NEXT_STEP_LIMIT).toList();
+        Map<Long, Long> issueUpdateCounts = visibleNextStepUpdates.isEmpty()
+                ? Map.of()
+                : issueUpdateRepository.countByIssueIds(
+                        visibleNextStepUpdates.stream().map(update -> update.getIssue().getId()).toList())
+                        .stream()
+                        .collect(Collectors.toMap(IssueUpdateCount::getIssueId, IssueUpdateCount::getUpdateCount));
 
         int recurringCardCount = safeInt(cardRepository.countRecurringByUserId(userId));
         int pausedCardCount = safeInt(cardRepository.countPausedByUserId(userId));
         int needsProcessingCardCount = safeInt(cardRepository.countNeedsProcessingByUserId(userId));
         int highSnoozeCardCount = safeInt(cardRepository.countActiveByUserIdAndSnoozeCountGreaterThanEqual(userId, 3));
-        List<OverviewResponse.ExperimentTryResponse> experimentTries = experimentExplorationRepository
-                .findCurrentTriesByUserId(userId, PageRequest.of(0, EXPERIMENT_TRY_LIMIT))
-                .stream()
-                .map(this::toExperimentTry)
+        List<Experiment> activeExperiments = experimentRepository
+                .findByUserIdAndIsArchivedFalseOrderByUpdatedAtDescIdDesc(userId, PageRequest.of(0, EXPERIMENT_TRY_LIMIT));
+        Map<Long, ExperimentExploration> explorationsByExperimentId = activeExperiments.isEmpty()
+                ? Map.of()
+                : experimentExplorationRepository.findByExperimentIdIn(
+                        activeExperiments.stream().map(Experiment::getId).toList())
+                        .stream()
+                        .collect(Collectors.toMap(exploration -> exploration.getExperiment().getId(), exploration -> exploration));
+        Map<Long, Long> explorationRecordCounts = activeExperiments.isEmpty()
+                ? Map.of()
+                : experimentExplorationRecordRepository.countByExperimentIds(
+                        activeExperiments.stream().map(Experiment::getId).toList())
+                        .stream()
+                        .collect(Collectors.toMap(
+                                ExperimentExplorationRecordCount::getExperimentId,
+                                ExperimentExplorationRecordCount::getRecordCount));
+        List<OverviewResponse.ExperimentTryResponse> experimentTries = activeExperiments.stream()
+                .map(experiment -> toExperimentTry(experiment,
+                        explorationsByExperimentId.get(experiment.getId()),
+                        explorationRecordCounts.getOrDefault(experiment.getId(), 0L)))
                 .toList();
 
         OverviewResponse.OverviewCurrentResponse current = new OverviewResponse.OverviewCurrentResponse(
@@ -88,7 +114,9 @@ public class OverviewService {
                 safeInt(experimentRepository.countByUserIdAndIsArchivedFalse(userId)),
                 nextStepUpdates.size(),
                 experimentTries,
-                nextStepUpdates.stream().limit(NEXT_STEP_LIMIT).map(this::toNextStep).toList(),
+                visibleNextStepUpdates.stream()
+                        .map(update -> toNextStep(update, issueUpdateCounts.getOrDefault(update.getIssue().getId(), 0L)))
+                        .toList(),
                 attentionSignals(needsProcessingCardCount, highSnoozeCardCount));
 
         int reviewedCardCount = safeInt(cardRepository.countByUserIdAndLastOpenAtGreaterThanEqualAndLastOpenAtLessThan(
@@ -256,16 +284,20 @@ public class OverviewService {
     private record ExperimentCardKey(Long experimentId, Long cardId) {
     }
 
-    private OverviewResponse.NextStepResponse toNextStep(IssueUpdate update) {
+    private OverviewResponse.NextStepResponse toNextStep(IssueUpdate update, long progressUpdateCount) {
         return new OverviewResponse.NextStepResponse(
-                update.getIssue().getId(), update.getIssue().getTitle(), update.getNextStep(), update.getCreatedAt());
+                update.getIssue().getId(), update.getIssue().getTitle(), update.getNextStep(), update.getCreatedAt(), progressUpdateCount);
     }
 
-    private OverviewResponse.ExperimentTryResponse toExperimentTry(ExperimentExploration exploration) {
+    private OverviewResponse.ExperimentTryResponse toExperimentTry(
+            Experiment experiment,
+            ExperimentExploration exploration,
+            long explorationRecordCount) {
         return new OverviewResponse.ExperimentTryResponse(
-                exploration.getExperiment().getId(),
-                exploration.getExperiment().getTitle(),
-                exploration.getCurrentTry());
+                experiment.getId(),
+                experiment.getTitle(),
+                exploration == null || exploration.getCurrentTry() == null ? "" : exploration.getCurrentTry(),
+                explorationRecordCount);
     }
 
     private List<OverviewResponse.AttentionSignalResponse> attentionSignals(int needsProcessingCardCount, int highSnoozeCardCount) {

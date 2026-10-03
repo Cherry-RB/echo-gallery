@@ -54,12 +54,14 @@ export interface OverviewNextStep {
   issueTitle: string
   nextStep: string
   updatedAt: string
+  progressUpdateCount: number
 }
 
 export interface OverviewExperimentTry {
   experimentId: number
   experimentTitle: string
   currentTry: string
+  explorationRecordCount: number
 }
 
 export interface OverviewAttentionSignal {
