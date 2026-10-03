@@ -53,7 +53,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 <template>
   <section class="card-return-page app-page app-page--workspace">
     <header class="detail-navigation app-detail-navigation">
-      <el-button :icon="ArrowLeft" text @click="router.push('/overview')">返回資訊轉化觀測台</el-button>
+      <el-button :icon="ArrowLeft" text @click="router.push('/overview')">返回總覽</el-button>
     </header>
 
     <PageHeader class="page-header" title="卡片與回流" description="看看卡片目前的安排，以及接下來的回流節奏。" />

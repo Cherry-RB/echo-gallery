@@ -133,8 +133,8 @@ const routes = [
       redirect: { name: 'ExperimentDetail' }
     },
     {
-      path: '', // 預設導向 今日看板
-      redirect: 'board/today'
+      path: '', // 預設導向總覽
+      redirect: 'overview'
     }
   ]},
   // 3. 補上 404 頁面（選用，增加體驗）
@@ -186,7 +186,7 @@ router.beforeEach((to, _from) => {
   }
   // 2. 該頁面僅限訪客（如登入/註冊），但使用者已有 token -> 導回首頁
   else if (isGuestOnly && tokenValid) {
-    return { name: 'TodayBoard' };
+    return { name: 'Overview' };
   }
   // 3. 其餘放行
   else {

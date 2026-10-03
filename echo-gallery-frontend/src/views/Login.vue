@@ -82,7 +82,7 @@ const onSubmit = async () => {
     const res = await handleLogin(form)
     if (res?.token) {
       ElMessage.success("登入成功");
-      router.push('/board/today') // 導向今日看板
+      router.push('/overview') // 導向總覽
     }
   } catch (err: any) {
     console.error('API 呼叫失敗:', err);
@@ -94,7 +94,7 @@ const onStartDemo = async (library: string) => {
     const res = await startDemo(library)
     if (res?.token) {
       ElMessage.success('已建立獨立 Demo 體驗')
-      router.push('/board/today')
+      router.push('/overview')
     }
   } catch (err) {
     console.error('Demo 工作階段建立失敗:', err)

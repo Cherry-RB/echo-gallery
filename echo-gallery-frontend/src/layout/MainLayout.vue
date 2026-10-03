@@ -25,10 +25,10 @@ watch(() => route.path, () => {
   <div class="main-layout">
     <header class="mobile-header">
       <button class="hamburger-btn" @click="isLeftDrawerOpen = true">☰</button>
-      <div class="mobile-brand">
+      <router-link to="/overview" class="mobile-brand" aria-label="前往總覽">
         <span class="brand-logo">🌌</span>
         <h2 class="brand-title">EchoGallery</h2>
-      </div>
+      </router-link>
       <div class="mobile-header-actions">
         <ThemeSwitcher compact />
       </div>
@@ -133,6 +133,8 @@ watch(() => route.path, () => {
     display: flex;
     align-items: center;
     gap: 8px;
+    color: inherit;
+    text-decoration: none;
   }
   .mobile-header-actions {
     display: flex;

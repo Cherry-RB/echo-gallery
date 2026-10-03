@@ -35,13 +35,13 @@ const userProfile = ref({
 })
 
 const menuItems = [
-  { name: '今日', path: '/board/today', icon: Calendar },
+  { name: '總覽', path: '/overview', icon: DataAnalysis },
+  { name: '今日回流', path: '/board/today', icon: Calendar },
   { name: '全部卡片', path: '/board/all', icon: Files },
   { name: '議事廳', path: '/issues', icon: Filter },
   { name: '實驗場', path: '/experiments', icon: Aim },
-  { name: '觀測台', path: '/overview', icon: DataAnalysis },
-  { name: '標籤管理', path: '/center/tag', icon: CollectionTag },
-  { name: '查詢', path: '/search', icon: Search },
+  { name: '標籤查詢', path: '/center/tag', icon: CollectionTag },
+  { name: '卡片查詢', path: '/search', icon: Search },
 ]
 
 const activeMenu = computed(() => route.path)
@@ -62,16 +62,16 @@ const resetDemo = async () => {
   )
   await authStore.resetDemo()
   ElMessage.success('展示資料已恢復初始狀態')
-  window.location.assign('/board/today')
+  window.location.assign('/overview')
 }
 </script>
 
 <template>
   <div class="sidebar-wrapper">
-    <div class="sidebar-brand">
+    <router-link to="/overview" class="sidebar-brand" aria-label="前往總覽">
       <div class="brand-logo">🌌</div>
       <h2 class="brand-title">EchoGallery</h2>
-    </div>
+    </router-link>
 
     <el-button type="primary" size="large" :icon="Plus" class="create-card-btn" @click="openQuickCreate">
       新建卡片
@@ -185,6 +185,8 @@ const resetDemo = async () => {
   gap: 12px;
   padding-left: 12px;
   margin-bottom: 20px;
+  color: inherit;
+  text-decoration: none;
 }
 .brand-title {
   font-size: var(--type-section-title);

@@ -176,7 +176,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
 <template>
   <section class="overview-page app-page app-page--workspace">
-    <PageHeader title="資訊轉化觀測台" description="看見此刻狀態，以及最近留下了什麼。" />
+    <PageHeader title="總覽" description="掌握現在能往前走的事，以及值得回看的訊號。" />
 
     <div v-if="isLoading" class="overview-state">正在整理觀測資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得觀測資料" sub-title="請稍後再試。">
