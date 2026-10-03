@@ -10,6 +10,8 @@ import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import { experimentApi } from '../../utils/api/experimentApi'
 import { experimentThemeOptions, getExperimentThemeStyle } from '../../utils/experimentTheme'
 import AppDialog from '../../components/AppDialog.vue'
+import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
+import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -17,6 +19,9 @@ const selectedScope = ref<'ACTIVE' | 'ARCHIVED'>('ACTIVE')
 const currentPage = ref(0)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
+const quickRecordExperimentId = ref<number | null>(null)
+const quickRecordMode = ref<'TRY' | 'DISCOVERY'>('TRY')
+const quickRecordVisible = ref(false)
 const form = reactive<ExperimentRequest>({ title: '', hypothesis: '', description: '', themeColor: 'LEAF' })
 
 const experimentsQuery = useQuery({
@@ -74,6 +79,12 @@ const handleCardCommand = (experiment: ExperimentDto, command: string) => {
   if (command === 'edit') openEdit(experiment)
   if (command === 'archive') archiveMutation.mutate({ id: experiment.id, archived: true })
   if (command === 'restore') archiveMutation.mutate({ id: experiment.id, archived: false })
+}
+
+const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
+  quickRecordExperimentId.value = experimentId
+  quickRecordMode.value = mode
+  quickRecordVisible.value = true
 }
 
 const submit = () => {
@@ -143,14 +154,19 @@ const submit = () => {
         >
           <div class="experiment-card-content">
             <div class="experiment-copy">
-              <h2 class="experiment-title">{{ experiment.title }}</h2>
-              <p :class="['experiment-hypothesis', { empty: !experiment.currentTry && !experiment.hypothesis && !experiment.description }]">
-                <span v-if="experiment.currentTry" class="experiment-current-try-label">目前想試</span>
-                {{ experiment.currentTry || experiment.hypothesis || experiment.description || '還沒有寫下目前想試的事；可以先從材料開始。' }}
-              </p>
+              <el-tooltip :content="experiment.title" :show-after="400" placement="top" popper-class="content-tooltip">
+                <h2 class="experiment-title">{{ experiment.title }}</h2>
+              </el-tooltip>
+              <el-tooltip :content="experiment.currentTry || experiment.hypothesis || experiment.description || '還沒有寫下目前想試的事；可以先從材料開始。'" :show-after="400" placement="top" popper-class="content-tooltip">
+                <p :class="['experiment-hypothesis', { empty: !experiment.currentTry && !experiment.hypothesis && !experiment.description }]">
+                  <span v-if="experiment.currentTry" class="experiment-current-try-label">目前想試</span>
+                  {{ experiment.currentTry || experiment.hypothesis || experiment.description || '還沒有寫下目前想試的事；可以先從材料開始。' }}
+                </p>
+              </el-tooltip>
             </div>
             <aside class="experiment-summary-side">
               <header class="experiment-card-header">
+                <ExperimentQuickRecordAction @select="openQuickRecord(experiment.id, $event)" />
                 <el-dropdown trigger="click" @command="handleCardCommand(experiment, $event)">
                   <el-button text circle :icon="MoreFilled" aria-label="實驗主題操作" @click.stop />
                   <template #dropdown>
@@ -220,6 +236,14 @@ const submit = () => {
       <el-button type="primary" :loading="saveMutation.isPending.value" :disabled="!form.title.trim()" @click="submit">{{ editingId ? '儲存變更' : '建立實驗主題' }}</el-button>
     </template>
   </AppDialog>
+
+  <ExperimentExplorationEditor
+    v-if="quickRecordExperimentId !== null"
+    v-model="quickRecordVisible"
+    :experiment-id="quickRecordExperimentId"
+    :mode="quickRecordMode"
+    @closed="quickRecordExperimentId = null"
+  />
 </template>
 
 <style scoped>
@@ -232,7 +256,7 @@ const submit = () => {
 .experiment-list-card:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .experiment-list-card :deep(.el-card__body) { padding: 18px 20px; }
 .experiment-card-content { display: grid; min-height: 150px; grid-template-columns: minmax(0, 1.55fr) minmax(190px, 0.85fr); gap: 22px; }
-.experiment-card-header { display: flex; justify-content: flex-end; min-height: 28px; }
+.experiment-card-header { display: flex; align-items: center; justify-content: flex-end; min-height: 28px; gap: var(--space-sm); }
 .experiment-copy { min-width: 0; padding: 2px 0; }
 .experiment-title { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: 650; line-height: var(--leading-section); overflow-wrap: anywhere; }
 .experiment-hypothesis { display: -webkit-box; margin: 9px 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }

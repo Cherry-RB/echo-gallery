@@ -4,11 +4,19 @@ import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
+import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
+import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
+import IssueUpdateDialog from '../../components/issue/IssueUpdateDialog.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewAttentionSignal, OverviewPeriodDays } from '../../types/overview'
 
 const selectedPeriod = ref<OverviewPeriodDays>(30)
 const router = useRouter()
+const quickUpdateIssueId = ref<number | null>(null)
+const quickUpdateVisible = ref(false)
+const quickRecordExperimentId = ref<number | null>(null)
+const quickRecordMode = ref<'TRY' | 'DISCOVERY'>('TRY')
+const quickRecordVisible = ref(false)
 const { data: overview, isLoading, isError, refetch } = useQuery({
   queryKey: computed(() => ['overview', selectedPeriod.value]),
   queryFn: () => overviewApi.getOverview(selectedPeriod.value),
@@ -95,6 +103,15 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', {
 const openCard = (cardId: number) => router.push({ name: 'CardDetail', params: { id: cardId }, query: { from: 'overview' } })
 const openExperiment = (experimentId: number) => router.push({ name: 'ExperimentDetail', params: { id: experimentId } })
 const openIssue = (issueId: number) => router.push({ name: 'IssueDetail', params: { id: issueId } })
+const openQuickUpdate = (issueId: number) => {
+  quickUpdateIssueId.value = issueId
+  quickUpdateVisible.value = true
+}
+const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
+  quickRecordExperimentId.value = experimentId
+  quickRecordMode.value = mode
+  quickRecordVisible.value = true
+}
 const openCardReturn = () => router.push('/overview/cards')
 const openCurrentItem = (key: string) => {
   if (key === 'experiments') router.push('/experiments')
@@ -124,16 +141,21 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
           <router-link to="/experiments">查看全部</router-link>
         </div>
         <div class="experiment-try-list">
-          <button
+          <article
             v-for="experimentTry in current.experimentTries"
             :key="experimentTry.experimentId"
-            type="button"
             class="experiment-try-item"
-            @click="openExperiment(experimentTry.experimentId)"
           >
-            <span>{{ experimentTry.experimentTitle }}</span>
-            <strong>{{ experimentTry.currentTry }}</strong>
-          </button>
+            <button type="button" class="experiment-try-main" @click="openExperiment(experimentTry.experimentId)">
+              <el-tooltip :content="experimentTry.experimentTitle" :show-after="400" placement="top" popper-class="content-tooltip">
+                <span>{{ experimentTry.experimentTitle }}</span>
+              </el-tooltip>
+              <el-tooltip :content="experimentTry.currentTry" :show-after="400" placement="top" popper-class="content-tooltip">
+                <strong>{{ experimentTry.currentTry }}</strong>
+              </el-tooltip>
+            </button>
+            <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
+          </article>
         </div>
       </section>
 
@@ -149,11 +171,14 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
             </el-tooltip>
           </div>
           <div v-if="current.nextSteps.length" class="next-step-list">
-            <button v-for="step in current.nextSteps.slice(0, 3)" :key="step.issueId" type="button" class="next-step-item" @click="openIssue(step.issueId)">
-              <span>{{ step.issueTitle }}</span>
-              <strong>{{ step.nextStep }}</strong>
-              <small>更新於 {{ formatDate(step.updatedAt) }}</small>
-            </button>
+            <article v-for="step in current.nextSteps.slice(0, 3)" :key="step.issueId" class="next-step-item">
+              <button type="button" class="next-step-main" @click="openIssue(step.issueId)">
+                <el-tooltip :content="step.issueTitle" :show-after="400" placement="top" popper-class="content-tooltip"><span>{{ step.issueTitle }}</span></el-tooltip>
+                <el-tooltip :content="step.nextStep" :show-after="400" placement="top" popper-class="content-tooltip"><strong>{{ step.nextStep }}</strong></el-tooltip>
+                <small>更新於 {{ formatDate(step.updatedAt) }}</small>
+              </button>
+              <button type="button" class="quick-update-button" @click="openQuickUpdate(step.issueId)">＋ 記錄</button>
+            </article>
           </div>
           <p v-else class="empty-copy">目前沒有已留下下一步的議題。</p>
         </section>
@@ -278,6 +303,20 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       </details>
       </div>
     </div>
+
+    <IssueUpdateDialog
+      v-if="quickUpdateIssueId !== null"
+      v-model="quickUpdateVisible"
+      :issue-id="quickUpdateIssueId"
+      @closed="quickUpdateIssueId = null"
+    />
+    <ExperimentExplorationEditor
+      v-if="quickRecordExperimentId !== null"
+      v-model="quickRecordVisible"
+      :experiment-id="quickRecordExperimentId"
+      :mode="quickRecordMode"
+      @closed="quickRecordExperimentId = null"
+    />
   </section>
 </template>
 
@@ -300,19 +339,23 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .current-stat > span, .period-figure > div > span { margin-left: 3px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .current-stat small { display: block; margin-top: 5px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .experiment-try-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-.experiment-try-item { min-width: 0; padding: 13px 14px; overflow: hidden; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-summary); color: inherit; cursor: pointer; font: inherit; text-align: left; }
-.experiment-try-item > span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
-.experiment-try-item > strong { display: -webkit-box; margin-top: 6px; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.experiment-try-item:hover, .experiment-try-item:focus-visible { border-color: var(--el-color-primary-light-5); }
-.experiment-try-item:hover > strong, .experiment-try-item:focus-visible > strong { color: var(--el-color-primary); }
+.experiment-try-item { display: flex; align-items: flex-start; min-width: 0; padding: 13px 14px; overflow: hidden; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-summary); }
+.experiment-try-main { min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.experiment-try-main span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
+.experiment-try-main strong { display: -webkit-box; margin-top: 6px; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.experiment-try-item:hover, .experiment-try-item:focus-within { border-color: var(--el-color-primary-light-5); }
+.experiment-try-main:hover strong, .experiment-try-main:focus-visible strong { color: var(--el-color-primary); }
 .action-grid, .content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .next-step-list, .attention-list, .content-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-.next-step-item { width: 100%; padding: 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.next-step-item { display: flex; align-items: flex-start; gap: var(--space-sm); width: 100%; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); }
 .next-step-item:first-child { padding-top: 0; border-top: 0; }
-.next-step-item > span, .content-card-main > span { display: block; color: var(--el-color-primary); font-size: var(--type-meta); }
-.next-step-item > strong { display: block; margin-top: 5px; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); }
-.next-step-item > small { display: block; margin-top: 6px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
-.next-step-item:hover > strong, .content-card-main:hover h3, .context-link:hover { color: var(--el-color-primary); }
+.next-step-main { min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.next-step-main span, .content-card-main > span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
+.next-step-main strong { display: -webkit-box; margin-top: 5px; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.next-step-main small { display: block; margin-top: 6px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
+.next-step-main:hover strong, .next-step-main:focus-visible strong, .content-card-main:hover h3, .context-link:hover { color: var(--el-color-primary); }
+.quick-update-button { flex: 0 0 auto; padding: 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: nowrap; }
+.quick-update-button:hover, .quick-update-button:focus-visible { color: var(--el-color-primary-light-3); text-decoration: underline; }
 .attention-panel { background: var(--el-bg-color); }
 .attention-item { display: flex; gap: 10px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--el-border-color-lighter); }
 .attention-item:first-child { padding-top: 0; border-top: 0; }

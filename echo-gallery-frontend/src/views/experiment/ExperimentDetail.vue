@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, ArrowLeft, Delete, Edit, MagicStick, Plus } from '@element-plus/icons-vue'
 import ExperimentCardItem from '../../components/experiment/ExperimentCardItem.vue'
+import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import QuickCreateCardDialog from '../../components/QuickCreateCardDialog.vue'
 import CardPickerDialog from '../../components/CardPickerDialog.vue'
@@ -33,19 +34,8 @@ const latestObservation = computed(() => {
   const latest = exploration.value.records[0]
   return latest ? { text: latest.discovery, createdAt: latest.createdAt } : null
 })
-const recentTries = computed(() => [...new Set(
-  exploration.value.records.map(record => record.tryText).filter((text): text is string => Boolean(text))
-)].slice(0, 3))
-const tryDialogVisible = ref(false)
-const tryDialogMode = ref<'COMPOSE' | 'FAVORITES'>('COMPOSE')
-const tryDraft = ref('')
-const selectedTrySuggestion = ref('')
-const newFavoriteTryDraft = ref('')
-const editingFavoriteTry = ref<string | null>(null)
-const editingFavoriteTryDraft = ref('')
-const observationDialogVisible = ref(false)
-const observationDraft = ref('')
-const includeTryInDiscovery = ref(true)
+const explorationEditorVisible = ref(false)
+const explorationEditorMode = ref<'TRY' | 'DISCOVERY'>('TRY')
 const historyDialogVisible = ref(false)
 const exportVisible = ref(false)
 const exportCreateVisible = ref(false)
@@ -59,8 +49,7 @@ const pendingExportRecordIds = ref<number[]>([])
 const isExporting = ref(false)
 
 watch(experimentId, () => {
-  tryDialogVisible.value = false
-  observationDialogVisible.value = false
+  explorationEditorVisible.value = false
   historyDialogVisible.value = false
   exportVisible.value = false
 })
@@ -70,121 +59,9 @@ const setExploration = (value: ExperimentExplorationDto) => {
   void queryClient.invalidateQueries({ queryKey: ['experiments'] })
 }
 
-const openTryDialog = () => {
-  tryDraft.value = exploration.value.currentTry
-  selectedTrySuggestion.value = ''
-  tryDialogMode.value = 'COMPOSE'
-  newFavoriteTryDraft.value = ''
-  editingFavoriteTry.value = null
-  tryDialogVisible.value = true
-}
-
-const selectTrySuggestion = (text: string) => {
-  tryDraft.value = text
-}
-
-const saveTry = async () => {
-  const currentTry = trimToTextLength(tryDraft.value, 500).trim()
-  if (!currentTry) return
-  if (currentTry === exploration.value.currentTry) {
-    tryDialogVisible.value = false
-    return
-  }
-  try {
-    setExploration(await experimentApi.updateCurrentTry(experimentId.value, currentTry))
-    tryDialogVisible.value = false
-  } catch {
-    ElMessage.error('儲存試法失敗，請稍後再試')
-  }
-}
-
-const openFavoriteManagement = (initialText = '') => {
-  newFavoriteTryDraft.value = initialText
-  editingFavoriteTry.value = null
-  tryDialogMode.value = 'FAVORITES'
-}
-
-const saveFavoriteTries = async (favoriteTries: string[], successMessage: string) => {
-  try {
-    setExploration(await experimentApi.updateFavoriteTries(experimentId.value, favoriteTries))
-    ElMessage.success(successMessage)
-    return true
-  } catch {
-    ElMessage.error('更新常用試法失敗，請稍後再試')
-    return false
-  }
-}
-
-const addFavoriteTry = async () => {
-  const text = trimToTextLength(newFavoriteTryDraft.value, 500).trim()
-  if (!text) return
-  if (exploration.value.favoriteTries.includes(text)) {
-    ElMessage.info('這個試法已存入常用試法。')
-    return
-  }
-  if (exploration.value.favoriteTries.length >= 3) {
-    ElMessage.info('最多保存 3 種常用試法；請先移除一種。')
-    return
-  }
-  if (await saveFavoriteTries([...exploration.value.favoriteTries, text], '已新增常用試法。')) {
-    newFavoriteTryDraft.value = ''
-  }
-}
-
-const startEditFavoriteTry = (text: string) => {
-  editingFavoriteTry.value = text
-  editingFavoriteTryDraft.value = text
-}
-
-const updateFavoriteTry = async () => {
-  const original = editingFavoriteTry.value
-  const text = trimToTextLength(editingFavoriteTryDraft.value, 500).trim()
-  if (!original || !text) return
-  if (text !== original && exploration.value.favoriteTries.includes(text)) {
-    ElMessage.info('已有相同的常用試法。')
-    return
-  }
-  if (await saveFavoriteTries(
-    exploration.value.favoriteTries.map(saved => saved === original ? text : saved),
-    '常用試法已更新。',
-  )) {
-    editingFavoriteTry.value = null
-  }
-}
-
-const removeFavoriteTry = async (text: string) => {
-  try {
-    await ElMessageBox.confirm('從常用試法移除這段文字？已留下的探索紀錄不受影響。', '移除常用試法', {
-      confirmButtonText: '移除', cancelButtonText: '取消', type: 'warning',
-    })
-    await saveFavoriteTries(
-      exploration.value.favoriteTries.filter(saved => saved !== text),
-      '已移除常用試法。',
-    )
-  } catch {
-    // 使用者取消移除，不需處理。
-  }
-}
-
-const openObservationDialog = () => {
-  observationDraft.value = ''
-  includeTryInDiscovery.value = true
-  observationDialogVisible.value = true
-}
-
-const saveObservation = async () => {
-  const text = trimToTextLength(observationDraft.value, 1000).trim()
-  if (!text) return
-  try {
-    setExploration(await experimentApi.createExplorationRecord(
-      experimentId.value,
-      text,
-      includeTryInDiscovery.value,
-    ))
-    observationDialogVisible.value = false
-  } catch {
-    ElMessage.error('儲存發現失敗，請稍後再試')
-  }
+const openExplorationEditor = (mode: 'TRY' | 'DISCOVERY') => {
+  explorationEditorMode.value = mode
+  explorationEditorVisible.value = true
 }
 
 const clearExploration = async () => {
@@ -672,14 +549,14 @@ const handleGrownCard = async (_card: CardDto) => {
           <div class="exploration-snapshot current-try-snapshot">
             <div class="exploration-snapshot-heading">
               <span>目前想試</span>
-              <el-button text type="primary" @click="openTryDialog">{{ exploration.currentTry ? '編輯試法' : '設定試法' }}</el-button>
+              <el-button text type="primary" @click="openExplorationEditor('TRY')">{{ exploration.currentTry ? '編輯試法' : '設定試法' }}</el-button>
             </div>
             <p>{{ exploration.currentTry || '還沒有想試的事，可以先看看材料。' }}</p>
           </div>
           <div class="exploration-snapshot">
             <div class="exploration-snapshot-heading">
               <span>最近一次觀察</span>
-              <el-button text type="primary" @click="openObservationDialog">記下發現</el-button>
+              <el-button text type="primary" @click="openExplorationEditor('DISCOVERY')">記下發現</el-button>
             </div>
             <p>{{ latestObservation?.text || '尚未留下觀察。試過、沒試成或改變想法，都可以記在這裡。' }}</p>
           </div>
@@ -762,68 +639,11 @@ const handleGrownCard = async (_card: CardDto) => {
     @open-card="router.push(`/card/${$event}`)"
   />
 
-  <AppDialog v-model="tryDialogVisible" :title="tryDialogMode === 'COMPOSE' ? '試一件小事' : '常用試法'" width="min(560px, calc(100vw - 32px))" scroll-body>
-    <template v-if="tryDialogMode === 'COMPOSE'">
-      <p class="dialog-intro">先寫下一件容易開始的小事。它會留在「目前想試」，等你記下發現時再決定要不要一起收進一筆探索紀錄。</p>
-      <label class="try-suggestion-label" for="try-suggestion-select">從既有試法開始（可選）</label>
-      <el-select id="try-suggestion-select" v-model="selectedTrySuggestion" class="try-suggestion-select" placeholder="最近用過或常用試法" :disabled="!recentTries.length && !exploration.favoriteTries.length" @change="selectTrySuggestion">
-        <el-option-group v-if="recentTries.length" label="最近用過（最多 3 種）">
-          <el-option v-for="text in recentTries" :key="`recent-${text}`" :label="text" :value="text" />
-        </el-option-group>
-        <el-option-group v-if="exploration.favoriteTries.length" label="我的常用試法（最多 3 種）">
-          <el-option v-for="text in exploration.favoriteTries" :key="`saved-${text}`" :label="text" :value="text" />
-        </el-option-group>
-      </el-select>
-      <label class="try-input-label" for="try-draft">這次想試什麼？</label>
-      <el-input id="try-draft" v-model="tryDraft" type="textarea" :rows="4" maxlength="500" placeholder="例如：晚餐後拿起紙筆，隨意畫兩分鐘。" aria-label="這次想試的小事" @input="selectedTrySuggestion = ''" />
-      <p class="field-counter">{{ getTextLength(tryDraft) }} / 500</p>
-      <div class="try-secondary-actions">
-        <el-button text size="small" @click="openFavoriteManagement(tryDraft)">管理常用試法</el-button>
-      </div>
-    </template>
-    <template v-else>
-      <p class="dialog-intro">將想反覆使用的起點放在這裡。最多保存 3 種；修改或移除不會影響已留下的探索紀錄。</p>
-      <section class="favorite-try-create">
-        <label for="new-favorite-try">新增常用試法</label>
-        <el-input id="new-favorite-try" v-model="newFavoriteTryDraft" type="textarea" :rows="2" maxlength="500" placeholder="輸入想保存的試法" />
-        <div><span>{{ getTextLength(newFavoriteTryDraft) }} / 500</span><el-button size="small" type="primary" :disabled="!newFavoriteTryDraft.trim() || exploration.favoriteTries.length >= 3" @click="addFavoriteTry">新增</el-button></div>
-      </section>
-      <p v-if="exploration.favoriteTries.length >= 3" class="dialog-hint">已保存 3 種常用試法；可先修改或移除其中一種。</p>
-      <ul v-if="exploration.favoriteTries.length" class="favorite-try-list">
-        <li v-for="text in exploration.favoriteTries" :key="text">
-          <template v-if="editingFavoriteTry === text">
-            <el-input v-model="editingFavoriteTryDraft" type="textarea" :rows="2" maxlength="500" aria-label="編輯常用試法" />
-            <div class="favorite-try-row-actions"><el-button size="small" @click="editingFavoriteTry = null">取消</el-button><el-button size="small" type="primary" :disabled="!editingFavoriteTryDraft.trim()" @click="updateFavoriteTry">儲存</el-button></div>
-          </template>
-          <template v-else>
-            <p>{{ text }}</p>
-            <div class="favorite-try-row-actions"><el-button text size="small" @click="startEditFavoriteTry(text)">編輯</el-button><el-button text type="danger" size="small" @click="removeFavoriteTry(text)">移除</el-button></div>
-          </template>
-        </li>
-      </ul>
-      <p v-else class="empty-copy">還沒有常用試法。</p>
-    </template>
-    <template #footer>
-      <template v-if="tryDialogMode === 'COMPOSE'">
-        <el-button @click="tryDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!tryDraft.trim()" @click="saveTry">留下這個試法</el-button>
-      </template>
-      <el-button v-else @click="tryDialogMode = 'COMPOSE'">返回試法</el-button>
-    </template>
-  </AppDialog>
-
-  <AppDialog v-model="observationDialogVisible" title="記下發生了什麼" width="min(560px, calc(100vw - 32px))">
-    <p class="dialog-intro">試過、沒能開始、或想法變了，都可以寫一句。每次儲存只會產生一筆探索紀錄。</p>
-    <el-input v-model="observationDraft" type="textarea" :rows="5" maxlength="1000" placeholder="例如：沒畫成；原來我把紙筆收得太遠了。" aria-label="這次發生了什麼" />
-    <p class="field-counter">{{ getTextLength(observationDraft) }} / 1000</p>
-    <div v-if="exploration.currentTry" class="discovery-try-choice">
-      <p><span>目前試法</span>{{ exploration.currentTry }}</p>
-      <el-checkbox v-model="includeTryInDiscovery">把它一起留在這筆探索紀錄</el-checkbox>
-      <small v-if="includeTryInDiscovery">儲存後會清空目前試法，並形成「試法 → 發現」的一筆紀錄。</small>
-      <small v-else>這次只記發現；目前試法會保留，之後仍可繼續使用。</small>
-    </div>
-    <template #footer><el-button @click="observationDialogVisible = false">取消</el-button><el-button type="primary" :disabled="!observationDraft.trim()" @click="saveObservation">留下這次發現</el-button></template>
-  </AppDialog>
+  <ExperimentExplorationEditor
+    v-model="explorationEditorVisible"
+    :experiment-id="experimentId"
+    :mode="explorationEditorMode"
+  />
 
   <AppDialog v-model="exportVisible" title="整理探索紀錄" width="min(980px, calc(100vw - 32px))" scroll-body>
     <p class="dialog-intro">把選取的探索紀錄整理成 Card 內容。成功後會保留原紀錄，並標示它已整理到哪張卡片。</p>
@@ -1134,23 +954,6 @@ const handleGrownCard = async (_card: CardDto) => {
 .experiment-metadata dt { color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .experiment-metadata dd { margin: var(--space-2xs) 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); }
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
-.try-suggestion-label, .try-input-label { display: block; margin-bottom: 6px; color: var(--el-text-color-regular); font-size: var(--type-caption); }
-.try-suggestion-select { width: 100%; margin-bottom: 12px; }
-.try-secondary-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
-.try-secondary-actions :deep(.el-button) { margin-left: 0; }
-.favorite-try-create { display: grid; gap: 8px; }
-.favorite-try-create > label { color: var(--el-text-color-regular); font-size: var(--type-caption); }
-.favorite-try-create > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.favorite-try-create > div :deep(.el-button) { margin-left: 0; }
-.favorite-try-list { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; }
-.favorite-try-list li { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-subtle); }
-.favorite-try-list p { margin: 0; color: var(--el-text-color-primary); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
-.favorite-try-row-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.favorite-try-row-actions :deep(.el-button) { margin-left: 0; }
-.discovery-try-choice { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-subtle); }
-.discovery-try-choice p { margin: 0 0 10px; line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
-.discovery-try-choice p span { display: block; margin-bottom: 3px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
-.discovery-try-choice small { display: block; margin-top: 6px; color: var(--el-text-color-secondary); }
 .export-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-lg); align-items: start; }
 .export-selection-pane { min-width: 0; }
 .export-selection-pane > h3 { margin: 0 0 var(--space-sm); color: var(--el-text-color-primary); font-size: var(--type-card-title); }

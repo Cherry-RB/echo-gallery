@@ -51,14 +51,16 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="expandable-text">
-    <p
-      ref="contentElement"
-      class="expandable-content"
-      :class="{ expanded }"
-      :style="expanded ? undefined : { WebkitLineClamp: String(lines) }"
-    >
-      {{ content }}
-    </p>
+    <el-tooltip :content="content" :disabled="expanded || !canExpand" :show-after="400" placement="top" popper-class="content-tooltip">
+      <p
+        ref="contentElement"
+        class="expandable-content"
+        :class="{ expanded }"
+        :style="expanded ? undefined : { WebkitLineClamp: String(lines) }"
+      >
+        {{ content }}
+      </p>
+    </el-tooltip>
     <button
       v-if="canExpand || expanded"
       type="button"

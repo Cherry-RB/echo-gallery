@@ -373,21 +373,23 @@ const submitCreateIssue = async () => {
                 <span class="status-dot" aria-hidden="true"></span>
                 {{ issueStatusMeta[issue.status].label }}
               </span>
-              <h2 class="issue-title" :title="issue.title">{{ issue.title }}</h2>
+              <el-tooltip :content="issue.title" :show-after="400" placement="top" popper-class="content-tooltip">
+                <h2 class="issue-title">{{ issue.title }}</h2>
+              </el-tooltip>
 
               <div class="issue-overview-field">
                 <span>本輪系統問題</span>
-                <p v-if="issue.objective || issue.description" class="issue-description">
-                  {{ issue.objective || issue.description }}
-                </p>
+                <el-tooltip v-if="issue.objective || issue.description" :content="issue.objective || issue.description" :show-after="400" placement="top" popper-class="content-tooltip">
+                  <p class="issue-description">{{ issue.objective || issue.description }}</p>
+                </el-tooltip>
                 <p v-else class="issue-description empty-objective">這一輪想靠哪些現實資料，把問題往前推進？</p>
               </div>
 
               <div class="issue-overview-field criteria-preview">
                 <span>收斂／重議條件</span>
-                <p :class="{ 'empty-objective': !issue.outcomeCriteria }">
-                  {{ issue.outcomeCriteria || '尚未設定' }}
-                </p>
+                <el-tooltip :content="issue.outcomeCriteria || '尚未設定'" :show-after="400" placement="top" popper-class="content-tooltip">
+                  <p :class="{ 'empty-objective': !issue.outcomeCriteria }">{{ issue.outcomeCriteria || '尚未設定' }}</p>
+                </el-tooltip>
               </div>
 
               <footer class="issue-card-footer">
@@ -424,7 +426,7 @@ const submitCreateIssue = async () => {
                     {{ formatUpdatedAt(issue.latestProgressAt) }}
                   </time>
                   <button type="button" class="quick-update-button" @click.stop="openQuickUpdate(issue.id)">
-                    ＋ 記錄訊號
+                    ＋ 記錄
                   </button>
                 </div>
               </header>

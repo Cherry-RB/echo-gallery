@@ -419,6 +419,16 @@ code {
   line-height: var(--leading-ui);
 }
 
+/* 顯示被截斷內容的 Tooltip：保留閱讀寬度，避免長文字橫跨整個畫面。 */
+.content-tooltip.el-popper {
+  max-width: min(360px, calc(100vw - 32px));
+  padding: var(--space-xs) var(--space-sm);
+  line-height: var(--leading-ui);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* Drawer 僅承接跨頁輔助資訊；導覽與內容抽屜共享相同留白。 */
 .app-drawer .el-drawer__header {
   margin-bottom: 0;
