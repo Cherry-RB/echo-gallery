@@ -8,6 +8,7 @@ public record ExperimentResponse(
         String description,
         String hypothesis,
         String currentTry,
+        long explorationRecordCount,
         ExperimentThemeColor themeColor,
         boolean isArchived,
         long seedCount,

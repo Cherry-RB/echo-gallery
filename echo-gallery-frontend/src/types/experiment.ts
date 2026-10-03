@@ -9,6 +9,7 @@ export interface ExperimentDto {
   description: string | null
   hypothesis: string | null
   currentTry: string | null
+  explorationRecordCount: number
   themeColor: ExperimentThemeColor
   isArchived: boolean
   seedCount: number

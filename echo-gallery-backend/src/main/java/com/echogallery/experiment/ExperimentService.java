@@ -51,12 +51,14 @@ public class ExperimentService {
         List<Long> experimentIds = experiments.getContent().stream().map(Experiment::getId).toList();
         Map<Long, ExperimentStageCount> counts = getCounts(experimentIds);
         Map<Long, String> currentTries = getCurrentTries(experimentIds);
+        Map<Long, Long> explorationRecordCounts = getExplorationRecordCounts(experimentIds);
         return new PageResponse<>(
                 experiments.getContent().stream()
                         .map(experiment -> toExperimentResponse(
                                 experiment,
                                 counts.get(experiment.getId()),
-                                currentTries.get(experiment.getId())))
+                                currentTries.get(experiment.getId()),
+                                explorationRecordCounts.getOrDefault(experiment.getId(), 0L)))
                         .toList(),
                 page,
                 size,
@@ -70,7 +72,8 @@ public class ExperimentService {
         return toExperimentResponse(
                 experiment,
                 getCounts(List.of(experimentId)).get(experimentId),
-                getCurrentTry(experimentId));
+                getCurrentTry(experimentId),
+                getExplorationRecordCount(experimentId));
     }
 
     @Transactional
@@ -84,7 +87,7 @@ public class ExperimentService {
                 .hypothesis(normalizeOptionalText(request.getHypothesis()))
                 .themeColor(request.getThemeColor() == null ? ExperimentThemeColor.LEAF : request.getThemeColor())
                 .build();
-        return toExperimentResponse(experimentRepository.save(experiment), null, null);
+        return toExperimentResponse(experimentRepository.save(experiment), null, null, 0L);
     }
 
     @Transactional
@@ -99,7 +102,8 @@ public class ExperimentService {
         return toExperimentResponse(
                 experiment,
                 getCounts(List.of(experimentId)).get(experimentId),
-                getCurrentTry(experimentId));
+                getCurrentTry(experimentId),
+                getExplorationRecordCount(experimentId));
     }
 
     @Transactional
@@ -109,7 +113,8 @@ public class ExperimentService {
         return toExperimentResponse(
                 experiment,
                 getCounts(List.of(experimentId)).get(experimentId),
-                getCurrentTry(experimentId));
+                getCurrentTry(experimentId),
+                getExplorationRecordCount(experimentId));
     }
 
     @Transactional
@@ -432,13 +437,28 @@ public class ExperimentService {
                 .orElse(null);
     }
 
+    private Map<Long, Long> getExplorationRecordCounts(Collection<Long> experimentIds) {
+        if (experimentIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> result = new HashMap<>();
+        experimentExplorationRecordRepository.countByExperimentIds(experimentIds)
+                .forEach(count -> result.put(count.getExperimentId(), count.getRecordCount()));
+        return result;
+    }
+
+    private long getExplorationRecordCount(Long experimentId) {
+        return experimentExplorationRecordRepository.countByExperimentId(experimentId);
+    }
+
     private ExperimentResponse toExperimentResponse(
             Experiment experiment,
             ExperimentStageCount count,
-            String currentTry) {
+            String currentTry,
+            long explorationRecordCount) {
         return new ExperimentResponse(
                 experiment.getId(), experiment.getTitle(), experiment.getDescription(), experiment.getHypothesis(),
-                currentTry,
+                currentTry, explorationRecordCount,
                 experiment.getThemeColor() == null ? ExperimentThemeColor.LEAF : experiment.getThemeColor(), experiment.isArchived(),
                 count == null ? 0 : count.getSeedCount(),
                 count == null ? 0 : count.getGrowingCount(),

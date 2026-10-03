@@ -167,6 +167,7 @@ const submit = () => {
             <aside class="experiment-summary-side">
               <header class="experiment-card-header">
                 <ExperimentQuickRecordAction @select="openQuickRecord(experiment.id, $event)" />
+                <span v-if="experiment.explorationRecordCount > 0" class="exploration-record-count" :aria-label="`已有 ${experiment.explorationRecordCount} 筆探索紀錄`">{{ experiment.explorationRecordCount }}</span>
                 <el-dropdown trigger="click" @command="handleCardCommand(experiment, $event)">
                   <el-button text circle :icon="MoreFilled" aria-label="實驗主題操作" @click.stop />
                   <template #dropdown>
@@ -262,6 +263,7 @@ const submit = () => {
 .experiment-hypothesis { display: -webkit-box; margin: 9px 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
 .experiment-hypothesis.empty { color: var(--el-text-color-placeholder); font-weight: 400; }
 .experiment-current-try-label { display: block; margin-bottom: 3px; color: var(--el-color-primary); font-size: var(--type-meta); font-weight: 600; }
+.exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .experiment-summary-side { display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
 .soil-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 20px; padding: 15px 14px; border: 1px solid color-mix(in srgb, var(--experiment-vivid) 40%, var(--el-bg-color)); border-radius: 12px; background: color-mix(in srgb, var(--experiment-vivid) 26%, var(--el-bg-color)); }
 .soil-summary { display: flex; align-items: center; justify-content: center; min-width: 0; gap: 4px; font-size: var(--type-card-title); font-variant-numeric: tabular-nums; white-space: nowrap; }

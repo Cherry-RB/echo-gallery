@@ -114,7 +114,8 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
         mockMvc.perform(get("/api/experiments")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].currentTry").value("try a small thing"));
+                .andExpect(jsonPath("$.content[0].currentTry").value("try a small thing"))
+                .andExpect(jsonPath("$.content[0].explorationRecordCount").value(0));
 
         MvcResult recordResult = mockMvc.perform(post("/api/experiments/{id}/exploration/records", experimentId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
@@ -126,6 +127,11 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
                 .andReturn();
         long recordId = objectMapper.readTree(recordResult.getResponse().getContentAsString())
                 .get("records").get(0).get("id").asLong();
+
+        mockMvc.perform(get("/api/experiments")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].explorationRecordCount").value(1));
 
         MvcResult result = mockMvc.perform(post("/api/experiments/{id}/exploration/cards", experimentId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
