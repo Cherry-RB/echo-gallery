@@ -11,9 +11,9 @@ import {
   Plus,
   RemoveFilled,
   CollectionTag,
-  Filter,
   Aim,
-  DataAnalysis
+  DataAnalysis,
+  Menu
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';
 import { storeToRefs } from 'pinia';
@@ -35,10 +35,10 @@ const userProfile = ref({
 })
 
 const menuItems = [
-  { name: '總覽', path: '/overview', icon: DataAnalysis },
+  { name: '總覽', path: '/overview', icon: Menu },
   { name: '今日回流', path: '/board/today', icon: Calendar },
   { name: '全部卡片', path: '/board/all', icon: Files },
-  { name: '議事廳', path: '/issues', icon: Filter },
+  { name: '議事廳', path: '/issues', icon: DataAnalysis },
   { name: '實驗場', path: '/experiments', icon: Aim },
   { name: '標籤查詢', path: '/center/tag', icon: CollectionTag },
   { name: '卡片查詢', path: '/search', icon: Search },
@@ -69,7 +69,7 @@ const resetDemo = async () => {
 <template>
   <div class="sidebar-wrapper">
     <router-link to="/overview" class="sidebar-brand" aria-label="前往總覽">
-      <div class="brand-logo">🌌</div>
+      <img class="brand-logo" src="/favicon.svg" alt="" />
       <h2 class="brand-title">EchoGallery</h2>
     </router-link>
 
@@ -188,6 +188,13 @@ const resetDemo = async () => {
   color: inherit;
   text-decoration: none;
 }
+
+.brand-logo {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+
 .brand-title {
   font-size: var(--type-section-title);
   margin: 0;

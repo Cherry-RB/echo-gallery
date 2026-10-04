@@ -26,7 +26,7 @@ watch(() => route.path, () => {
     <header class="mobile-header">
       <button class="hamburger-btn" @click="isLeftDrawerOpen = true">☰</button>
       <router-link to="/overview" class="mobile-brand" aria-label="前往總覽">
-        <span class="brand-logo">🌌</span>
+        <img class="brand-logo" src="/favicon.svg" alt="" />
         <h2 class="brand-title">EchoGallery</h2>
       </router-link>
       <div class="mobile-header-actions">
@@ -135,6 +135,11 @@ watch(() => route.path, () => {
     gap: 8px;
     color: inherit;
     text-decoration: none;
+  }
+  .brand-logo {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
   }
   .mobile-header-actions {
     display: flex;

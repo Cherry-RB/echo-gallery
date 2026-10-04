@@ -556,14 +556,26 @@ const handleGrownCard = async (_card: CardDto) => {
               <span>{{ exploration.currentTry ? '目前想試' : '1．設定試法' }}</span>
               <el-button :text="Boolean(exploration.currentTry)" type="primary" size="small" @click="openExplorationEditor('TRY')">{{ exploration.currentTry ? '編輯試法' : '設定試法' }}</el-button>
             </div>
-            <p :class="{ empty: !exploration.currentTry }">{{ exploration.currentTry || '還沒有想試的事，可以先看看材料。' }}</p>
+            <ExpandableText
+              v-if="exploration.currentTry"
+              class="exploration-snapshot-copy"
+              :content="exploration.currentTry"
+              :lines="6"
+            />
+            <p v-else class="empty">還沒有想試的事，可以先看看材料。</p>
           </div>
           <div :class="['exploration-snapshot', { 'is-next-action': Boolean(exploration.currentTry) && !latestObservation }]">
             <div class="exploration-snapshot-heading">
               <span>{{ latestObservation ? '最近一次觀察' : '2．記下發現' }}</span>
               <el-button :text="!exploration.currentTry || Boolean(latestObservation)" type="primary" size="small" @click="openExplorationEditor('DISCOVERY')">{{ exploration.currentTry || latestObservation ? '記下發現' : '直接記下發現' }}</el-button>
             </div>
-            <p :class="{ empty: !latestObservation }">{{ latestObservation?.text || (exploration.currentTry ? '試過、沒試成或改變想法，都可以記在這裡。' : '設定試法後，再留下觀察；也可以直接記錄現在的發現。') }}</p>
+            <ExpandableText
+              v-if="latestObservation?.text"
+              class="exploration-snapshot-copy"
+              :content="latestObservation.text"
+              :lines="6"
+            />
+            <p v-else class="empty">{{ exploration.currentTry ? '試過、沒試成或改變想法，都可以記在這裡。' : '設定試法後，再留下觀察；也可以直接記錄現在的發現。' }}</p>
           </div>
         </div>
         <div class="exploration-footnote">
@@ -919,6 +931,7 @@ const handleGrownCard = async (_card: CardDto) => {
 .exploration-snapshot.is-next-action .exploration-snapshot-heading > span { color: var(--el-color-primary); font-weight: var(--weight-semibold); }
 .exploration-snapshot p { margin: var(--space-2xs) 0 0; color: var(--el-text-color-primary); font-size: var(--type-ui); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
 .exploration-snapshot p.empty { color: var(--el-text-color-placeholder); font-size: var(--type-caption); }
+.exploration-snapshot :deep(.expandable-content) { margin: var(--space-2xs) 0 0; color: var(--el-text-color-primary); font-size: var(--type-ui); line-height: var(--leading-ui); }
 .exploration-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-xs); }
 .exploration-actions :deep(.el-button) { margin-left: 0; }
 .exploration-history-trigger { display: inline-flex; align-items: center; gap: var(--space-xs); padding: var(--space-2xs) 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: nowrap; }
