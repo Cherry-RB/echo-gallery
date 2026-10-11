@@ -71,6 +71,7 @@ class OverviewIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.todayReturnPoolCount").isNumber())
                 .andExpect(jsonPath("$.recurringCardCount").isNumber())
+                .andExpect(jsonPath("$.activeExperimentCount").value(2))
                 .andExpect(jsonPath("$.experimentTries.length()").value(2))
                 .andExpect(jsonPath("$.experimentTries[0].experimentId").value(emptyExperimentId))
                 .andExpect(jsonPath("$.experimentTries[0].currentTry").value(""))
@@ -96,6 +97,45 @@ class OverviewIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.cadenceBands.length()").value(7))
                 .andExpect(jsonPath("$.forecastDays.length()").value(7))
                 .andExpect(jsonPath("$.snoozeBands.length()").value(3));
+    }
+
+    @Test
+    void limitsVisibleExperimentsToNineButCountsAllActiveExperimentsForCurrentUser() throws Exception {
+        String token = register("overview-limit", "overview-limit@example.com");
+        mockMvc.perform(get("/api/overview/current")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeExperimentCount").value(0))
+                .andExpect(jsonPath("$.experimentTries.length()").value(0));
+
+        long[] activeIds = new long[10];
+        for (int index = 0; index < activeIds.length; index++) {
+            activeIds[index] = createExperiment(token, "Active experiment " + index);
+        }
+        long archivedId = createExperiment(token, "Archived experiment");
+        mockMvc.perform(put("/api/experiments/{id}/archive", archivedId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk());
+        String otherToken = register("overview-other", "overview-other@example.com");
+        createExperiment(otherToken, "Other owner's experiment");
+
+        mockMvc.perform(get("/api/overview/current")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeExperimentCount").value(10))
+                .andExpect(jsonPath("$.experimentTries.length()").value(9))
+                .andExpect(jsonPath("$.experimentTries[0].experimentId").value(activeIds[9]))
+                .andExpect(jsonPath("$.experimentTries[8].experimentId").value(activeIds[1]));
+    }
+
+    private long createExperiment(String token, String title) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/experiments")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(java.util.Map.of("title", title))))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
     }
 
     @Test

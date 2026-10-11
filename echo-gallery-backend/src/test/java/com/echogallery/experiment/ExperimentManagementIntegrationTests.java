@@ -211,7 +211,7 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
                 .content("{\"cardId\":%d,\"stage\":\"SEED\"}".formatted(existingCardId)))
                 .andExpect(status().isOk());
 
-        MvcResult overviewResult = mockMvc.perform(get("/api/overview")
+        MvcResult overviewResult = mockMvc.perform(get("/api/overview/recent")
                 .param("periodDays", "30")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
