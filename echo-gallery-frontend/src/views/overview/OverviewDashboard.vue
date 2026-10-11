@@ -148,7 +148,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         <div class="section-title-row">
           <div>
             <span class="section-eyebrow">實驗場</span>
-            <h2 id="overview-experiment-tries-title">進行中的實驗</h2>
+            <h2 id="overview-experiment-tries-title">進行中的實驗（{{ current.activeExperimentCount }}）</h2>
           </div>
           <router-link to="/experiments">查看全部</router-link>
         </div>
