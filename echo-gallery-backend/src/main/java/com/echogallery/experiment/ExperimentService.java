@@ -41,6 +41,7 @@ public class ExperimentService {
     private final ExperimentExplorationRepository experimentExplorationRepository;
     private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
     private final ExplorationRecordCardRepository explorationRecordCardRepository;
+    private final com.echogallery.treasure.TreasureLifecycle treasureLifecycle;
 
     @Transactional(readOnly = true)
     public PageResponse<ExperimentResponse> getExperiments(boolean archived, int requestedPage, int requestedSize) {
@@ -120,6 +121,7 @@ public class ExperimentService {
     @Transactional
     public void deleteExperiment(Long experimentId) {
         Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
+        treasureLifecycle.detachExperiment(SecurityUtil.getCurrentUserId(), experimentId);
         // 只移除實驗主題的組織與脈絡資料；卡片本體仍留在收藏庫。
         cardRelationRepository.deleteByExperimentId(experimentId);
         experimentCardRepository.deleteByExperimentId(experimentId);

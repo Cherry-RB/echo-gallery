@@ -7,6 +7,7 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewPeriodDays } from '../../types/overview'
+import { eventKinds, ranks } from '../../utils/treasure'
 
 const selectedPeriod = ref<OverviewPeriodDays>(30)
 const router = useRouter()
@@ -18,20 +19,21 @@ const { data: overview, isLoading, isError, refetch } = useQuery({
 const period = computed(() => overview.value?.period ?? {
   flow: { reengagedCardCount: 0, reviewedCardCount: 0 },
   generativity: { derivedCardCount: 0, sourceCardCount: 0 },
-  closure: { issueWithFollowUpCount: 0 },
+  treasureGrowth: { collectedCount: 0, promotedTreasureCount: 0, yieldTreasureCount: 0, yieldRecordCount: 0 },
+  recentTreasureEvents: [],
   activities: [],
   derivedCards: [],
   recentExperimentMaterials: [],
 })
 
 const periodFigures = computed(() => [
-  { key: 'reengaged', value: period.value.flow.reengagedCardCount, unit: '張', label: '舊卡重新參與', description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`, explanation: '建立於這段時間之前，且在這段時間重新被閱讀、放入實驗場、帶入議題或成為衍生來源的卡片。不是越高越好。' },
+  { key: 'reengaged', value: period.value.flow.reengagedCardCount, unit: '張', label: '舊卡重新參與', description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`, explanation: '建立於這段時間之前，且在這段時間重新被閱讀、放入實驗場或成為衍生來源的卡片。不是越高越好。' },
   { key: 'derived', value: period.value.generativity.derivedCardCount, unit: '張', label: '由既有內容長出', description: `${period.value.generativity.sourceCardCount} 張既有卡片成為來源`, explanation: '保留一張或多張來源卡關係而建立的新卡；單純新增收藏或放入實驗場不計入。' },
-  { key: 'follow-up', value: period.value.closure.issueWithFollowUpCount, unit: '個議題', label: '下一步後留下更新', description: '代表議題後續有新的研判或經驗', explanation: '議題曾留下 nextStep，之後又新增進度。這不是任務完成數，也不能證明 nextStep 已執行。' },
+  { key: 'treasure-yield', value: period.value.treasureGrowth.yieldTreasureCount, unit: '件', label: '奇珍產生價值', description: `留下 ${period.value.treasureGrowth.yieldRecordCount} 筆價值產出`, explanation: '以實際發生日期計算。相同成果的多筆價值產出仍為一件奇珍；設定挑戰不算產出，也不代表已取得收入。' },
 ])
 
 const activityDefinitions = {
-  created: '新增卡片', offered: 'Today 再次出現', reviewed: '完成回顧', 'experiment-material': '放入實驗場', 'issue-linked': '帶入議題', derived: '長出新卡', 'exploration-record': '留下探索發現', 'issue-update': '議題更新',
+  created: '新增卡片', offered: 'Today 再次出現', reviewed: '完成回顧', 'experiment-material': '放入實驗場', derived: '長出新卡', 'exploration-record': '留下探索發現', 'treasure-collected': '奇珍入藏', 'treasure-promoted': '曾晉級的奇珍', 'treasure-yield': '奇珍價值產出',
 } as const
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', { month: 'numeric', day: 'numeric' }).format(new Date(value))
@@ -41,7 +43,7 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
 
 <template>
   <section class="overview-page app-page app-page--workspace">
-    <PageHeader title="近期回顧" description="回看這段時間，哪些卡片、探索與議題留下了變化。">
+    <PageHeader title="近期回顧" description="回看這段時間，哪些卡片、探索與成果留下了變化。">
       <template #actions><OverviewNavigation /></template>
     </PageHeader>
 
@@ -91,6 +93,16 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
           </section>
         </div>
 
+        <section class="content-panel" aria-labelledby="overview-treasure-events">
+          <div class="section-title-row"><h2 id="overview-treasure-events">近期取得與成長的奇珍</h2><router-link to="/treasures">查看館藏</router-link></div>
+          <div v-if="period.recentTreasureEvents.length" class="content-list">
+            <article v-for="(event, index) in period.recentTreasureEvents" :key="`${event.kind}-${event.treasureId}-${event.eventAt}-${index}`" class="content-card">
+              <router-link :to="`/treasures/${event.treasureId}`">{{ event.treasureTitle }}</router-link>
+              <p>{{ formatDate(event.eventAt) }} · {{ eventKinds[event.kind] }}{{ event.rank ? `至${ranks[event.rank]}` : '' }} · {{ event.eventTitle }}</p>
+            </article>
+          </div>
+          <p v-else class="empty-copy">這段時間還沒有新的奇珍紀錄。</p>
+        </section>
         <details class="activity-disclosure"><summary>查看近 {{ selectedPeriod }} 天的完整活動</summary><div class="activity-list"><div v-for="activity in period.activities" :key="activity.key" class="activity-item"><strong>{{ activity.value }}</strong><span>{{ activityDefinitions[activity.key] }}</span></div></div></details>
       </div>
     </div>

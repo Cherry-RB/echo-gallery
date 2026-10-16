@@ -1,0 +1,9 @@
+/* 奇珍等級識別：元件只套用語意變數，亮暗色碼集中管理。 */
+[data-rank='STONE'] { --rank-text: #5f5548; --rank-accent: #88775b; --rank-border: #c1b49b; --rank-tint: #eee7dc; --rank-surface: #f6f2ec; }
+[data-rank='BRONZE'] { --rank-text: #48601c; --rank-accent: #718c30; --rank-border: #a2b36f; --rank-tint: #e9f0ce; --rank-surface: #f2f5e5; }
+[data-rank='SILVER'] { --rank-text: #3f5b76; --rank-accent: #6687a5; --rank-border: #a4b8cd; --rank-tint: #e7eff7; --rank-surface: #f0f4f8; }
+[data-rank='GOLD'] { --rank-text: #775800; --rank-accent: #ac820c; --rank-border: #d7b44b; --rank-tint: #fff2bd; --rank-surface: #fff8df; }
+html.dark [data-rank='STONE'] { --rank-text: #d7c8ae; --rank-accent: #b4a082; --rank-border: #887a64; --rank-tint: #332e26; --rank-surface: #292620; }
+html.dark [data-rank='BRONZE'] { --rank-text: #ccdd8c; --rank-accent: #a7bf62; --rank-border: #7e9445; --rank-tint: #2c351d; --rank-surface: #252b1d; }
+html.dark [data-rank='SILVER'] { --rank-text: #c8dbee; --rank-accent: #9ab6d0; --rank-border: #8199b3; --rank-tint: #263342; --rank-surface: #222b35; }
+html.dark [data-rank='GOLD'] { --rank-text: #f2d46b; --rank-accent: #ddbd51; --rank-border: #b89b3e; --rank-tint: #3c3218; --rank-surface: #2e291c; }

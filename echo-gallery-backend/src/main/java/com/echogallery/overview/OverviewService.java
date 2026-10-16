@@ -33,11 +33,6 @@ import com.echogallery.experiment.ExperimentExplorationRecordRepository;
 import com.echogallery.experiment.ExperimentRepository;
 import com.echogallery.experiment.ExplorationRecordCardRepository;
 import com.echogallery.util.SecurityUtil;
-import com.echogallery.issue.IssueCardRepository;
-import com.echogallery.issue.IssueUpdate;
-import com.echogallery.issue.IssueUpdateCount;
-import com.echogallery.issue.IssueUpdateRepository;
-import com.echogallery.issue.IssueStatus;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -45,7 +40,6 @@ import lombok.RequiredArgsConstructor;
 public class OverviewService {
 
     private static final List<Integer> ALLOWED_PERIOD_DAYS = List.of(7, 30, 90);
-    private static final int NEXT_STEP_LIMIT = 3;
     private static final int EXPERIMENT_TRY_LIMIT = 9;
     private static final int DERIVED_CARD_LIMIT = 12;
 
@@ -56,8 +50,7 @@ public class OverviewService {
     private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
     private final ExplorationRecordCardRepository explorationRecordCardRepository;
     private final CardRelationRepository cardRelationRepository;
-    private final IssueCardRepository issueCardRepository;
-    private final IssueUpdateRepository issueUpdateRepository;
+    private final com.echogallery.treasure.TreasureService treasureService;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -79,20 +72,6 @@ public class OverviewService {
     }
 
     private OverviewResponse.OverviewCurrentResponse buildCurrentOverview(Long userId, ZonedDateTime now) {
-
-        List<IssueUpdate> latestUpdates = issueUpdateRepository.findLatestByUserId(userId);
-        List<IssueUpdate> nextStepUpdates = latestUpdates.stream()
-                .filter(update -> update.getIssue().getStatus() != IssueStatus.DONE)
-                .filter(update -> hasText(update.getNextStep()))
-                .sorted(Comparator.comparing(IssueUpdate::getCreatedAt).reversed())
-                .toList();
-        List<IssueUpdate> visibleNextStepUpdates = nextStepUpdates.stream().limit(NEXT_STEP_LIMIT).toList();
-        Map<Long, Long> issueUpdateCounts = visibleNextStepUpdates.isEmpty()
-                ? Map.of()
-                : issueUpdateRepository.countByIssueIds(
-                        visibleNextStepUpdates.stream().map(update -> update.getIssue().getId()).toList())
-                        .stream()
-                        .collect(Collectors.toMap(IssueUpdateCount::getIssueId, IssueUpdateCount::getUpdateCount));
 
         int recurringCardCount = safeInt(cardRepository.countRecurringByUserId(userId));
         int pausedCardCount = safeInt(cardRepository.countPausedByUserId(userId));
@@ -129,11 +108,9 @@ public class OverviewService {
                 pausedCardCount,
                 needsProcessingCardCount,
                 safeInt(experimentRepository.countByUserIdAndIsArchivedFalse(userId)),
-                nextStepUpdates.size(),
+                treasureService.activeCount(),
                 experimentTries,
-                visibleNextStepUpdates.stream()
-                        .map(update -> toNextStep(update, issueUpdateCounts.getOrDefault(update.getIssue().getId(), 0L)))
-                        .toList(),
+                treasureService.highlights(),
                 attentionSignals(needsProcessingCardCount, highSnoozeCardCount));
 
         return current;
@@ -153,15 +130,13 @@ public class OverviewService {
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
                 safeInt(cardRelationRepository.countDistinctSourceCardsByUserIdAndCreatedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)));
-        OverviewResponse.ClosureMetricResponse closure = new OverviewResponse.ClosureMetricResponse(
-                safeInt(issueUpdateRepository.countIssuesWithFollowUpAfterNextStep(
-                        userId, periodStartAt, periodEndAt)));
-
+        var growth = treasureService.growth(periodStartAt, periodEndAt);
         return new OverviewResponse.OverviewPeriodResponse(
                 flow,
                 generativity,
-                closure,
-                buildActivities(userId, periodStartAt, periodEndAt),
+                growth,
+                treasureService.events(periodStartAt, periodEndAt),
+                buildActivities(userId, periodStartAt, periodEndAt, growth),
                 findDerivedCards(userId, periodStartAt, periodEndAt),
                 findRecentExperimentMaterials(userId, periodStartAt, periodEndAt));
     }
@@ -215,21 +190,22 @@ public class OverviewService {
     private List<OverviewResponse.ActivityResponse> buildActivities(
             Long userId,
             ZonedDateTime periodStartAt,
-            ZonedDateTime periodEndAt) {
+            ZonedDateTime periodEndAt,
+            com.echogallery.treasure.TreasureResponses.Growth growth) {
         return List.of(
                 activity("created", cardRepository.countByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("offered", cardRepository.countByUserIdAndLastOfferedAtGreaterThanEqualAndLastOfferedAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("reviewed", cardRepository.countByUserIdAndLastOpenAtGreaterThanEqualAndLastOpenAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("experiment-material", experimentCardRepository.countStandaloneMaterialsByUserIdAndAddedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
-                activity("issue-linked", issueCardRepository.countByIssueUserIdAndLinkedAtGreaterThanEqualAndLinkedAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("derived", cardRelationRepository.countDistinctDerivedCardsByUserIdAndCreatedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
                 activity("exploration-record", experimentExplorationRecordRepository
                         .countByExperimentUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                                 userId, periodStartAt, periodEndAt)),
-                activity("issue-update", issueUpdateRepository.countByIssueUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
-                        userId, periodStartAt, periodEndAt)));
+                activity("treasure-collected", growth.collectedCount()),
+                activity("treasure-promoted", growth.promotedTreasureCount()),
+                activity("treasure-yield", growth.yieldRecordCount()));
     }
 
     private List<OverviewResponse.DerivedCardResponse> findDerivedCards(
@@ -309,11 +285,6 @@ public class OverviewService {
     private record ExperimentCardKey(Long experimentId, Long cardId) {
     }
 
-    private OverviewResponse.NextStepResponse toNextStep(IssueUpdate update, long progressUpdateCount) {
-        return new OverviewResponse.NextStepResponse(
-                update.getIssue().getId(), update.getIssue().getTitle(), update.getNextStep(), update.getCreatedAt(), progressUpdateCount);
-    }
-
     private OverviewResponse.ExperimentTryResponse toExperimentTry(
             Experiment experiment,
             ExperimentExploration exploration,
@@ -360,7 +331,4 @@ public class OverviewService {
         return Math.toIntExact(value);
     }
 
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
-    }
 }

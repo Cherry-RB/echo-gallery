@@ -428,6 +428,9 @@ export const useCardStatus = () => {
           // 移除詳細頁快取
           queryClient.removeQueries({ queryKey:['card', String(variables.id)] });
           queryClient.invalidateQueries({ queryKey: ['cards'] });
+          // 來源已解除引用，重新讀取成果脈絡與收益關聯。
+          queryClient.invalidateQueries({ queryKey: ['treasures'] });
+          queryClient.invalidateQueries({ queryKey: ['overview'] });
           // 更新側邊欄
           queryClient.invalidateQueries({ queryKey:['sidebar'] });
           ElMessage.success('卡片刪除成功');

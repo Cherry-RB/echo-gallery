@@ -86,7 +86,7 @@ class OverviewIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.periodDays").value(30))
                 .andExpect(jsonPath("$.period.flow.reengagedCardCount").isNumber())
-                .andExpect(jsonPath("$.period.activities.length()").value(8))
+                .andExpect(jsonPath("$.period.activities.length()").value(9))
                 .andExpect(jsonPath("$.period.recentExperimentMaterials").isArray());
 
         mockMvc.perform(get("/api/overview/card-return")

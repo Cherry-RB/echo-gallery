@@ -3,25 +3,19 @@ import { computed, ref } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
 import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
 import { experimentApi } from '../../utils/api/experimentApi'
-import IssueUpdateDialog from '../../components/issue/IssueUpdateDialog.vue'
-import IssueUpdates from '../../components/issue/IssueUpdates.vue'
+import { highlightKinds, ranks } from '../../utils/treasure'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewAttentionSignal } from '../../types/overview'
 import type { ExperimentExplorationRecordDto } from '../../types/experiment'
 
 const router = useRouter()
 const queryClient = useQueryClient()
-const quickUpdateIssueId = ref<number | null>(null)
-const quickUpdateVisible = ref(false)
-const issueHistoryId = ref<number | null>(null)
-const issueHistoryVisible = ref(false)
 const quickRecordExperimentId = ref<number | null>(null)
 const quickRecordMode = ref<'TRY' | 'DISCOVERY'>('TRY')
 const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
@@ -39,9 +33,9 @@ const current = computed(() => overview.value ?? {
   pausedCardCount: 0,
   needsProcessingCardCount: 0,
   activeExperimentCount: 0,
-  issueWithNextStepCount: 0,
+  treasureCount: 0,
   experimentTries: [],
-  nextSteps: [],
+  treasureHighlights: [],
   attentionSignals: [],
 })
 const historyQuery = useQuery({
@@ -56,7 +50,7 @@ const currentItems = computed(() => [
   { key: 'paused', label: '暫停中', value: current.value.pausedCardCount, unit: '張卡片' },
   { key: 'processing', label: '待整理', value: current.value.needsProcessingCardCount, unit: '張卡片' },
   { key: 'experiments', label: '活躍實驗場', value: current.value.activeExperimentCount, unit: '個' },
-  { key: 'next-steps', label: '已有下一步的議題', value: current.value.issueWithNextStepCount, unit: '個' },
+  { key: 'treasures', label: '館藏奇珍', value: current.value.treasureCount, unit: '件' },
 ])
 
 const attentionItems = computed(() => (current.value.attentionSignals ?? []).map(signal => ({
@@ -74,15 +68,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', {
 
 const openCard = (cardId: number) => router.push({ name: 'CardDetail', params: { id: cardId }, query: { from: 'overview' } })
 const openExperiment = (experimentId: number) => router.push({ name: 'ExperimentDetail', params: { id: experimentId } })
-const openIssue = (issueId: number) => router.push({ name: 'IssueDetail', params: { id: issueId } })
-const openQuickUpdate = (issueId: number) => {
-  quickUpdateIssueId.value = issueId
-  quickUpdateVisible.value = true
-}
-const openIssueHistory = (issueId: number) => {
-  issueHistoryId.value = issueId
-  issueHistoryVisible.value = true
-}
+const openTreasure = (treasureId: number, trialId?: number | null) => router.push({ name: 'TreasureDetail', params: { id: treasureId }, hash: trialId ? '#trials' : '' })
 const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
   quickRecordExperimentId.value = experimentId
   quickRecordMode.value = mode
@@ -125,7 +111,7 @@ const openCardReturn = () => router.push('/overview/cards')
 const openCurrentItem = (key: string) => {
   if (key === 'today-return') router.push('/board/today')
   else if (key === 'experiments') router.push('/experiments')
-  else if (key === 'next-steps') router.push('/issues')
+  else if (key === 'treasures') router.push('/treasures')
   else openCardReturn()
 }
 const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'processing' ? '□' : '↗'
@@ -175,31 +161,25 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         </div>
       </section>
 
-      <div class="action-grid">
-        <section class="action-panel" aria-labelledby="overview-next-step-title">
+      <div class="action-grid" :class="{ 'action-grid--single': !attentionItems.length }">
+        <section class="action-panel" aria-labelledby="overview-treasure-title">
           <div class="section-title-row">
             <div>
-              <span class="section-eyebrow">議事廳</span>
-              <h2 id="overview-next-step-title">現在可以往前走</h2>
+              <span class="section-eyebrow">奇珍展覽館</span>
+              <h2 id="overview-treasure-title">正在成長的成果</h2>
             </div>
-            <el-tooltip content="nextStep 是已留下的方向，不是待辦事項，也不表示必須立刻完成。" placement="top">
-              <el-icon class="info-icon"><InfoFilled /></el-icon>
-            </el-tooltip>
+            <router-link to="/treasures">查看全部</router-link>
           </div>
-          <div v-if="current.nextSteps.length" class="next-step-list">
-            <article v-for="step in current.nextSteps.slice(0, 3)" :key="step.issueId" class="next-step-item">
-              <button type="button" class="next-step-main" @click="openIssue(step.issueId)">
-                <el-tooltip :content="step.issueTitle" :show-after="400" placement="top" popper-class="content-tooltip"><span>{{ step.issueTitle }}</span></el-tooltip>
-                <el-tooltip :content="step.nextStep" :show-after="400" placement="top" popper-class="content-tooltip"><strong>{{ step.nextStep }}</strong></el-tooltip>
-                <small>更新於 {{ formatDate(step.updatedAt) }}</small>
+          <div v-if="current.treasureHighlights.length" class="next-step-list">
+            <article v-for="item in current.treasureHighlights" :key="item.treasureId" class="next-step-item">
+              <button type="button" class="next-step-main" @click="openTreasure(item.treasureId, item.trialId)">
+                <span>{{ ranks[item.rank] }} · {{ item.title }}</span>
+                <strong>{{ highlightKinds[item.highlightKind] }}：{{ item.highlightTitle }}</strong>
+                <small v-if="item.eventAt">{{ formatDate(item.eventAt) }}</small>
               </button>
-              <div class="next-step-update-action">
-                <button type="button" class="quick-update-button" @click="openQuickUpdate(step.issueId)">＋ 記錄</button>
-                <button v-if="step.progressUpdateCount > 0" type="button" class="progress-update-count" :aria-label="`查看 ${step.progressUpdateCount} 筆近況更新`" @click="openIssueHistory(step.issueId)">{{ step.progressUpdateCount }}</button>
-              </div>
             </article>
           </div>
-          <p v-else class="empty-copy">目前沒有已留下下一步的議題。</p>
+          <p v-else class="empty-copy">尚無館藏。完成過的作品與實踐，都可以成為第一件奇珍。<router-link to="/treasures">收入奇珍</router-link></p>
         </section>
 
         <section v-if="attentionItems.length" class="action-panel attention-panel" aria-labelledby="overview-attention-title">
@@ -246,18 +226,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       </div>
     </div>
 
-    <IssueUpdateDialog
-      v-if="quickUpdateIssueId !== null"
-      v-model="quickUpdateVisible"
-      :issue-id="quickUpdateIssueId"
-      @closed="quickUpdateIssueId = null"
-    />
-    <IssueUpdates
-      v-if="issueHistoryId !== null"
-      v-model="issueHistoryVisible"
-      :issue-id="issueHistoryId"
-      history-only
-    />
     <ExperimentExplorationEditor
       v-if="quickRecordExperimentId !== null"
       v-model="quickRecordVisible"
@@ -310,6 +278,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .exploration-record-count:hover, .exploration-record-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .action-grid, .content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.action-grid--single { grid-template-columns: 1fr; }
 .next-step-list, .attention-list, .content-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 .next-step-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: flex-start; min-width: 0; column-gap: var(--space-sm); width: 100%; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); }
 .next-step-item:first-child { padding-top: 0; border-top: 0; }

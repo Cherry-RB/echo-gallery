@@ -33,6 +33,7 @@ public class CardService {
     private final UserRepository userRepository;
     private final TagRepository tagRepository;
     private final Clock clock;
+    private final com.echogallery.treasure.TreasureLifecycle treasureLifecycle;
 
     // 給查詢用:排他上界(今天結束 = 明天開始)
     public ZonedDateTime getStartOfTomorrowTaipei() {
@@ -330,6 +331,8 @@ public class CardService {
             // 故意拋出 403 Forbidden！這會直接觸發你前端 Axios 攔截器的 case 403 -> "權限不足，拒絕存取"
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您無權刪除此卡片");
         }
+
+        treasureLifecycle.detachCard(currentUserId, cardId);
 
         // 先將要回傳的資料轉為 DTO（因為刪除後該物件就不應再被操作）
         CardDetailResponse response = convertToDetailResponse(card);

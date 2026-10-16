@@ -14,4 +14,5 @@ public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
     long countByUserIdAndIsArchivedFalse(Long userId);
 
     List<Experiment> findByIdIn(List<Long> experimentIds);
+    List<Experiment> findAllByUserId(Long userId);
 }

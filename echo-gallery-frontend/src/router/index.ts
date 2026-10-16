@@ -93,6 +93,16 @@ const routes = [
       component: () => import('../views/center/TagCenter.vue')
     },
     {
+      path: 'treasures',
+      name: 'TreasureList',
+      component: () => import('../views/treasure/TreasureList.vue')
+    },
+    {
+      path: 'treasures/:id',
+      name: 'TreasureDetail',
+      component: () => import('../views/treasure/TreasureDetail.vue')
+    },
+    {
       path: 'issues',
       name: 'IssueList',
       component: () => import('../views/issue/IssueList.vue')

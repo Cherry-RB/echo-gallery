@@ -5,14 +5,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 // 🌟 引入原有與新加入的 Element Plus 官方圖示
 import {
   Calendar,
-  Files,
+  Postcard,
   Refresh,
   Search,
   Plus,
   RemoveFilled,
   CollectionTag,
   Aim,
-  DataAnalysis,
+  Trophy,
   Menu
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';
@@ -37,9 +37,9 @@ const userProfile = ref({
 const menuItems = [
   { name: '總覽', path: '/overview', icon: Menu },
   { name: '今日回流', path: '/board/today', icon: Calendar },
-  { name: '全部卡片', path: '/board/all', icon: Files },
-  { name: '議事廳', path: '/issues', icon: DataAnalysis },
+  { name: '全部卡片', path: '/board/all', icon: Postcard },
   { name: '實驗場', path: '/experiments', icon: Aim },
+  { name: '奇珍展覽館', path: '/treasures', icon: Trophy },
   { name: '標籤查詢', path: '/center/tag', icon: CollectionTag },
   { name: '卡片查詢', path: '/search', icon: Search },
 ]

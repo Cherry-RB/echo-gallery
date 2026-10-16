@@ -240,13 +240,6 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
                         AND experimentCard.addedAt < :periodEndAt
                   )
                   OR EXISTS (
-                      SELECT issueCard.id
-                      FROM IssueCard issueCard
-                      WHERE issueCard.card = c
-                        AND issueCard.linkedAt >= :periodStartAt
-                        AND issueCard.linkedAt < :periodEndAt
-                  )
-                  OR EXISTS (
                       SELECT relation.id
                       FROM CardRelation relation
                       WHERE relation.sourceCard = c

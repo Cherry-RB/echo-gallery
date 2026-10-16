@@ -44,6 +44,8 @@ public class DemoSessionService {
     private final AuthService authService;
     private final Clock clock;
     private final DemoCatalog demoCatalog;
+    private final com.echogallery.treasure.TreasureLifecycle treasureLifecycle;
+    private final com.echogallery.experiment.ExperimentRepository experimentRepository;
 
     @Transactional
     public AuthDto.AuthResponse create(String libraryKey) {
@@ -126,6 +128,10 @@ public class DemoSessionService {
     }
 
     private void clearUserData(User user) {
+        // 先移除成果及來源引用，再清理實驗、卡片與 session owner。
+        treasureLifecycle.clearOwner(user.getId());
+        experimentRepository.deleteAll(experimentRepository.findAllByUserId(user.getId()));
+        experimentRepository.flush();
         for (Issue issue : issueRepository.findAllByUserId(user.getId())) {
             issueUpdateRepository.deleteByIssueId(issue.getId());
             issueCardRepository.deleteByIssueId(issue.getId());

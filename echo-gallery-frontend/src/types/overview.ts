@@ -1,3 +1,5 @@
+import type { TreasureEvent, TreasureGrowth, TreasureHighlight } from './treasure'
+
 export type OverviewPeriodDays = 7 | 30 | 90
 
 export interface OverviewResponse {
@@ -10,15 +12,16 @@ export interface OverviewResponse {
     pausedCardCount: number
     needsProcessingCardCount: number
     activeExperimentCount: number
-    issueWithNextStepCount: number
+    treasureCount: number
     experimentTries: OverviewExperimentTry[]
-    nextSteps: OverviewNextStep[]
+    treasureHighlights: TreasureHighlight[]
     attentionSignals: OverviewAttentionSignal[]
   }
   period: {
     flow: { reengagedCardCount: number; reviewedCardCount: number }
     generativity: { derivedCardCount: number; sourceCardCount: number }
-    closure: { issueWithFollowUpCount: number }
+    treasureGrowth: TreasureGrowth
+    recentTreasureEvents: TreasureEvent[]
     activities: OverviewActivity[]
     derivedCards: OverviewDerivedCard[]
     recentExperimentMaterials: OverviewExperimentMaterial[]
@@ -26,7 +29,7 @@ export interface OverviewResponse {
 }
 
 export interface OverviewActivity {
-  key: 'created' | 'offered' | 'reviewed' | 'experiment-material' | 'issue-linked' | 'derived' | 'exploration-record' | 'issue-update'
+  key: 'created' | 'offered' | 'reviewed' | 'experiment-material' | 'derived' | 'exploration-record' | 'treasure-collected' | 'treasure-promoted' | 'treasure-yield'
   value: number
 }
 
@@ -48,14 +51,6 @@ export interface OverviewExperimentMaterial {
   experimentTitle: string
   sourceKind: 'EXPLORATION' | 'MATERIAL'
   tags: string[]
-}
-
-export interface OverviewNextStep {
-  issueId: number
-  issueTitle: string
-  nextStep: string
-  updatedAt: string
-  progressUpdateCount: number
 }
 
 export interface OverviewRecentResponse {
