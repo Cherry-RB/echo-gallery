@@ -19,6 +19,8 @@ import CardIssueManager from '../components/issue/CardIssueManager.vue';
 import { createCardFormRules, toCardContentRequest } from '../utils/cardForm';
 import { cardTextFieldCopy } from '../utils/cardTextFieldCopy';
 import AppDialog from '../components/AppDialog.vue';
+import CoverImage from '../components/ui/CoverImage.vue';
+import CoverImageField from '../components/ui/CoverImageField.vue';
 import { cardDetailQueryKey } from '../utils/cardDetailQuery';
 import RecurrenceIntervalPicker from '../components/RecurrenceIntervalPicker.vue';
 import AddCardToExperimentDialog from '../components/experiment/AddCardToExperimentDialog.vue';
@@ -216,25 +218,6 @@ const handleCancel = () => {
   }
 }
 
-const requestCancelEdit = async () => {
-  if (isUpdatePending.value) return;
-  if (!hasUnsavedEdit.value) {
-    handleCancel();
-    return;
-  }
-
-  try {
-    await ElMessageBox.confirm(
-      '尚有未儲存的卡片內容，確定要放棄嗎？',
-      '放棄編輯',
-      { confirmButtonText: '放棄內容', cancelButtonText: '繼續編輯', type: 'warning' },
-    );
-    handleCancel();
-  } catch {
-    // 使用者選擇繼續編輯時維持對話框開啟。
-  }
-};
-
 const handleEditDialogVisibilityChange = (visible: boolean) => {
   if (visible) {
     isEditMode.value = true;
@@ -246,7 +229,7 @@ const handleEditDialogVisibilityChange = (visible: boolean) => {
     return;
   }
 
-  requestCancelEdit();
+  handleCancel();
 };
 
 const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
@@ -473,7 +456,7 @@ const {
                 </div>
               </header>
 
-              <img
+              <CoverImage
                 v-if="cardData.coverImageUrl"
                 :src="cardData.coverImageUrl"
                 class="reading-cover"
@@ -662,6 +645,8 @@ const {
       </section>
 
       <AppDialog
+        :busy="isUpdatePending"
+        :draft="cardData"
         :model-value="isEditMode"
         :title="editDialogTitle"
         width="min(820px, calc(100vw - 32px))"
@@ -669,7 +654,7 @@ const {
         append-to-body
         destroy-on-close
         :close-on-click-modal="false"
-        :close-on-press-escape="false"
+        :close-on-press-escape="true"
         @update:model-value="handleEditDialogVisibilityChange"
       >
         <el-form
@@ -753,13 +738,13 @@ const {
               <el-input v-model="cardData.url" placeholder="https://..." clearable />
             </el-form-item>
             <el-form-item label="封面圖片來源連結" prop="coverImageUrl">
-              <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
+              <CoverImageField v-model="cardData.coverImageUrl" :disabled="isUpdatePending" />
             </el-form-item>
           </template>
         </el-form>
 
-        <template #footer>
-          <el-button :disabled="isUpdatePending" @click="requestCancelEdit">取消</el-button>
+        <template #footer="{ requestClose }">
+          <el-button :disabled="isUpdatePending" @click="requestClose">取消</el-button>
           <el-button type="primary" :loading="isUpdatePending" @click="handleSave">儲存變更</el-button>
         </template>
       </AppDialog>
@@ -918,21 +903,13 @@ const {
 
           <div class="cover-wrapper" v-if="cardData.coverImageUrl || isEditMode">
             <template v-if="!isEditMode">
-              <img :src="cardData.coverImageUrl" class="cover-image" alt="Cover" />
+              <CoverImage :src="cardData.coverImageUrl" alt="卡片封面" />
             </template>
             <template v-else>
               <div class="cover-edit-area">
                 <el-form-item prop="coverImageUrl" style="margin-bottom: 0;">
-                <el-input
-                  v-model="cardData.coverImageUrl"
-                  placeholder="請輸入封面圖片 URL (留空則不顯示封面)"
-                  clearable
-                />
+                <CoverImageField v-model="cardData.coverImageUrl" :disabled="isCreatePending || isUpdatePending" />
                 </el-form-item>
-                <div v-if="cardData.coverImageUrl" class="cover-preview-mini">
-                  <span>預覽：</span>
-                  <img :src="cardData.coverImageUrl" style="max-height: 80px; border-radius: 4px;" />
-                </div>
               </div>
             </template>
           </div>
@@ -1399,11 +1376,10 @@ const {
 .reading-cover {
   display: block;
   width: 100%;
-  max-height: 440px;
   margin-bottom: var(--space-xl);
   border-radius: var(--radius-md);
-  object-fit: cover;
 }
+.reading-cover :deep(img) { max-height: 440px; object-fit: contain; }
 
 .reading-section {
   padding: var(--space-lg) 0;

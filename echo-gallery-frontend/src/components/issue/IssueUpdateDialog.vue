@@ -84,7 +84,7 @@ const handleClosed = () => {
 </script>
 
 <template>
-  <AppDialog
+  <AppDialog :busy="saveMutation.isPending.value" :draft="form"
     :model-value="modelValue"
     :title="update ? '修改系統訊號' : '記錄系統訊號'"
     width="min(640px, calc(100vw - 32px))"
@@ -115,8 +115,8 @@ const handleClosed = () => {
 
     <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
 
-    <template #footer>
-      <el-button :disabled="saveMutation.isPending.value" @click="emit('update:modelValue', false)">
+    <template #footer="{ requestClose }">
+      <el-button :disabled="saveMutation.isPending.value" @click="requestClose">
         取消
       </el-button>
       <el-button type="primary" :loading="saveMutation.isPending.value" @click="submitUpdate">

@@ -331,7 +331,7 @@ const confirmRemoveCard = async (card: IssueCard) => {
       </section>
     </div>
 
-    <AppDialog
+    <AppDialog :busy="noteMutation.isPending.value" :draft="noteInput"
       v-model="noteDialogVisible"
       title="編輯素材備註"
       width="min(520px, calc(100vw - 32px))"
@@ -353,8 +353,8 @@ const confirmRemoveCard = async (card: IssueCard) => {
       />
       <p class="note-dialog-hint">清空內容並儲存即可移除備註。</p>
 
-      <template #footer>
-        <el-button :disabled="noteMutation.isPending.value" @click="noteDialogVisible = false">
+      <template #footer="{ requestClose }">
+        <el-button :disabled="noteMutation.isPending.value" @click="requestClose">
           取消
         </el-button>
         <el-button type="primary" :loading="noteMutation.isPending.value" @click="submitNote">

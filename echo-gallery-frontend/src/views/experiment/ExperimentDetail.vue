@@ -10,6 +10,9 @@ import ExperimentExplorationHistoryDialog from '../../components/experiment/Expe
 import QuickCreateCardDialog from '../../components/QuickCreateCardDialog.vue'
 import CardPickerDialog from '../../components/CardPickerDialog.vue'
 import AppDialog from '../../components/AppDialog.vue'
+import RecordHistoryTrigger from '../../components/ui/RecordHistoryTrigger.vue'
+import DetailShell from '../../components/ui/DetailShell.vue'
+import DetailHeading from '../../components/ui/DetailHeading.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
 import CardPickerSelectionSummary from '../../components/ui/CardPickerSelectionSummary.vue'
 import type { CardContentRequest, CardDto } from '../../types/card'
@@ -333,6 +336,10 @@ const deleteMutation = useMutation({
   mutationFn: () => experimentApi.deleteExperiment(experimentId.value),
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['experiments'] })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['treasures'] }),
+      queryClient.invalidateQueries({ queryKey: ['overview'] })
+    ])
     ElMessage.success('實驗主題已永久刪除；原始卡片仍保留')
     router.replace('/experiments')
   },
@@ -479,7 +486,8 @@ const handleGrownCard = async (_card: CardDto) => {
 </script>
 
 <template>
-  <section class="experiment-detail-page app-page">
+  <DetailShell class="experiment-detail-page">
+    <template #navigation>
     <header class="detail-navigation app-detail-navigation">
       <el-button :icon="ArrowLeft" text @click="goBack">返回實驗場</el-button>
       <div v-if="experimentQuery.data.value" class="detail-actions">
@@ -503,6 +511,7 @@ const handleGrownCard = async (_card: CardDto) => {
         </div>
       </div>
     </header>
+    </template>
 
     <div v-if="experimentQuery.isLoading.value" class="state-surface"><el-skeleton :rows="8" animated /></div>
     <div v-else-if="experimentQuery.isError.value" class="state-surface">
@@ -512,14 +521,7 @@ const handleGrownCard = async (_card: CardDto) => {
     </div>
 
     <main v-else-if="experimentQuery.data.value" class="experiment-detail-content" :style="getExperimentThemeStyle(experimentQuery.data.value.themeColor)">
-      <section class="experiment-overview-panel">
-        <div class="experiment-heading">
-          <div>
-            <span class="detail-eyebrow">實驗主題</span>
-            <h1>{{ experimentQuery.data.value.title }}</h1>
-          </div>
-        </div>
-      </section>
+      <DetailHeading eyebrow="實驗主題" :title="experimentQuery.data.value.title" />
 
       <section class="experiment-inquiry" aria-labelledby="experiment-inquiry-title">
         <header class="section-heading">
@@ -539,10 +541,7 @@ const handleGrownCard = async (_card: CardDto) => {
           <h2>這次想怎麼探索？</h2>
           <div v-if="!explorationQuery.isLoading.value && !explorationQuery.isError.value" class="exploration-actions">
             <time v-if="latestObservation?.createdAt" :datetime="latestObservation.createdAt">{{ formatDate(latestObservation.createdAt) }}</time>
-            <button v-if="exploration.records.length" type="button" class="exploration-history-trigger" @click="historyDialogVisible = true">
-              <span>探索紀錄</span>
-              <span class="exploration-record-count">{{ exploration.records.length }}</span>
-            </button>
+            <RecordHistoryTrigger v-if="exploration.records.length" label="探索紀錄" :count="exploration.records.length" @click="historyDialogVisible = true" />
           </div>
         </header>
         <el-skeleton v-if="explorationQuery.isLoading.value" :rows="3" animated />
@@ -646,11 +645,12 @@ const handleGrownCard = async (_card: CardDto) => {
         </dl>
       </section>
     </main>
-  </section>
+  </DetailShell>
 
   <ExperimentExplorationHistoryDialog
     v-model="historyDialogVisible"
     :records="exploration.records"
+    @record="openExplorationEditor($event)"
     @edit="openExplorationEditor('DISCOVERY', $event)"
     @delete="deleteExplorationRecord"
     @organize="organizeFromHistory"
@@ -665,7 +665,7 @@ const handleGrownCard = async (_card: CardDto) => {
     @closed="editingExplorationRecord = null"
   />
 
-  <AppDialog v-model="exportVisible" title="整理探索紀錄" width="min(980px, calc(100vw - 32px))" scroll-body>
+  <AppDialog :busy="isExporting" :draft="[exportDestination, exportTopic, exportTitle, selectedExportRecordIds, selectedExportCardId]" v-model="exportVisible" title="整理探索紀錄" width="min(980px, calc(100vw - 32px))" scroll-body>
     <p class="dialog-intro">把選取的探索紀錄整理成 Card 內容。成功後會保留原紀錄，並標示它已整理到哪張卡片。</p>
     <div class="export-workspace">
       <section class="export-selection-pane">
@@ -720,8 +720,8 @@ const handleGrownCard = async (_card: CardDto) => {
         </section>
       </div>
     </div>
-    <template #footer>
-      <el-button :disabled="isExporting" @click="exportVisible = false">取消</el-button>
+    <template #footer="{ requestClose }">
+      <el-button :disabled="isExporting" @click="requestClose">取消</el-button>
       <el-button v-if="exportDestination === 'NEW'" type="primary" :disabled="!canExport" @click="openCreateExportCard">繼續建立卡片</el-button>
       <el-button v-else type="primary" :loading="isExporting" :disabled="!canExport" @click="appendToExistingCard">加入卡片內容</el-button>
     </template>
@@ -759,7 +759,7 @@ const handleGrownCard = async (_card: CardDto) => {
     </template>
   </AppDialog>
 
-  <AppDialog v-model="editVisible" title="編輯實驗主題" width="min(680px, calc(100vw - 32px))" scroll-body>
+  <AppDialog :busy="editMutation.isPending.value" :draft="editForm" v-model="editVisible" title="編輯實驗主題" width="min(680px, calc(100vw - 32px))" scroll-body>
     <el-form label-position="top" @submit.prevent="submitEdit">
       <el-form-item label="實驗主題名稱" required>
         <el-input v-model="editForm.title" maxlength="255" />
@@ -781,7 +781,7 @@ const handleGrownCard = async (_card: CardDto) => {
         </div>
       </el-form-item>
     </el-form>
-    <template #footer><el-button @click="editVisible = false">取消</el-button><el-button type="primary" :loading="editMutation.isPending.value" :disabled="!editForm.title.trim()" @click="submitEdit">儲存變更</el-button></template>
+    <template #footer="{ requestClose }"><el-button :disabled="editMutation.isPending.value" @click="requestClose">取消</el-button><el-button type="primary" :loading="editMutation.isPending.value" :disabled="!editForm.title.trim()" @click="submitEdit">儲存變更</el-button></template>
   </AppDialog>
 
   <CardPickerDialog
@@ -792,7 +792,7 @@ const handleGrownCard = async (_card: CardDto) => {
     confirm-label="種入卡片"
     settings-style="plain"
     :excluded-card-ids="Array.from(plantedCardIds)"
-    :submitting="addMutation.isPending.value"
+    :submitting="addMutation.isPending.value" :settings-draft="[addStage, addNote]"
     empty-description="沒有其他可種入的卡片"
     @confirm="addMutation.mutate"
   >
@@ -809,12 +809,12 @@ const handleGrownCard = async (_card: CardDto) => {
     </template>
   </CardPickerDialog>
 
-  <AppDialog v-model="noteVisible" title="編輯種植備註" width="min(560px, calc(100vw - 32px))">
+  <AppDialog :busy="noteMutation.isPending.value" :draft="noteDraft" v-model="noteVisible" title="編輯種植備註" width="min(560px, calc(100vw - 32px))">
     <p v-if="editingNoteCard" class="dialog-card-title">{{ editingNoteCard.cardTitle }}</p>
     <el-input v-model="noteDraft" type="textarea" :rows="5" maxlength="1000" placeholder="這張卡為什麼在這個實驗主題？" />
     <p class="field-counter">總字數：{{ getTextLength(noteDraft) }} / 1000</p>
     <p class="dialog-hint">清空內容並儲存即可移除備註。</p>
-    <template #footer><el-button @click="noteVisible = false">取消</el-button><el-button type="primary" :loading="noteMutation.isPending.value" @click="noteMutation.mutate()">儲存備註</el-button></template>
+    <template #footer="{ requestClose }"><el-button :disabled="noteMutation.isPending.value" @click="requestClose">取消</el-button><el-button type="primary" :loading="noteMutation.isPending.value" @click="noteMutation.mutate()">儲存備註</el-button></template>
   </AppDialog>
 
   <QuickCreateCardDialog
@@ -865,22 +865,6 @@ const handleGrownCard = async (_card: CardDto) => {
 </template>
 
 <style scoped>
-.experiment-detail-page {
-  width: 100%;
-  min-height: 100%;
-  box-sizing: border-box;
-  background: var(--surface-page);
-}
-.detail-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--el-border-color-light);
-  background: var(--el-bg-color);
-}
-.detail-actions { display: flex; align-items: center; gap: var(--space-xs); }
 .detail-edit-actions { display: flex; gap: var(--space-xs); }
 .status-trigger { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-width: 120px; padding: 7px 10px; border: 1px solid var(--el-border-color); border-radius: var(--radius-sm); background: var(--el-fill-color-blank); color: var(--el-text-color-regular); font: inherit; white-space: nowrap; cursor: pointer; }
 .status-trigger:hover, .status-trigger:focus-visible { border-color: var(--el-color-primary-light-5); color: var(--el-color-primary); }
@@ -889,22 +873,11 @@ const handleGrownCard = async (_card: CardDto) => {
 .property-status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--el-text-color-placeholder); }
 .property-status-active { background: var(--el-color-primary); }
 .property-status-archived { background: var(--el-text-color-placeholder); }
-.state-surface,
-.experiment-detail-content {
-  width: min(100%, var(--content-max-width));
-  margin: 0 auto;
-  box-sizing: border-box;
-}
 .state-surface { padding: var(--panel-padding); }
 .experiment-detail-content {
   display: grid;
   gap: var(--space-lg);
-  padding: var(--workspace-padding);
 }
-.experiment-overview-panel { padding: var(--space-md) 0 0; }
-.experiment-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-lg); }
-.detail-eyebrow { display: block; color: var(--el-text-color-placeholder); font-size: var(--type-meta); font-weight: 600; letter-spacing: 0.08em; }
-.experiment-heading h1 { margin: var(--space-xs) 0 0; font-size: var(--type-detail-title); line-height: var(--leading-title); overflow-wrap: anywhere; }
 .experiment-inquiry,
 .exploration-workspace,
 .soil-workspace,
@@ -934,9 +907,6 @@ const handleGrownCard = async (_card: CardDto) => {
 .exploration-snapshot :deep(.expandable-content) { margin: var(--space-2xs) 0 0; color: var(--el-text-color-primary); font-size: var(--type-ui); line-height: var(--leading-ui); }
 .exploration-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-xs); }
 .exploration-actions :deep(.el-button) { margin-left: 0; }
-.exploration-history-trigger { display: inline-flex; align-items: center; gap: var(--space-xs); padding: var(--space-2xs) 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: nowrap; }
-.exploration-history-trigger:hover, .exploration-history-trigger:focus-visible { color: var(--el-color-primary-light-3); }
-.exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .exploration-actions time { align-self: center; color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); white-space: nowrap; }
 .exploration-footnote { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
 .exploration-utility-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-sm); }
@@ -1027,8 +997,6 @@ const handleGrownCard = async (_card: CardDto) => {
 }
 
 @media (max-width: 760px) {
-  .detail-navigation { align-items: stretch; flex-direction: column; }
-  .detail-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .detail-actions > :first-child { grid-column: 1 / -1; }
   .detail-edit-actions { display: contents; }
   .status-trigger,

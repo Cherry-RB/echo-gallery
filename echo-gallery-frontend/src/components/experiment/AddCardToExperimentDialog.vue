@@ -71,6 +71,7 @@ const addExperimentMutation = useMutation({
 
 <template>
   <AppDialog
+    :busy="addExperimentMutation.isPending.value"
     v-model="dialogVisible"
     title="將卡片放入實驗場"
     width="min(560px, calc(100vw - 32px))"
@@ -117,6 +118,7 @@ const addExperimentMutation = useMutation({
         <el-button :loading="experimentsQuery.isFetchingNextPage.value" @click="experimentsQuery.fetchNextPage()">載入更多</el-button>
       </div>
     </div>
+    <template #footer="{ requestClose }"><el-button :disabled="addExperimentMutation.isPending.value" @click="requestClose">關閉</el-button></template>
   </AppDialog>
 </template>
 

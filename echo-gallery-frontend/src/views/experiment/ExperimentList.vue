@@ -13,6 +13,8 @@ import AppDialog from '../../components/AppDialog.vue'
 import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import AppEmptyState from '../../components/ui/AppEmptyState.vue'
 
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -61,6 +63,7 @@ const archiveMutation = useMutation({
   mutationFn: ({ id, archived }: { id: number; archived: boolean }) => experimentApi.setExperimentArchived(id, archived),
   onSuccess: async (experiment) => {
     await queryClient.invalidateQueries({ queryKey: ['experiments'] })
+    if (!experimentsQuery.data.value?.content.length && currentPage.value > 0) currentPage.value--
     ElMessage.success(experiment.isArchived ? '實驗主題已封存' : '實驗主題已恢復')
   },
   onError: () => ElMessage.error('更新實驗主題狀態失敗')
@@ -141,60 +144,57 @@ const submit = () => {
 </script>
 
 <template>
-  <section class="experiment-list-page app-page app-page--workspace">
-    <header class="page-header app-page-header">
-      <div class="app-page-heading">
-        <h1 class="page-title app-page-title">實驗場</h1>
-        <p class="page-description app-page-description">讓彼此呼應的卡片聚在一起，持續觀察一個想法會長出什麼。</p>
-      </div>
-      <div class="page-actions app-page-actions">
+  <section class="experiment-list-page app-list-page app-page app-page--workspace">
+    <PageHeader title="實驗場" description="讓彼此呼應的卡片聚在一起，持續觀察一個想法會長出什麼。">
+      <template #actions>
         <el-button type="primary" :icon="Plus" @click="openCreate">建立實驗主題</el-button>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
     <div class="experiment-dashboard app-workspace app-workspace--edge-to-edge">
-      <div class="experiment-list-toolbar">
-        <el-radio-group v-model="selectedScope" class="status-filter" aria-label="實驗主題篩選">
+      <div class="experiment-list-toolbar app-toolbar">
+        <el-radio-group v-model="selectedScope" class="status-filter app-list-scope" aria-label="實驗主題篩選">
           <el-radio-button value="ACTIVE">觀察中</el-radio-button>
           <el-radio-button value="ARCHIVED">已封存</el-radio-button>
         </el-radio-group>
       </div>
 
+      <p class="experiment-results" aria-live="polite">{{ selectedScope === 'ARCHIVED' ? '已封存' : '觀察中' }}<template v-if="experimentsQuery.data.value"> · {{ experimentsQuery.data.value.totalElements }} 個實驗主題</template></p>
       <div v-if="experimentsQuery.isLoading.value" class="experiment-list">
-        <el-card v-for="index in 3" :key="index" shadow="never"><el-skeleton :rows="3" animated /></el-card>
+        <el-card v-for="index in 3" :key="index" shadow="never" class="experiment-list-card app-collection-card"><el-skeleton :rows="3" animated /></el-card>
       </div>
 
       <el-result
         v-else-if="experimentsQuery.isError.value"
         icon="error"
         title="無法載入實驗主題"
-        sub-title="請稍後重試，或確認後端服務是否正常。"
+        sub-title="請稍後重試。"
       >
         <template #extra><el-button type="primary" @click="experimentsQuery.refetch()">重新載入</el-button></template>
       </el-result>
 
-      <el-empty
+      <AppEmptyState
         v-else-if="experiments.length === 0"
         :description="selectedScope === 'ARCHIVED' ? '目前沒有已封存的實驗主題' : '先建立一個實驗主題，寫下你想持續觀察的假設。'"
       >
         <el-button v-if="selectedScope === 'ACTIVE'" type="primary" :icon="Plus" @click="openCreate">
           建立第一個實驗主題
         </el-button>
-      </el-empty>
+      </AppEmptyState>
 
       <div v-else class="experiment-list">
         <el-card
           v-for="experiment in experiments"
           :key="experiment.id"
           shadow="never"
-          class="experiment-list-card"
+          class="experiment-list-card app-collection-card"
           :style="getExperimentThemeStyle(experiment.themeColor)"
           role="link"
           tabindex="0"
           :aria-label="`查看實驗主題：${experiment.title}`"
           @click="router.push(`/experiments/${experiment.id}`)"
-          @keydown.enter="router.push(`/experiments/${experiment.id}`)"
-          @keydown.space.prevent="router.push(`/experiments/${experiment.id}`)"
+          @keydown.enter.self="router.push(`/experiments/${experiment.id}`)"
+          @keydown.space.self.prevent="router.push(`/experiments/${experiment.id}`)"
         >
           <div class="experiment-card-content">
             <div class="experiment-copy">
@@ -213,7 +213,7 @@ const submit = () => {
                 <ExperimentQuickRecordAction @select="openQuickRecord(experiment.id, $event)" />
                 <button v-if="experiment.explorationRecordCount > 0" type="button" class="exploration-record-count" :aria-label="`查看 ${experiment.explorationRecordCount} 筆探索紀錄`" @click.stop="openHistory(experiment.id)">{{ experiment.explorationRecordCount }}</button>
                 <el-dropdown trigger="click" @command="handleCardCommand(experiment, $event)">
-                  <el-button text circle :icon="MoreFilled" aria-label="實驗主題操作" @click.stop />
+                  <el-button text circle :icon="MoreFilled" :disabled="archiveMutation.isPending.value" aria-label="實驗主題操作" @click.stop />
                   <template #dropdown>
                     <el-dropdown-menu>
                       <el-dropdown-item command="edit">編輯實驗主題</el-dropdown-item>
@@ -237,8 +237,8 @@ const submit = () => {
 
       <el-pagination
         v-if="(experimentsQuery.data.value?.totalElements ?? 0) > 20"
-        class="experiment-pagination"
-        layout="prev, pager, next"
+        class="app-list-pagination"
+        layout="total, prev, pager, next"
         :current-page="currentPage + 1"
         :page-size="20"
         :total="experimentsQuery.data.value?.totalElements ?? 0"
@@ -247,7 +247,7 @@ const submit = () => {
     </div>
   </section>
 
-  <AppDialog
+  <AppDialog :busy="saveMutation.isPending.value" :draft="form"
     v-model="dialogVisible"
     :title="editingId ? '編輯實驗主題' : '建立實驗主題'"
     width="min(680px, calc(100vw - 32px))"
@@ -276,8 +276,8 @@ const submit = () => {
         </div>
       </el-form-item>
     </el-form>
-    <template #footer>
-      <el-button :disabled="saveMutation.isPending.value" @click="dialogVisible = false">取消</el-button>
+    <template #footer="{ requestClose }">
+      <el-button :disabled="saveMutation.isPending.value" @click="requestClose">取消</el-button>
       <el-button type="primary" :loading="saveMutation.isPending.value" :disabled="!form.title.trim()" @click="submit">{{ editingId ? '儲存變更' : '建立實驗主題' }}</el-button>
     </template>
   </AppDialog>
@@ -298,6 +298,7 @@ const submit = () => {
     :loading="historyQuery.isLoading.value"
     manageable
     :show-organize="false"
+    @record="historyExperimentId !== null && openQuickRecord(historyExperimentId, $event)"
     @edit="editExplorationRecord"
     @delete="deleteExplorationRecord"
     @open-card="router.push(`/card/${$event}`)"
@@ -306,29 +307,26 @@ const submit = () => {
 
 <style scoped>
 .experiment-list-page { width: 100%; box-sizing: border-box; }
-.experiment-dashboard { margin-top: var(--space-sm); }
-.experiment-list-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-.experiment-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 12px; }
-.experiment-list-card { border-color: var(--el-border-color-light); box-shadow: none; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.experiment-list-card:hover, .experiment-list-card:focus-visible { transform: translateY(-2px); border-color: var(--el-border-color); box-shadow: var(--el-box-shadow-lighter); }
-.experiment-list-card:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
-.experiment-list-card :deep(.el-card__body) { padding: 18px 20px; }
-.experiment-card-content { display: grid; min-height: 150px; grid-template-columns: minmax(0, 1.55fr) minmax(190px, 0.85fr); gap: 22px; }
+.experiment-list-toolbar { display: flex; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-md); }
+.experiment-results { margin: 0 0 var(--space-md); color: var(--el-text-color-regular); font-size: var(--type-secondary); }
+.experiment-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: var(--space-md); }
+.experiment-list-card { box-shadow: none; cursor: pointer; }
+.experiment-list-card :deep(.el-card__body) { padding: var(--space-md); }
+.experiment-card-content { display: grid; min-height: 150px; grid-template-columns: minmax(0, 1.55fr) minmax(190px, 0.85fr); gap: var(--space-lg); }
 .experiment-card-header { display: flex; align-items: center; justify-content: flex-end; min-height: 28px; gap: var(--space-sm); }
-.experiment-copy { min-width: 0; padding: 2px 0; }
-.experiment-title { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: 650; line-height: var(--leading-section); overflow-wrap: anywhere; }
-.experiment-hypothesis { display: -webkit-box; margin: 9px 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
+.experiment-copy { min-width: 0; padding: 0; }
+.experiment-title { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); overflow-wrap: anywhere; }
+.experiment-hypothesis { display: -webkit-box; margin: var(--space-xs) 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
 .experiment-hypothesis.empty { color: var(--el-text-color-placeholder); font-weight: 400; }
-.experiment-current-try-label { display: block; margin-bottom: 3px; color: var(--el-color-primary); font-size: var(--type-meta); font-weight: 600; }
+.experiment-current-try-label { display: block; margin-bottom: var(--space-2xs); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); }
 .exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .exploration-record-count:hover, .exploration-record-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .experiment-summary-side { display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
-.soil-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 20px; padding: 15px 14px; border: 1px solid color-mix(in srgb, var(--experiment-vivid) 40%, var(--el-bg-color)); border-radius: 12px; background: color-mix(in srgb, var(--experiment-vivid) 26%, var(--el-bg-color)); }
-.soil-summary { display: flex; align-items: center; justify-content: center; min-width: 0; gap: 4px; font-size: var(--type-card-title); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.soil-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-xs); margin-top: var(--space-md); padding: var(--space-sm); border: 1px solid color-mix(in srgb, var(--experiment-vivid) 40%, var(--el-bg-color)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--experiment-vivid) 26%, var(--el-bg-color)); }
+.soil-summary { display: flex; align-items: center; justify-content: center; min-width: 0; gap: var(--space-2xs); font-size: var(--type-card-title); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .soil-summary span { line-height: 1; }
-.soil-summary strong { color: var(--experiment-vivid); font-size: inherit; font-weight: 650; line-height: 1; }
+.soil-summary strong { color: var(--experiment-vivid); font-size: inherit; font-weight: var(--weight-semibold); line-height: 1; }
 .experiment-card-footer { margin-top: auto; color: var(--el-text-color-placeholder); font-size: var(--type-meta); text-align: right; }
-.experiment-pagination { justify-content: center; margin-top: 18px; }
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .field-counter { width: 100%; margin: 6px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .theme-picker { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -336,5 +334,5 @@ const submit = () => {
 .theme-option > span { width: 14px; height: 14px; border-radius: 50%; background: var(--option-color); }
 .theme-option.active { border-color: color-mix(in srgb, var(--option-color) 40%, var(--el-bg-color)); background: color-mix(in srgb, var(--option-color) 26%, var(--el-bg-color)); color: var(--el-text-color-primary); }
 @media (max-width: 900px) { .experiment-list { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .page-actions, .page-actions :deep(.el-button) { width: 100%; } .page-actions :deep(.el-button) { min-width: 0; margin-left: 0; } .experiment-list-toolbar, .status-filter { width: 100%; } .status-filter :deep(.el-radio-button) { flex: 1 1 0; } .status-filter :deep(.el-radio-button__inner) { width: 100%; } .experiment-list-card :deep(.el-card__body) { padding: 18px; } .experiment-card-content { min-height: 0; grid-template-columns: 1fr; gap: 14px; } .soil-summary-grid { margin-top: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); } .experiment-card-footer { margin-top: 12px; } }
+@media (max-width: 760px) { .experiment-list-toolbar { width: 100%; } .experiment-card-content { min-height: 0; grid-template-columns: 1fr; gap: var(--space-sm); } .soil-summary-grid { margin-top: var(--space-sm); grid-template-columns: repeat(3, minmax(0, 1fr)); } .experiment-card-footer { margin-top: var(--space-sm); } }
 </style>

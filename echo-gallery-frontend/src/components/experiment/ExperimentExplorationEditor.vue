@@ -6,6 +6,7 @@ import type { ExperimentExplorationDto, ExperimentExplorationRecordDto } from '.
 import { experimentApi } from '../../utils/api/experimentApi'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import AppDialog from '../AppDialog.vue'
+import FieldCounter from '../ui/FieldCounter.vue'
 
 type EditorMode = 'TRY' | 'DISCOVERY'
 type TryPane = 'COMPOSE' | 'FAVORITES'
@@ -207,7 +208,8 @@ const removeFavoriteTry = async (text: string) => {
 </script>
 
 <template>
-  <AppDialog
+  <AppDialog :busy="saving" :draft="[tryDraft, recordTryDraft, discoveryDraft, includeTryInDiscovery, newFavoriteTryDraft && newFavoriteTryDraft !== tryDraft ? newFavoriteTryDraft : '', editingFavoriteTry && editingFavoriteTryDraft !== editingFavoriteTry ? editingFavoriteTryDraft : '']" :draft-ready="initializedMode !== null"
+    class="app-record-form"
     v-model="visible"
     :title="mode === 'TRY' ? (tryPane === 'COMPOSE' ? '試一件小事' : '常用試法') : (record ? '編輯探索紀錄' : '記下發生了什麼')"
     width="min(560px, calc(100vw - 32px))"
@@ -231,7 +233,7 @@ const removeFavoriteTry = async (text: string) => {
       </el-select>
       <label class="try-input-label" for="try-draft">這次想試什麼？</label>
       <el-input id="try-draft" v-model="tryDraft" type="textarea" :rows="4" maxlength="500" placeholder="例如：晚餐後拿起紙筆，隨意畫兩分鐘。" aria-label="這次想試的小事" @input="selectedTrySuggestion = ''" />
-      <p class="field-counter">{{ getTextLength(tryDraft) }} / 500</p>
+      <FieldCounter :value="tryDraft" :limit="500" />
       <div class="try-secondary-actions">
         <el-button text size="small" @click="openFavoriteManagement">管理常用試法</el-button>
       </div>
@@ -263,11 +265,11 @@ const removeFavoriteTry = async (text: string) => {
       <template v-if="record">
         <label class="record-input-label" for="record-try-draft">試法</label>
         <el-input id="record-try-draft" v-model="recordTryDraft" type="textarea" :rows="3" maxlength="500" placeholder="尚未記下試法" aria-label="這筆紀錄的試法" />
-        <p class="field-counter">{{ getTextLength(recordTryDraft) }} / 500</p>
+        <FieldCounter :value="recordTryDraft" :limit="500" />
         <label class="record-input-label record-discovery-label" for="record-discovery-draft">發現</label>
       </template>
       <el-input :id="record ? 'record-discovery-draft' : undefined" v-model="discoveryDraft" type="textarea" :rows="5" maxlength="1000" placeholder="例如：沒畫成；原來我把紙筆收得太遠了。" aria-label="這次發生了什麼" />
-      <p class="field-counter">{{ getTextLength(discoveryDraft) }} / 1000</p>
+      <FieldCounter :value="discoveryDraft" :limit="1000" />
       <div v-if="exploration.currentTry && !record" class="discovery-try-choice">
         <p><span>目前試法</span>{{ exploration.currentTry }}</p>
         <el-checkbox v-model="includeTryInDiscovery">把它一起留在這筆探索紀錄</el-checkbox>
@@ -275,12 +277,12 @@ const removeFavoriteTry = async (text: string) => {
         <small v-else>這次只記發現；目前試法會保留，之後仍可繼續使用。</small>
       </div>
     </template>
-    <template #footer>
+    <template #footer="{ requestClose }">
       <template v-if="mode === 'TRY' && tryPane === 'FAVORITES'">
-        <el-button @click="tryPane = 'COMPOSE'">返回試法</el-button>
+        <el-button :disabled="saving" @click="tryPane = 'COMPOSE'">返回試法</el-button>
       </template>
       <template v-else>
-        <el-button @click="close">取消</el-button>
+        <el-button :disabled="saving" @click="requestClose">取消</el-button>
         <el-button v-if="mode === 'TRY'" type="primary" :loading="saving" @click="saveTry">儲存試法</el-button>
         <el-button v-else type="primary" :loading="saving" :disabled="!record && !discoveryDraft.trim()" @click="saveDiscovery">{{ record ? '儲存探索紀錄' : '留下這次發現' }}</el-button>
       </template>
@@ -290,7 +292,7 @@ const removeFavoriteTry = async (text: string) => {
 
 <style scoped>
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
-.field-counter { width: 100%; margin: 6px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
+.field-counter { width: 100%; margin: var(--space-xs) 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .try-suggestion-label, .try-input-label, .favorite-try-create > label { display: block; margin-bottom: var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
 .try-suggestion-select { width: 100%; margin-bottom: var(--space-md); }
 .try-secondary-actions { display: flex; justify-content: flex-end; margin-top: var(--space-xs); }

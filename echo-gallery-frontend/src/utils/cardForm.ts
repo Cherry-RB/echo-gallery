@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import type { FormRules } from 'element-plus'
 import type { CardContentRequest, CardDto } from '../types/card'
 import { getTextLength } from './textLength'
+import { imageUrlError } from './imageUrl'
 
 const isHttpUrl = (value?: string) => {
   if (!value) return true
@@ -37,10 +38,10 @@ export const createCardFormRules = (cardData: Ref<CardDto>): FormRules<CardDto> 
     { validator: validateTextLength(255, '標題不可超過 255 字'), trigger: 'blur' },
   ],
   coverImageUrl: [
-    { max: 2048, message: '封面圖片網址不可超過 2048 個字元', trigger: 'blur' },
     {
       validator: (_rule, value: string, callback) => {
-        callback(isHttpUrl(value) ? undefined : new Error('封面圖片網址僅接受 HTTP 或 HTTPS 網址'))
+        const error = imageUrlError(value)
+        callback(error ? new Error(error) : undefined)
       },
       trigger: 'blur',
     },

@@ -391,7 +391,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
     </main>
 
     <!-- ================= 重新命名對話框 (Dialog) ================= -->
-    <AppDialog
+    <AppDialog :busy="renameMutation.isPending.value" :draft="newTagNameInput"
       v-model="renameDialogVisible"
       title="重新命名標籤"
       width="min(560px, calc(100vw - 32px))"
@@ -406,9 +406,9 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
           @keyup.enter="handleConfirmRename"
         />
       </div>
-      <template #footer>
+      <template #footer="{ requestClose }">
         <span class="dialog-footer">
-          <el-button @click="renameDialogVisible = false">取消</el-button>
+          <el-button :disabled="renameMutation.isPending.value" @click="requestClose">取消</el-button>
           <el-button type="primary" :loading="renameMutation.isPending.value" @click="handleConfirmRename">
             確認修改
           </el-button>

@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { ElMessageBox } from 'element-plus'
 defineOptions({ inheritAttrs: false })
 
 type DialogPattern = 'confirmation' | 'compact-form' | 'form' | 'large-form' | 'picker' | 'workspace'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
   title: string
   width?: string
@@ -15,6 +17,9 @@ withDefaults(defineProps<{
   closeOnClickModal?: boolean
   closeOnPressEscape?: boolean
   beforeClose?: (done: () => void) => void
+  busy?: boolean
+  draft?: unknown
+  draftReady?: boolean
 }>(), {
   width: 'min(680px, calc(100vw - 32px))',
   pattern: 'form',
@@ -25,6 +30,8 @@ withDefaults(defineProps<{
   closeOnClickModal: true,
   closeOnPressEscape: true,
   beforeClose: undefined,
+  busy: false,
+  draftReady: true,
 })
 
 const emit = defineEmits<{
@@ -32,6 +39,41 @@ const emit = defineEmits<{
   opened: []
   closed: []
 }>()
+
+const initialDraft = ref<string>()
+const serializeDraft = () => JSON.stringify(props.draft)
+let generation = 0
+onBeforeUnmount(() => { generation++ })
+watch([() => props.modelValue, () => props.draftReady], async ([visible, ready]) => {
+  const current = ++generation
+  initialDraft.value = undefined
+  if (!visible || !ready) return
+  // 等待呼叫端完成該次開啟的欄位初始化，再建立比較基準。
+  await nextTick()
+  if (generation === current && props.modelValue) initialDraft.value = serializeDraft()
+}, { immediate: true, flush: 'post' })
+const hasDraft = computed(() => props.draft !== undefined)
+let confirming = false
+const confirmClose = async (done: () => void) => {
+  if (props.busy || confirming) return
+  const current = generation
+  if (initialDraft.value !== undefined && serializeDraft() !== initialDraft.value) {
+    confirming = true
+    try {
+      await ElMessageBox.confirm('尚有未儲存內容，確定要放棄嗎？', '放棄變更', {
+        confirmButtonText: '放棄內容', cancelButtonText: '繼續編輯', type: 'warning',
+      })
+    } catch { return } finally { confirming = false }
+  }
+  if (!props.busy && props.modelValue && generation === current) done()
+}
+const beforeClose = (done: () => void) => {
+  if (props.busy || confirming) return
+  if (props.beforeClose) props.beforeClose(() => { void confirmClose(done) })
+  else void confirmClose(done)
+}
+const requestClose = () => beforeClose(() => emit('update:modelValue', false))
+defineExpose({ requestClose })
 </script>
 
 <template>
@@ -43,8 +85,9 @@ const emit = defineEmits<{
     :class="['app-dialog', `app-dialog--${mode}`, `app-dialog--${pattern}`, { 'app-dialog--scroll-body': scrollBody }]"
     :destroy-on-close="destroyOnClose"
     :append-to-body="appendToBody"
-    :close-on-click-modal="closeOnClickModal"
-    :close-on-press-escape="closeOnPressEscape"
+    :close-on-click-modal="!busy && !hasDraft && closeOnClickModal"
+    :close-on-press-escape="!busy && closeOnPressEscape"
+    :show-close="!busy && $attrs['show-close'] !== false"
     :before-close="beforeClose"
     align-center
     @update:model-value="emit('update:modelValue', $event)"
@@ -52,7 +95,7 @@ const emit = defineEmits<{
     @closed="emit('closed')"
   >
     <slot />
-    <template v-if="$slots.footer" #footer><slot name="footer" /></template>
+    <template v-if="$slots.footer" #footer><slot name="footer" :request-close="requestClose" /></template>
   </el-dialog>
 </template>
 

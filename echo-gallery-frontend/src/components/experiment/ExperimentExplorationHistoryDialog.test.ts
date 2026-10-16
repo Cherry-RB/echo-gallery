@@ -28,7 +28,9 @@ const mountDialog = () => mount(ExperimentExplorationHistoryDialog, {
         props: ['modelValue', 'title'],
         template: '<section v-if="modelValue"><h2>{{ title }}</h2><slot /><slot name="footer" /></section>',
       },
-      'el-button': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
+      'el-button': { emits: ['click'], template: '<button @click="$emit(\'click\')"><slot /></button>' },
+      'el-skeleton': true,
+      'el-tooltip': { template: '<span><slot /></span>' },
       'el-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
       'el-dropdown-menu': { template: '<div><slot /></div>' },
       'el-dropdown-item': { template: '<button><slot /></button>' },
@@ -63,5 +65,26 @@ describe('ExperimentExplorationHistoryDialog', () => {
     await wrapper.findAll('button').find(button => button.text().includes('整理成卡片'))?.trigger('click')
 
     expect(wrapper.emitted('organize')).toBeTruthy()
+  })
+
+  it('有整理操作及空歷程時皆提供底部關閉入口', async () => {
+    const wrapper = mountDialog()
+    await wrapper.findAll('button').find(button => button.text() === '關閉')!.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
+    await wrapper.setProps({ records: [] })
+    expect(wrapper.findAll('button').some(button => button.text() === '整理成卡片')).toBe(false)
+    await wrapper.findAll('button').find(button => button.text() === '關閉')!.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false], [false]])
+    wrapper.unmount()
+  })
+
+  it('歷程沿用快速紀錄元件並轉送原有試法與發現模式', () => {
+    const wrapper = mountDialog()
+    const action = wrapper.findComponent({ name: 'ExperimentQuickRecordAction' })
+    action.vm.$emit('select', 'TRY')
+    action.vm.$emit('select', 'DISCOVERY')
+    expect(wrapper.emitted('record')).toEqual([['TRY'], ['DISCOVERY']])
+    expect(action.text()).toContain('＋ 試法')
+    expect(action.text()).toContain('＋ 發現')
   })
 })

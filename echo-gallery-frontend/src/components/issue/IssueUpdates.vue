@@ -263,6 +263,7 @@ const wasEdited = (update: IssueUpdate) => (
           <div>
             <el-button :disabled="historyPage === 0" @click="historyPage -= 1">較新的訊號</el-button>
             <el-button :disabled="!historyPageData?.hasNext" @click="historyPage += 1">較舊的訊號</el-button>
+            <el-button @click="historyDialogVisible = false">關閉</el-button>
           </div>
         </div>
       </template>
@@ -513,6 +514,9 @@ const wasEdited = (update: IssueUpdate) => (
   color: var(--el-text-color-secondary);
   font-size: var(--type-meta);
 }
+
+.history-pagination > div { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-xs); }
+.history-pagination > div :deep(.el-button) { margin-left: 0; }
 
 @media (max-width: 760px) {
   .updates-heading {

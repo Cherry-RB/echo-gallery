@@ -12,6 +12,7 @@ import { useCardStatus } from '../utils/useCardStatus'
 import { getTextLength, trimToTextLength } from '../utils/textLength'
 import type { CardContentRequest, CardDto } from '../types/card'
 import AppDialog from './AppDialog.vue'
+import CoverImageField from './ui/CoverImageField.vue'
 
 const AddCardToIssueDialog = defineAsyncComponent(() => import('./issue/AddCardToIssueDialog.vue'))
 const AddCardToExperimentDialog = defineAsyncComponent(() => import('./experiment/AddCardToExperimentDialog.vue'))
@@ -158,24 +159,26 @@ const confirmDiscard = () => ElMessageBox.confirm(
 )
 
 const requestClose = async () => {
-  if (isSubmitting.value || createdCardId.value || !hasUnsavedChanges.value) {
+  if (isSubmitting.value) return
+  if (createdCardId.value || !hasUnsavedChanges.value) {
     dialogVisible.value = false
     return
   }
   try {
     await confirmDiscard()
-    dialogVisible.value = false
+    if (!isSubmitting.value && props.modelValue) dialogVisible.value = false
   } catch {
     // 使用者選擇繼續編輯時維持彈窗開啟。
   }
 }
 
 const handleBeforeClose = (done: () => void) => {
-  if (isSubmitting.value || createdCardId.value || !hasUnsavedChanges.value) {
+  if (isSubmitting.value) return
+  if (createdCardId.value || !hasUnsavedChanges.value) {
     done()
     return
   }
-  confirmDiscard().then(() => done()).catch(() => undefined)
+  confirmDiscard().then(() => { if (!isSubmitting.value && props.modelValue) done() }).catch(() => undefined)
 }
 
 const createAnother = () => {
@@ -223,7 +226,7 @@ const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
 </script>
 
 <template>
-  <AppDialog
+  <AppDialog :busy="isSubmitting" :close-on-click-modal="!!createdCardId"
     v-model="dialogVisible"
     :title="title"
     :width="dialogWidth"
@@ -370,7 +373,7 @@ const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
         </div>
 
         <el-form-item v-if="visibleOptionalFields.includes('coverImageUrl')" label="封面圖片來源連結" prop="coverImageUrl">
-          <el-input v-model="cardData.coverImageUrl" placeholder="https://..." clearable />
+          <CoverImageField v-model="cardData.coverImageUrl" :disabled="isSubmitting" />
         </el-form-item>
 
         <el-form-item v-if="visibleOptionalFields.includes('content')" :label="cardTextFieldCopy.content.label" prop="content">
@@ -387,8 +390,9 @@ const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
 
     <template #footer>
       <template v-if="createdCardId">
-        <el-button @click="createAnother">繼續新增</el-button>
-        <el-button type="primary" @click="viewCreatedCard">查看卡片</el-button>
+        <el-button :disabled="isSubmitting" @click="requestClose">關閉</el-button>
+        <el-button :disabled="isSubmitting" @click="createAnother">繼續新增</el-button>
+        <el-button :disabled="isSubmitting" type="primary" @click="viewCreatedCard">查看卡片</el-button>
       </template>
       <template v-else>
         <el-button :disabled="isSubmitting" @click="requestClose">取消</el-button>

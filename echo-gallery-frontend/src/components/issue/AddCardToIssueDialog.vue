@@ -69,6 +69,7 @@ const addIssueMutation = useMutation({
 
 <template>
   <AppDialog
+    :busy="addIssueMutation.isPending.value"
     v-model="dialogVisible"
     title="將卡片加入議題"
     width="min(560px, calc(100vw - 32px))"
@@ -111,6 +112,7 @@ const addIssueMutation = useMutation({
         </el-button>
       </div>
     </div>
+    <template #footer="{ requestClose }"><el-button :disabled="addIssueMutation.isPending.value" @click="requestClose">關閉</el-button></template>
   </AppDialog>
 </template>
 

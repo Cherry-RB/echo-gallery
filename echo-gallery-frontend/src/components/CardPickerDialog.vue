@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { useInfiniteQuery } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/vue-query'
 import { Search } from '@element-plus/icons-vue'
 import type { CardDto, CardSearchParams } from '../types/card'
 import { cardApi } from '../utils/api/cardApi'
 import { normalizeIssueCardSearch } from '../utils/cardSearch'
 import AppDialog from './AppDialog.vue'
+import PickerWorkspace from './ui/PickerWorkspace.vue'
+import PickerOption from './ui/PickerOption.vue'
+import CardPickerSelectionSummary from './ui/CardPickerSelectionSummary.vue'
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -14,9 +17,12 @@ const props = withDefaults(defineProps<{
   excludedCardIds?: Array<string | number>
   archiveStatus?: 'ACTIVE' | 'ARCHIVED' | 'ALL'
   confirmLabel?: string
+  settingsDraft?: unknown
   submitting?: boolean
   emptyDescription?: string
   settingsStyle?: 'surface' | 'plain'
+  initialCardId?: string | number | null
+  confirmationHint?: string
 }>(), {
   excludedCardIds: () => [],
   archiveStatus: 'ALL',
@@ -38,6 +44,7 @@ defineSlots<{
 const searchInput = ref('')
 const searchKeyword = ref('')
 const selectedCard = ref<CardDto | null>(null)
+const selectionTouched = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 const dialogVisible = computed({
@@ -76,12 +83,26 @@ const cards = computed(() =>
   (cardsQuery.data.value?.pages.flatMap(page => page.content) ?? [])
     .filter(card => !excludedIds.value.has(String(card.id))),
 )
+const initialCardQuery = useQuery({
+  queryKey: computed(() => ['cards', 'picker-initial', props.initialCardId]),
+  enabled: computed(() => props.modelValue && props.initialCardId != null),
+  queryFn: () => cardApi.getCard(props.initialCardId!),
+})
+watch([() => props.modelValue, () => initialCardQuery.data.value], ([visible, card]) => {
+  if (visible && card && !selectionTouched.value && !excludedIds.value.has(String(card.id))) selectedCard.value = card
+}, { immediate: true })
+watch([() => props.modelValue, cards], ([visible]) => {
+  if (visible && !selectionTouched.value && props.initialCardId != null) {
+    selectedCard.value = cards.value.find(card => String(card.id) === String(props.initialCardId)) ?? selectedCard.value
+  }
+}, { immediate: true })
 
 const reset = () => {
   if (searchTimer) clearTimeout(searchTimer)
   searchInput.value = ''
   searchKeyword.value = ''
   selectedCard.value = null
+  selectionTouched.value = false
 }
 
 const confirm = () => {
@@ -90,7 +111,7 @@ const confirm = () => {
 </script>
 
 <template>
-  <AppDialog
+  <AppDialog :busy="submitting" :draft="settingsDraft === undefined ? undefined : [settingsDraft, selectedCard?.id]"
     v-model="dialogVisible"
     :title="title"
     width="min(980px, calc(100vw - 32px))"
@@ -98,8 +119,7 @@ const confirm = () => {
     scroll-body
     @closed="reset"
   >
-    <div class="card-picker-workspace">
-      <section class="card-picker-browser">
+    <PickerWorkspace :settings-style="settingsStyle">
         <p class="picker-description">{{ description }}</p>
         <el-input
           v-model="searchInput"
@@ -112,73 +132,38 @@ const confirm = () => {
 
         <div v-if="cardsQuery.isLoading.value" class="picker-state"><el-skeleton :rows="6" animated /></div>
         <el-result v-else-if="cardsQuery.isError.value" icon="warning" title="無法載入卡片" />
-        <div v-else class="card-picker-list">
-          <button
-            v-for="card in cards"
-            :key="card.id"
-            type="button"
-            class="card-picker-item"
-            :class="{ selected: selectedCard?.id === card.id }"
-            @click="selectedCard = card"
-          >
-            <span class="picker-card-content">
-              <strong>{{ card.title }}</strong>
-              <span class="card-metadata">
-                <span>#{{ card.id }}</span>
-                <span>{{ card.type === 'link' ? '連結' : '筆記' }}</span>
-                <span v-if="card.isArchived">已封存</span>
-                <span v-if="card.intervalDays == null">暫停回流</span>
-                <span v-if="card.needsProcessing">待整理</span>
-              </span>
-            </span>
-            <span class="selection-label">{{ selectedCard?.id === card.id ? '已選擇' : '選擇' }}</span>
-          </button>
+        <div v-else class="card-picker-list picker-results">
+          <PickerOption v-for="card in cards" :key="card.id" class="card-picker-item" :title="card.title" :selected="selectedCard?.id === card.id" @select="selectedCard = card; selectionTouched = true">
+            <span>#{{ card.id }}</span>
+            <span>{{ card.type === 'link' ? '連結' : '筆記' }}</span>
+            <span v-if="card.isArchived">已封存</span>
+            <span v-if="card.intervalDays == null">暫停回流</span>
+            <span v-if="card.needsProcessing">待整理</span>
+          </PickerOption>
           <el-empty v-if="cards.length === 0" :image-size="72" :description="emptyDescription" />
           <div v-if="cardsQuery.hasNextPage.value" class="load-more-row">
             <el-button :loading="cardsQuery.isFetchingNextPage.value" @click="cardsQuery.fetchNextPage()">載入更多</el-button>
           </div>
         </div>
-      </section>
-
-      <aside :class="['card-picker-settings', `card-picker-settings--${settingsStyle}`]">
+      <template #selection>
         <slot name="settings" :selected-card="selectedCard">
           <h3>已選卡片</h3>
-          <p v-if="selectedCard" class="selected-card-title">{{ selectedCard.title }}</p>
-          <p v-else class="settings-placeholder">請先從左側選擇一張卡片。</p>
+          <CardPickerSelectionSummary :card="selectedCard" />
+          <p v-if="confirmationHint" class="settings-placeholder">{{ confirmationHint }}</p>
         </slot>
-      </aside>
-    </div>
+      </template>
+    </PickerWorkspace>
 
-    <template #footer>
-      <el-button :disabled="submitting" @click="dialogVisible = false">取消</el-button>
+    <template #footer="{ requestClose }">
+      <el-button :disabled="submitting" @click="requestClose">取消</el-button>
       <el-button type="primary" :loading="submitting" :disabled="!selectedCard" @click="confirm">{{ confirmLabel }}</el-button>
     </template>
   </AppDialog>
 </template>
 
 <style scoped>
-.card-picker-workspace { display: grid; height: min(68vh, 650px); min-height: 420px; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr); gap: 20px; }
-.card-picker-browser { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
-.picker-description { margin: 0 0 14px; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
-.picker-state { margin-top: 14px; }
-.card-picker-list { min-height: 0; margin-top: 10px; overflow-y: auto; border-top: 1px solid var(--el-border-color-lighter); }
-.card-picker-item { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 8px; border: 0; border-bottom: 1px solid var(--el-border-color-lighter); background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; }
-.card-picker-item:hover { background: var(--el-fill-color-light); }
-.card-picker-item.selected { background: var(--el-color-primary-light-9); }
-.picker-card-content { display: block; min-width: 0; }
-.picker-card-content strong { display: block; line-height: 1.5; overflow-wrap: anywhere; }
-.card-metadata { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 6px; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.selection-label { flex: 0 0 auto; color: var(--el-color-primary); font-size: var(--type-caption); }
-.load-more-row { display: flex; justify-content: center; padding: 16px 0; }
-.card-picker-settings { align-self: start; min-width: 0; padding: 18px; overflow: visible; border: 1px solid var(--el-border-color-lighter); border-radius: 9px; background: var(--surface-subtle); }
-.card-picker-settings--plain { padding: 4px 0 0 20px; border: 0; border-left: 1px solid var(--el-border-color-lighter); border-radius: 0; background: transparent; }
-.card-picker-settings h3 { margin: 0 0 12px; font-size: var(--type-card-title); }
-.selected-card-title { margin: 0; color: var(--el-text-color-primary); font-weight: 600; line-height: 1.6; }
-.settings-placeholder { margin: 0; color: var(--el-text-color-placeholder); line-height: var(--leading-ui); }
-@media (max-width: 760px) {
-  .card-picker-workspace { height: auto; min-height: 0; grid-template-columns: 1fr; }
-  .card-picker-list { max-height: none; overflow: visible; }
-  .card-picker-settings { overflow: visible; }
-  .card-picker-settings--plain { padding: 20px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; }
-}
+.picker-description { margin: 0 0 var(--space-sm); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
+.picker-state { margin-top: var(--space-sm); }
+.load-more-row { display: flex; justify-content: center; padding: var(--space-md) 0; }
+.settings-placeholder { margin: var(--space-sm) 0 0; color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
 </style>

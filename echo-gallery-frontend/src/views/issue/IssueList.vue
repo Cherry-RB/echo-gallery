@@ -515,7 +515,7 @@ const submitCreateIssue = async () => {
       history-only
     />
 
-    <AppDialog
+    <AppDialog :busy="createMutation.isPending.value" :draft="createForm"
       v-model="createDialogVisible"
       title="發起議題"
       width="min(620px, calc(100vw - 32px))"
@@ -601,10 +601,10 @@ const submitCreateIssue = async () => {
         </div>
       </el-form>
 
-      <template #footer>
+      <template #footer="{ requestClose }">
         <el-button
           :disabled="createMutation.isPending.value"
-          @click="createDialogVisible = false"
+          @click="requestClose"
         >
           取消
         </el-button>

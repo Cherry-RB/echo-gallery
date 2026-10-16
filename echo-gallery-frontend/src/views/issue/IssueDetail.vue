@@ -399,7 +399,7 @@ const submitUpdateIssue = async () => {
       </section>
     </main>
 
-    <AppDialog
+    <AppDialog :busy="updateMutation.isPending.value" :draft="editForm"
       v-model="editDialogVisible"
       :title="editDialogTitle"
       width="min(680px, calc(100vw - 32px))"
@@ -520,8 +520,8 @@ const submitUpdateIssue = async () => {
         </el-form-item>
       </el-form>
 
-      <template #footer>
-        <el-button :disabled="updateMutation.isPending.value" @click="editDialogVisible = false">取消</el-button>
+      <template #footer="{ requestClose }">
+        <el-button :disabled="updateMutation.isPending.value" @click="requestClose">取消</el-button>
         <el-button type="primary" :loading="updateMutation.isPending.value" @click="submitUpdateIssue">
           儲存變更
         </el-button>
