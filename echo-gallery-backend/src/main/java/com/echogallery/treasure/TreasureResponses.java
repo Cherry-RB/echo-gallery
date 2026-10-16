@@ -23,9 +23,8 @@ public final class TreasureResponses {
     public record Attempt(Long id, String titleSnapshot, String criteriaSnapshot, TrialStatus status,
             String resultNote, String evidenceUrl, ZonedDateTime attemptedAt, ZonedDateTime createdAt) {}
     public record Stats(long total, long stone, long bronze, long silver, long gold) {}
-    public record Highlight(Long treasureId, String title, TreasureRank rank, String highlightKind,
-            String highlightTitle, ZonedDateTime eventAt, Long trialId) {}
     public record Growth(long collectedCount, long promotedTreasureCount, long yieldTreasureCount, long yieldRecordCount) {}
     public record Event(Long treasureId, String treasureTitle, String kind, String eventTitle,
             ZonedDateTime eventAt, TreasureRank rank) {}
+    public record RecentActivity(List<Event> yields, List<Event> progress) {}
 }

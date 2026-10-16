@@ -1,4 +1,4 @@
-import type { TreasureEvent, TreasureGrowth, TreasureHighlight } from './treasure'
+import type { TreasureEvent, TreasureGrowth, TreasureSummary } from './treasure'
 
 export type OverviewPeriodDays = 7 | 30 | 90
 
@@ -14,14 +14,15 @@ export interface OverviewResponse {
     activeExperimentCount: number
     treasureCount: number
     experimentTries: OverviewExperimentTry[]
-    treasureHighlights: TreasureHighlight[]
+    treasureActions: TreasureSummary[]
     attentionSignals: OverviewAttentionSignal[]
   }
   period: {
     flow: { reengagedCardCount: number; reviewedCardCount: number }
     generativity: { derivedCardCount: number; sourceCardCount: number }
     treasureGrowth: TreasureGrowth
-    recentTreasureEvents: TreasureEvent[]
+    recentTreasureYields: TreasureEvent[]
+    recentTreasureProgress: TreasureEvent[]
     activities: OverviewActivity[]
     derivedCards: OverviewDerivedCard[]
     recentExperimentMaterials: OverviewExperimentMaterial[]

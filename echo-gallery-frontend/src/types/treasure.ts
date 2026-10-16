@@ -87,15 +87,6 @@ export interface YieldRequest {
   relatedCardId: number | null
 }
 export interface TreasureStats { total: number; stone: number; bronze: number; silver: number; gold: number }
-export interface TreasureHighlight {
-  treasureId: number
-  title: string
-  rank: TreasureRank
-  highlightKind: 'ACTIVE_TRIAL' | 'RECENT_YIELD' | 'RECENT_PROMOTION' | 'RECENT_COLLECTION'
-  highlightTitle: string
-  eventAt: string | null
-  trialId: number | null
-}
 export interface TreasureGrowth { collectedCount: number; promotedTreasureCount: number; yieldTreasureCount: number; yieldRecordCount: number }
 export interface TreasureEvent {
   treasureId: number

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-defineProps<{ label: string; count: number }>()
+defineProps<{ label: string; count: number; countOnly?: boolean }>()
 const emit = defineEmits<{ click: [] }>()
 </script>
 <template>
-  <button type="button" class="record-history-trigger" :aria-label="`查看 ${count} 筆${label}`" @click="emit('click')"><span>{{ label }}</span><span class="record-count">{{ count }}</span></button>
+  <button type="button" class="record-history-trigger" :aria-label="`查看 ${count} 筆${label}`" @click="emit('click')"><span v-if="!countOnly">{{ label }}</span><span class="record-count">{{ count }}</span></button>
 </template>
 <style scoped>
 /* 沿用實驗場探索紀錄入口的互動尺寸與排版。 */

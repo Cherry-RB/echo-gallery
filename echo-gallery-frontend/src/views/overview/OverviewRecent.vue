@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
+import SectionHeader from '../../components/ui/SectionHeader.vue'
 import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewPeriodDays } from '../../types/overview'
@@ -20,11 +21,19 @@ const period = computed(() => overview.value?.period ?? {
   flow: { reengagedCardCount: 0, reviewedCardCount: 0 },
   generativity: { derivedCardCount: 0, sourceCardCount: 0 },
   treasureGrowth: { collectedCount: 0, promotedTreasureCount: 0, yieldTreasureCount: 0, yieldRecordCount: 0 },
-  recentTreasureEvents: [],
+  recentTreasureYields: [],
+  recentTreasureProgress: [],
   activities: [],
   derivedCards: [],
   recentExperimentMaterials: [],
 })
+
+const treasureSections = computed(() => [
+  { key: 'yields', id: 'overview-treasure-yields', eyebrow: '價值延續', title: '近期價值產出',
+    events: period.value.recentTreasureYields, empty: '這段時間還沒有新的價值產出。' },
+  { key: 'progress', id: 'overview-treasure-progress', eyebrow: '成果進展', title: '近期入藏與檢定',
+    events: period.value.recentTreasureProgress, empty: '這段時間還沒有新的入藏、檢定嘗試或晉級紀錄。' },
+])
 
 const periodFigures = computed(() => [
   { key: 'reengaged', value: period.value.flow.reengagedCardCount, unit: '張', label: '舊卡重新參與', description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`, explanation: '建立於這段時間之前，且在這段時間重新被閱讀、放入實驗場或成為衍生來源的卡片。不是越高越好。' },
@@ -93,16 +102,23 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
           </section>
         </div>
 
-        <section class="content-panel" aria-labelledby="overview-treasure-events">
-          <div class="section-title-row"><h2 id="overview-treasure-events">近期取得與成長的奇珍</h2><router-link to="/treasures">查看館藏</router-link></div>
-          <div v-if="period.recentTreasureEvents.length" class="content-list">
-            <article v-for="(event, index) in period.recentTreasureEvents" :key="`${event.kind}-${event.treasureId}-${event.eventAt}-${index}`" class="content-card">
-              <router-link :to="`/treasures/${event.treasureId}`">{{ event.treasureTitle }}</router-link>
-              <p>{{ formatDate(event.eventAt) }} · {{ eventKinds[event.kind] }}{{ event.rank ? `至${ranks[event.rank]}` : '' }} · {{ event.eventTitle }}</p>
-            </article>
-          </div>
-          <p v-else class="empty-copy">這段時間還沒有新的奇珍紀錄。</p>
-        </section>
+        <div class="content-grid">
+          <section v-for="section in treasureSections" :key="section.key" class="content-panel" :aria-labelledby="section.id" :data-treasure-section="section.key">
+            <SectionHeader :id="section.id" :title="section.title" :eyebrow="section.eyebrow" :description="section.events.length ? `近 ${selectedPeriod} 天・最近 ${section.events.length} 筆` : `近 ${selectedPeriod} 天`">
+              <template #actions><router-link to="/treasures" class="treasure-gallery-link">查看館藏</router-link></template>
+            </SectionHeader>
+            <div v-if="section.events.length" class="content-list">
+              <article v-for="(event, index) in section.events" :key="`${event.kind}-${event.treasureId}-${event.eventAt}-${index}`" class="content-card">
+                <router-link :to="`/treasures/${event.treasureId}`" class="content-card-main treasure-record-main">
+                  <span><time :datetime="event.eventAt">{{ formatDate(event.eventAt) }}</time> · {{ event.rank ? `晉級至${ranks[event.rank]}` : eventKinds[event.kind] }}</span>
+                  <h3>{{ event.kind === 'COLLECTED' ? event.treasureTitle : event.eventTitle }}</h3>
+                </router-link>
+                <router-link v-if="event.kind !== 'COLLECTED'" :to="`/treasures/${event.treasureId}`" class="context-link treasure-record-source">{{ event.treasureTitle }}</router-link>
+              </article>
+            </div>
+            <p v-else class="empty-copy">{{ section.empty }}</p>
+          </section>
+        </div>
         <details class="activity-disclosure"><summary>查看近 {{ selectedPeriod }} 天的完整活動</summary><div class="activity-list"><div v-for="activity in period.activities" :key="activity.key" class="activity-item"><strong>{{ activity.value }}</strong><span>{{ activityDefinitions[activity.key] }}</span></div></div></details>
       </div>
     </div>
@@ -137,6 +153,12 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
 .content-card-main:hover h3, .context-link:hover { color: var(--el-color-primary); }
 .content-card p { margin: 5px 0 0; line-height: var(--leading-ui); }
 .context-link { margin-top: 6px; color: var(--el-color-primary); font-size: var(--type-meta); }
+.treasure-gallery-link { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
+.treasure-gallery-link:hover { text-decoration: underline; }
+.treasure-record-main, .treasure-record-source { text-decoration: none; }
+.treasure-record-main h3 { display: -webkit-box; overflow: hidden; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.treasure-record-source { overflow-wrap: anywhere; }
+.treasure-record-main:focus-visible, .treasure-record-source:focus-visible, .treasure-gallery-link:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .empty-copy { margin: 18px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-ui); }
 .activity-disclosure { padding: 0 var(--panel-padding); }
 .activity-disclosure > summary { padding: 16px 0; color: var(--el-text-color-secondary); cursor: pointer; font-size: var(--type-ui); }

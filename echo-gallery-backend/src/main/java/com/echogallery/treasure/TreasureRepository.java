@@ -14,6 +14,16 @@ public interface TreasureRepository extends JpaRepository<Treasure, Long>, JpaSp
     long countByUserIdAndArchivedFalseAndRank(Long userId, TreasureRank rank);
     long countByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(Long userId, ZonedDateTime start, ZonedDateTime end);
     List<Treasure> findByUserIdAndArchivedFalseOrderByCreatedAtDescIdDesc(Long userId, Pageable pageable);
+    @Query("""
+            select t from Treasure t join TreasureTrial d on d.treasure = t
+              and d.status in (com.echogallery.treasure.TrialStatus.PLANNED, com.echogallery.treasure.TrialStatus.ATTEMPTED, com.echogallery.treasure.TrialStatus.NOT_PASSED)
+              and ((t.rank = com.echogallery.treasure.TreasureRank.STONE and d.targetRank = com.echogallery.treasure.TreasureRank.BRONZE)
+                or (t.rank = com.echogallery.treasure.TreasureRank.BRONZE and d.targetRank = com.echogallery.treasure.TreasureRank.SILVER)
+                or (t.rank = com.echogallery.treasure.TreasureRank.SILVER and d.targetRank = com.echogallery.treasure.TreasureRank.GOLD))
+            where t.user.id = :userId and t.archived = false
+            order by d.updatedAt desc, d.id desc, t.id desc
+            """)
+    List<Treasure> findActionCandidates(@Param("userId") Long userId, Pageable pageable);
     List<Treasure> findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(
             Long userId, ZonedDateTime start, ZonedDateTime end, Pageable pageable);
 

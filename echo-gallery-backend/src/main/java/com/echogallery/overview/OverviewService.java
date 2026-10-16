@@ -110,7 +110,7 @@ public class OverviewService {
                 safeInt(experimentRepository.countByUserIdAndIsArchivedFalse(userId)),
                 treasureService.activeCount(),
                 experimentTries,
-                treasureService.highlights(),
+                treasureService.actions(),
                 attentionSignals(needsProcessingCardCount, highSnoozeCardCount));
 
         return current;
@@ -131,11 +131,13 @@ public class OverviewService {
                 safeInt(cardRelationRepository.countDistinctSourceCardsByUserIdAndCreatedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)));
         var growth = treasureService.growth(periodStartAt, periodEndAt);
+        var treasureActivity = treasureService.recentActivity(periodStartAt, periodEndAt);
         return new OverviewResponse.OverviewPeriodResponse(
                 flow,
                 generativity,
                 growth,
-                treasureService.events(periodStartAt, periodEndAt),
+                treasureActivity.yields(),
+                treasureActivity.progress(),
                 buildActivities(userId, periodStartAt, periodEndAt, growth),
                 findDerivedCards(userId, periodStartAt, periodEndAt),
                 findRecentExperimentMaterials(userId, periodStartAt, periodEndAt));

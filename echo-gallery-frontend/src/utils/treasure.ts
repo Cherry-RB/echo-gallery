@@ -13,8 +13,7 @@ export function challengeState(trial: import('../types/treasure').TreasureTrial,
   return '待嘗試'
 }
 export const trialStatuses: Record<TrialStatus, string> = { PLANNED: '準備挑戰', ATTEMPTED: '已嘗試', NOT_PASSED: '未通過', CANCELLED: '已取消', PASSED: '已通過' }
-export const eventKinds = { COLLECTED: '收入館藏', TRIAL_ATTEMPTED: '實際試煉', PROMOTED: '晉級', YIELD: '價值產出' }
-export const highlightKinds = { ACTIVE_TRIAL: '進行中的試煉', RECENT_YIELD: '近期價值產出', RECENT_PROMOTION: '近期晉級', RECENT_COLLECTION: '收入館藏' }
+export const eventKinds = { COLLECTED: '收入館藏', TRIAL_ATTEMPTED: '嘗試紀錄', PROMOTED: '晉級', YIELD: '價值產出' }
 
 export const rankGuides: Record<TreasureRank, { stage: string; summary: string; meaning: string; examples: { title: string; criteria: string }[] }> = {
   STONE: { stage: '取得成果', summary: '完成成果並入藏，作為起點，不另設檢定。', meaning: '真正完成一件作品、專案或成果，收入館藏。這是成長的起點，入藏不需要額外檢定。', examples: [] },

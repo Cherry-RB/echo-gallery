@@ -4,12 +4,21 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '../../components/ui/PageHeader.vue'
+import SectionHeader from '../../components/ui/SectionHeader.vue'
+import RecordHistoryTrigger from '../../components/ui/RecordHistoryTrigger.vue'
+import HistoryDialog from '../../components/ui/HistoryDialog.vue'
+import TreasureRankBadge from '../../components/treasure/TreasureRankBadge.vue'
+import TreasureTrialDialog from '../../components/treasure/TreasureTrialDialog.vue'
+import TreasureYieldDialog from '../../components/treasure/TreasureYieldDialog.vue'
+import TreasureYieldHistory from '../../components/treasure/TreasureYieldHistory.vue'
+import TreasureFormDialog from '../../components/treasure/TreasureFormDialog.vue'
 import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
 import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
 import { experimentApi } from '../../utils/api/experimentApi'
-import { highlightKinds, ranks } from '../../utils/treasure'
+import { challengeState, nextRankOf, yieldHistoryDescription } from '../../utils/treasure'
+import type { TreasureSummary, TreasureTrial } from '../../types/treasure'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewAttentionSignal } from '../../types/overview'
 import type { ExperimentExplorationRecordDto } from '../../types/experiment'
@@ -22,6 +31,11 @@ const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null
 const quickRecordVisible = ref(false)
 const historyExperimentId = ref<number | null>(null)
 const historyVisible = ref(false)
+const selectedTreasure = ref<TreasureSummary | null>(null)
+const treasureTrialVisible = ref(false)
+const treasureYieldVisible = ref(false)
+const treasureHistoryVisible = ref(false)
+const treasureCreateVisible = ref(false)
 const { data: overview, isLoading, isError, refetch } = useQuery({
   queryKey: ['overview', 'current'],
   queryFn: overviewApi.getCurrentOverview,
@@ -35,9 +49,14 @@ const current = computed(() => overview.value ?? {
   activeExperimentCount: 0,
   treasureCount: 0,
   experimentTries: [],
-  treasureHighlights: [],
+  treasureActions: [],
   attentionSignals: [],
 })
+const treasureActions = computed(() => current.value.treasureActions.filter(
+  (item): item is TreasureSummary & { activeTrial: TreasureTrial } => !!item.activeTrial
+    && item.activeTrial.targetRank === nextRankOf(item.rank)
+    && ['PLANNED', 'ATTEMPTED', 'NOT_PASSED'].includes(item.activeTrial.status),
+))
 const historyQuery = useQuery({
   queryKey: computed(() => ['experiment-exploration', historyExperimentId.value]),
   queryFn: () => experimentApi.getExploration(historyExperimentId.value!),
@@ -61,14 +80,20 @@ const attentionItems = computed(() => (current.value.attentionSignals ?? []).map
   actionLabel: signal.key === 'processing' ? '查看待整理卡片' : '查看稍後再看',
 })))
 
-const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', {
-  month: 'numeric',
-  day: 'numeric',
-}).format(new Date(value))
-
 const openCard = (cardId: number) => router.push({ name: 'CardDetail', params: { id: cardId }, query: { from: 'overview' } })
 const openExperiment = (experimentId: number) => router.push({ name: 'ExperimentDetail', params: { id: experimentId } })
-const openTreasure = (treasureId: number, trialId?: number | null) => router.push({ name: 'TreasureDetail', params: { id: treasureId }, hash: trialId ? '#trials' : '' })
+const openTreasureTrial = (treasure: TreasureSummary) => {
+  selectedTreasure.value = treasure
+  treasureTrialVisible.value = true
+}
+const openTreasureYield = (treasure: TreasureSummary) => {
+  selectedTreasure.value = treasure
+  treasureYieldVisible.value = true
+}
+const openTreasureHistory = (treasure: TreasureSummary) => {
+  selectedTreasure.value = treasure
+  treasureHistoryVisible.value = true
+}
 const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
   quickRecordExperimentId.value = experimentId
   quickRecordMode.value = mode
@@ -163,23 +188,37 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
       <div class="action-grid" :class="{ 'action-grid--single': !attentionItems.length }">
         <section class="action-panel" aria-labelledby="overview-treasure-title">
-          <div class="section-title-row">
-            <div>
-              <span class="section-eyebrow">奇珍展覽館</span>
-              <h2 id="overview-treasure-title">正在成長的成果</h2>
-            </div>
-            <router-link to="/treasures">查看全部</router-link>
-          </div>
-          <div v-if="current.treasureHighlights.length" class="next-step-list">
-            <article v-for="item in current.treasureHighlights" :key="item.treasureId" class="next-step-item">
-              <button type="button" class="next-step-main" @click="openTreasure(item.treasureId, item.trialId)">
-                <span>{{ ranks[item.rank] }} · {{ item.title }}</span>
-                <strong>{{ highlightKinds[item.highlightKind] }}：{{ item.highlightTitle }}</strong>
-                <small v-if="item.eventAt">{{ formatDate(item.eventAt) }}</small>
+          <SectionHeader id="overview-treasure-title" title="讓成果繼續產生價值" eyebrow="奇珍展覽館" :description="treasureActions.length ? '接著上次留下的方向，選一件成果繼續嘗試。' : undefined">
+            <template #actions><router-link to="/treasures" class="treasure-gallery-link">查看館藏</router-link></template>
+          </SectionHeader>
+          <div v-if="treasureActions.length" class="treasure-action-list">
+            <article v-for="item in treasureActions" :key="item.id" class="treasure-action-item">
+              <header class="treasure-action-heading">
+                <div class="treasure-action-context">
+                  <TreasureRankBadge :rank="item.rank" />
+                  <router-link :to="`/treasures/${item.id}`" class="treasure-action-title">{{ item.title }}</router-link>
+                </div>
+                <div class="treasure-output-controls">
+                  <button type="button" class="treasure-yield-trigger" :aria-label="`為${item.title}新增產出`" @click="openTreasureYield(item)">＋ 產出</button>
+                  <RecordHistoryTrigger v-if="item.yieldCount > 0" label="價值產出" :count="item.yieldCount" count-only @click="openTreasureHistory(item)" />
+                </div>
+              </header>
+              <button type="button" class="treasure-challenge-main" :data-rank="item.activeTrial.targetRank" :aria-label="`查看${item.title}的檢定：${item.activeTrial.title}`" @click="openTreasureTrial(item)">
+                <span class="treasure-challenge-title">{{ item.activeTrial.title }}</span>
+                <span class="treasure-challenge-entry">查看檢定</span>
+                <span class="treasure-challenge-criteria">{{ item.activeTrial.criteria }}</span>
+                <span class="treasure-action-status">{{ challengeState(item.activeTrial, item.rank) }}</span>
               </button>
             </article>
           </div>
-          <p v-else class="empty-copy">尚無館藏。完成過的作品與實踐，都可以成為第一件奇珍。<router-link to="/treasures">收入奇珍</router-link></p>
+          <div v-else-if="current.treasureCount === 0" class="treasure-empty-state">
+            <p>尚無館藏。完成過的作品與實踐，都可以成為第一件奇珍。</p>
+            <el-button type="primary" @click="treasureCreateVisible = true">收入奇珍</el-button>
+          </div>
+          <div v-else class="treasure-empty-state">
+            <p>目前沒有可繼續的檢定。可以保持原級珍藏，也可以前往館藏設定檢定，或記下已有的使用與回應。</p>
+            <el-button @click="router.push('/treasures')">查看館藏</el-button>
+          </div>
         </section>
 
         <section v-if="attentionItems.length" class="action-panel attention-panel" aria-labelledby="overview-attention-title">
@@ -226,6 +265,13 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       </div>
     </div>
 
+    <TreasureFormDialog v-if="treasureCreateVisible" v-model="treasureCreateVisible" />
+    <TreasureTrialDialog v-if="treasureTrialVisible && selectedTreasure" v-model="treasureTrialVisible" :treasure-id="selectedTreasure.id" :current-rank="selectedTreasure.rank" :next-rank="nextRankOf(selectedTreasure.rank)" :initial-rank="nextRankOf(selectedTreasure.rank) ?? undefined" initial-mode="route" @saved="treasureTrialVisible = false" />
+    <TreasureYieldDialog v-if="treasureYieldVisible && selectedTreasure" v-model="treasureYieldVisible" :treasure-id="selectedTreasure.id" />
+    <HistoryDialog v-if="treasureHistoryVisible && selectedTreasure" v-model="treasureHistoryVisible" :title="selectedTreasure.title + '・產出歷程'" :description="yieldHistoryDescription">
+      <template #actions><el-button link type="primary" @click="openTreasureYield(selectedTreasure)">＋產出</el-button></template>
+      <TreasureYieldHistory :treasure-id="selectedTreasure.id" embedded />
+    </HistoryDialog>
     <ExperimentExplorationEditor
       v-if="quickRecordExperimentId !== null"
       v-model="quickRecordVisible"
@@ -279,6 +325,34 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .exploration-record-count:hover, .exploration-record-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .action-grid, .content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .action-grid--single { grid-template-columns: 1fr; }
+.action-grid { align-items: start; }
+.action-panel { min-width: 0; border-radius: var(--panel-radius); }
+.treasure-gallery-link { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
+.treasure-gallery-link:hover { text-decoration: underline; }
+.treasure-action-list { margin-top: var(--space-md); }
+.treasure-action-item { min-width: 0; padding: var(--space-md) 0; border-top: 1px solid var(--el-border-color-lighter); }
+.treasure-action-item:first-child { padding-top: 0; border-top: 0; }
+.treasure-action-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-sm); }
+.treasure-action-context { display: flex; flex: 1 1 180px; min-width: 0; align-items: center; gap: var(--space-sm); }
+.treasure-action-context > :first-child { flex-shrink: 0; }
+.treasure-action-title { min-width: 0; color: var(--el-text-color-regular); font-size: var(--type-secondary); line-height: var(--leading-ui); text-decoration: none; overflow-wrap: anywhere; }
+.treasure-action-title:hover { color: var(--el-color-primary); }
+.treasure-challenge-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-xs) var(--space-sm); width: 100%; min-width: 0; margin-top: var(--space-sm); padding: var(--space-sm) var(--space-md); border: 1px solid var(--rank-border); border-radius: var(--radius-md); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.treasure-challenge-title { min-width: 0; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: var(--weight-semibold); line-height: var(--leading-ui); }
+.treasure-challenge-entry { align-self: start; color: var(--el-color-primary); font-size: var(--type-secondary); line-height: var(--leading-ui); white-space: nowrap; }
+.treasure-challenge-criteria { grid-column: 1 / -1; color: var(--el-text-color-regular); font-size: var(--type-secondary); line-height: var(--leading-ui); white-space: pre-line; }
+.treasure-challenge-title, .treasure-challenge-criteria { display: -webkit-box; overflow: hidden; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.treasure-action-status { grid-column: 1 / -1; color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
+.treasure-challenge-main:hover .treasure-challenge-title, .treasure-challenge-main:focus-visible .treasure-challenge-title { color: var(--el-color-primary); }
+.treasure-challenge-main:hover .treasure-challenge-entry { text-decoration: underline; }
+.treasure-challenge-main:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.treasure-output-controls { display: flex; flex-shrink: 0; align-items: center; gap: var(--space-xs); margin-left: auto; }
+.treasure-output-controls :deep(.el-button) { margin-left: 0; }
+.treasure-yield-trigger { padding: 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: nowrap; }
+.treasure-yield-trigger:hover, .treasure-yield-trigger:focus-visible { color: var(--el-color-primary-light-3); text-decoration: underline; }
+.treasure-action-title:focus-visible, .treasure-gallery-link:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.treasure-empty-state { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-md); margin-top: var(--space-md); padding: var(--space-md); border-radius: var(--radius-md); background: var(--surface-subtle); }
+.treasure-empty-state p { flex: 1 1 220px; margin: 0; color: var(--el-text-color-regular); font-size: var(--type-ui); line-height: var(--leading-ui); }
 .next-step-list, .attention-list, .content-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 .next-step-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: flex-start; min-width: 0; column-gap: var(--space-sm); width: 100%; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); }
 .next-step-item:first-child { padding-top: 0; border-top: 0; }

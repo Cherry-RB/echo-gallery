@@ -18,7 +18,7 @@ public record OverviewResponse(
             int activeExperimentCount,
             long treasureCount,
             List<ExperimentTryResponse> experimentTries,
-            List<com.echogallery.treasure.TreasureResponses.Highlight> treasureHighlights,
+            List<com.echogallery.treasure.TreasureResponses.Summary> treasureActions,
             List<AttentionSignalResponse> attentionSignals) {
     }
 
@@ -26,7 +26,8 @@ public record OverviewResponse(
             FlowMetricResponse flow,
             GenerativityMetricResponse generativity,
             com.echogallery.treasure.TreasureResponses.Growth treasureGrowth,
-            List<com.echogallery.treasure.TreasureResponses.Event> recentTreasureEvents,
+            List<com.echogallery.treasure.TreasureResponses.Event> recentTreasureYields,
+            List<com.echogallery.treasure.TreasureResponses.Event> recentTreasureProgress,
             List<ActivityResponse> activities,
             List<DerivedCardResponse> derivedCards,
             List<ExperimentMaterialResponse> recentExperimentMaterials) {

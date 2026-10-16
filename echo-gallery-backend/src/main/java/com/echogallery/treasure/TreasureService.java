@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 @Service @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class TreasureService {
-    private static final List<TrialStatus> ACTIVE = List.of(TrialStatus.PLANNED, TrialStatus.ATTEMPTED);
     private final TreasureRepository treasures;
     private final TreasureTrialRepository trials;
     private final TreasureTrialAttemptRepository attempts;
@@ -236,18 +235,18 @@ public class TreasureService {
         t.setUpdatedAt(now());
     }
 
-    public List<TreasureResponses.Highlight> highlights() {
-        Long owner = owner();
-        Map<Long, TreasureResponses.Highlight> result = new LinkedHashMap<>();
-        trials.findByTreasureUserIdAndTreasureArchivedFalseAndStatusInOrderByCreatedAtDescIdDesc(owner, ACTIVE, PageRequest.of(0, 3))
-                .forEach(t -> result.putIfAbsent(t.getTreasure().getId(), highlight(t.getTreasure(), "ACTIVE_TRIAL", t.getTitle(), null, t.getId())));
-        yields.findHighlights(owner, PageRequest.of(0, 3))
-                .forEach(y -> result.putIfAbsent(y.getTreasure().getId(), highlight(y.getTreasure(), "RECENT_YIELD", y.getTitle(), date(y.getOccurredOn()), null)));
-        trials.findPromotionHighlights(owner, now().minusDays(30), now(), PageRequest.of(0, 3))
-                .forEach(t -> result.putIfAbsent(t.getTreasure().getId(), highlight(t.getTreasure(), "RECENT_PROMOTION", t.getTitle(), t.getPassedAt(), t.getId())));
-        treasures.findByUserIdAndArchivedFalseOrderByCreatedAtDescIdDesc(owner, PageRequest.of(0, 3))
-                .forEach(t -> result.putIfAbsent(t.getId(), highlight(t, "RECENT_COLLECTION", "收入館藏", t.getCreatedAt(), null)));
-        return result.values().stream().limit(3).toList();
+    public List<TreasureResponses.Summary> actions() {
+        var candidates = treasures.findActionCandidates(owner(), PageRequest.of(0, 3));
+        if (candidates.isEmpty()) return List.of();
+        var ids = candidates.stream().map(Treasure::getId).toList();
+        var definitions = trials.findByTreasureIdInOrderByTargetRank(ids);
+        Map<Long, Long> counts = new HashMap<>();
+        yields.countForTreasures(ids).forEach(count -> counts.put(count.getTreasureId(), count.getTotal()));
+        // 行動摘要只呈現目前下一階，未來規劃與已發生事件不補作進行中挑戰。
+        return candidates.stream().flatMap(t -> definitions.stream()
+                .filter(d -> d.getTreasure().getId().equals(t.getId()) && d.getTargetRank() == t.getRank().next())
+                .filter(d -> List.of(TrialStatus.PLANNED, TrialStatus.ATTEMPTED, TrialStatus.NOT_PASSED).contains(d.getStatus()))
+                .findFirst().map(d -> summary(t, d, counts.getOrDefault(t.getId(), 0L))).stream()).toList();
     }
 
     public TreasureResponses.Growth growth(ZonedDateTime start, ZonedDateTime end) {
@@ -257,9 +256,9 @@ public class TreasureService {
                 yields.countByTreasureUserIdAndOccurredOnGreaterThanEqualAndOccurredOnLessThan(owner(), dateBoundary(start), dateBoundary(end)));
     }
 
-    public List<TreasureResponses.Event> events(ZonedDateTime start, ZonedDateTime end) {
+    public TreasureResponses.RecentActivity recentActivity(ZonedDateTime start, ZonedDateTime end) {
         Long owner = owner();
-        Pageable limit = PageRequest.of(0, 6);
+        Pageable limit = PageRequest.of(0, 3);
         record Candidate(Long id, TreasureResponses.Event event) {}
         List<Candidate> events = new ArrayList<>();
         treasures.findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(owner, start, end, limit)
@@ -269,11 +268,13 @@ public class TreasureService {
                 .forEach(t -> events.add(new Candidate(t.getId(), event(t.getTreasure(), "PROMOTED", t.getTitle(), t.getPassedAt(), t.getTargetRank()))));
         attempts.findByTrialTreasureUserIdAndAttemptedAtGreaterThanEqualAndAttemptedAtLessThanOrderByAttemptedAtDescIdDesc(owner, start, end, limit)
                 .forEach(a -> events.add(new Candidate(a.getId(), event(a.getTrial().getTreasure(), "TRIAL_ATTEMPTED", a.getTitleSnapshot(), a.getAttemptedAt(), null))));
-        yields.findByTreasureUserIdAndOccurredOnGreaterThanEqualAndOccurredOnLessThanOrderByOccurredOnDescIdDesc(owner, dateBoundary(start), dateBoundary(end), limit)
-                .forEach(y -> events.add(new Candidate(y.getId(), event(y.getTreasure(), "YIELD", y.getTitle(), date(y.getOccurredOn()), null))));
-        return events.stream().sorted(Comparator.comparing((Candidate c) -> c.event().eventAt()).reversed()
+        var recentYields = yields.findByTreasureUserIdAndOccurredOnGreaterThanEqualAndOccurredOnLessThanOrderByOccurredOnDescIdDesc(owner, dateBoundary(start), dateBoundary(end), limit)
+                .stream().map(y -> event(y.getTreasure(), "YIELD", y.getTitle(), date(y.getOccurredOn()), null)).toList();
+        // 兩種用途各自限制預覽筆數，不能先截斷混合事件再分組。
+        var progress = events.stream().sorted(Comparator.comparing((Candidate c) -> c.event().eventAt()).reversed()
                 .thenComparing(c -> c.event().kind()).thenComparing(Candidate::id, Comparator.reverseOrder()))
-                .limit(6).map(Candidate::event).toList();
+                .limit(3).map(Candidate::event).toList();
+        return new TreasureResponses.RecentActivity(recentYields, progress);
     }
 
     private void content(Treasure t, TreasureRequests.Content r) {
@@ -351,7 +352,6 @@ public class TreasureService {
     private static TreasureResponses.Reference reference(Treasure t) { return new TreasureResponses.Reference(t.getId(), t.getTitle()); }
     private static TreasureResponses.Trial trial(TreasureTrial t) { return new TreasureResponses.Trial(t.getId(), t.getTargetRank(), t.getTitle(), t.getCriteria(), t.getStatus(), t.getResultNote(), t.getEvidenceUrl(), t.getAttemptedAt(), t.getPassedAt(), t.getCreatedAt(), t.getUpdatedAt()); }
     private static TreasureResponses.Yield yield(TreasureYield y) { return new TreasureResponses.Yield(y.getId(), y.getTitle(), y.getDescription(), y.getOccurredOn(), y.getRelatedCard() == null ? null : new TreasureResponses.Reference(y.getRelatedCard().getId(), y.getRelatedCard().getTitle()), y.getCreatedAt(), y.getUpdatedAt()); }
-    private static TreasureResponses.Highlight highlight(Treasure t, String kind, String title, ZonedDateTime at, Long trialId) { return new TreasureResponses.Highlight(t.getId(), t.getTitle(), t.getRank(), kind, title, at, trialId); }
     private static TreasureResponses.Event event(Treasure t, String kind, String title, ZonedDateTime at, TreasureRank rank) { return new TreasureResponses.Event(t.getId(), t.getTitle(), kind, title, at, rank); }
     private static <T, R> PageResponse<R> page(Page<T> p, java.util.function.Function<T, R> mapper) { return new PageResponse<>(p.getContent().stream().map(mapper).toList(), p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages()); }
     private static Pageable paging(int page, int size) { return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 20)), Sort.by(Sort.Direction.DESC, "createdAt", "id")); }
