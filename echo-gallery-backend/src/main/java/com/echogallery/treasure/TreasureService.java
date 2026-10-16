@@ -44,7 +44,7 @@ public class TreasureService {
             }
             return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
         };
-        var results = treasures.findAll(spec, paging(page, size));
+        var results = treasures.findAll(spec, paging(page, size).withSort(Sort.by(Sort.Direction.DESC, "updatedAt", "id")));
         var ids = results.getContent().stream().map(Treasure::getId).toList();
         Map<Long, TreasureTrial> current = new HashMap<>();
         Map<Long, Long> counts = new HashMap<>();
@@ -354,7 +354,7 @@ public class TreasureService {
     private static TreasureResponses.Yield yield(TreasureYield y) { return new TreasureResponses.Yield(y.getId(), y.getTitle(), y.getDescription(), y.getOccurredOn(), y.getRelatedCard() == null ? null : new TreasureResponses.Reference(y.getRelatedCard().getId(), y.getRelatedCard().getTitle()), y.getCreatedAt(), y.getUpdatedAt()); }
     private static TreasureResponses.Event event(Treasure t, String kind, String title, ZonedDateTime at, TreasureRank rank) { return new TreasureResponses.Event(t.getId(), t.getTitle(), kind, title, at, rank); }
     private static <T, R> PageResponse<R> page(Page<T> p, java.util.function.Function<T, R> mapper) { return new PageResponse<>(p.getContent().stream().map(mapper).toList(), p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages()); }
-    private static Pageable paging(int page, int size) { return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 20)), Sort.by(Sort.Direction.DESC, "createdAt", "id")); }
+    private static PageRequest paging(int page, int size) { return PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 20)), Sort.by(Sort.Direction.DESC, "createdAt", "id")); }
     private Long owner() { return SecurityUtil.getCurrentUserId(); }
     private ZonedDateTime now() { return ZonedDateTime.now(clock); }
     private ZonedDateTime date(LocalDate d) { return d.atStartOfDay(clock.getZone()); }

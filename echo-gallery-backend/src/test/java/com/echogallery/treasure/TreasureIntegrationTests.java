@@ -82,6 +82,49 @@ class TreasureIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void listOrdersByLatestActivityAcrossFiltersPagesAndArchive() throws Exception {
+        String token = register();
+        long first = create(token, "排序成果一", List.of());
+        long second = create(token, "排序成果二", List.of());
+        long third = create(token, "排序成果三", List.of());
+        ZonedDateTime older = ZonedDateTime.now(clock).minusDays(2);
+        transactions.executeWithoutResult(status -> {
+            for (long id : List.of(first, second, third)) {
+                treasures.findById(id).orElseThrow().setUpdatedAt(older);
+            }
+        });
+        send(get("/api/treasures"), token, null)
+                .andExpect(jsonPath("$.content[0].id").value(third))
+                .andExpect(jsonPath("$.content[1].id").value(second))
+                .andExpect(jsonPath("$.content[2].id").value(first));
+
+        send(put("/api/treasures/{id}", first), token, content("排序成果一已編輯", List.of()))
+                .andExpect(status().isOk());
+        send(get("/api/treasures").param("keyword", "排序成果").param("rank", "STONE").param("size", "1"), token, null)
+                .andExpect(jsonPath("$.content[0].id").value(first))
+                .andExpect(jsonPath("$.totalElements").value(3));
+        send(get("/api/treasures").param("size", "1").param("page", "1"), token, null)
+                .andExpect(jsonPath("$.content[0].id").value(third));
+        send(post("/api/treasures/{id}/yields", second), token, yieldPayload(LocalDate.now(clock)))
+                .andExpect(status().isOk());
+        send(get("/api/treasures"), token, null)
+                .andExpect(jsonPath("$.content[0].id").value(second));
+
+        send(put("/api/treasures/{id}/archive", first), token, null).andExpect(status().isOk());
+        send(put("/api/treasures/{id}/archive", second), token, null).andExpect(status().isOk());
+        transactions.executeWithoutResult(status -> treasures.findById(first).orElseThrow().setUpdatedAt(older));
+        send(post("/api/treasures/{id}/yields", first), token, yieldPayload(LocalDate.now(clock)))
+                .andExpect(status().isOk());
+        send(get("/api/treasures").param("archived", "true"), token, null)
+                .andExpect(jsonPath("$.content[0].id").value(first))
+                .andExpect(jsonPath("$.content[1].id").value(second))
+                .andExpect(jsonPath("$.totalElements").value(2));
+        send(get("/api/treasures"), token, null)
+                .andExpect(jsonPath("$.content[0].id").value(third))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
     void collectsFiltersEditsArchivesAndDeletesWithoutDeletingSource() throws Exception {
         String token = register();
         long source = create(token, "來源成果", List.of());
