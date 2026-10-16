@@ -144,8 +144,8 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
 .treasure-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); }
 .treasure-card { padding: var(--space-md); min-width: 0; }
 .treasure-card { display: flex; flex-direction: column; gap: var(--space-sm); }
-.treasure-card-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
-.card-quick-actions { display: flex; align-items: center; gap: var(--space-sm); }
+.treasure-card-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.card-quick-actions { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%; margin-left: auto; gap: var(--space-sm); }
 .card-quick-actions :deep(.el-button) { margin-left: 0; }
 .output-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .challenge-rank { color: var(--rank-text); background: var(--rank-tint); border-radius: var(--radius-sm); padding: 0 var(--space-2xs); }

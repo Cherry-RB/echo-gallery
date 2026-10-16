@@ -152,7 +152,7 @@ const handleCommand = (command: string) => {
 .lineage-links a:hover { border-color: var(--el-color-primary-light-5); background: var(--surface-subtle); }
 .yield-panel { width: 100%; box-sizing: border-box; }
 @media (max-width: 900px) {
-  .detail-grid { grid-template-columns: 1fr; }
+  .detail-grid { grid-template-columns: minmax(0, 1fr); }
   .challenge-panel { grid-row: 1; }
   .detail-main-column { grid-row: 2; }
 }
