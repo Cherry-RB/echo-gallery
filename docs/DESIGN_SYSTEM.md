@@ -1,287 +1,374 @@
-# Echo Gallery Design System
+# Echo Gallery 設計系統
 
-> 本文件是 Echo Gallery UI 開發的長期 source of truth。新增或修改介面前，先判斷它應套用的既有 grammar；不要以單一畫面方便為由建立新的 layout 規則。
+> 本文件定義全專案的設計、排版與互動規則。先依使用者任務與內容角色選擇模式，再選擇 token 與元件；功能名稱不是另造設計規則的理由。
 
-## 目的與判斷原則
+## 1. 使用方式與規範治理
 
-Echo Gallery 以共享的 visual grammar 維持一致性，而不是讓所有畫面長得完全相同。
+### 1.1 範圍與用語
 
-- 相同語意，使用相同設計規則。
-- 不同語意，可以有有意識的差異。
-- 每一項差異都必須有 semantic 或 UX 理由。
-- spacing、typography、surface 與 responsive 行為優先使用本文件的既有規則。
-- 不以機械式 token 替換掩蓋舊 workaround；先判斷 CSS 的語意。
+本文件管理視覺基礎、頁面組合、共用互動模式及驗收方式，不保存開發流水帳，也不代表目前所有介面已符合規範。
 
-## Source of truth 與 reference implementation
+- **必須／不得**：同一適用範圍內的必要要求；例外須註明理由與範圍。
+- **建議／優先**：預設選擇；有明確任務或內容理由時可採其他方式。
+- **允許／可**：模式內可接受的差異，不代表必須新增該變體。
+- **模式**：可重用的資訊與互動結構，不一定存在同名 Vue 元件。
+- **參考實作**：示範特定面向的現有程式；不表示其全部外觀與行為均已驗收。
 
-優先順序如下：已人工驗收的 reference implementation、本文、Dialog baseline `ac2ffd4`、既有舊頁面、個人設計判斷。若文字規範與已驗收畫面衝突，修正文件，不改變 reference 的 render。
+### 1.2 決策依據與例外
 
-### Page / surface references
+1. 目前任務中使用者明確核准的需求，優先於文件中的一般規則；若影響共通設計，應評估同步更新本文件。
+2. 本文件定義共用目標。參考實作僅示範列明範圍，不能自動豁免後續核准的規範。
+3. 原始碼與設定用來確認目前行為，不把既有缺陷或偶然寫法提升為設計規則。
+4. 發現需求、規範與參考畫面衝突時，須說明差異；未確認的設計選擇不得自行定案，也不得藉文件更新擴大修改未授權的產品畫面。
 
-| Grammar | Reference |
+已人工驗收的畫面應避免無目的改動；這是變更控制原則，不代表它永遠優先於新需求。既有畫面可供尺寸與密度參考，但不自動代表符合現行規範；差異須依核准需求與適用模式判斷。
+
+可重用例外應列於 9.2；單次功能設定留在功能規格或實作備註。例外須說明適用條件、差異及理由，不能只寫「沿用舊版」。新增例外不等於授權全域重構。
+
+### 1.3 查用順序
+
+| 要解決的問題 | 查閱位置 |
 | --- | --- |
-| Collection | `src/views/boards/TodayBoard.vue`、`src/components/Board-Flex.vue` |
-| Persistent filter rail + result workspace | `src/views/SearchView.vue`、`src/views/center/TagCenter.vue` |
-| Workspace | `src/views/issue/IssueList.vue` |
-| Detail | `src/views/CardDetail.vue`、`src/views/issue/IssueDetail.vue` |
+| 用什麼字級、間距、顏色與背景 | 第 2、3 章 |
+| 頁首、工具列、詳情與集合怎麼排列 | 第 4 章 |
+| 標題、計數、長文與操作如何辨識 | 第 5 章 |
+| 表單、選取與歷程如何組合 | 第 6 章 |
+| 彈窗如何分類、捲動與離開 | 第 7 章 |
+| 手機、鍵盤、載入與失敗如何處理 | 第 8 章 |
+| 有哪些現成元件、業務例外與驗收要求 | 第 9 章 |
 
-### Dialog references
+同一規則以其主要章節為準，其他章節只引用。下列內容均為規範或實作映射，不使用「元件已存在」推定「產品已對齊」。
 
-| Pattern | Reference |
-| --- | --- |
-| Compact form | `src/components/issue/IssueMaterialManager.vue` 的「編輯素材備註」 |
-| Form | `src/views/issue/IssueList.vue` 的「發起議題」 |
-| Large form | `src/views/CardDetail.vue` 的「編輯卡片」 |
-| Picker / workspace | `src/components/CardPickerDialog.vue` |
-| Content-heavy | `src/views/experiment/ExperimentDetail.vue` 的「整理探索紀錄」 |
+## 2. 視覺基礎
 
-## Tokens
+### 2.1 Token 與直接數值
 
-Tokens 定義於 `src/style.css`。component 不得自創無意義的 spacing、radius 或 typography 數值。
+全域 token 定義於 `echo-gallery-frontend/src/style.css`。一般文字、內外距、圓角與表面必須優先使用既有語意 token，不為局部位置補償另造數值或 token。
 
-### Spacing
+圖表、狀態節點、圖示操作範圍、瀑布流欄寬、內容比例及響應式斷點允許使用必要的幾何數值，但須有用途依據。既有尺寸特例不授權新增任意數值；本文件亦不要求機械式替換所有舊 CSS。
 
-| Token | Value | Use |
+### 2.2 間距與尺寸
+
+| Token | 數值 | 預設用途 |
 | --- | --- | --- |
-| `--space-2xs` | 4px | icon / inline micro gap |
-| `--space-xs` | 8px | inline gap、短標題間距 |
-| `--space-sm` | 12px | related controls、field-adjacent gap |
-| `--space-md` | 16px | component gap、collection card padding |
-| `--space-lg` | 24px | section gap、panel padding、desktop page gutter |
-| `--space-xl` | 32px | major section / empty state padding |
-| `--space-2xl` | 40px | rare large separation |
-| `--space-3xl` | 48px | detail reading terminal spacing |
+| `--space-2xs` | 4px | 圖示與文字、緊湊 metadata 間距 |
+| `--space-xs` | 8px | 同組短元素、標籤與控制項 |
+| `--space-sm` | 12px | 相關控制項、提示與摘要 |
+| `--space-md` | 16px | 元件間距、集合卡片內距 |
+| `--space-lg` | 24px | 語意章節間距、面板內距、桌面頁面留白 |
+| `--space-xl` | 32px | 大區塊或空狀態留白 |
+| `--space-2xl` | 40px | 少量需要較大分隔的內容 |
+| `--space-3xl` | 48px | 詳情閱讀結尾留白 |
 
-`--space-1` through `--space-6` are legacy aliases only; new code uses semantic token names above.
-
-### Typography
-
-| Role | Size | Weight | Line height | Use |
-| --- | ---: | ---: | ---: | --- |
-| Page title | 28px (mobile 24px) | 600 | 38px | page identity |
-| Section title | 18px | 600 | 27px | section heading、dialog title |
-| Card title | 17px | 600 | 26px | collection / summary card title |
-| Body | 15px | 400 | 26px | reading content |
-| UI label | 14px | 400 | 21px | inputs、buttons、ordinary UI |
-| Secondary | 14px | 400 | 21px | descriptions and supporting UI |
-| Metadata | 12px | 500 | 18px | date、status、helper、counter |
-
-Aliases such as `--type-caption` and `--type-meta` preserve existing Element Plus-facing code, but resolve to the roles above.
-
-### Radius and widths
-
-| Token / rule | Value / behavior |
-| --- | --- |
-| `--radius-sm` | 6px: compact controls / utility treatment |
-| `--radius-md` | 8px: cards, panels, inputs where a custom surface is needed |
-| `--radius-lg` | 12px: large composed surface only |
-| `--content-max-width` | 1280px contained page maximum |
-| `--reading-max-width` | 760px readable long-form content |
-| Page gutter | desktop 24px; mobile 16px |
-| Workspace padding | desktop 16px; mobile 12px |
-| Panel padding | desktop 24px; mobile 16px |
-
-## Page shells
-
-Shell is layout grammar, never a content category. A new Dashboard, Garden or analysis page must first use one of these shells.
-
-### Auth Shell
-
-For Login and Register only: a centered, single-purpose authentication surface with fluid narrow width. `Logout` is an action / redirect, not an Auth page.
-
-### Collection Shell
-
-Structure: `PageHeader → optional Toolbar / FilterToolbar → collection workspace → grid/list/masonry or empty state`.
-
-- Use for Today, All Cards, Search and their views.
-- Header-to-workspace separation uses `--space-lg`; card grids use their collection-specific layout but shared card typography and padding.
-- Complex filters are a toolbar, not another page shell or a stack of decorative cards.
-- Mobile lets actions wrap and collections become a single column as needed.
-
-#### Persistent filter rail + result workspace
-
-Use this Collection Shell variant when people must keep query or selection controls visible while inspecting a card collection.
-
-Structure: `filter / selection rail → result toolbar → grey result canvas → card grid → pagination`.
-
-- The rail owns draft query or selection controls. Its fields remain feature-specific; do not force tag selection and multi-criteria search into one generic form component.
-- The result toolbar owns applied-state context, result count and presentation controls. It must distinguish draft conditions from the conditions that produced the current results.
-- Sorting is a presentation control: it may apply immediately without submitting unrelated draft filters.
-- The result canvas is the collection scroll owner. Cards do not acquire independent scrollbars merely to fit the viewport.
-- Pagination belongs at the end of the grey result canvas, desktop right-aligned, with current page, total pages and page size visible. It is not a separate white footer surface.
-- `SearchView.vue` and `TagCenter.vue` are verified references for this grammar. Their rails share layout rules, not business-state components.
-- On mobile, the rail stacks before the result workspace; result toolbar controls wrap without hiding result context.
-
-### Workspace Shell
-
-Structure: `PageHeader → workspace canvas → semantic sections / panels`.
-
-- Use for Issues, Experiments, Overview, Return Overview and management interfaces.
-- Aggregate data does not create a separate page shell. Overview and Return Overview follow the same Workspace Shell and page rhythm as Issue List; only their internal data geometry differs.
-- The canvas may be page-background without becoming an extra card. Panels only mark meaningful independently actionable or readable groups.
-- Management-specific split panes are allowed when their work requires concurrent context.
-
-### Detail Shell
-
-Structure: `detail navigation → primary content → secondary context / actions`.
-
-- Use for Card, Issue and Experiment detail.
-- Long reading content uses `--reading-max-width`; details may use an adjacent property/context area where it has a distinct semantic purpose.
-- Structured detail dashboards may use a two-column primary grid followed by full-width feedback or supporting sections. Use grid, dividers and typography within a panel instead of wrapping every value in another card.
-- On mobile, split layouts stack; do not preserve desktop side columns by shrinking them.
-
-## Surface taxonomy
-
-### Neutral surface hierarchy
-
-Use the project semantic tokens below instead of selecting Element Plus grey tokens in feature CSS. They preserve the same hierarchy in light and dark themes.
-
-| Token | Layer | Use |
+| 角色 | 桌面 | 窄螢幕 |
 | --- | --- | --- |
-| `--surface-page` | 1 | outer page / workspace canvas |
-| `--surface-collection` | 2 | a grey canvas that contains smaller white cards, such as material or result collections |
-| `--surface-summary` | 3 | a large, self-contained multi-field summary with no white child cards, such as current state or a timeline event |
-| `--surface-subtle` | 4 | low-emphasis utility content, previews, readonly hints and empty-state support |
+| 頁面留白 `--page-gutter` | 24px | 16px |
+| 工作區內距 `--workspace-padding` | 16px | 12px |
+| 面板內距 `--panel-padding` | 24px | 16px |
+| 容器最大寬 `--content-max-width` | 1280px | 不超出可用寬度 |
+| 長文最大寬 `--reading-max-width` | 760px | 不超出可用寬度 |
 
-Do not stack these neutral surfaces merely for decoration. A collection canvas owns white child cards; a summary surface owns its fields through grid and dividers; a subtle surface must not become a primary reading panel.
+- 相同角色與密度使用相同內距；閱讀面板、集合卡片與緊湊工具區允許不同密度。不得只因屬於不同功能就改變間距。
+- 內距由容器的一層負責，避免外殼與直接子內容重複 padding；外距用於相鄰語意群組，不用空白元素或固定高度撐開。
+- 圓角沿用 `--radius-sm`（6px）、`--radius-md`（8px）、`--radius-lg`（12px）：分別用於緊湊控制、卡片／面板、少量大型組合表面。
+- `--space-1` 至 `--space-6` 為相容別名，新程式使用語意名稱。
 
-| Surface | Purpose | Treatment |
+### 2.3 文字角色
+
+| 角色 | 字級 | 預設字重 | 行高 | 用途 |
+| --- | --- | --- | --- | --- |
+| 頁面標題 | 28px，窄螢幕 24px | 600 | 38px | 頁面或詳情主名稱 |
+| 區塊標題 | 18px | 600 | 27px | 章節及彈窗標題 |
+| 卡片標題 | 17px | 600 | 26px | 集合卡片、摘要名稱 |
+| 內文 | 15px | 400 | 26px | 主要閱讀內容 |
+| UI 標籤 | 14px | 400 | 21px | 控制項與一般操作 |
+| 次要文字 | 14px | 400 | 21px | 區塊說明與輔助閱讀 |
+| Metadata | 12px | 500 | 18px | 日期、狀態、提示、計數 |
+
+使用對應的 `--type-*`、`--weight-*` 與 `--leading-*` token。`--type-meta`、`--type-caption` 等相容別名依現有定義解析，不另建近似字級。字重可依控制項或強調需求使用既有權重，不能靠任意加粗製造新的標題層級。
+
+標題層級按文件結構選擇，不以 h 標籤調整視覺大小；同一頁應有清楚的主標題。一般表單與記錄型表單的標籤密度差異見 6.1，不以全域 CSS 強迫相同。
+
+### 2.4 色彩角色
+
+| 角色 | 既有來源 | 使用原則 |
 | --- | --- | --- |
-| Workspace canvas | groups a page's working area | page background and workspace padding; no automatic border |
-| Content panel | independently readable/actionable section | `--panel-padding`, `--radius-md`, border, normal background |
-| Collection card | repeated card in a collection | 16px padding, `--radius-md`, border, normal background |
-| Summary card | concise status / decision summary | panel padding, `--radius-md`, border; may carry semantic colour |
-| Utility row | compact control or selection state | no independent panel unless it is itself a state boundary |
-| Stat unit | a value plus label within a summary | no nested card; separated by grid / divider only |
+| 主要／一般文字 | `--el-text-color-primary`、`--el-text-color-regular` | 標題與主要內容；不因內容不可編輯就降低其閱讀對比 |
+| 次要文字 | `--el-text-color-secondary` | 日期、說明與輔助資訊；placeholder 色不作主要說明文字的預設 |
+| 互動與已選 | `--el-color-primary` 及其主題變體 | 操作、連結、焦點與選取；不把所有強調文字都做成連結色 |
+| 成功／警告／錯誤／資訊 | Element Plus 對應語意色 | 表達結果與風險，配合文字或圖示，不只靠顏色 |
+| 內容背景與框線 | `--el-bg-color`、`--el-border-color-*` | 內容面板及邊界；不得以固定白色取代主題角色 |
+| 中性區域 | 第 3 章的 `--surface-*` | 依內容角色選擇，不在功能 CSS 任選灰階 |
+| 業務識別 | 已有等級、實驗主題等色彩設定 | 只表達身分或業務狀態，不取代全域操作與錯誤語意 |
 
-Every background, border and padding layer must name its semantic boundary. Do not build `workspace → panel → card → card` merely to create spacing.
+目前樣式另有 `--accent` 等變數；不得因其存在就另建一套與 Element Plus primary 競爭的按鈕或連結色。明暗主題均須保留同樣語意，對比與非色彩辨識見 8.2。
 
-## Header, section, toolbar and empty state
+## 3. 內容角色與表面
 
-- `PageHeader` owns title, description and top-level actions. It has a 24px desktop gap below it; mobile stacks actions beneath copy.
-- `SectionHeader` owns eyebrow, title, description and section-local actions. Section body follows at 16px.
-- `WorkspaceToolbar` aligns controls at the bottom, wraps controls instead of compressing them, and remains content-specific.
-- `FilterToolbar` is a control region, not a card-inside-card. Use a surface only when filters themselves are a separate editing task.
-- `AppEmptyState` is used for a collection or panel with no content; it has centered content and no extra nested card.
+表面表示內容邊界，不是裝飾層數；以下「層」是語意分類，不是必須依序巢狀堆疊。
 
-## Forms
-
-Element Plus form-item rhythm is the default. Do not globally reset label, input or field spacing.
-
-- Use `FormSection` only for a real semantic group, not for every consecutive field.
-- A section follows another section at `--space-lg`.
-- Intro, helper and counter text use secondary or metadata roles; they do not create a new surface.
-- Form actions belong to the owning page or overlay footer, not between ordinary fields.
-
-## Selection lists and content truncation
-
-- 同一流程中的多選清單使用同一套 control family，不混用 native checkbox 與 Element Plus checkbox。
-- Selection row 的整列是可辨識的互動單位；checkbox 與多行文字頂端對齊，selected state 使用共用 primary 色彩。
-- 名稱、標籤、表單選項等需要完整辨識的內容預設允許換行，不得以固定高度或 `overflow: hidden` 意外裁切。
-- `text-overflow: ellipsis` 與 line clamp 只用於明確的 collection preview、摘要或卡片標題預覽；使用時必須有可理解的截斷語意。
-
-## Dialog design system
-
-Dialog visual language follows the baseline Element Plus rhythm preserved by `AppDialog.vue` and the verified references above.
-
-- The caller owns width via a fluid CSS expression such as `min(620px, calc(100vw - 32px))`.
-- Width categories are functional references, not tokens: 520 compact note, 560 small form, 620 general form, 680 edit form, 760 content-heavy, 820 large edit, 900 comparison, 980 picker.
-- Desktop viewport gutter and max-height follow the baseline `AppDialog`; mobile uses a 12px outer inset and fluid width.
-- Do not globally impose body padding, `flex: 1`, `overflow-y: auto`, grey large-form body, or a heavy footer.
-- Footer remains a light action boundary; it must not become a third visual panel.
-- Scroll ownership is local: natural-height dialogs remain natural; long form bodies scroll when needed; picker/workspace content owns its constrained scroll.
-- Pattern labels (`confirmation`, `compact-form`, `form`, `large-form`, `picker`, `workspace`) are functional classification only. They do not prescribe one width, padding or scroll implementation.
-
-## Drawer, popover and MessageBox
-
-- Drawer preserves edge-originated navigation or temporary workspace behavior. It may share tokens, but is not a Dialog variant.
-- Drawer body 與其直接內容只能由其中一層管理主要 padding，避免外層與內層重複留白。
-- Popover preserves anchor positioning and compact contextual content. Do not force dialog dimensions or scrolling into it.
-- Element Plus MessageBox keeps its native confirmation / prompt interaction. Use shared typography and colour roles only where supported; do not recreate it as an AppDialog without a UX need.
-
-## Responsive principles
-
-- Primary breakpoints: 760px for mobile composition, 900px for detail split panes, and 1200px for broad management layouts.
-- Mobile page gutter is 16px; workspace padding is 12px; panels use 16px.
-- Header actions wrap or stack. Grid and split panes become one column when content can no longer remain readable.
-- Dialogs are fluid within the viewport. Long content must have an explicit, local scroll owner.
-- A mobile override must preserve information hierarchy; it must not rely on small text or clipped controls to retain a desktop layout.
-
-## Valid exceptions
-
-| Exception | Reason |
-| --- | --- |
-| Card Detail reading width and property rail | reading and metadata have distinct cognitive roles |
-| Experiment stage colour | stage identity is domain information, not decoration |
-| Masonry collection | variable card length requires masonry placement; it still uses Collection Shell spacing |
-| Navigation drawer | temporary navigation has edge-overlay interaction |
-| Card Picker plain settings rail | a short selection summary must not masquerade as a full-height panel |
-
-Document any future exception beside its component and add it here only when it is reusable or materially affects architecture.
-
-## AI development checklist
-
-### Before a new page
-
-1. Which existing shell matches its layout grammar?
-2. Which existing surface represents each semantic boundary?
-3. Can an existing toolbar, section header or empty state be used?
-4. Is a new shell truly necessary, or is this a variant / exception?
-
-### Before a new dialog
-
-1. Find the closest verified dialog reference.
-2. Choose width by content and use fluid viewport width.
-3. Decide scroll ownership from the content type.
-4. Keep Element Plus form rhythm unless a semantic group needs an override.
-5. Do not add global dialog padding, body flex or body scrolling.
-
-### Before adding CSS
-
-1. Use existing token first.
-2. Classify the rule as shared grammar, semantic component style, valid exception or legacy workaround.
-3. Do not create a token for a one-off positional correction.
-4. Verify desktop and mobile render and check for unnecessary surface nesting.
-
-## Anti-patterns
-
-- A separate page shell for every feature name.
-- Arbitrary px values used only to compensate for a local layout mistake.
-- Decorative nested cards or borders without a semantic boundary.
-- Turning every section into a card.
-- A global dialog rule that changes all body padding, height or scrolling.
-- Letting a dialog pattern auto-select its visual width.
-- Forcing drawer, popover or MessageBox into Dialog grammar.
-- Over-componentizing solely for DRY when semantic ownership differs.
-- Changing a verified interaction pattern merely to look more uniform.
-
-## Implementation audit
-
-This inventory records the current production UI scope. `Compliant` means the surface uses an existing shell or explicit exception; it does not mean every geometric value is a global token.
-
-| Surface | Status | Grammar / rationale |
+| 角色 | 背景／處理 | 適用內容 |
 | --- | --- | --- |
-| Login, Register | Compliant | Auth Shell |
-| Logout | Action only | redirect / session action; no page surface |
-| Today, All Cards | Compliant | Collection Shell and Masonry exception |
-| Card Search | Compliant | Collection Shell persistent filter rail + result workspace |
-| Tag Center | Compliant | Persistent filter rail + result workspace; tag selection is its rail-specific semantics |
-| Issue List | Compliant | Workspace Shell |
-| Issue Detail | Compliant | Detail Shell with system snapshot, current decision and full-width feedback geometry |
-| Experiment List | Compliant | Workspace / collection variant |
-| Experiment Detail | Compliant | Detail Shell with stage semantics |
-| Overview, Return Overview | Compliant | Workspace Shell shared with Issue List; aggregate-stat geometry is internal content only |
-| Card Detail / create mode | Compliant exception | Detail Shell with reading width and property rail |
-| Gardens and legacy board paths | Redirect only | no independent render surface |
-| `Home.vue`, `CardCreate.vue`, `SearchBar.vue`, `CardTextModeFooter.vue` | Legacy / unused | not referenced by current production route or component graph; do not use as a new UI reference |
+| 頁面／工作底 | `--surface-page` | 頁面工作範圍，不自動加框 |
+| 集合底 | `--surface-collection` | 包含多張內容卡片的結果或材料集合 |
+| 內容面板／集合卡片 | `--el-bg-color`、必要細框、對應內距 | 獨立可閱讀或可操作內容 |
+| 摘要 | `--surface-summary` | 自成一組的多欄狀態、目前內容或歷程事件，以 grid／分隔線組織 |
+| 輔助區 | `--surface-subtle` | 唯讀背景、預覽、提示及空狀態支援 |
+| 已選摘要 | primary 淺底與細框 | 明確的選取結果，不與一般唯讀摘要混為一談 |
 
-### Geometry audit
+- 每一層背景、框線與 padding 必須能說明其內容角色；不得為拉開間距建立「工作底 → 面板 → 卡片 → 卡片」的裝飾堆疊。
+- 摘要中的統計或欄位優先使用文字、grid 與分隔線，不每個數值再包卡片。分隔線只標示真正的內容邊界。
+- 相同角色跨功能共用規則；不同角色允許有差異。選擇器右欄容器可為中性結構，其內的已選摘要仍保留選取表面，兩者不能混為一個背景決策。
+- 目前狀態、已選狀態、焦點及正在查看是不同訊息，必須能同時辨識；不以多個節點、側線、徽章及色塊重複表達同一件事。等級成長的具體套用見 9.2。
 
-Direct values remain valid only in these categories:
+## 4. 頁面與區塊組合
 
-- data geometry: chart columns, tracks, status dots, progress markers and Masonry sizing;
-- interaction geometry: icon hit targets, native control affordances and compact picker rows;
-- baseline restoration: verified Dialog / Picker density from `ac2ffd4`;
-- responsive composition: split-pane thresholds and viewport-constrained content heights.
+### 4.1 依任務選擇版型
 
-New code must still use the tokens in this document for ordinary page, panel, card, form and toolbar spacing. A direct value outside these categories requires an adjacent reason or a Design System update.
+| 模式 | 選擇條件 | 結構 | 允許差異 |
+| --- | --- | --- | --- |
+| 驗證入口 | 登入、註冊等單一入口任務 | 窄幅置中表單 → 主要提交 → 輔助入口 | 欄位數與說明長度 |
+| 集合 | 瀏覽、篩選及開啟重複項目 | 頁首 → 可選工具列 → 結果／集合 → 資料瀏覽控制 | grid、list、瀑布流及頁首操作 |
+| 固定控制側欄＋結果 | 需要持續查看或調整條件 | 條件側欄 → 結果工具列 → 集合與分頁 | 標籤選取、搜尋條件；窄螢幕堆疊 |
+| 工作區 | 同時管理多種狀態、行動或內容 | 頁首 → 工作底 → 語意區塊 | 統計、待辦、材料、比較及集合子區 |
+| 詳情 | 閱讀或操作單一實體 | 返回導覽與頁級操作 → 主題 → 主要內容與補充脈絡 | 閱讀＋屬性側欄、直向工作區、內容＋挑戰雙欄 |
+
+集合與工作區可組合：有統計或業務名稱不構成新外殼。固定側欄模式不必再疊一個一般列表頁首。既有 class 的名稱不決定頁面模式。
+
+### 4.2 頁首、章節與工具列
+
+- 一般頁首頁名與說明位於起始側，頁級主要操作位於末端；桌面頁首至工作區預設 `--space-lg`。窄螢幕處理見 8.1。
+- 區塊標題、說明與區塊操作構成一組；內容預設在 `--space-md` 後開始。狀態或日期可與操作同列，但須保留間距，不推擠標題與內文。
+- 範圍切換放工具區起始側，搜尋與其他條件在同一工具區排列；允許換行，不以縮小輸入或文字硬塞。
+- 已套用條件、結果筆數與全體統計必須清楚區分。草稿查詢不得提前改寫目前結果說明；排序若即時套用，不應順帶提交其他草稿條件。
+- 結果說明位於集合之前，與集合屬於同一工作範圍；不得用局部框線或額外表面造成統計歸屬不明。
+
+`PageHeader`、`SectionHeader` 是已有呈現元件；「WorkspaceToolbar／FilterToolbar」是工具列模式名稱，目前沒有同名元件，不應假設可直接 import。
+
+### 4.3 集合與資料瀏覽
+
+- 名稱及內容是卡片主要閱讀區；局部新增、歷程入口與更多操作集中成操作群組，避免與閱讀區混雜。兩者事件不得互相觸發，語意見 5.2。
+- 同一集合的卡片使用相同密度與標題角色；不同內容長度可採瀑布流，不強制相同高度。長文與封面見 5.1、8.3。
+- 分頁位於集合結尾，桌面預設靠右；固定側欄模式將分頁放在結果捲動區結尾，保留目前頁與頁面範圍資訊，不另造大型 footer。
+- 續載或無限捲動的集合須表達正在載入、後續失敗及已到底；不得只為形式一致改成分頁。新流程依定位、回看與操作需求選擇資料瀏覽方式。
+- 空、載入、錯誤與無符合結果沿用相同外殼，不因資料狀態換一套頁面幾何。回饋要求見 8.3。
+
+### 4.4 詳情導覽與內容
+
+- 導覽列起始側放返回入口，末端放頁級操作；內容主題區呈現名稱、必要類型、日期及狀態。返回導覽與主題標題是兩個角色，不重複堆疊同名頁首。
+- 導覽背景、分隔及留白沿用共用規則；功能特有內容留在主內容區。可共用 `DetailShell`／`DetailHeading`，既有閱讀與屬性模式可保留等效結構，不因此強制重構所有詳情。
+- 長文閱讀採閱讀寬度；屬性、挑戰及操作區依任務並排或直向排列，不強制相同欄數、比例或區塊數。
+- 補充脈絡以小標、方向明確的關聯及必要分隔呈現；來源與衍生成果不得混淆，不為每個連結再造面板。
+- 頁級、區塊及單筆操作的關係統一依 5.2；重排不得打散名稱、狀態及其操作的對應關係。
+
+## 5. 資訊呈現與操作
+
+### 5.1 名稱、說明、計數與長文
+
+- 標題表達內容身分，說明交代用途，metadata 表達時間或狀態；三者必須有可辨識層級，不能連成沒有間距的文字串。
+- 計數必須與標籤及資料範圍成組，不孤立貼在容器右緣或捲軸旁。純統計不可偽裝為按鈕；能開啟歷程、明細或篩選的數字須有操作名稱及互動狀態。
+- 名稱、來源選項及已選摘要預設可換行；不得因固定高度而意外裁切。列表與近期摘要允許截斷，但須能進入完整內容或展開，tooltip 不能成為唯一取得全文的方法。
+- 使用者輸入的多行內容保留可理解的換行；長網址或連續文字不得撐破容器。沒有填寫的選填欄位不產生無意義空白區。
+- 說明、提示、錯誤與計數各有位置，不擠在同一段；色彩角色見 2.4，歷程範圍見 6.3。
+
+### 5.2 操作層級與按鈕
+
+| 類型 | 放置位置 | 呈現原則 |
+| --- | --- | --- |
+| 頁級操作 | 頁首或詳情導覽操作群組 | 建立、編輯、封存等影響整個實體的操作 |
+| 區塊操作 | 所屬區塊標題／工具列 | 新增紀錄、管理材料、查看完整歷程 |
+| 單筆操作 | 該筆卡片或事件操作區 | 編輯、移除或刪除該筆資料 |
+| 主要操作 | 目前任務操作群組的末端 | 優先使用 primary；同組避免多個同等強度操作競爭 |
+| 次要／輔助操作 | 與主要操作成組，或內容旁 | 預設、plain 或 text 依重要性選擇；不因功能不同隨意換風格 |
+| 破壞性操作 | 所屬層級，可收於更多選單 | 使用 danger 語意並於必要時確認；是否攤開依頻率與風險決定 |
+
+- 控制項尺寸沿用 Element Plus；一般流程用預設尺寸，緊湊列內操作可用 small。相同操作群組保持密度一致，不建立功能專屬按鈕尺寸。
+- 同組按鈕明確設定 gap；相鄰短操作預設 `--space-xs`，較鬆工具群組可用 `--space-sm`。使用 flex／grid gap 時避免再疊預設 margin，不能靠空格排版。
+- 按鈕文字描述動作與對象；「查看」「設定」「記錄」不可互相代稱。圖示按鈕須有可存取名稱，hover、focus、disabled 與 loading 必須可辨識。
+- 導航優先使用連結，操作使用按鈕；可點卡片內的操作不得同時導頁。使用非原生互動容器時須補足鍵盤操作，避免巢狀互動控制項。
+- 提交中防止重複操作；停用不能只改文字顏色而仍接受事件。彈窗提交與離開規則以 7.3 為準。
+
+### 5.3 展開與狀態獨立
+
+- 展開控制必須可辨識，使用動作文字或具有明確語意的標準控制，並表達展開狀態；無作用的箭頭不得保留為裝飾。
+- 查看狀態、選取結果、編輯目標及目前業務狀態分別管理。點設定或記錄只啟動該流程，不得順帶展開、收合或切換其他內容。
+- 返回、取消與儲存後保留原閱讀脈絡；若結果必須改變目前狀態，更新狀態標示，不強制改變使用者的查看選擇。
+
+## 6. 表單、選擇與歷程
+
+### 6.1 一般表單與記錄型表單
+
+一般實體表單（卡片、成果、實驗主題等）沿用 Element Plus form-item 節奏；輕量記錄的新增與編輯採記錄型密度。兩者共用驗證與資訊層級原則，不強制同一標籤大小或 textarea 行數。
+
+| 元素 | 共通規則 | 記錄型表單 |
+| --- | --- | --- |
+| 標籤 | 可辨識且與欄位關聯，保留必填標示，不以 placeholder 取代 | `--type-meta`、secondary 文字、`--leading-ui`，與控制項間隔 `--space-xs` |
+| 欄位群組 | 標籤、輸入、計數、提示與錯誤為一組 | 相鄰群組以 `--space-md` 分隔 |
+| 語意章節 | 只為實際目的分組，不每欄包卡片 | 章節以 `--space-lg` 分隔 |
+| 輸入控制項 | 沿用 Element Plus 字級、尺寸、焦點及錯誤狀態 | 小標縮小不代表輸入內容也縮小 |
+| 字數 | 置於輸入框下獨立一列，以 metadata 呈現，與輸入相隔 `--space-xs` | 有上限時顯示「總字數：目前字數 / 上限」 |
+| 提示與錯誤 | 與計數分開排列，長文自然換行；錯誤指向可修正原因 | 不因密度較小而刪除必要提示 |
+| 唯讀背景 | 與本次輸入分開，依第 3 章選表面 | 檢定或試法摘要與填寫區相隔 `--space-lg` |
+
+- 字數統計使用既有 `getTextLength()`／`FieldCounter`；顯示、輸入限制與 API 驗證必須一致，不為統一外觀改變既有上限。
+- 選填展示資訊與來源等不同目的分成章節；收合控制須可理解，空狀態不重複堆疊零筆統計與限制提示。
+- 表單操作放於所屬頁面或彈窗 footer，不散布於普通欄位之間。取消與草稿語意見 7.3。
+- 記錄型樣式只作用於明確容器，不全域覆寫 `.el-form-item__label` 或原生 label。共用呈現不接管業務驗證與保存。
+
+### 6.2 候選清單與已選摘要
+
+- 候選、已選及設定區須能分辨；需要同時對照時可使用雙欄，窄螢幕堆疊。右欄內容依摘要高度排列，不以空白撐滿。
+- 同流程使用一致的選擇控制；整列可選時須有完整名稱、鍵盤操作及選取狀態，不混用不同控制只為局部方便。
+- 已選使用 primary 淺底、識別框線或側線，並配合勾選／文字；空摘要用中性表面，不只以顏色表示結果。
+- 摘要呈現類型、完整名稱、必要識別資訊與移除操作。移除靠右並與內容對齊，不另留整列空白；摘要後的提示至少相隔 `--space-sm`。
+- 單選替換與多選增減必須符合提示及實際能力。數量限制由業務規則決定，UI 不得暗示 API 尚未支援的關聯方式。
+- 暫選、確認帶回表單與真正儲存必須區分；取消只放棄該層未確認內容，不改寫父層原有資料。直接選項即提交的流程應明示其動作。
+
+### 6.3 近期預覽與完整歷程
+
+- 近期預覽與完整歷程共用日期、標題、內容、結果與關聯的資訊語意；呈現密度可不同，不因各自維護模板而遺漏關鍵資訊。
+- 部分顯示時明示「最近 N 筆」等範圍；完整歷程入口顯示全部紀錄數，不將預覽數量當成總數。具體 N 值屬業務設定。
+- 最新標示須與排序一致；歷程須有可理解的時間順序。預覽可截斷名稱與描述，但保留重要關聯入口；完整內容可直接閱讀或展開。
+- 歷程入口使用名稱＋計數；說明在不同入口保持相同語意。新增操作與說明共用工具列，窄螢幕可換行，不為單一按鈕空出整列。
+- 左右欄適用於需要對照的內容，例如試法／發現、檢定／結果；不強迫所有紀錄具備相同欄位。無值的欄位依語意省略或簡短說明。
+- 新增與單筆操作僅於具備資格時提供；沿用既有業務用語與操作元件，不為視覺統一改寫保存流程。歷程彈窗底部見 7.3。
+
+## 7. 彈窗與暫時性介面
+
+### 7.1 分類與內容結構
+
+| 模式 | 適用情境 | 內容及底部重點 |
+| --- | --- | --- |
+| 閱讀／歷程 | 說明、紀錄回顧 | 標題、說明、內容、可選區塊操作及「關閉」 |
+| 簡短表單 | 備註、重新命名 | 少量欄位，保留自然高度，取消＋提交 |
+| 一般／大型表單 | 建立或編輯實體 | 依語意分組；長內容可捲動，取消＋提交 |
+| 記錄表單 | 留下試法、發現、產出或嘗試 | 可選唯讀背景＋本次輸入，欄位依 6.1 |
+| 選擇器 | 選卡片、來源或對象 | 搜尋／分類、候選、已選摘要、可選設定及確認 |
+| 比較／工作區 | 並排閱讀、整理多筆內容 | 容許較寬與局部捲動，但保留清楚離開入口 |
+| 成功畫面 | 提交後留在彈窗 | 確認結果、關閉及可選後續操作 |
+
+分類描述任務，不自動決定寬度、padding 或 API 行為。Element Plus MessageBox 的確認／輸入流程見 7.4，不必為了分類建立另一套 AppDialog。
+
+### 7.2 尺寸與捲動
+
+- 沿用 `AppDialog` 外殼；呼叫端依內容選流動寬度，例如 `min(620px, calc(100vw - 32px))`。不得強迫所有彈窗同寬。
+- 既有寬度參考為 520／560px 的簡短內容、620／680px 的表單、760／820px 的長內容或大型表單、900／980px 的比較或選擇器；它們是實作參考，不是固定映射或新 token。
+- 外側留白與最大高度由外殼管理；目前窄螢幕基準為 12px 外側留白。footer 為輕量操作邊界，不額外製造第三塊厚重表面。
+- 短彈窗保持自然高度；長表單可由 body 捲動；雙欄選擇器可由候選與摘要各自管理必要捲動。每個區域須有明確捲動責任，避免同方向的多層無意義捲軸。
+- 不全域強加 body padding、`flex: 1`、body 捲動或大型灰底；需要局部模式時限定範圍。textarea 自身捲動應配合適當可見行數，不讓長表單與極小輸入框共同妨礙閱讀。
+
+### 7.3 離開、底部按鈕與提交
+
+| 類型／狀態 | 右上角 × | 點擊遮罩 | Esc | 底部操作 |
+| --- | --- | --- | --- | --- |
+| 閱讀／歷程 | 關閉 | 關閉 | 關閉 | 必須有「關閉」，保留分頁或整理操作 |
+| 新增／編輯／記錄 | 請求離開 | 不關閉 | 請求離開 | 取消＋主要提交，不重複加關閉 |
+| 單純選擇，未送出 | 取消本次選擇 | 取消本次選擇 | 取消本次選擇 | 取消＋確認；選項直接提交者提供關閉 |
+| 含備註等輸入的選擇 | 請求離開 | 不關閉 | 請求離開 | 取消＋確認 |
+| 比較／整理工作區 | 依是否有未儲存輸入套用上述規則 | 同左 | 同左 | 提供關閉或返回，以及任務操作 |
+| 成功畫面 | 關閉 | 關閉 | 關閉 | 必須有關閉，可並列繼續新增或查看 |
+| 儲存／提交中 | 隱藏或停用 | 不關閉 | 不關閉 | 停用離開與重複提交，顯示 loading |
+
+- 「請求離開」先比較實際內容與初始值：無變更直接離開，有未儲存內容先確認放棄；繼續編輯時保留畫面與草稿。×、Esc、取消及程式主動離開共用判斷。
+- 關閉不代表取消已送出的 API。提交鎖定須覆蓋所有離開入口；失敗後解除鎖定並保留內容，不能只停用 footer 取消。
+- 「返回」切換上一步；「取消」放棄當層草稿；「關閉」結束閱讀或已完成流程。底部用語須對應實際結果，不把返回上一步誤標成關閉。
+- 同一外殼的子流程須有明確返回入口；預設 × 表示離開所屬彈窗。已確認的特殊返回語意須列於 9.2，不能由各功能自行暗改。
+- 多層彈窗只由最上層接收遮罩與 Esc；子層取消保留父層內容，返回後恢復合理焦點與閱讀位置。可沿用同一外殼的子流程時，不增加不必要的重疊外殼。
+
+**實作備註：** Element Plus 的互動關閉須在 `before-close` 中攔截，確認後才呼叫 `done()`；不得等到 `update:model-value` 或 `closed` 才詢問。底部與程式主動關閉也須經相同判斷。`AppDialog` 提供攔截介面，業務負責草稿、權限與保存，不能依其預設值推定各模式已符合本節。
+
+`AppDialog` 可接收 `busy` 鎖定離開、`draft` 比較開啟時與目前內容；非同步初始化以 `draftReady` 指明何時建立比較基準。業務須只傳入實際可編輯資料。footer 的取消使用 slot 提供的 `requestClose`，不可直接改寫顯示狀態繞過判斷；提交成功後的關閉則由保存流程處理。特殊子流程可保留 `before-close`，自訂返回或放棄邏輯，但不能繞過提交中保護。
+
+### 7.4 Drawer、Popover 與 MessageBox
+
+- Drawer 用於側向導覽或暫時工作區，不當成彈窗尺寸變體；body 與直接子內容只由一層管理主要內距。
+- Popover 維持錨點關係及緊湊內容，不強迫套用彈窗寬度與捲動規則。
+- MessageBox 沿用 Element Plus 原生確認／輸入互動。刪除、覆蓋、確認通過等只有明確確認才執行；×、遮罩、Esc 或取消不得提交。放棄草稿確認被取消時，原表單保持開啟。
+
+## 8. 響應式、無障礙與回饋
+
+### 8.1 重排與閱讀順序
+
+- 現有主要斷點為 760px（窄螢幕）、900px（詳情雙欄）及 1200px（較寬管理版型）。它們是既有參考；實際重排須以內容能否閱讀與操作為準，不新增無理由斷點。
+- 頁首與操作群組可換行或堆疊；雙欄在不足以閱讀時轉單欄，不縮小文字保住桌面布局。內外距依 2.2，彈窗外側留白依 7.2。
+- DOM、鍵盤與視覺閱讀順序應一致；不得只用 CSS 排序把挑戰或操作移到前方，卻留下相反焦點順序。
+- 固定側欄與結果的捲動責任在窄螢幕須重新檢查；分頁與操作不能被固定高度遮住。名稱、網址、標籤及按鈕群組不得造成非必要水平捲動。
+
+### 8.2 鍵盤、焦點與可辨識性
+
+- 使用原生按鈕、連結及表單語意；所有必要操作可用鍵盤完成。圖示操作有可存取名稱，表單有標籤，展開及選取須表達狀態。
+- focus-visible 必須可辨識，不得只留下 hover；移除元件預設焦點樣式時須提供替代。彈窗開啟與返回保持合理焦點，不讓背景繼續接收操作。
+- 已選、目前等級、錯誤與停用狀態不能只靠色彩；需有文字、圖示、框線或其他可辨識訊號。主要文字及操作在明暗主題均須檢查對比。
+- 緊湊操作仍須有足夠點擊空間與相鄰分隔；不能只放大圖示外觀卻縮小實際操作區。提示不得僅依賴滑鼠懸停。
+- 非必要動畫應尊重減少動態效果偏好；動畫不得承載唯一的狀態回饋。
+
+### 8.3 載入、空狀態、錯誤與圖片
+
+- 首次載入與更新既有結果分開表達；更新中保留可理解的內容脈絡，不任意清空整頁。空集合、無搜尋結果及請求失敗提供不同訊息與適當下一步。
+- 錯誤須反映原因：重複資料、關聯失效與一般儲存失敗不可共用「資料已存在」。可重試時提供重試，欄位錯誤靠近欄位；失敗保留已填內容。
+- 表單提示、狀態與錯誤須可被輔助技術感知；不以瞬間消失的通知作為唯一失敗說明。
+- 圖片網址區分格式錯誤與載入失敗：格式錯誤提供欄位回饋；合法網址暫時無法載入時，編輯預覽提示原因，不因網路失敗阻止儲存其他內容。
+- 可選封面於列表或詳情失敗時隱藏圖片區，保留標題及內文，不顯示破圖或大片空白；必要圖片須依其資訊角色提供替代內容，不能一律隱藏。
+- 圖片網址變更須重設載入狀態；新增、編輯、列表與詳情共用驗證及失敗語意，比例可依內容用途不同。現有共用實作見 9.1。
+
+## 9. 實作映射與驗收
+
+### 9.1 已有元件與參考範圍
+
+以下前端路徑皆相對於 `echo-gallery-frontend/`。此表是實作索引，不是符合度或人工驗收清單。
+
+| 職責 | 已有元件／樣式 | 範圍與限制 |
+| --- | --- | --- |
+| 頁首與章節 | `src/components/ui/PageHeader.vue`、`src/components/ui/SectionHeader.vue` | 呈現標題、說明與操作；後者已有元件不代表頁面普遍採用 |
+| 表單章節與計數 | `src/components/ui/FormSection.vue`、`src/components/ui/FieldCounter.vue` | 語意分組與字數呈現，不接管資料及驗證；前者尚非普遍用法 |
+| 詳情組合 | `src/components/ui/DetailShell.vue`、`src/components/ui/DetailHeading.vue` | 已用於實驗與奇珍；卡片閱讀模式可保留等效組合 |
+| 彈窗外殼 | `src/components/AppDialog.vue` | 寬高、可選 body 捲動、footer 與關閉攔截介面；不自動具備草稿保護 |
+| 選擇器 | `src/components/CardPickerDialog.vue`、`src/components/ui/PickerWorkspace.vue`、`src/components/ui/PickerOption.vue` | 卡片選擇及可重用候選／摘要結構；設定與保存由業務負責 |
+| 已選摘要 | `src/components/ui/SelectionSummary.vue`、`src/components/ui/CardPickerSelectionSummary.vue` | 已選名稱、metadata 與操作，依資料形狀選用 |
+| 歷程 | `src/components/ui/HistoryDialog.vue`、`src/components/ui/HistoryTimeline.vue`、`src/components/ui/HistoryEvent.vue`、`src/components/ui/HistoryFields.vue` | 外殼、事件與對照欄位；不強迫所有紀錄雙欄 |
+| 歷程入口／長文 | `src/components/ui/RecordHistoryTrigger.vue`、`src/components/ExpandableText.vue` | 名稱＋計數與全文展開 |
+| 封面 | `src/components/ui/CoverImage.vue`、`src/components/ui/CoverImageField.vue`、`src/utils/imageUrl.ts` | 可選圖片網址、預覽與失敗處理 |
+| 空狀態 | `src/components/ui/AppEmptyState.vue` | 集合或區塊無內容；錯誤仍需獨立回饋 |
+| 視覺規則 | `src/style.css` | token、頁面與記錄表單共用樣式；不是所有業務樣式的存放處 |
+
+共用順序為 token → 共用樣式或呈現元件 → 業務組合。先重用既有職責，不為幾個幾何差異建立包辦所有列表、詳情或表單的元件；資料取得、權限、保存與清理語意保持在業務層。
+
+| 代表入口 | 可參考的部分 | 不應推定的事 |
+| --- | --- | --- |
+| `src/views/Login.vue`、`src/views/Register.vue` | 單一驗證任務與主題入口 | 所有未登入流程都只能套固定欄位 |
+| `src/views/boards/TodayBoard.vue`、`src/components/Board-Flex.vue` | 集合與瀑布流、續載結構 | 所有集合都要相同欄寬或載入方式 |
+| `src/views/SearchView.vue`、`src/views/center/TagCenter.vue` | 固定條件側欄、結果工具列及捲動 | 兩者的欄位或查詢狀態可合成通用業務表單 |
+| `src/views/experiment/ExperimentList.vue`、`src/views/treasure/TreasureList.vue` | 列表工作區、局部操作與統計對照 | 現有兩頁已完全符合本文件 |
+| `src/views/CardDetail.vue` | 卡片建立入口、閱讀與屬性區、編輯彈窗 | 其所有分支都是新功能的標準範本 |
+| `src/views/experiment/ExperimentDetail.vue`、`src/views/treasure/TreasureDetail.vue` | 詳情導覽、主題與業務內容的組合 | 必須相同欄數、區塊順序或操作數量 |
+| `src/views/issue/IssueList.vue`、`src/views/issue/IssueDetail.vue` | 工作區、狀態摘要及內容編輯 | 所有工作區都必須採用相同狀態模型 |
+| `src/views/overview/OverviewDashboard.vue`、`src/views/overview/OverviewRecent.vue`、`src/views/overview/CardReturnOverview.vue` | 聚合資料在工作區中的組織 | 每種統計需要新頁面外殼或巢狀卡片 |
+| `src/components/experiment/ExperimentExplorationEditor.vue`、`src/components/QuickCreateCardDialog.vue` | 記錄型密度、快速建立與成功後續操作 | 關閉行為已全部符合 7.3 |
+
+`src/router/index.ts` 是入口查核依據；`Home.vue`、獨立的 `CardCreate.vue` 等未作為目前入口的檔案，不因名稱相符就用作標準。重導路由與 Logout 動作不另定義頁面模式。
+
+### 9.2 業務模式與保留例外
+
+| 適用範圍 | 已確認的設計選擇 | 理由與邊界 |
+| --- | --- | --- |
+| 等級成長 | 徽章表示身分；目前等級用較淺等級底色及文字；查看等級用對應框線，不另鋪查看底色 | 目前與查看可同時成立；使用 `src/assets/styles/treasure-rank.css`，不擴大為所有選擇器規則 |
+| 等級成長操作 | 查看／收合、設定、＋記錄成組；通過條件小標採 primary 引導色，內文維持閱讀色 | 特定唯讀引導標題不因此變成連結；設定／記錄不可改變展開狀態 |
+| 檢定說明與範例 | 等級身分、說明與範例為完整背景群組；內部範例內容依中性表面區分 | 不重複獨占一行放同一徽章，不將整個表單染成等級色 |
+| 實驗材料角色 | 種子、茁壯、成熟及實驗主題色保留業務識別 | 不要求材料角色等同成果的線性晉級 |
+| 來源管理子流程 | 同一外殼中明示返回；取消變更／確認來源返回成果表單，×、Esc 沿用返回並放棄當層未確認選擇的語意 | 父層草稿保留，確認來源後仍待成果儲存；這是 7.3 的限定例外，不推廣至所有 × |
+| 卡片閱讀詳情 | 主要閱讀與屬性側欄可保留不同組合 | 兩者認知角色不同，仍遵守導覽、操作與重排規則 |
+
+**功能設定備註：** 價值產出詳情目前採最近 3 筆；成果來源目前為一張卡片、一個實驗及最多 20 件奇珍。這些是已有功能設定，不是其他功能的全域上限；修改須依功能需求與 API 能力確認。後續宜由功能規格承接，本次不新增或修改其他文件。
+
+### 9.3 驗收與維護
+
+1. **選模式：** 說明使用者任務、內容角色與模式；差異須有理由，不為功能名稱另造外殼。
+2. **查實作：** 核對 token、元件是否存在及實際使用範圍，不假設模式名就是元件名。
+3. **查視覺：** 比較相同角色的標題、間距、色彩、操作密度與表面；實驗與奇珍、其他同類入口均依模式查核，而非互相複製整頁。
+4. **查狀態：** 長名稱、多行內容、空值、無搜尋結果、載入、更新、失敗、封存與無操作資格；有圖片或關聯時另查失效與選取狀態。
+5. **查流程：** 列表到詳情、詳情到歷程、歷程新增、取消及返回；確認操作不順帶導頁、展開其他內容或丟失草稿。
+6. **查彈窗：** 無變更、有草稿、提交中、提交失敗、成功及子流程；×、遮罩、Esc、底部按鈕依 7.3。
+7. **查響應與鍵盤：** 桌面、實際重排斷點附近及窄螢幕；明暗主題、焦點與視覺閱讀順序。不得以建置通過取代畫面與操作驗收。
+8. **分開回報：** 規範已定義、程式已套用、人工已驗收三者分開說明；記錄實際檢查與限制，不以「共用元件」宣稱全面完成。
+
+待辦、缺口、驗收日期與證據應由對應任務追蹤，不在本文件維護容易過期的 `Compliant` 清單。新增長期規則時先合併至所屬章節；避免重複條文與只為單次修正建立的永久資產。
