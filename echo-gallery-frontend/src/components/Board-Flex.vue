@@ -173,7 +173,7 @@ onUnmounted(() => {
       </div>
 
       <div v-else-if="cardList.length === 0" class="board-state">
-        目前沒有卡片
+        這裡暫無卡片。可以調整檢視方式，或新建一張卡片。
       </div>
 
       <div class="feed-container" v-else>
@@ -193,9 +193,9 @@ onUnmounted(() => {
       </div>
       <!-- 載入中提示 -->
       <div ref="triggerRef" class="loading-trigger">
-          <p v-if="isLoading" class="loading-text">正在初始化卡片...</p>
-          <p v-else-if="isFetchingNextPage" class="loading-text">更多卡片載入中...</p>
-          <p v-else-if="!hasNextPage && cardList.length > 0" class="loading-text">🎉 已經看完全部卡片囉！</p>
+          <p v-if="isLoading" class="loading-text">正在載入卡片…</p>
+          <p v-else-if="isFetchingNextPage" class="loading-text">正在載入更多卡片…</p>
+          <p v-else-if="!hasNextPage && cardList.length > 0" class="loading-text">目前列表的卡片已全部載入。</p>
       </div>
     </div>
 

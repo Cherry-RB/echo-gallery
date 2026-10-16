@@ -30,7 +30,7 @@ const command = async (value: string, item: TreasureYield) => {
   if (props.archived || busy.value) return
   if (value === 'edit') { open(item); return }
   if (value !== 'delete') return
-  try { await ElMessageBox.confirm('刪除這筆價值產出？相關卡片仍會保留。', '刪除紀錄', { confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning' }) } catch { return }
+  try { await ElMessageBox.confirm('刪除這筆收益紀錄？刪除後無法復原；相關卡片仍會保留。', '刪除紀錄', { confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning' }) } catch { return }
   busy.value = true; error.value = ''
   try {
     await treasureApi.deleteYield(props.treasureId, item.id)
@@ -40,10 +40,10 @@ const command = async (value: string, item: TreasureYield) => {
 }
 </script>
 <template>
-  <section class="yield-history" aria-label="價值產出歷程">
+  <section class="yield-history" aria-label="收益歷程">
     <header v-if="!embedded" class="yield-heading">
-      <h2 v-if="compact">價值產出<span v-if="hasMore" class="preview-range">・最近 {{ previewLimit }} 筆</span></h2>
-      <div class="yield-actions"><RecordHistoryTrigger v-if="compact && query.data.value?.totalElements" label="產出紀錄" :count="query.data.value.totalElements" @click="historyVisible = true" /><button type="button" class="history-trigger" @click="open()">＋產出</button></div>
+      <h2 v-if="compact">收益<span v-if="hasMore" class="preview-range">・最近 {{ previewLimit }} 筆</span></h2>
+      <div class="yield-actions"><RecordHistoryTrigger v-if="compact && query.data.value?.totalElements" label="收益紀錄" :count="query.data.value.totalElements" @click="historyVisible = true" /><button type="button" class="history-trigger" @click="open()">＋記收益</button></div>
       <p class="app-dialog-intro">{{ yieldHistoryDescription }}</p>
     </header>
     <p v-if="query.isLoading.value">正在讀取…</p>
@@ -56,13 +56,13 @@ const command = async (value: string, item: TreasureYield) => {
             <router-link v-if="item.relatedCard" class="related-card" :to="'/card/' + item.relatedCard.id">相關卡片 · {{ item.relatedCard.title }}</router-link>
         </HistoryEvent>
       </HistoryTimeline>
-      <AppEmptyState v-if="!query.data.value?.content.length" description="尚無價值產出。當成果帶來新作品、回應或機會時，再留下紀錄。" />
+      <AppEmptyState v-if="!query.data.value?.content.length" description="它已經入藏。至於未來還能帶來什麼，現在尚無答案。" />
     </template>
     <el-pagination v-if="!compact && (query.data.value?.totalElements ?? 0) > 10" :current-page="page + 1" :page-size="10" :total="query.data.value?.totalElements ?? 0" layout="prev, pager, next" @current-change="page = $event - 1" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <TreasureYieldDialog v-if="visible" v-model="visible" :treasure-id="treasureId" :yield="editing" />
-    <HistoryDialog v-if="historyVisible" v-model="historyVisible" title="價值產出歷程" :description="yieldHistoryDescription">
-      <template #actions><button type="button" class="history-trigger" @click="open()">＋產出</button></template>
+    <HistoryDialog v-if="historyVisible" v-model="historyVisible" title="收益歷程" :description="yieldHistoryDescription">
+      <template #actions><button type="button" class="history-trigger" @click="open()">＋記收益</button></template>
       <TreasureYieldHistory :treasure-id="treasureId" :archived="archived" embedded />
       <template #footer><el-button @click="historyVisible = false">關閉</el-button></template>
     </HistoryDialog>

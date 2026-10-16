@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
+import { ElMessage } from 'element-plus'
 import AppDialog from '../AppDialog.vue'
 import CardPickerDialog from '../CardPickerDialog.vue'
 import SelectionSummary from '../ui/SelectionSummary.vue'
@@ -36,7 +37,7 @@ watch(() => props.modelValue, visible => {
 const disabledDate = (date: Date) => date > new Date(`${today()}T23:59:59+08:00`)
 const save = async () => {
   if (saving.value) return
-  if (!form.title.trim() || !form.occurredOn) { error.value = '請填寫產出名稱與發生日期。'; return }
+  if (!form.title.trim() || !form.occurredOn) { error.value = '請填寫收益名稱與發生日期。'; return }
   saving.value = true
   error.value = ''
   try {
@@ -48,17 +49,18 @@ const save = async () => {
       queryClient.invalidateQueries({ queryKey: ['overview'] }),
     ])
     emit('saved')
+    ElMessage.success(props.yield ? '收益紀錄已更新。' : '昔日的成果並未沉寂。這一次，它又帶回了新的收穫。')
     emit('update:modelValue', false)
   } catch (e) { error.value = errorMessage(e) } finally { saving.value = false }
 }
 </script>
 
 <template>
-  <AppDialog :busy="saving" :draft="[form, selectedCard?.id]" :model-value="modelValue" :title="yield ? '編輯價值產出' : '記錄價值產出'" width="min(620px, calc(100vw - 32px))" scroll-body :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="emit('update:modelValue', $event)">
+  <AppDialog :busy="saving" :draft="[form, selectedCard?.id]" :model-value="modelValue" :title="yield ? '編輯收益' : '記錄收益'" width="min(620px, calc(100vw - 32px))" scroll-body :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="emit('update:modelValue', $event)">
     <el-form class="app-record-form" label-position="top" @submit.prevent="save">
-      <p class="app-dialog-intro">記下這件成果帶來的新作品、回應或機會。整理、發表與分享的連續過程，可以記成同一筆。</p>
-      <el-form-item label="產出名稱" required>
-        <el-input v-model="form.title" maxlength="255" placeholder="例如：完成一篇介紹 Echo Gallery MVP 的文章" />
+      <p class="app-dialog-intro">記下這件奇珍已帶來的新作品、回應或機會，不限於金錢收入。整理、發表與分享的連續過程，可以記成同一筆。</p>
+      <el-form-item label="收益名稱" required>
+        <el-input v-model="form.title" maxlength="255" placeholder="例如：作品分享後，收到一位讀者的回饋" />
       </el-form-item>
       <el-form-item label="發生日期" required>
         <el-date-picker v-model="form.occurredOn" type="date" value-format="YYYY-MM-DD" :disabled-date="disabledDate" />
@@ -82,7 +84,7 @@ const save = async () => {
       <el-button type="primary" :loading="saving" @click="save">儲存紀錄</el-button>
     </template>
   </AppDialog>
-  <CardPickerDialog v-if="pickerVisible" v-model="pickerVisible" :initial-card-id="selectedCard?.id" title="關聯價值產出的卡片" description="選擇已有的相關筆記或外部回應；不會修改原卡片。" confirmation-hint="確認後帶回原表單，儲存產出紀錄後生效。" confirm-label="確認關聯" settings-style="plain" @confirm="selectCard" />
+  <CardPickerDialog v-if="pickerVisible" v-model="pickerVisible" :initial-card-id="selectedCard?.id" title="關聯收益的卡片" description="選擇已有的相關筆記或外部回應；不會修改原卡片。" confirmation-hint="確認後帶回原表單，儲存收益紀錄後生效。" confirm-label="確認關聯" settings-style="plain" @confirm="selectCard" />
 </template>
 
 <style scoped>

@@ -39,7 +39,7 @@ describe('奇珍列表快速操作', () => {
       expect(wrapper.get('.output-count').text()).toBe('2')
       await wrapper.get('.output-count').trigger('click')
       expect(wrapper.get('.shared-history').text()).toBe('1')
-      await wrapper.findAll('button').find(button => button.text() === '＋ 產出')!.trigger('click')
+      await wrapper.findAll('button').find(button => button.text() === '＋記收益')!.trigger('click')
       expect(wrapper.get('.shared-yield').text()).toContain('1')
       await wrapper.get('.shared-yield button').trigger('click')
       await wrapper.findAll('button').find(button => button.text() === '更新')!.trigger('click')
@@ -65,7 +65,7 @@ describe('奇珍列表快速操作', () => {
       await wrapper.get('.quick-output').trigger('click')
       expect(wrapper.get('.shared-yield').text()).toContain('1')
       await wrapper.get('.output-count').trigger('click')
-      expect(wrapper.findAll('.history-toolbar button').some(button => button.text() === '＋產出')).toBe(true)
+      expect(wrapper.findAll('.history-toolbar button').some(button => button.text() === '＋記收益')).toBe(true)
     } finally { wrapper.unmount(); client.clear() }
   })
 })

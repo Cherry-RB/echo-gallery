@@ -506,7 +506,7 @@ const submitUpdateIssue = async () => {
             maxlength="2048"
             placeholder="Trello、GitHub、稿件、文件或其他工作區（選填）"
           />
-          <p class="field-helper">第一版支援一個 HTTP 或 HTTPS 連結。</p>
+          <p class="field-helper">可設定一個 HTTP 或 HTTPS 連結。</p>
         </el-form-item>
 
         <el-form-item v-if="editSection === 'background'" label="背景與脈絡" prop="description">

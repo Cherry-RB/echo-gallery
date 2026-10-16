@@ -126,7 +126,7 @@ const confirm = () => {
           :prefix-icon="Search"
           maxlength="255"
           clearable
-          placeholder="輸入 Card ID（例如 #7）或標題"
+          placeholder="輸入 卡片 ID（例如 #7）或標題"
           aria-label="搜尋卡片"
         />
 

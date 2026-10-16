@@ -223,7 +223,7 @@ const handleConfirmRename = () => {
 // 觸發刪除確認
 const handleDeleteTag = (tag: TagDto) => {
   ElMessageBox.confirm(
-    `確定要刪除標籤「#${tag.name}」嗎？這將會同步解除所有卡片對此標籤的關聯。`,
+    `確定要刪除標籤「#${tag.name}」嗎？刪除後無法復原，並會解除所有卡片對此標籤的關聯；卡片內容仍會保留。`,
     '刪除標籤警告',
     {
       confirmButtonText: '確定刪除',
@@ -333,7 +333,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
       <!-- 頂部篩選狀態提示列 -->
       <div class="filter-status-bar">
         <div class="status-info">
-          <span class="status-label">當前篩選狀態：</span>
+          <span class="status-label">目前篩選狀態：</span>
           <template v-if="selectedTagIds.length > 0">
             <el-tag
               v-for="t in selectedTagObjects"
@@ -347,7 +347,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
             </el-tag>
             <span class="operator-badge">({{ operator }})</span>
           </template>
-          <span v-else class="no-selection-text">尚未選取任何標籤，請從左側勾選以檢視卡片</span>
+          <span v-else class="no-selection-text">尚未選取標籤，請先在標籤列表勾選以查看卡片</span>
         </div>
         <span class="result-count" v-if="selectedTagIds.length > 0">
           共找到 {{ cardsData?.length ?? 0 }} 張卡片
@@ -373,7 +373,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
         </template>
         <div v-else class="initial-placeholder">
           <el-icon class="placeholder-icon"><CollectionTag /></el-icon>
-          <p>請在左側勾選標籤，在此處即時聯動檢視筆記卡片</p>
+          <p>選取標籤，沿著線索找回曾經留下的卡片。</p>
         </div>
 
         <div v-if="(cardsData?.length ?? 0) > CARD_PAGE_SIZE" class="card-results-pagination">

@@ -52,7 +52,7 @@ const archive = async () => {
 }
 const remove = async () => {
   if (busy.value) return
-  try { await ElMessageBox.confirm('永久刪除此奇珍及其試煉、價值產出和來源關聯？其他成果與原始卡片不會刪除。', '刪除奇珍', { confirmButtonText: '永久刪除', cancelButtonText: '取消', type: 'warning' }) } catch { return }
+  try { await ElMessageBox.confirm('永久刪除此奇珍及其試煉、收益紀錄和來源關聯？刪除後無法復原；其他成果與原始卡片不會刪除。', '刪除奇珍', { confirmButtonText: '永久刪除', cancelButtonText: '取消', type: 'warning' }) } catch { return }
   busy.value = true
   try { await treasureApi.delete(id.value); await router.push('/treasures'); await refresh() } catch (e) { ElMessage.error(errorMessage(e)) } finally { busy.value = false }
 }
@@ -68,7 +68,7 @@ const handleCommand = (command: string) => {
     <header class="detail-navigation app-detail-navigation">
       <el-button text :icon="ArrowLeft" @click="router.push('/treasures')">返回奇珍展覽館</el-button>
       <div v-if="treasure" class="detail-actions">
-        <el-button type="primary" plain :icon="Edit" :disabled="busy" @click="editVisible = true">編輯成果</el-button>
+        <el-button type="primary" plain :icon="Edit" :disabled="busy" @click="editVisible = true">編輯奇珍</el-button>
         <el-dropdown trigger="click" @command="handleCommand">
           <el-button :icon="MoreFilled" :disabled="busy">更多操作</el-button>
           <template #dropdown><el-dropdown-menu><el-dropdown-item command="archive">{{ treasure.isArchived ? '還原奇珍' : '封存奇珍' }}</el-dropdown-item><el-dropdown-item command="delete" divided>永久刪除</el-dropdown-item></el-dropdown-menu></template>
@@ -92,7 +92,7 @@ const handleCommand = (command: string) => {
           <h2>成果內容</h2>
           <CoverImage :src="treasure.coverImageUrl" alt="成果封面" class="artifact-cover" />
           <div v-if="treasure.description" class="reading-copy"><ExpandableText :content="treasure.description" :lines="7" /></div>
-          <p v-else class="empty-copy">尚未補充成果說明，可透過「編輯成果」留下作品內容與經驗。</p>
+          <p v-else class="empty-copy">這件奇珍的來歷尚未寫下。可透過「編輯奇珍」補充內容與經驗。</p>
           <a v-if="treasure.artifactUrl" class="artifact-link" :href="treasure.artifactUrl" target="_blank" rel="noopener noreferrer"><el-icon><View /></el-icon>開啟作品</a>
           <p class="metadata">入藏於 {{ formatDate(treasure.createdAt) }} · 最近更新 {{ formatDate(treasure.updatedAt) }}</p>
           <section v-if="hasLineage" class="lineage-context" aria-labelledby="lineage-title">
@@ -117,7 +117,7 @@ const handleCommand = (command: string) => {
         <section class="detail-panel yield-panel"><TreasureYieldHistory :treasure-id="id" :archived="treasure.isArchived" compact /></section>
         </div>
         <section class="detail-panel challenge-panel">
-          <p v-if="routeQuery.isLoading.value">正在讀取檢定…</p>
+          <p v-if="routeQuery.isLoading.value">正在讀取試煉…</p>
           <el-button v-else-if="routeQuery.isError.value" @click="routeQuery.refetch()">讀取失敗，重試</el-button>
           <TreasureChallengeRoute v-else v-model="selectedRank" :treasure-id="id" :rank="treasure.rank" :trials="routeQuery.data.value ?? []" :archived="treasure.isArchived" @edit="openChallenge('edit', $event)" @attempt="openChallenge('attempt', $event.targetRank ?? undefined)" @help="openChallenge('help')" />
         </section>

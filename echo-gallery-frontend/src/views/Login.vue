@@ -58,7 +58,7 @@ const demoOptions = [
   {
     value: 'writing',
     label: '文字片段與生活觀察',
-    description: '以原創筆記 Card 為主，重新遇見曾經想留下的句子，並自行決定要稍後再看、暫停或封存。'
+    description: '以原創筆記卡片為主，重新遇見曾經想留下的句子，並自行決定要稍後再看、暫停或封存。'
   }
 ]
 const selectedDemoOption = computed(() =>
@@ -93,7 +93,7 @@ const onStartDemo = async (library: string) => {
   try {
     const res = await startDemo(library)
     if (res?.token) {
-      ElMessage.success('已建立獨立 Demo 體驗')
+      ElMessage.success('獨立展示已準備好，可以開始探索。')
       router.push('/overview')
     }
   } catch (err) {
@@ -133,14 +133,14 @@ const isFormValid = computed(() => {
         </el-button>
 
         <div class="auth-link">
-          <router-link to="/register">還沒有帳號？立即註冊</router-link>
+          <router-link to="/register">還沒有帳號？前往註冊</router-link>
         </div>
       </el-form>
 
       <template v-if="demoEnabled">
         <el-divider class="demo-divider">或快速體驗</el-divider>
         <section class="demo-entry" aria-label="Demo 快速體驗">
-          <p class="demo-entry-prompt">想先看看不同內容如何回流？選擇展示內容庫，立即體驗可操作資料。</p>
+          <p class="demo-entry-prompt">先翻閱一座示範館藏，看看收藏如何再次歸來。選擇內容庫，開始獨立的展示體驗。</p>
           <el-select v-model="selectedDemoLibrary" placeholder="選擇展示內容庫" class="demo-library-select">
             <el-option
               v-for="option in demoOptions"
@@ -153,7 +153,7 @@ const isFormValid = computed(() => {
             <p class="demo-selection-title">已選擇：{{ selectedDemoOption.label }}</p>
             <p>{{ selectedDemoOption.description }}</p>
             <el-button type="primary" plain :loading="demoLoading" @click="onStartDemo(selectedDemoOption.value)">
-              以此內容庫開始體驗
+              開始體驗
             </el-button>
           </div>
         </section>

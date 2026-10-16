@@ -28,16 +28,17 @@ const regionId = (stage: TreasureRank) => `challenge-${props.treasureId}-${stage
 <template>
   <section class="challenge-route" aria-label="成長挑戰">
     <header class="route-heading"><h2>成長挑戰</h2><el-button text @click="emit('help')">了解四階成長</el-button></header>
+    <p v-if="rank === 'GOLD'" class="route-help">金級並非故事的終點。這件奇珍仍可能產生新的價值。</p>
     <div class="stages">
       <div class="stage stone-stage" data-rank="STONE" :class="{ 'is-current': rank === 'STONE' }">
         <div class="stage-heading"><TreasureRankBadge rank="STONE" /><span class="stage-state">已取得</span><strong v-if="rank === 'STONE'" class="current-label">目前等級</strong></div>
         <p class="stone-note">完成成果並入藏</p>
       </div>
-      <section v-for="stage in challengeRanks" :key="stage" class="stage" :data-rank="stage" :class="{ 'is-current': rank === stage, 'is-viewed': expanded === stage }" :aria-label="ranks[stage] + '檢定'">
+      <section v-for="stage in challengeRanks" :key="stage" class="stage" :data-rank="stage" :class="{ 'is-current': rank === stage, 'is-viewed': expanded === stage }" :aria-label="ranks[stage] + '試煉'">
         <header class="stage-summary">
           <div class="stage-heading"><TreasureRankBadge :rank="stage" /><span class="stage-state">{{ stageState(stage) }}</span><strong v-if="rank === stage" class="current-label">目前等級</strong></div>
-          <div class="stage-actions" role="group" :aria-label="ranks[stage] + '檢定操作'">
-            <button :id="regionId(stage) + '-toggle'" type="button" class="stage-view" :aria-expanded="expanded === stage" :aria-controls="regionId(stage)" :aria-label="(expanded === stage ? '收合' : '查看') + ranks[stage] + '檢定'" @click="selectStage(stage)">{{ expanded === stage ? '收合' : '查看' }}</button>
+          <div class="stage-actions" role="group" :aria-label="ranks[stage] + '試煉操作'">
+            <button :id="regionId(stage) + '-toggle'" type="button" class="stage-view" :aria-expanded="expanded === stage" :aria-controls="regionId(stage)" :aria-label="(expanded === stage ? '收合' : '查看') + ranks[stage] + '試煉'" @click="selectStage(stage)">{{ expanded === stage ? '收合' : '查看' }}</button>
             <el-button v-if="canEdit(stage)" text @click="emit('edit', stage)">設定</el-button>
             <el-button v-if="!archived && canAttempt(stage)" type="primary" @click="emit('attempt', trialFor(stage)!)">＋記錄</el-button>
           </div>
@@ -47,12 +48,14 @@ const regionId = (stage: TreasureRank) => `challenge-${props.treasureId}-${stage
         <div v-show="expanded === stage" :id="regionId(stage)" role="region" :aria-labelledby="regionId(stage) + '-toggle'">
         <div v-if="expanded === stage" class="stage-content">
           <template v-if="trialFor(stage)">
+            <p v-if="stage === nextRankOf(rank) && trialFor(stage)!.status === 'ATTEMPTED'" class="route-help">試煉已經展開，結果仍未揭曉。</p>
+            <p v-else-if="stage === nextRankOf(rank) && trialFor(stage)!.status === 'NOT_PASSED'" class="route-help">這次試煉未能晉級，但經歷已經留下。</p>
             <span class="criteria-label">通過條件</span><ExpandableText :content="trialFor(stage)!.criteria" :lines="4" />
-            <p v-if="!canAttempt(stage) && trialFor(stage)!.status !== 'PASSED' && !acquired(stage)" class="route-help">這份規劃已保存。完成前一階檢定後，就能記錄這一階的嘗試。</p>
+            <p v-if="!canAttempt(stage) && trialFor(stage)!.status !== 'PASSED' && !acquired(stage)" class="route-help">這份規劃已保存。完成前一階試煉後，就能記錄這一階的嘗試。</p>
             <TreasureAttemptHistory :treasure-id="treasureId" :trial-id="trialFor(stage)!.id" compact :recordable="!archived && canAttempt(stage)" @record="emit('attempt', trialFor(stage)!)" />
           </template>
           <template v-else>
-            <p class="route-help">{{ acquired(stage) ? '此階沒有可顯示的檢定紀錄。' : '尚未設定這一階的檢定。' }}</p>
+            <p class="route-help">{{ acquired(stage) ? '此階沒有可顯示的試煉紀錄。' : stage === nextRankOf(rank) && !archived ? '這件奇珍尚未接受新的試煉。是否繼續前行，由你決定。' : '尚未設定這一階的試煉。' }}</p>
             <p v-if="!acquired(stage) && !archived" class="route-help">{{ stage === nextRankOf(rank) ? '使用上方「設定」訂下行動與通過條件，再透過「＋記錄」留下每次嘗試。' : '使用上方「設定」先保存規劃，通過前一階後再記錄嘗試。' }}</p>
           </template>
           <p v-if="archived" class="route-help">已封存；還原後可編輯與記錄嘗試。</p>

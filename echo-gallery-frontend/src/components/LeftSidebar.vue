@@ -56,7 +56,7 @@ const openQuickCreate = () => {
 
 const resetDemo = async () => {
   await ElMessageBox.confirm(
-    '這會清除本次展示中的操作，並恢復為內容庫的初始資料。',
+    '這會清除本次展示中的操作，無法復原，並恢復為內容庫的初始資料。',
     '重新開始此展示',
     { confirmButtonText: '重新開始', cancelButtonText: '取消', type: 'warning' }
   )

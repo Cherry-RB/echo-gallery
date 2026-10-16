@@ -144,7 +144,7 @@ const wasEdited = (update: IssueUpdate) => (
     <header class="updates-heading">
       <div>
         <h2 id="updates-title">最新系統訊號</h2>
-        <p>只呈現世界最新回傳的一筆資料；歷史訊號可另行展開。</p>
+        <p>眼前是最近留下的一筆訊號。展開歷次更新，可回看沿途的判斷與選擇。</p>
       </div>
       <div class="updates-actions">
         <time v-if="latestUpdate" :datetime="latestUpdate.createdAt">

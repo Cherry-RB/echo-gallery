@@ -89,7 +89,7 @@ const clearExploration = async () => {
 
 const deleteExplorationRecord = async (recordId: number) => {
   try {
-    await ElMessageBox.confirm('刪除這筆探索紀錄？已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
+    await ElMessageBox.confirm('刪除這筆探索紀錄？刪除後無法復原；已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
       confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning',
     })
   } catch {
@@ -561,7 +561,7 @@ const handleGrownCard = async (_card: CardDto) => {
               :content="exploration.currentTry"
               :lines="6"
             />
-            <p v-else class="empty">還沒有想試的事，可以先看看材料。</p>
+            <p v-else class="empty">新的試法尚未寫下。不妨先翻翻收集的材料。</p>
           </div>
           <div :class="['exploration-snapshot', { 'is-next-action': Boolean(exploration.currentTry) && !latestObservation }]">
             <div class="exploration-snapshot-heading">
@@ -604,7 +604,7 @@ const handleGrownCard = async (_card: CardDto) => {
           </div>
           <el-button :disabled="comparingCards.length === 0" @click="comparisonVisible = true">並排看材料{{ comparingCards.length ? `（${comparingCards.length}/2）` : '' }}</el-button>
         </div>
-        <el-empty v-if="selectedStage === 'ALL' && experimentQuery.data.value.seedCount + experimentQuery.data.value.growingCount + experimentQuery.data.value.matureCount === 0" description="還沒有材料。先放入一張讓你想繼續看的卡片即可。" :image-size="72" />
+        <el-empty v-if="selectedStage === 'ALL' && experimentQuery.data.value.seedCount + experimentQuery.data.value.growingCount + experimentQuery.data.value.matureCount === 0" description="土壤尚待播種。先放入一張讓你想繼續探索的卡片。" :image-size="72" />
         <div class="soil-collection-canvas">
           <div class="soil-grid">
           <template v-for="stage in stages" :key="stage.value">
@@ -666,7 +666,7 @@ const handleGrownCard = async (_card: CardDto) => {
   />
 
   <AppDialog :busy="isExporting" :draft="[exportDestination, exportTopic, exportTitle, selectedExportRecordIds, selectedExportCardId]" v-model="exportVisible" title="整理探索紀錄" width="min(980px, calc(100vw - 32px))" scroll-body>
-    <p class="dialog-intro">把選取的探索紀錄整理成 Card 內容。成功後會保留原紀錄，並標示它已整理到哪張卡片。</p>
+    <p class="dialog-intro">把選取的探索紀錄整理成卡片內容。成功後會保留原紀錄，並標示它已整理到哪張卡片。</p>
     <div class="export-workspace">
       <section class="export-selection-pane">
         <h3>選擇探索紀錄</h3>
@@ -706,7 +706,7 @@ const handleGrownCard = async (_card: CardDto) => {
         </section>
         <section class="export-dialog-section">
           <label for="export-topic">主題</label>
-          <el-input id="export-topic" v-model="exportTopic" maxlength="255" placeholder="例如：畫畫來來來" />
+          <el-input id="export-topic" v-model="exportTopic" maxlength="255" placeholder="例如：這次探索的線索" />
           <p class="dialog-hint">會出現在整理內容的標頭；可自由修改。</p>
           <template v-if="exportDestination === 'NEW'">
             <label for="export-title">卡片標題（選填）</label>

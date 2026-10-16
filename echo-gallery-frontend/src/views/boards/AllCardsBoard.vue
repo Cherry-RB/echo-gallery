@@ -8,7 +8,7 @@ const views = [
   { value: 'updated', label: '更新' },
   { value: 'hot', label: '熱門' },
   { value: 'random', label: '隨機起點' },
-  { value: 'archived', label: '封存' },
+  { value: 'archived', label: '已封存' },
   { value: 'snoozed', label: '稍後再看（> 10）' },
 ] as const
 

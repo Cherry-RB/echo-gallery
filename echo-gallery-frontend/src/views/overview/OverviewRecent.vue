@@ -29,20 +29,20 @@ const period = computed(() => overview.value?.period ?? {
 })
 
 const treasureSections = computed(() => [
-  { key: 'yields', id: 'overview-treasure-yields', eyebrow: '價值延續', title: '近期價值產出',
-    events: period.value.recentTreasureYields, empty: '這段時間還沒有新的價值產出。' },
-  { key: 'progress', id: 'overview-treasure-progress', eyebrow: '成果進展', title: '近期入藏與檢定',
-    events: period.value.recentTreasureProgress, empty: '這段時間還沒有新的入藏、檢定嘗試或晉級紀錄。' },
+  { key: 'yields', id: 'overview-treasure-yields', eyebrow: '價值延續', title: '新的收穫',
+    events: period.value.recentTreasureYields, empty: '這段時間尚無新的收益紀錄。' },
+  { key: 'progress', id: 'overview-treasure-progress', eyebrow: '成果進展', title: '近期入藏與試煉',
+    events: period.value.recentTreasureProgress, empty: '這段時間還沒有新的入藏、試煉嘗試或晉級紀錄。' },
 ])
 
 const periodFigures = computed(() => [
-  { key: 'reengaged', value: period.value.flow.reengagedCardCount, unit: '張', label: '舊卡重新參與', description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`, explanation: '建立於這段時間之前，且在這段時間重新被閱讀、放入實驗場或成為衍生來源的卡片。不是越高越好。' },
-  { key: 'derived', value: period.value.generativity.derivedCardCount, unit: '張', label: '由既有內容長出', description: `${period.value.generativity.sourceCardCount} 張既有卡片成為來源`, explanation: '保留一張或多張來源卡關係而建立的新卡；單純新增收藏或放入實驗場不計入。' },
-  { key: 'treasure-yield', value: period.value.treasureGrowth.yieldTreasureCount, unit: '件', label: '奇珍產生價值', description: `留下 ${period.value.treasureGrowth.yieldRecordCount} 筆價值產出`, explanation: '以實際發生日期計算。相同成果的多筆價值產出仍為一件奇珍；設定挑戰不算產出，也不代表已取得收入。' },
+  { key: 'reengaged', value: period.value.flow.reengagedCardCount, unit: '張', label: '故物重逢', description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`, explanation: '建立於這段時間之前，且在這段時間重新被閱讀、放入實驗場或成為衍生來源的卡片。不是越高越好。' },
+  { key: 'derived', value: period.value.generativity.derivedCardCount, unit: '張', label: '新枝萌生', description: `${period.value.generativity.sourceCardCount} 張既有卡片成為來源`, explanation: '保留一張或多張來源卡關係而建立的新卡；單純新增收藏或放入實驗場不計入。' },
+  { key: 'treasure-yield', value: period.value.treasureGrowth.yieldTreasureCount, unit: '件', label: '奇珍再現價值', description: `留下 ${period.value.treasureGrowth.yieldRecordCount} 筆收益`, explanation: '以實際發生日期計算。相同成果的多筆收益仍為一件奇珍；設定挑戰不算產出，也不代表已取得收入。' },
 ])
 
 const activityDefinitions = {
-  created: '新增卡片', offered: 'Today 再次出現', reviewed: '完成回顧', 'experiment-material': '放入實驗場', derived: '長出新卡', 'exploration-record': '留下探索發現', 'treasure-collected': '奇珍入藏', 'treasure-promoted': '曾晉級的奇珍', 'treasure-yield': '奇珍價值產出',
+  created: '新增卡片', offered: '今日回流再次出現', reviewed: '完成回顧', 'experiment-material': '放入實驗場', derived: '長出新卡', 'exploration-record': '留下探索發現', 'treasure-collected': '奇珍入藏', 'treasure-promoted': '曾晉級的奇珍', 'treasure-yield': '奇珍收益',
 } as const
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', { month: 'numeric', day: 'numeric' }).format(new Date(value))
@@ -52,7 +52,7 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
 
 <template>
   <section class="overview-page app-page app-page--workspace">
-    <PageHeader title="近期回顧" description="回看這段時間，哪些卡片、探索與成果留下了變化。">
+    <PageHeader title="近期回顧" description="時日流轉，有些舊物再次派上用場，有些嘗試終於長出新枝。看看這段旅程留下了什麼。">
       <template #actions><OverviewNavigation /></template>
     </PageHeader>
 
@@ -65,7 +65,7 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
       <div class="overview-stack app-stack">
         <section class="period-section" aria-labelledby="overview-period-title">
           <div class="period-heading">
-            <div><span class="section-eyebrow">回看近期</span><h2 id="overview-period-title">這段時間留下了什麼</h2></div>
+            <div><span class="section-eyebrow">回看近期</span><h2 id="overview-period-title">這些日子，留下了什麼？</h2></div>
             <el-radio-group v-model="selectedPeriod" class="period-switcher" aria-label="觀測時間範圍">
               <el-radio-button :value="7">近 7 天</el-radio-button><el-radio-button :value="30">近 30 天</el-radio-button><el-radio-button :value="90">近 90 天</el-radio-button>
             </el-radio-group>
@@ -80,7 +80,7 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
 
         <div class="content-grid">
           <section class="content-panel" aria-labelledby="overview-derived-title">
-            <div class="section-title-row"><div><span class="section-eyebrow">新理解</span><h2 id="overview-derived-title">近期長出的東西</h2></div></div>
+            <div class="section-title-row"><div><span class="section-eyebrow">新理解</span><h2 id="overview-derived-title">從舊日積累中長出的新篇章</h2></div></div>
             <div v-if="period.derivedCards.length" class="content-list">
               <article v-for="card in period.derivedCards.slice(0, 3)" :key="card.cardId" class="content-card">
                 <button type="button" class="content-card-main" @click="openCard(card.cardId)"><span>{{ formatDate(card.createdAt) }} 長出</span><h3>{{ card.title }}</h3></button>
@@ -91,7 +91,7 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
           </section>
 
           <section class="content-panel" aria-labelledby="overview-materials-title">
-            <div class="section-title-row"><div><span class="section-eyebrow">材料聚集</span><h2 id="overview-materials-title">近期進入實驗場的材料</h2></div><el-tooltip content="這些是近期放入實驗場、但不是從既有卡片衍生而來的材料；它們不計入「長出的東西」。" placement="top"><el-icon class="info-icon"><InfoFilled /></el-icon></el-tooltip></div>
+            <div class="section-title-row"><div><span class="section-eyebrow">材料聚集</span><h2 id="overview-materials-title">新到手的探索材料</h2></div><el-tooltip content="這些是近期放入實驗場、但不是從既有卡片衍生而來的材料；它們不計入「新枝萌生」。" placement="top"><el-icon class="info-icon"><InfoFilled /></el-icon></el-tooltip></div>
             <div v-if="period.recentExperimentMaterials.length" class="content-list">
               <article v-for="material in period.recentExperimentMaterials.slice(0, 3)" :key="`${material.experimentId}-${material.cardId}`" class="content-card">
                 <button type="button" class="content-card-main" @click="openCard(material.cardId)"><span>{{ formatDate(material.addedAt) }} · {{ material.sourceKind === 'EXPLORATION' ? '探索整理' : '放入材料' }}</span><h3>{{ material.title }}</h3></button>
@@ -119,7 +119,7 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
             <p v-else class="empty-copy">{{ section.empty }}</p>
           </section>
         </div>
-        <details class="activity-disclosure"><summary>查看近 {{ selectedPeriod }} 天的完整活動</summary><div class="activity-list"><div v-for="activity in period.activities" :key="activity.key" class="activity-item"><strong>{{ activity.value }}</strong><span>{{ activityDefinitions[activity.key] }}</span></div></div></details>
+        <details class="activity-disclosure"><summary>翻閱近 {{ selectedPeriod }} 天的活動紀錄</summary><div class="activity-list"><div v-for="activity in period.activities" :key="activity.key" class="activity-item"><strong>{{ activity.value }}</strong><span>{{ activityDefinitions[activity.key] }}</span></div></div></details>
       </div>
     </div>
   </section>

@@ -60,7 +60,7 @@ const confirmClose = async (done: () => void) => {
   if (initialDraft.value !== undefined && serializeDraft() !== initialDraft.value) {
     confirming = true
     try {
-      await ElMessageBox.confirm('尚有未儲存內容，確定要放棄嗎？', '放棄變更', {
+      await ElMessageBox.confirm('尚有未儲存內容，放棄後將遺失這些變更。確定要放棄嗎？', '放棄變更', {
         confirmButtonText: '放棄內容', cancelButtonText: '繼續編輯', type: 'warning',
       })
     } catch { return } finally { confirming = false }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import AppDialog from '../AppDialog.vue'
 import ExpandableText from '../ExpandableText.vue'
 import TreasureChallengeRoute from './TreasureChallengeRoute.vue'
@@ -63,7 +63,7 @@ const leave = async (close = false, done?: () => void) => {
   const editing = mode.value === 'edit'
   const dirty = editing && JSON.stringify(definition) !== originalDefinition.value || mode.value === 'attempt' && JSON.stringify(result) !== originalResult.value
   if (dirty) {
-    try { await ElMessageBox.confirm('尚有未儲存內容，確定離開？', '保留目前編輯', { confirmButtonText: '捨棄並離開', cancelButtonText: '繼續編輯' }) } catch { return }
+    try { await ElMessageBox.confirm('尚有未儲存內容，離開後將遺失這些變更。確定離開？', '離開編輯', { confirmButtonText: '捨棄並離開', cancelButtonText: '繼續編輯' }) } catch { return }
   }
   if (close) { if (done) done(); else emit('update:modelValue', false) }
   else await switchMode('route')
@@ -97,7 +97,7 @@ const save = async () => {
   try {
     if (mode.value === 'edit') {
       if (!canEdit.value) return
-      if (!definition.title.trim() || !definition.criteria.trim()) { error.value = '請填寫檢定名稱與通過條件。'; return }
+      if (!definition.title.trim() || !definition.criteria.trim()) { error.value = '請填寫試煉名稱與通過條件。'; return }
       const data = { ...definition, targetRank: selectedRank.value }
       if (trial.value) await treasureApi.updateTrial(props.treasureId, trial.value.id, data)
       else await treasureApi.createTrial(props.treasureId, data)
@@ -105,29 +105,30 @@ const save = async () => {
       if (!canAttempt.value) return
       if (!result.status || !result.resultNote.trim() || !result.attemptedAt) { error.value = '請填寫這次經過、結果判定與嘗試時間。'; return }
       if (result.status === 'PASSED') {
-        try { await ElMessageBox.confirm('確認實際結果符合原條件？通過後晉級，這份檢定與嘗試紀錄將保留。', '確認通過', { confirmButtonText: '確認通過', cancelButtonText: '返回檢查' }) } catch { return }
+        try { await ElMessageBox.confirm('確認實際結果符合原條件？通過後晉級，這份試煉與嘗試紀錄將保留。', '確認通過', { confirmButtonText: '確認通過', cancelButtonText: '返回檢查' }) } catch { return }
       }
       await treasureApi.recordAttempt(props.treasureId, trial.value!.id, { ...result, status: result.status, attemptedAt: new Date(result.attemptedAt).toISOString() })
     } else return
     await refresh()
+    ElMessage.success(mode.value === 'edit' ? '試煉設定已儲存。' : result.status === 'PASSED' ? '試煉已然通過。這件奇珍的來歷，又添上了新的一筆。' : '嘗試紀錄已儲存。')
     emit('update:modelValue', false)
   } catch (e) { error.value = errorMessage(e) } finally { saving.value = false }
 }
-const title = computed(() => mode.value === 'help' ? '成果的四階成長' : mode.value === 'edit' ? (trial.value ? '編輯' : '設定') + ranks[selectedRank.value] + '檢定' : mode.value === 'attempt' ? '記錄一次嘗試' : '成長挑戰')
+const title = computed(() => mode.value === 'help' ? '成果的四階成長' : mode.value === 'edit' ? (trial.value ? '編輯' : '設定') + ranks[selectedRank.value] + '試煉' : mode.value === 'attempt' ? '記錄一次嘗試' : '成長挑戰')
 </script>
 
 <template>
   <AppDialog :model-value="modelValue" :title="title" width="min(680px, calc(100vw - 32px))" scroll-body :busy="saving" :before-close="done => leave(true, done)" :close-on-click-modal="mode === 'help' || mode === 'route'" @update:model-value="emit('update:modelValue', $event)">
     <div ref="content" class="challenge-content" tabindex="-1">
-      <p v-if="query.isLoading.value">正在讀取檢定…</p>
+      <p v-if="query.isLoading.value">正在讀取試煉…</p>
       <el-button v-else-if="query.isError.value" @click="query.refetch()">讀取失敗，重試</el-button>
       <template v-else-if="mode === 'help'">
-        <p class="help-intro">等級記錄成果經歷的現實考驗。四階提供參考方向，具體檢定由你設定。</p>
+        <p class="help-intro">等級記錄成果經歷的現實考驗。四階提供參考方向，具體試煉由你設定。</p>
         <section v-for="stage in (['STONE', ...challengeRanks] as TreasureRank[])" :key="stage" class="growth-guide" :data-rank="stage">
           <div class="guide-heading"><TreasureRankBadge :rank="stage" /><h3>{{ rankGuides[stage].stage }}</h3><span v-if="rank === stage" class="current-label">目前等級</span></div>
           <p>{{ rankGuides[stage].summary }}</p>
         </section>
-        <div class="growth-footnote"><p>銅、銀、金各可設定一份檢定，也可以先規劃未來階級。</p><p>每份檢定可多次嘗試；未通過不降級，也可以保持原級珍藏。</p></div>
+        <div class="growth-footnote"><p>銅、銀、金各可設定一份試煉，也可以先規劃未來階級。</p><p>每份試煉可多次嘗試；未通過不降級，也可以保持原級珍藏。</p></div>
       </template>
       <TreasureChallengeRoute v-else-if="mode === 'route'" v-model="selectedRank" :treasure-id="treasureId" :rank="rank" :trials="query.data.value ?? []" :archived="archived" @edit="edit" @attempt="attempt" @help="help" />
       <el-form v-else :class="{ 'app-record-form': mode === 'attempt' }" label-position="top" @submit.prevent="save">
@@ -141,10 +142,10 @@ const title = computed(() => mode.value === 'help' ? '成果的四階成長' : m
           </section>
           <el-form-item label="這一階想完成什麼？" required><el-input v-model="definition.title" maxlength="255" placeholder="例如：完成一次正式投稿" /></el-form-item>
           <el-form-item label="做到哪些事，就算通過？" required><el-input v-model="definition.criteria" type="textarea" :rows="4" maxlength="50000" placeholder="例如：依投稿規則提交作品，保留提交日期與確認信" /><FieldCounter :value="definition.criteria" :limit="50000" /></el-form-item>
-          <p class="form-help">儲存後才會更新檢定；過去嘗試的條件與結果會保留。</p>
+          <p class="form-help">儲存後才會更新試煉；過去嘗試的條件與結果會保留。</p>
         </template>
         <template v-else-if="trial">
-          <section class="trial-context" :data-rank="selectedRank" aria-label="這次對照的檢定">
+          <section class="trial-context" :data-rank="selectedRank" aria-label="這次對照的試煉">
             <header class="trial-context-heading"><TreasureRankBadge :rank="selectedRank" /><h3>{{ trial.title }}</h3></header><span class="context-label">通過條件</span><ExpandableText :content="trial.criteria" :lines="4" />
           </section>
           <el-form-item label="這次做了什麼？" required><el-input v-model="result.resultNote" type="textarea" :rows="4" maxlength="50000" placeholder="記下行動、實際經過，以及哪些條件已達成。" /><FieldCounter :value="result.resultNote" :limit="50000" /></el-form-item>
@@ -158,7 +159,7 @@ const title = computed(() => mode.value === 'help' ? '成果的四階成長' : m
     </div>
     <template #footer>
       <template v-if="mode === 'help'"><el-button @click="emit('update:modelValue', false)">關閉</el-button></template>
-      <template v-else-if="mode === 'edit' || mode === 'attempt'"><el-button :disabled="saving" @click="leave(!formFromRoute)">{{ formFromRoute ? '返回檢定' : '取消' }}</el-button><el-button type="primary" :loading="saving" @click="save">{{ mode === 'edit' ? '儲存檢定' : '儲存嘗試紀錄' }}</el-button></template>
+      <template v-else-if="mode === 'edit' || mode === 'attempt'"><el-button :disabled="saving" @click="leave(!formFromRoute)">{{ formFromRoute ? '返回試煉' : '取消' }}</el-button><el-button type="primary" :loading="saving" @click="save">{{ mode === 'edit' ? '儲存試煉' : '儲存嘗試紀錄' }}</el-button></template>
       <el-button v-else @click="emit('update:modelValue', false)">關閉</el-button>
     </template>
   </AppDialog>

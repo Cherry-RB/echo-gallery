@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
+import { ElMessage } from 'element-plus'
 import AppDialog from '../AppDialog.vue'
 import CoverImageField from '../ui/CoverImageField.vue'
 import FieldCounter from '../ui/FieldCounter.vue'
@@ -63,13 +64,14 @@ const save = async () => {
     const data = { ...form, title: form.title.trim(), sourceCardId: cardSource.value?.id ?? null, sourceExperimentId: experimentSource.value?.id ?? null, sourceTreasureIds: selectedSources.value.map(s => s.id) }
     const result = props.treasure ? await treasureApi.update(props.treasure.id, data) : await treasureApi.create(data)
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['treasures'] }), queryClient.invalidateQueries({ queryKey: ['overview'] }), queryClient.invalidateQueries({ queryKey: ['treasure-source-picker'] })])
+    ElMessage.success(props.treasure ? '奇珍變更已儲存。' : '一件新的奇珍已收入館藏。它的故事，從此有了值得回望的地方。')
     emit('saved', result); emit('update:modelValue', false)
   } catch (e) { error.value = errorMessage(e) } finally { saving.value = false }
 }
 </script>
 
 <template>
-  <AppDialog :busy="saving" :draft="sourceVisible ? undefined : [form, cardSource?.id, experimentSource?.id, selectedSources.map(s => s.id)]" :model-value="modelValue" :title="sourceVisible ? '管理成果來源' : treasure ? '編輯成果' : '收入奇珍'" :width="sourceVisible ? 'min(980px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" scroll-body :before-close="beforeClose" :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="close">
+  <AppDialog :busy="saving" :draft="sourceVisible ? undefined : [form, cardSource?.id, experimentSource?.id, selectedSources.map(s => s.id)]" :model-value="modelValue" :title="sourceVisible ? '管理成果來源' : treasure ? '編輯奇珍' : '收入奇珍'" :width="sourceVisible ? 'min(980px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" scroll-body :before-close="beforeClose" :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="close">
     <div ref="content" class="form-content" tabindex="-1">
     <el-form v-show="!sourceVisible" label-position="top" @submit.prevent="save">
       <el-form-item label="成果名稱" required><el-input v-model="form.title" maxlength="255" /></el-form-item>

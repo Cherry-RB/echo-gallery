@@ -5,7 +5,7 @@ import { isNetworkError } from './stores/networkStatus';
 
 <template>
   <div v-if="isNetworkError" class="network-banner">
-    ⚠️ 目前無法連線到伺服器，部分功能可能無法使用
+    目前無法連線到伺服器，部分功能可能無法使用。請確認網路連線。
   </div>
   <RouterView />
 </template>

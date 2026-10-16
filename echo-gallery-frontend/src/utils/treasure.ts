@@ -1,6 +1,6 @@
 import type { TreasureContent, TreasureDetail, TreasureRank, TrialStatus } from '../types/treasure'
 
-export const yieldHistoryDescription = '記錄成果帶來的新作品、回應與機會。'
+export const yieldHistoryDescription = '只記錄已發生的收益，包括新作品、回應與機會，不限於金錢收入。'
 
 export const ranks: Record<TreasureRank, string> = { STONE: '石級', BRONZE: '銅級', SILVER: '銀級', GOLD: '金級' }
 export const challengeRanks: TreasureRank[] = ['BRONZE', 'SILVER', 'GOLD']
@@ -13,10 +13,10 @@ export function challengeState(trial: import('../types/treasure').TreasureTrial,
   return '待嘗試'
 }
 export const trialStatuses: Record<TrialStatus, string> = { PLANNED: '準備挑戰', ATTEMPTED: '已嘗試', NOT_PASSED: '未通過', CANCELLED: '已取消', PASSED: '已通過' }
-export const eventKinds = { COLLECTED: '收入館藏', TRIAL_ATTEMPTED: '嘗試紀錄', PROMOTED: '晉級', YIELD: '價值產出' }
+export const eventKinds = { COLLECTED: '收入館藏', TRIAL_ATTEMPTED: '嘗試紀錄', PROMOTED: '晉級', YIELD: '收益' }
 
 export const rankGuides: Record<TreasureRank, { stage: string; summary: string; meaning: string; examples: { title: string; criteria: string }[] }> = {
-  STONE: { stage: '取得成果', summary: '完成成果並入藏，作為起點，不另設檢定。', meaning: '真正完成一件作品、專案或成果，收入館藏。這是成長的起點，入藏不需要額外檢定。', examples: [] },
+  STONE: { stage: '取得成果', summary: '完成成果並入藏，作為起點，不另設試煉。', meaning: '真正完成一件作品、專案或成果，收入館藏。這是成長的起點，入藏不需要額外試煉。', examples: [] },
   BRONZE: { stage: '踏出私人領域', summary: '投稿、對外介紹或邀請試用，讓成果接觸外界。', meaning: '讓成果真正接觸外部世界：投稿、對外介紹、分享或邀請試用，留下可觀察的行動紀錄。', examples: [
     { title: '小說：完成一次正式投稿', criteria: '選定合適的投稿管道，依規則提交完成的小說，留下投稿日期與提交紀錄；不以獲得錄用作為本次條件。' },
     { title: 'MVP：向外部使用者介紹並邀請試用', criteria: '選定目標使用者，實際向對方介紹產品並發出試用邀請，留下介紹內容、邀請日期與紀錄；不以一定收到回覆作為本次條件。' },

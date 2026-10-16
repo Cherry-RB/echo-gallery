@@ -93,7 +93,7 @@ const cardRelations = computed(() => cardExperimentContext.value?.relations ?? [
 const updateProcessingStatus = async (needsProcessing: boolean) => {
   const updated = await cardApi.updateProcessingStatus(props.id, needsProcessing);
   cardData.value.needsProcessing = updated.needsProcessing;
-  ElMessage.success(needsProcessing ? '已標記為待整理' : '已完成待整理標記');
+  ElMessage.success(needsProcessing ? '已標記為待整理' : '已取消待整理標記');
 };
 // =====================================================
 
@@ -303,7 +303,7 @@ const pauseRecurrence = async () => {
 
   try {
     await ElMessageBox.confirm(
-      '暫停後，這張卡片仍可搜尋、查看及加入議題，但不會再出現在 Today。',
+      '暫停後，這張卡片仍可搜尋、查看及加入議題，但不會再出現在「今日回流」。',
       '暫停回流',
       {
         confirmButtonText: '確認暫停',
@@ -407,7 +407,7 @@ const {
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="archive" :disabled="isArchivePending">
-                    {{ cardData.isArchived ? '還原使用' : '封存卡片' }}
+                    {{ cardData.isArchived ? '還原卡片' : '封存卡片' }}
                   </el-dropdown-item>
                   <el-dropdown-item command="delete" divided class="danger-menu-item">
                     刪除卡片
@@ -473,7 +473,7 @@ const {
                 </header>
                 <p v-if="cardData.cardNote" class="reading-copy prominent-copy">{{ cardData.cardNote }}</p>
                 <div v-else class="quiet-empty-state">
-                  <p>還沒有卡片筆記。</p>
+                  <p>尚未留下筆記。可以寫下此刻想保留的線索。</p>
                   <button type="button" class="inline-edit-button" @click="openEditDialog('cardNote')">補上筆記</button>
                 </div>
               </section>
@@ -482,7 +482,7 @@ const {
                 <header class="section-heading">
                   <div>
                     <h2 :id="`content-${cardData.id}`">{{ cardTextFieldCopy.content.label }}</h2>
-                    <p>完整保存自己的筆記、摘錄或延伸想法。</p>
+                    <p>留下筆記、摘錄或延伸想法，供日後重讀。</p>
                   </div>
                   <button type="button" class="inline-edit-button" @click="openEditDialog('content')">編輯</button>
                 </header>
@@ -521,7 +521,7 @@ const {
               </header>
               <p class="property-description">
                 {{ isRecurrencePaused
-                  ? '暫停期間不會出現在 Today。'
+                  ? '暫停期間不會出現在「今日回流」。'
                   : `下次看見：${formatDate(cardData.nextShowAt || '') || '尚未排定'}` }}
               </p>
               <div class="property-actions">
@@ -763,7 +763,7 @@ const {
     <div class="page-header-wrapper">
       <!-- 新增模式 -->
       <div v-if="isCreateMode" class="create-header">
-        <span class="header-title">新增卡片</span>
+        <span class="header-title">新建卡片</span>
         <div class="page-header-inner">
           <el-button type="primary" :loading="isCreatePending" @click="handleSave">確認建立</el-button>
         </div>
@@ -878,7 +878,7 @@ const {
                   </div>
 
                   <div class="existing-tags-section">
-                    <div class="popover-subtitle">現有標籤 (點擊選取)：</div>
+                    <div class="popover-subtitle">既有標籤（點選切換）</div>
                     <div class="popover-tags-list">
                       <el-tag
                         v-for="t in filteredExistingTags"
@@ -977,7 +977,7 @@ const {
         <el-card class="sidebar-card">
           <div class="sidebar-card-header">
             <el-icon><Clock /></el-icon>
-            <span>記憶回流設定</span>
+            <span>回流設定</span>
           </div>
           <div v-if="!isCreateMode && !isEditMode" class="recurrence-status-row">
             <el-tag :type="isRecurrencePaused ? 'info' : 'success'" size="small" effect="light">
@@ -1012,7 +1012,7 @@ const {
               <el-icon class="icon-align"><Calendar /></el-icon>
               {{ isRecurrencePaused ? '暫停期間不排程' : formatDate(cardData.nextShowAt || '') || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="最近出現在 Today" v-if="!isEditMode">
+            <el-descriptions-item label="最近出現在今日回流" v-if="!isEditMode">
               {{ formatDate(cardData.lastOfferedAt || '') || '尚未出現' }}
             </el-descriptions-item>
             <el-descriptions-item label="最近完成回顧" v-if="!isEditMode">
@@ -1063,7 +1063,7 @@ const {
                   size="small"
                   @click="toggleArchive"
                 >
-                  {{ cardData.isArchived ? '還原使用' : '快速封存' }}
+                  {{ cardData.isArchived ? '還原卡片' : '封存卡片' }}
                 </el-button>
                 </div>
               </template>

@@ -24,7 +24,7 @@ watch(() => route.path, () => {
 <template>
   <div class="main-layout">
     <header class="mobile-header">
-      <button class="hamburger-btn" @click="isLeftDrawerOpen = true">☰</button>
+      <button class="hamburger-btn" aria-label="開啟導覽選單" @click="isLeftDrawerOpen = true">☰</button>
       <router-link to="/overview" class="mobile-brand" aria-label="前往總覽">
         <img class="brand-logo" src="/favicon.svg" alt="" />
         <h2 class="brand-title">EchoGallery</h2>

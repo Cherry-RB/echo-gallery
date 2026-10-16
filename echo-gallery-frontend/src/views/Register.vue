@@ -58,7 +58,7 @@ const onSubmit = async () => {
   try {
     const res = await handleRegister(form)
     if (res?.token) {
-      ElMessage.success("註冊成功");
+      ElMessage.success("註冊成功，請登入開始收藏");
       router.push('/login') // 註冊完畢，導向登入畫面
     }
   } catch (err: any) {

@@ -77,7 +77,7 @@ describe('IssueUpdates', () => {
     const submitButtons = wrapper.findAll('button').filter((button) => button.text().includes('記錄訊號'))
     await submitButtons.at(-1)?.trigger('click')
 
-    expect(wrapper.text()).toContain('至少寫下一項')
+    expect(wrapper.text()).toContain('請至少填寫一項')
     expect(issueApi.createIssueUpdate).not.toHaveBeenCalled()
   })
 

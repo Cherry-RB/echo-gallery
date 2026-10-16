@@ -93,7 +93,7 @@ const visibleRange = computed(() => {
 const activeFilterLabels = computed(() => {
   const filters = appliedFilters.value
   const labels: string[] = []
-  if (filters.id) labels.push(`Card ID：${filters.id}`)
+  if (filters.id) labels.push(`卡片 ID：${filters.id}`)
   if (filters.title) labels.push(`標題：${filters.title}`)
   if (filters.tagIds?.length) {
     const names = filters.tagIds.map(id =>
@@ -205,7 +205,7 @@ const {
 const applySearch = () => {
   const normalizedId = form.id.trim() ? Number(form.id) : undefined
   if (normalizedId !== undefined && (!Number.isSafeInteger(normalizedId) || normalizedId <= 0)) {
-    ElMessage.warning('Card ID 必須是大於 0 的整數')
+    ElMessage.warning('卡片 ID 必須是大於 0 的整數')
     return
   }
   if (
@@ -251,7 +251,7 @@ const openDetail = (cardId: string) => {
           <section class="filter-section" aria-label="主要查詢條件">
           <div class="primary-filter-row">
           <label class="compact-field id-field" :class="fieldClass('id')">
-            <span>Card ID</span>
+            <span>卡片 ID</span>
             <el-input v-model="form.id" inputmode="numeric" maxlength="19" clearable placeholder="例如 42" />
           </label>
           <label class="compact-field title-field" :class="fieldClass('title')">
@@ -385,7 +385,7 @@ const openDetail = (cardId: string) => {
               <el-option label="最近更新" value="UPDATED_AT" />
               <el-option label="建立時間" value="CREATED_AT" />
               <el-option label="下次回流" value="NEXT_SHOW_AT" />
-              <el-option label="Card ID" value="ID" />
+              <el-option label="卡片 ID" value="ID" />
             </el-select>
             <el-select v-model="form.direction" aria-label="排序方向" @change="applySorting">
               <el-option label="降冪" value="DESC" />

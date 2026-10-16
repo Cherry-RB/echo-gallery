@@ -111,7 +111,7 @@ const editExplorationRecord = (record: ExperimentExplorationRecordDto) => {
 const deleteExplorationRecord = async (recordId: number) => {
   if (historyExperimentId.value === null) return
   try {
-    await ElMessageBox.confirm('刪除這筆探索紀錄？已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
+    await ElMessageBox.confirm('刪除這筆探索紀錄？刪除後無法復原；已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
       confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning',
     })
   } catch {
@@ -145,7 +145,7 @@ const submit = () => {
 
 <template>
   <section class="experiment-list-page app-list-page app-page app-page--workspace">
-    <PageHeader title="實驗場" description="讓彼此呼應的卡片聚在一起，持續觀察一個想法會長出什麼。">
+    <PageHeader title="實驗場" description="讓彼此呼應的卡片在此相遇。沿著一個問題慢慢探索，看看會萌生什麼。">
       <template #actions>
         <el-button type="primary" :icon="Plus" @click="openCreate">建立實驗主題</el-button>
       </template>
@@ -175,7 +175,7 @@ const submit = () => {
 
       <AppEmptyState
         v-else-if="experiments.length === 0"
-        :description="selectedScope === 'ARCHIVED' ? '目前沒有已封存的實驗主題' : '先建立一個實驗主題，寫下你想持續觀察的假設。'"
+        :description="selectedScope === 'ARCHIVED' ? '目前沒有已封存的實驗主題' : '探索尚未開始。先為一個想弄懂的問題，留下一處收集材料的地方。'"
       >
         <el-button v-if="selectedScope === 'ACTIVE'" type="primary" :icon="Plus" @click="openCreate">
           建立第一個實驗主題
@@ -201,10 +201,10 @@ const submit = () => {
               <el-tooltip :content="experiment.title" :show-after="400" placement="top" popper-class="content-tooltip">
                 <h2 class="experiment-title">{{ experiment.title }}</h2>
               </el-tooltip>
-              <el-tooltip :content="experiment.currentTry || experiment.hypothesis || experiment.description || '還沒有寫下目前想試的事；可以先從材料開始。'" :show-after="400" placement="top" popper-class="content-tooltip">
+              <el-tooltip :content="experiment.currentTry || experiment.hypothesis || experiment.description || '新的試法尚未寫下。不妨先翻翻收集的材料。'" :show-after="400" placement="top" popper-class="content-tooltip">
                 <p :class="['experiment-hypothesis', { empty: !experiment.currentTry && !experiment.hypothesis && !experiment.description }]">
                   <span v-if="experiment.currentTry" class="experiment-current-try-label">目前想試</span>
-                  {{ experiment.currentTry || experiment.hypothesis || experiment.description || '還沒有寫下目前想試的事；可以先從材料開始。' }}
+                  {{ experiment.currentTry || experiment.hypothesis || experiment.description || '新的試法尚未寫下。不妨先翻翻收集的材料。' }}
                 </p>
               </el-tooltip>
             </div>
@@ -257,11 +257,11 @@ const submit = () => {
     <p class="dialog-intro">先為想探索的方向取個名字；目前想弄懂的事，之後再補也可以。</p>
     <el-form label-position="top" @submit.prevent="submit">
       <el-form-item label="實驗主題名稱" required>
-        <el-input v-model="form.title" maxlength="255" placeholder="例如：讓生活變得更可靠" />
+        <el-input v-model="form.title" maxlength="255" placeholder="例如：尋找一種適合自己的學習方式" />
         <p class="field-counter">總字數：{{ getTextLength(form.title) }} / 255</p>
       </el-form-item>
       <el-form-item label="目前想弄懂什麼？（選填）">
-        <el-input v-model="form.hypothesis" type="textarea" :rows="3" maxlength="2000" placeholder="例如：怎樣讓我更容易開始畫畫？還不清楚也可以先留白。" />
+        <el-input v-model="form.hypothesis" type="textarea" :rows="3" maxlength="2000" placeholder="想弄懂哪個問題？還不清楚，也可以先留白。" />
         <p class="field-counter">總字數：{{ getTextLength(form.hypothesis ?? '') }} / 2000</p>
       </el-form-item>
       <el-form-item label="主題說明（選填）">

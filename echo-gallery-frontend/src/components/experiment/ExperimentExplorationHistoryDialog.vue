@@ -31,7 +31,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <HistoryDialog :model-value="modelValue" title="探索紀錄" description="回顧曾經試過什麼、留下什麼發現，以及後來整理到了哪裡。" @update:model-value="emit('update:modelValue', $event)">
+  <HistoryDialog :model-value="modelValue" title="探索紀錄" description="沿著留下的痕跡，回看試過的路與帶回的發現。" @update:model-value="emit('update:modelValue', $event)">
     <template v-if="manageable" #actions><ExperimentQuickRecordAction @select="emit('record', $event)" /></template>
     <el-skeleton v-if="loading" :rows="3" animated />
     <HistoryTimeline v-else-if="records.length">
@@ -57,7 +57,7 @@ const emit = defineEmits<{
 
       </HistoryEvent>
     </HistoryTimeline>
-    <p v-else class="history-empty">還沒有探索紀錄。等真正試過或發現了什麼，再回來留下即可。</p>
+    <p v-else class="history-empty">這段探索尚未留下紀錄。等試過或發現了什麼，再回來記上一筆。</p>
     <template v-if="records.length && showOrganize" #footer><div class="history-footer"><span>整理成卡片後，原探索紀錄仍會保留。</span><div><el-button @click="emit('update:modelValue', false)">關閉</el-button><el-button type="primary" plain @click="emit('organize')">整理成卡片</el-button></div></div></template>
   </HistoryDialog>
 </template>

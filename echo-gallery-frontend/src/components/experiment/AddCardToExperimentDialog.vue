@@ -80,7 +80,7 @@ const addExperimentMutation = useMutation({
     destroy-on-close
   >
     <p class="dialog-description app-dialog-intro">
-      選擇一個正在探索的實驗場，這張卡會先放入種子土壤；階段與備註都可以之後再調整。
+      替這張卡片找一處探索的土壤。種入後會先放在種子土壤，階段與備註可再調整。
     </p>
 
     <el-skeleton v-if="experimentsQuery.isLoading.value || areRelationsLoading" :rows="5" animated />

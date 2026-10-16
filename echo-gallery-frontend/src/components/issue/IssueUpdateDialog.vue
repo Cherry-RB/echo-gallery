@@ -70,7 +70,7 @@ const saveMutation = useMutation({
 const submitUpdate = () => {
   const payload = normalizeIssueUpdate(form)
   if (!hasIssueUpdateContent(payload)) {
-    formError.value = '至少寫下一項，才算一次系統訊號。'
+    formError.value = '請至少填寫一項訊號、模型變化或介入／等待內容。'
     return
   }
   formError.value = ''

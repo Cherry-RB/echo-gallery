@@ -57,11 +57,11 @@ defineExpose({ confirm })
 </script>
 <template>
   <section class="source-picker" aria-label="管理成果來源">
-    <header class="source-intro"><el-button text @click="emit('cancel')">返回編輯成果</el-button><p class="app-dialog-intro">選擇來源後確認，最後儲存成果才會生效。</p></header>
+    <header class="source-intro"><el-button text @click="emit('cancel')">返回編輯奇珍</el-button><p class="app-dialog-intro">選擇來源後確認，最後儲存成果才會生效。</p></header>
     <PickerWorkspace>
         <el-tabs v-model="sourceKind" aria-label="來源種類"><el-tab-pane label="奇珍" name="treasure" /><el-tab-pane label="卡片" name="card" /><el-tab-pane label="實驗" name="experiment" /></el-tabs>
         <p class="source-rule">{{ sourceKind === 'treasure' ? '奇珍：最多選 20 件。' : sourceKind === 'card' ? '卡片：選 1 張；選擇另一張會替換原選項。' : '實驗：選 1 個；選擇另一個會替換原選項。' }}</p>
-        <el-input v-if="sourceKind !== 'experiment'" v-model="keyword" :placeholder="sourceKind === 'card' ? '輸入 Card ID（例如 #7）或標題' : '依名稱搜尋來源'" clearable aria-label="搜尋來源" />
+        <el-input v-if="sourceKind !== 'experiment'" v-model="keyword" :placeholder="sourceKind === 'card' ? '輸入 卡片 ID（例如 #7）或標題' : '依名稱搜尋來源'" clearable aria-label="搜尋來源" />
         <el-skeleton v-if="query.isLoading.value" :rows="3" animated />
         <el-button v-else-if="query.isError.value && !query.data.value" @click="query.refetch()">來源讀取失敗，重試</el-button>
         <div v-else class="source-options picker-results" aria-label="瀏覽來源">

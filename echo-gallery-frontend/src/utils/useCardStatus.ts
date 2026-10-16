@@ -209,7 +209,7 @@ export const useCardStatus = () => {
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
 
             // 跳出 Element Plus 的成功通知
-            ElMessage.success(updatedCard.isArchived ? "卡片已成功封存" : "卡片已取消封存");
+            ElMessage.success(updatedCard.isArchived ? "卡片已封存" : "卡片已還原");
         },
         // 【後端失敗時執行】
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
@@ -356,7 +356,7 @@ export const useCardStatus = () => {
         mutationFn: cardApi.createCard,
         // 後端成功建立卡片後執行
         onSuccess: () => {
-            ElMessage.success('卡片建立成功！');
+            ElMessage.success('卡片已建立，留待日後重逢。');
 
             // 🌟 自動刷新右側側邊欄（統計、標籤排行）
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
@@ -380,7 +380,7 @@ export const useCardStatus = () => {
         mutationFn: ({ id, data }: { id: string | number; data: UpdateCardRequest }) => cardApi.updateCard(id, data),
         // 後端成功修改卡片後執行
         onSuccess: (_updatedCard, variables) => {
-            ElMessage.success('卡片修改儲存成功！');
+            ElMessage.success('卡片變更已儲存');
 
             // 🌟 讓當前這張卡片的詳細資料快取失效，觸發 Detail 頁面自動重撈
             queryClient.invalidateQueries({ queryKey: ['card', String(variables.id)] });

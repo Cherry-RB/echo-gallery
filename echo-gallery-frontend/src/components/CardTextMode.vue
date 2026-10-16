@@ -127,7 +127,7 @@ const triggerSnooze = () => {
 const pauseRecurrence = async () => {
   try {
     await ElMessageBox.confirm(
-      '暫停後，這張卡片仍可搜尋、查看及加入議題，但不會再出現在 Today。',
+      '暫停後，這張卡片仍可搜尋、查看及加入議題，但不會再出現在「今日回流」。',
       '暫停回流',
       {
         confirmButtonText: '暫停回流',
@@ -221,7 +221,7 @@ const deleteCard = async () => {
   ]">
 
     <div v-if="isMuted" class="muted-overlay">
-        <span>📥 已封存卡片</span>
+        <span>已封存卡片</span>
     </div>
 
     <!-- header -->

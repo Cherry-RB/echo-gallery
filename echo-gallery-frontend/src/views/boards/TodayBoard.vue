@@ -93,7 +93,7 @@ function requestNextBatch() {
 
 <template>
   <section class="today-board app-page app-page--collection">
-    <PageHeader title="今日回流" description="看看今天與哪些卡片再次相遇。" />
+    <PageHeader title="今日回流" description="舊日留下的內容，今天再次歸來。看看此刻有哪些值得重讀的線索。" />
 
     <div class="board-surface app-workspace app-workspace--edge-to-edge">
       <div v-if="isLoading" class="app-empty-state today-loading-state" v-loading="true">正在準備今天的卡片</div>
@@ -121,10 +121,10 @@ function requestNextBatch() {
 
         <AppEmptyState
           v-else
-          :description="hasBatch ? '目前這批已完成' : '今天目前沒有需要回流的卡片'"
+          :description="hasBatch ? '這批卡片已處理完畢。下一次相遇，仍由你選擇。' : '今天暫無待回流的卡片。也可以到全部卡片中隨意翻閱。'"
         />
 
-        <p v-if="noMoreCards" class="notice">今天沒有更多新卡片了</p>
+        <p v-if="noMoreCards" class="notice">今天暫無更多待回流的卡片</p>
         <p v-if="actionError" class="notice">{{ actionError }}</p>
 
         <div v-if="hasBatch" class="batch-actions">

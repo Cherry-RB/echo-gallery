@@ -51,7 +51,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 
 <template>
   <section class="card-return-page app-page app-page--workspace">
-    <PageHeader class="page-header" title="回流狀態" description="看看卡片目前的安排，以及接下來的回流節奏。">
+    <PageHeader class="page-header" title="回流狀態" description="曾經收藏的事物，總會在某個時候重新出現。看看它們如今身在何處，又將何時歸來。">
       <template #actions><OverviewNavigation /></template>
     </PageHeader>
 
@@ -66,7 +66,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
           <div class="section-heading">
             <div>
               <span class="section-eyebrow">此刻</span>
-              <h2 id="card-return-state-title">卡片目前狀態</h2>
+              <h2 id="card-return-state-title">館藏卡片的此刻光景</h2>
             </div>
             <el-tooltip content="這些是目前存量，不是近幾天的活動，也不代表卡片表現好壞。" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
@@ -85,7 +85,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
             <div class="section-heading">
               <div>
                 <span class="section-eyebrow">回流節奏</span>
-                <h2 id="card-return-cadence-title">卡片多久會再出現</h2>
+                <h2 id="card-return-cadence-title">下一次相遇的間隔</h2>
               </div>
               <el-tooltip content="只計入目前未封存、未暫停，且有回流安排的卡片。較短或較長都不代表比較好。" placement="top">
                 <el-icon class="info-icon"><InfoFilled /></el-icon>
@@ -104,7 +104,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
             <div class="section-heading">
               <div>
                 <span class="section-eyebrow">接下來 7 天</span>
-                <h2 id="card-return-forecast-title">預計回流 {{ totalForecast }} 張</h2>
+                <h2 id="card-return-forecast-title">即將重逢 · {{ totalForecast }} 張</h2>
               </div>
               <el-tooltip content="這是卡片目前排定的下一次出現時間預覽，不代表你必須在當天處理它們。" placement="top">
                 <el-icon class="info-icon"><InfoFilled /></el-icon>
@@ -125,7 +125,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
           <div class="section-heading">
             <div>
               <span class="section-eyebrow">稍後再看</span>
-              <h2 id="card-return-snooze-title">反覆暫時離開注意力的卡片</h2>
+              <h2 id="card-return-snooze-title">一再留待下回的收藏</h2>
             </div>
             <el-tooltip content="次數是自上次完成回顧後的連續次數；它可能代表仍在醞釀，也可能不值得目前處理。" placement="top">
               <el-icon class="info-icon"><InfoFilled /></el-icon>
@@ -141,7 +141,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 
         <details class="definition-disclosure">
           <summary>查看這些數字的計算方式</summary>
-          <p>此頁由後端依目前資料聚合；稍後再看的次數，是自上次完成回顧後的連續次數。</p>
+          <p>此頁依目前卡片資料統計；稍後再看的次數，是自上次完成回顧後的連續次數。</p>
         </details>
       </div>
     </div>

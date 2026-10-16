@@ -211,7 +211,7 @@ const removeFavoriteTry = async (text: string) => {
   <AppDialog :busy="saving" :draft="[tryDraft, recordTryDraft, discoveryDraft, includeTryInDiscovery, newFavoriteTryDraft && newFavoriteTryDraft !== tryDraft ? newFavoriteTryDraft : '', editingFavoriteTry && editingFavoriteTryDraft !== editingFavoriteTry ? editingFavoriteTryDraft : '']" :draft-ready="initializedMode !== null"
     class="app-record-form"
     v-model="visible"
-    :title="mode === 'TRY' ? (tryPane === 'COMPOSE' ? '試一件小事' : '常用試法') : (record ? '編輯探索紀錄' : '記下發生了什麼')"
+    :title="mode === 'TRY' ? (tryPane === 'COMPOSE' ? '設定試法' : '常用試法') : (record ? '編輯探索紀錄' : '記下發現')"
     width="min(560px, calc(100vw - 32px))"
     scroll-body
     @closed="handleClosed"
@@ -268,7 +268,7 @@ const removeFavoriteTry = async (text: string) => {
         <FieldCounter :value="recordTryDraft" :limit="500" />
         <label class="record-input-label record-discovery-label" for="record-discovery-draft">發現</label>
       </template>
-      <el-input :id="record ? 'record-discovery-draft' : undefined" v-model="discoveryDraft" type="textarea" :rows="5" maxlength="1000" placeholder="例如：沒畫成；原來我把紙筆收得太遠了。" aria-label="這次發生了什麼" />
+      <el-input :id="record ? 'record-discovery-draft' : undefined" v-model="discoveryDraft" type="textarea" :rows="5" maxlength="1000" placeholder="記下實際經過、遇到的阻礙，或尚待確認的線索。" aria-label="這次發生了什麼" />
       <FieldCounter :value="discoveryDraft" :limit="1000" />
       <div v-if="exploration.currentTry && !record" class="discovery-try-choice">
         <p><span>目前試法</span>{{ exploration.currentTry }}</p>

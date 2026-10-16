@@ -30,8 +30,8 @@ const props = withDefaults(defineProps<{
   layout?: 'default' | 'split'
   initialData?: Partial<CardDto>
 }>(), {
-  title: '快速新增卡片',
-  description: '先留下最重要的內容，其餘資訊可以現在補充，也可以之後再慢慢完善。',
+  title: '快速新建卡片',
+  description: '先留下一個值得重逢的想法。其餘細節，可以日後再補。',
   createLabel: '建立卡片',
   successTitle: '卡片已建立',
   successDescription: '你可以立即查看卡片，或繼續記下下一則內容。',
@@ -242,8 +242,8 @@ const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
         <div v-if="canPlaceCreatedCard" class="create-placement-actions">
           <span>接著安放（選填）</span>
           <div>
-            <el-button plain @click="addExperimentDialogVisible = true">種入實驗場</el-button>
-            <el-button plain @click="addIssueDialogVisible = true">帶入議題</el-button>
+            <el-button plain @click="addExperimentDialogVisible = true">放入實驗場</el-button>
+            <el-button plain @click="addIssueDialogVisible = true">加入議題</el-button>
           </div>
         </div>
       </div>

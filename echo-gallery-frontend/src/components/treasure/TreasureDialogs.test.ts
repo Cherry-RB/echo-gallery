@@ -5,12 +5,13 @@ import TreasureFormDialog from './TreasureFormDialog.vue'
 import TreasureYieldDialog from './TreasureYieldDialog.vue'
 import TreasureSourcePicker from './TreasureSourcePicker.vue'
 import CoverImageField from '../ui/CoverImageField.vue'
+import { ElMessage } from 'element-plus'
 
 const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), update: vi.fn(), passTrial: vi.fn(), createTrial: vi.fn(), updateTrial: vi.fn(), createYield: vi.fn(), updateYield: vi.fn(), confirm: vi.fn(), cards: vi.fn(), experiments: vi.fn() }))
 vi.mock('../../utils/api/treasureApi', () => ({ treasureApi: api }))
 vi.mock('../../utils/api/cardApi', () => ({ cardApi: { searchCards: api.cards } }))
 vi.mock('../../utils/api/experimentApi', () => ({ experimentApi: { getExperiments: api.experiments } }))
-vi.mock('element-plus', () => ({ ElMessage: { warning: vi.fn() }, ElMessageBox: { confirm: api.confirm } }))
+vi.mock('element-plus', () => ({ ElMessage: { warning: vi.fn(), success: vi.fn() }, ElMessageBox: { confirm: api.confirm } }))
 
 const stubs = {
   ExpandableText: { props: ['content'], template: '<p>{{ content }}</p>' },
@@ -72,6 +73,7 @@ describe('奇珍表單互動', () => {
     expect(api.create.mock.calls[0]?.[0]).not.toHaveProperty('rank')
     await flushPromises()
     expect(wrapper.emitted('saved')).toHaveLength(1)
+    expect(ElMessage.success).toHaveBeenCalledWith('一件新的奇珍已收入館藏。它的故事，從此有了值得回望的地方。')
     wrapper.unmount()
   })
 
@@ -84,6 +86,7 @@ describe('奇珍表單互動', () => {
     expect(wrapper.get('input').element.value).toBe('仍要保留的成果')
     expect(wrapper.emitted('saved')).toBeUndefined()
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(ElMessage.success).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -181,6 +184,25 @@ describe('奇珍表單互動', () => {
     await vi.waitFor(() => expect(api.createYield).toHaveBeenCalledOnce())
     expect(api.createYield).toHaveBeenCalledWith(1, expect.objectContaining({ title: '整理 MVP 成文章並分享', description: '整理專案、撰寫文章、發布；尚未收到回饋。' }))
     expect(api.cards).not.toHaveBeenCalled()
+    await flushPromises()
+    expect(ElMessage.success).toHaveBeenCalledWith('昔日的成果並未沉寂。這一次，它又帶回了新的收穫。')
+    wrapper.unmount()
+  })
+
+  it('收益請求等待與失敗時不宣稱成功，保留輸入供重試', async () => {
+    let rejectRequest!: (reason: unknown) => void
+    api.createYield.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRequest = reject }))
+    const wrapper = mount(TreasureYieldDialog, { props: { modelValue: true, treasureId: 1 }, global: global() })
+    await wrapper.get('input').setValue('實際收到的回饋')
+    await wrapper.get('footer button:last-child').trigger('click')
+    expect(ElMessage.success).not.toHaveBeenCalled()
+    expect(wrapper.emitted('saved')).toBeUndefined()
+    rejectRequest({ response: { data: { message: '儲存失敗' } } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('儲存失敗')
+    expect(ElMessage.success).not.toHaveBeenCalled()
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(wrapper.get('input').element.value).toBe('實際收到的回饋')
     wrapper.unmount()
   })
 

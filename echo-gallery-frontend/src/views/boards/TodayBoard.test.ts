@@ -59,7 +59,7 @@ describe('TodayBoard', () => {
     vi.mocked(cardApi.prepareToday).mockResolvedValue({ cards: [], batchOfferedAt: null })
     const wrapper = mountBoard()
     await flushPromises()
-    expect(wrapper.text()).toContain('今天目前沒有需要回流的卡片')
+    expect(wrapper.text()).toContain('今天暫無待回流的卡片')
     expect(wrapper.text()).not.toContain('再看一批')
   })
 
@@ -69,7 +69,7 @@ describe('TodayBoard', () => {
     })
     const wrapper = mountBoard()
     await flushPromises()
-    expect(wrapper.text()).toContain('目前這批已完成')
+    expect(wrapper.text()).toContain('這批卡片已處理完畢')
     expect(wrapper.text()).toContain('再看一批')
   })
 
@@ -93,12 +93,12 @@ describe('TodayBoard', () => {
     await flushPromises()
     await wrapper.find('button').trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('今天沒有更多新卡片了')
+    expect(wrapper.text()).toContain('今天暫無更多待回流的卡片')
     expect(wrapper.text()).not.toContain('card-1')
 
     await wrapper.find('button').trigger('click')
     await flushPromises()
-    expect(wrapper.text()).not.toContain('今天沒有更多新卡片了')
+    expect(wrapper.text()).not.toContain('今天暫無更多待回流的卡片')
     expect(cardApi.prepareToday).toHaveBeenCalledTimes(2)
     expect(cardApi.nextToday).toHaveBeenCalledTimes(2)
   })

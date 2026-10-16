@@ -26,7 +26,7 @@ const query = useQuery({ queryKey: computed(() => ['treasures', props.treasureId
       <HistoryTimeline v-if="!compact">
       <HistoryEvent v-for="(attempt, index) in query.data.value?.content ?? []" :key="attempt.id" :date="attempt.attemptedAt" :latest="page === 0 && index === 0">
         <p class="attempt-status">{{ trialStatuses[attempt.status] }}</p>
-        <HistoryFields left-label="當時的檢定" right-label="這次嘗試">
+        <HistoryFields left-label="當時的試煉" right-label="這次嘗試">
           <template #left><strong class="snapshot-title">{{ attempt.titleSnapshot }}</strong><ExpandableText :content="attempt.criteriaSnapshot" :lines="6" /></template>
           <template #right><ExpandableText :content="attempt.resultNote" :lines="6" /></template>
         </HistoryFields>
@@ -36,7 +36,7 @@ const query = useQuery({ queryKey: computed(() => ['treasures', props.treasureId
       <p v-if="!query.data.value?.content.length" class="history-meta">尚無嘗試紀錄。每次嘗試都會獨立保留。</p>
     </template>
     <el-pagination v-if="!compact && (query.data.value?.totalElements ?? 0) > 10" :current-page="page + 1" :page-size="10" :total="query.data.value?.totalElements ?? 0" layout="prev, pager, next" @current-change="page = $event - 1" />
-    <HistoryDialog v-if="historyVisible" v-model="historyVisible" title="嘗試歷程" description="每次嘗試獨立保留當時的檢定條件與實際結果。">
+    <HistoryDialog v-if="historyVisible" v-model="historyVisible" title="嘗試歷程" description="每次嘗試獨立保留當時的試煉條件與實際結果。">
       <template v-if="recordable" #actions><button type="button" class="history-record-action" @click="emit('record')">＋記錄</button></template>
       <TreasureAttemptHistory :treasure-id="treasureId" :trial-id="trialId" />
       <template #footer><el-button @click="historyVisible = false">關閉</el-button></template>

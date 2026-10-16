@@ -18,6 +18,6 @@ onMounted(async () => {
 </script>
 <template>
   <div v-loading="true" style="height: 100vh; display: flex; align-items: center; justify-content: center;">
-    正在安全登出中...
+    正在登出…
   </div>
 </template>

@@ -258,7 +258,7 @@ const submitCreateIssue = async () => {
 
 <template>
   <section class="issue-list-page app-page app-page--workspace">
-    <PageHeader title="議事廳" description="把正在反覆思考或推進的事情放上桌，讓相關素材、現實變化與自己的判斷在同一處相遇">
+    <PageHeader title="議事廳" description="把尚待釐清的事情放上桌。讓收集的線索與現實的變化，照見下一個選擇。">
       <template #actions>
         <el-button :icon="Clock" @click="recentDrawerVisible = true">
           近期訊號

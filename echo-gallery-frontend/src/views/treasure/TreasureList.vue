@@ -73,7 +73,7 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
 
 <template>
   <section class="treasure-list-page app-list-page app-page app-page--workspace">
-    <PageHeader title="奇珍展覽館" description="收錄已完成的成果，讓它在現實試煉與價值產出中繼續成長。">
+    <PageHeader title="奇珍展覽館" description="每一件奇珍都有自己的來歷。有些止步於收藏，有些則等待下一場試煉，換取更珍貴的收穫。">
       <template #actions><el-button type="primary" :icon="Plus" @click="openCreate">收入奇珍</el-button></template>
     </PageHeader>
     <div class="treasure-workspace app-workspace app-workspace--edge-to-edge">
@@ -81,12 +81,12 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
       <el-radio-group v-model="archived" class="app-list-scope" aria-label="館藏範圍"><el-radio-button :value="false">館藏</el-radio-button><el-radio-button :value="true">已封存</el-radio-button></el-radio-group>
       <div class="treasure-search-controls app-toolbar__controls">
         <TreasureRankSelect v-model="rank" />
-        <el-input v-model="keyword" :prefix-icon="Search" placeholder="搜尋成果名稱" maxlength="255" clearable aria-label="成果名稱" />
+        <el-input v-model="keyword" :prefix-icon="Search" placeholder="搜尋奇珍名稱" maxlength="255" clearable aria-label="奇珍名稱" />
         <el-button native-type="submit">查詢</el-button>
       </div>
     </form>
     <div class="treasure-results-heading" aria-live="polite">
-      <span>{{ archived ? '已封存' : '目前館藏' }}<template v-if="query.data.value"> · {{ query.data.value.totalElements }} 件{{ search || rank ? '符合條件' : '' }}</template></span>
+      <span>{{ archived ? '已封存' : '館藏之中' }}<template v-if="query.data.value"> · {{ query.data.value.totalElements }} 件{{ search || rank ? '符合條件' : '' }}</template></span>
       <div v-if="!archived && stats.data.value" class="treasure-stats" aria-label="全部未封存館藏統計">
         <span v-if="search || rank">全部館藏 {{ stats.data.value.total }} 件</span>
         <span v-for="item in rankCounts" :key="item.rank">{{ ranks[item.rank] }} {{ item.count }}</span>
@@ -100,11 +100,11 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
           <div class="treasure-card-heading">
             <TreasureRankBadge :rank="treasure.rank" />
             <div class="card-quick-actions">
-            <button type="button" class="quick-output" :aria-label="`為${treasure.title}新增產出`" @click="openYield(treasure)">＋ 產出</button>
-            <button v-if="treasure.yieldCount > 0" type="button" class="output-count" :aria-label="`查看 ${treasure.yieldCount} 筆價值產出`" @click="openHistory(treasure)">{{ treasure.yieldCount }}</button>
+            <button type="button" class="quick-output" :aria-label="`為${treasure.title}記錄收益`" @click="openYield(treasure)">＋記收益</button>
+            <button v-if="treasure.yieldCount > 0" type="button" class="output-count" :aria-label="`查看 ${treasure.yieldCount} 筆收益`" @click="openHistory(treasure)">{{ treasure.yieldCount }}</button>
             <el-dropdown trigger="click" @command="handleCardCommand(treasure, $event)">
               <el-button text circle :icon="MoreFilled" :disabled="pendingArchive !== null || pendingEdit !== null" :loading="pendingArchive === treasure.id || pendingEdit === treasure.id" :aria-label="`${treasure.title}的操作`" />
-              <template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">編輯成果</el-dropdown-item><el-dropdown-item command="archive" divided>{{ archived ? '還原奇珍' : '封存奇珍' }}</el-dropdown-item></el-dropdown-menu></template>
+              <template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">編輯奇珍</el-dropdown-item><el-dropdown-item command="archive" divided>{{ archived ? '還原奇珍' : '封存奇珍' }}</el-dropdown-item></el-dropdown-menu></template>
             </el-dropdown>
             </div>
           </div>
@@ -114,19 +114,19 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
             <p v-if="treasure.description" class="treasure-preview">{{ treasure.description }}</p>
           </router-link>
           <footer v-if="treasure.activeTrial" class="treasure-card-footer" :data-rank="treasure.activeTrial.targetRank">
-            <el-tooltip :content="treasure.activeTrial.title" :show-after="400" placement="top"><p class="challenge-title"><span class="challenge-status"><span class="challenge-rank">{{ ranks[treasure.activeTrial.targetRank!] }}</span> · {{ challengeState(treasure.activeTrial, treasure.rank) }}</span> {{ treasure.activeTrial.title }}</p></el-tooltip>
+            <el-tooltip :content="treasure.activeTrial.title" :show-after="400" placement="top"><p class="challenge-title"><span class="challenge-status"><span class="challenge-rank">{{ ranks[treasure.activeTrial.targetRank!] }}試煉</span> · {{ challengeState(treasure.activeTrial, treasure.rank) }}</span> {{ treasure.activeTrial.title }}</p></el-tooltip>
             <button type="button" class="challenge-update" @click="openTrial(treasure)">{{ treasure.isArchived || treasure.activeTrial.status === 'PASSED' ? '查看' : treasure.activeTrial.targetRank === nextRankOf(treasure.rank) ? '更新' : '編輯' }}</button>
           </footer>
         </article>
       </div>
-      <AppEmptyState v-else :description="search || rank ? '沒有符合條件的成果。' : archived ? '目前沒有封存成果。' : '完成過的作品與實踐，可以成為第一件館藏。'"><el-button v-if="!archived && !search && !rank" type="primary" :icon="Plus" @click="openCreate">收入奇珍</el-button></AppEmptyState>
+      <AppEmptyState v-else :description="search || rank ? '沒有符合條件的奇珍。' : archived ? '目前沒有已封存的奇珍。' : '展櫃尚且空著。第一件奇珍，會有什麼來歷？'"><el-button v-if="!archived && !search && !rank" type="primary" :icon="Plus" @click="openCreate">收入奇珍</el-button></AppEmptyState>
       <el-pagination v-if="(query.data.value?.totalElements ?? 0) > 20" class="app-list-pagination" :current-page="page + 1" :page-size="20" :total="query.data.value?.totalElements ?? 0" layout="total, prev, pager, next" @current-change="page = $event - 1" />
     </div>
     </div>
     <TreasureFormDialog v-model="createVisible" :treasure="editingTreasure" @saved="saved" />
     <TreasureTrialDialog v-if="trialVisible && selectedTreasure" v-model="trialVisible" :treasure-id="selectedTreasure.id" :current-rank="selectedTreasure.rank" :next-rank="nextRankOf(selectedTreasure.rank)" :archived="selectedTreasure.isArchived" :initial-rank="selectedTreasure.activeTrial?.targetRank ?? undefined" :initial-mode="challengeMode(selectedTreasure)" />
-    <HistoryDialog v-if="historyVisible && selectedTreasure" v-model="historyVisible" :title="selectedTreasure.title + '・產出歷程'" :description="yieldHistoryDescription">
-      <template #actions><button type="button" class="quick-output" @click="openYield(selectedTreasure)">＋產出</button></template>
+    <HistoryDialog v-if="historyVisible && selectedTreasure" v-model="historyVisible" :title="selectedTreasure.title + '・收益歷程'" :description="yieldHistoryDescription">
+      <template #actions><button type="button" class="quick-output" @click="openYield(selectedTreasure)">＋記收益</button></template>
       <TreasureYieldHistory :treasure-id="selectedTreasure.id" :archived="selectedTreasure.isArchived" embedded />
       <template #footer><el-button @click="historyVisible = false">關閉</el-button></template>
     </HistoryDialog>

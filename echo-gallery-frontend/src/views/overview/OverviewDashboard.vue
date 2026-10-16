@@ -17,7 +17,7 @@ import ExperimentExplorationEditor from '../../components/experiment/ExperimentE
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
 import { experimentApi } from '../../utils/api/experimentApi'
-import { challengeState, nextRankOf, yieldHistoryDescription } from '../../utils/treasure'
+import { ranks, challengeState, nextRankOf, yieldHistoryDescription } from '../../utils/treasure'
 import type { TreasureSummary, TreasureTrial } from '../../types/treasure'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewAttentionSignal } from '../../types/overview'
@@ -110,7 +110,7 @@ const editExplorationRecord = (record: ExperimentExplorationRecordDto) => {
 const deleteExplorationRecord = async (recordId: number) => {
   if (historyExperimentId.value === null) return
   try {
-    await ElMessageBox.confirm('刪除這筆探索紀錄？已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
+    await ElMessageBox.confirm('刪除這筆探索紀錄？刪除後無法復原；已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
       confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning',
     })
   } catch {
@@ -144,7 +144,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
 <template>
   <section class="overview-page app-page app-page--workspace">
-    <PageHeader title="現在行動" description="掌握現在能往前走的事，以及值得回看的訊號。">
+    <PageHeader title="現在行動" description="有些嘗試尚未落幕，有些珍藏仍有餘響。眼前的一切，正等待你的下一個選擇。">
       <template #actions><OverviewNavigation /></template>
     </PageHeader>
 
@@ -159,7 +159,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         <div class="section-title-row">
           <div>
             <span class="section-eyebrow">實驗場</span>
-            <h2 id="overview-experiment-tries-title">進行中的實驗（{{ current.activeExperimentCount }}）</h2>
+            <h2 id="overview-experiment-tries-title">尚未落幕的探索（{{ current.activeExperimentCount }}）</h2>
           </div>
           <router-link to="/experiments">查看全部</router-link>
         </div>
@@ -176,7 +176,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
               <el-tooltip v-if="experimentTry.currentTry" :content="experimentTry.currentTry" :show-after="400" placement="top" popper-class="content-tooltip">
                 <strong>{{ experimentTry.currentTry }}</strong>
               </el-tooltip>
-              <p v-else class="experiment-try-empty">還沒有想試的事，可以先看看材料。</p>
+              <p v-else class="experiment-try-empty">新的試法尚未寫下。不妨先翻翻收集的材料。</p>
             </button>
             <div class="experiment-try-record-action">
               <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
@@ -188,7 +188,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
       <div class="action-grid" :class="{ 'action-grid--single': !attentionItems.length }">
         <section class="action-panel" aria-labelledby="overview-treasure-title">
-          <SectionHeader id="overview-treasure-title" title="讓成果繼續產生價值" eyebrow="奇珍展覽館" :description="treasureActions.length ? '接著上次留下的方向，選一件成果繼續嘗試。' : undefined">
+          <SectionHeader id="overview-treasure-title" title="館藏仍有餘響" eyebrow="奇珍展覽館" :description="treasureActions.length ? '沿著已有的來歷，看看哪件奇珍還有待探索的可能。' : undefined">
             <template #actions><router-link to="/treasures" class="treasure-gallery-link">查看館藏</router-link></template>
           </SectionHeader>
           <div v-if="treasureActions.length" class="treasure-action-list">
@@ -199,24 +199,24 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
                   <router-link :to="`/treasures/${item.id}`" class="treasure-action-title">{{ item.title }}</router-link>
                 </div>
                 <div class="treasure-output-controls">
-                  <button type="button" class="treasure-yield-trigger" :aria-label="`為${item.title}新增產出`" @click="openTreasureYield(item)">＋ 產出</button>
-                  <RecordHistoryTrigger v-if="item.yieldCount > 0" label="價值產出" :count="item.yieldCount" count-only @click="openTreasureHistory(item)" />
+                  <button type="button" class="treasure-yield-trigger" :aria-label="`為${item.title}記錄收益`" @click="openTreasureYield(item)">＋記收益</button>
+                  <RecordHistoryTrigger v-if="item.yieldCount > 0" label="收益" :count="item.yieldCount" count-only @click="openTreasureHistory(item)" />
                 </div>
               </header>
-              <button type="button" class="treasure-challenge-main" :data-rank="item.activeTrial.targetRank" :aria-label="`查看${item.title}的檢定：${item.activeTrial.title}`" @click="openTreasureTrial(item)">
-                <span class="treasure-challenge-title">{{ item.activeTrial.title }}</span>
-                <span class="treasure-challenge-entry">查看檢定</span>
+              <button type="button" class="treasure-challenge-main" :data-rank="item.activeTrial.targetRank" :aria-label="`查看${item.title}的試煉：${item.activeTrial.title}`" @click="openTreasureTrial(item)">
+                <span class="treasure-challenge-title">{{ ranks[item.activeTrial.targetRank!] }}試煉進行中：{{ item.activeTrial.title }}</span>
+                <span class="treasure-challenge-entry">查看試煉</span>
                 <span class="treasure-challenge-criteria">{{ item.activeTrial.criteria }}</span>
                 <span class="treasure-action-status">{{ challengeState(item.activeTrial, item.rank) }}</span>
               </button>
             </article>
           </div>
           <div v-else-if="current.treasureCount === 0" class="treasure-empty-state">
-            <p>尚無館藏。完成過的作品與實踐，都可以成為第一件奇珍。</p>
+            <p>展櫃尚且空著。第一件奇珍，會有什麼來歷？</p>
             <el-button type="primary" @click="treasureCreateVisible = true">收入奇珍</el-button>
           </div>
           <div v-else class="treasure-empty-state">
-            <p>目前沒有可繼續的檢定。可以保持原級珍藏，也可以前往館藏設定檢定，或記下已有的使用與回應。</p>
+            <p>目前沒有進行中的試煉。可以前往館藏規劃下一步，或記錄已發生的收益。</p>
             <el-button @click="router.push('/treasures')">查看館藏</el-button>
           </div>
         </section>
@@ -225,7 +225,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
           <div class="section-title-row">
             <div>
               <span class="section-eyebrow">值得看一眼</span>
-              <h2 id="overview-attention-title">有明確訊號的地方</h2>
+              <h2 id="overview-attention-title">尚待留意的事</h2>
             </div>
           </div>
           <div class="attention-list">
@@ -244,7 +244,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         <div class="section-title-row">
           <div>
             <span class="section-eyebrow">此刻</span>
-            <h2 id="overview-current-title">系統現在的狀態</h2>
+            <h2 id="overview-current-title">手中已有的積累</h2>
           </div>
           <router-link to="/overview/cards">查看卡片與回流</router-link>
         </div>
@@ -268,8 +268,8 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
     <TreasureFormDialog v-if="treasureCreateVisible" v-model="treasureCreateVisible" />
     <TreasureTrialDialog v-if="treasureTrialVisible && selectedTreasure" v-model="treasureTrialVisible" :treasure-id="selectedTreasure.id" :current-rank="selectedTreasure.rank" :next-rank="nextRankOf(selectedTreasure.rank)" :initial-rank="nextRankOf(selectedTreasure.rank) ?? undefined" initial-mode="route" @saved="treasureTrialVisible = false" />
     <TreasureYieldDialog v-if="treasureYieldVisible && selectedTreasure" v-model="treasureYieldVisible" :treasure-id="selectedTreasure.id" />
-    <HistoryDialog v-if="treasureHistoryVisible && selectedTreasure" v-model="treasureHistoryVisible" :title="selectedTreasure.title + '・產出歷程'" :description="yieldHistoryDescription">
-      <template #actions><el-button link type="primary" @click="openTreasureYield(selectedTreasure)">＋產出</el-button></template>
+    <HistoryDialog v-if="treasureHistoryVisible && selectedTreasure" v-model="treasureHistoryVisible" :title="selectedTreasure.title + '・收益歷程'" :description="yieldHistoryDescription">
+      <template #actions><el-button link type="primary" @click="openTreasureYield(selectedTreasure)">＋記收益</el-button></template>
       <TreasureYieldHistory :treasure-id="selectedTreasure.id" embedded />
     </HistoryDialog>
     <ExperimentExplorationEditor
