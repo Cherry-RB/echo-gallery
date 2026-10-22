@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkUseFlow from '../components/work/WorkUseFlow.vue'
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import LeftSidebar from '../components/LeftSidebar.vue'
@@ -58,6 +59,7 @@ watch(() => route.path, () => {
     </main>
 
     <QuickCreateCardDialog v-model="isQuickCreateOpen" />
+    <WorkUseFlow />
   </div>
 </template>
 

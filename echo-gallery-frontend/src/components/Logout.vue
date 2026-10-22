@@ -11,9 +11,15 @@ onMounted(async () => {
   try {
     await authStore.logout() // 觸發大腦
     ElMessage.success("登出成功")
-  } finally {
-    router.push('/login') // 統一在這裡收尾
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') {
+      router.back()
+      return
+    }
+    router.replace('/works')
+    return
   }
+  router.push('/login')
 })
 </script>
 <template>

@@ -5,6 +5,7 @@ import ExperimentList from './ExperimentList.vue'
 
 const state = vi.hoisted(() => ({ list: vi.fn(), archive: vi.fn(), push: vi.fn() }))
 vi.mock('../../utils/api/experimentApi', () => ({ experimentApi: { getExperiments: state.list, setExperimentArchived: state.archive } }))
+vi.mock('../../utils/api/workApi', () => ({ workApi: { usages: vi.fn().mockResolvedValue([]) } }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('element-plus', async importOriginal => ({
   ...await importOriginal<typeof import('element-plus')>(), ElMessage: { success: vi.fn(), error: vi.fn() },
@@ -79,5 +80,12 @@ describe('實驗列表操作與分頁', () => {
     wrapper.findComponent({ name: 'ElRadioGroup' }).vm.$emit('update:modelValue', 'ARCHIVED')
     await vi.waitFor(() => expect(state.list).toHaveBeenCalledWith(true, 0, 20))
     expect(wrapper.find('.quick-record-trigger').exists()).toBe(true)
+  })
+
+  it('全部範圍立即載入觀察中與已封存實驗', async () => {
+    const wrapper = render()
+    await vi.waitFor(() => expect(wrapper.find('.quick-record-trigger').exists()).toBe(true))
+    wrapper.findComponent({ name: 'ElRadioGroup' }).vm.$emit('update:modelValue', 'ALL')
+    await vi.waitFor(() => expect(state.list).toHaveBeenCalledWith('all', 0, 20))
   })
 })

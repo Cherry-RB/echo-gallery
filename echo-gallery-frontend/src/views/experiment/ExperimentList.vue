@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MoreFilled, Plus } from '@element-plus/icons-vue'
@@ -18,7 +18,8 @@ import AppEmptyState from '../../components/ui/AppEmptyState.vue'
 
 const router = useRouter()
 const queryClient = useQueryClient()
-const selectedScope = ref<'ACTIVE' | 'ARCHIVED'>('ACTIVE')
+type ExperimentScope = 'ACTIVE' | 'ARCHIVED' | 'ALL'
+const selectedScope = ref<ExperimentScope>('ACTIVE')
 const currentPage = ref(0)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
@@ -32,7 +33,8 @@ const form = reactive<ExperimentRequest>({ title: '', hypothesis: '', descriptio
 
 const experimentsQuery = useQuery({
   queryKey: computed(() => ['experiments', selectedScope.value, currentPage.value]),
-  queryFn: () => experimentApi.getExperiments(selectedScope.value === 'ARCHIVED', currentPage.value, 20)
+  queryFn: () => experimentApi.getExperiments(
+    selectedScope.value === 'ALL' ? 'all' : selectedScope.value === 'ARCHIVED', currentPage.value, 20),
 })
 const experiments = computed(() => experimentsQuery.data.value?.content ?? [])
 const historyQuery = useQuery({
@@ -41,9 +43,11 @@ const historyQuery = useQuery({
   enabled: computed(() => historyVisible.value && historyExperimentId.value !== null),
 })
 
-watch(selectedScope, () => {
+function selectScope(scope: ExperimentScope) {
+  if (selectedScope.value === scope) return
+  selectedScope.value = scope
   currentPage.value = 0
-})
+}
 
 const saveMutation = useMutation({
   mutationFn: () => editingId.value
@@ -153,13 +157,14 @@ const submit = () => {
 
     <div class="experiment-dashboard app-workspace app-workspace--edge-to-edge">
       <div class="experiment-list-toolbar app-toolbar">
-        <el-radio-group v-model="selectedScope" class="status-filter app-list-scope" aria-label="實驗主題篩選">
+        <el-radio-group :model-value="selectedScope" class="status-filter app-list-scope" aria-label="實驗主題範圍" @update:model-value="selectScope">
           <el-radio-button value="ACTIVE">觀察中</el-radio-button>
           <el-radio-button value="ARCHIVED">已封存</el-radio-button>
+          <el-radio-button value="ALL">全部</el-radio-button>
         </el-radio-group>
       </div>
 
-      <p class="experiment-results" aria-live="polite">{{ selectedScope === 'ARCHIVED' ? '已封存' : '觀察中' }}<template v-if="experimentsQuery.data.value"> · {{ experimentsQuery.data.value.totalElements }} 個實驗主題</template></p>
+      <p class="experiment-results" aria-live="polite">{{ selectedScope === 'ARCHIVED' ? '已封存' : selectedScope === 'ALL' ? '全部實驗主題' : '觀察中' }}<template v-if="experimentsQuery.data.value"> · {{ experimentsQuery.data.value.totalElements }} 個實驗主題</template></p>
       <div v-if="experimentsQuery.isLoading.value" class="experiment-list">
         <el-card v-for="index in 3" :key="index" shadow="never" class="experiment-list-card app-collection-card"><el-skeleton :rows="3" animated /></el-card>
       </div>
@@ -175,7 +180,7 @@ const submit = () => {
 
       <AppEmptyState
         v-else-if="experiments.length === 0"
-        :description="selectedScope === 'ARCHIVED' ? '目前沒有已封存的實驗主題' : '探索尚未開始。先為一個想弄懂的問題，留下一處收集材料的地方。'"
+        :description="selectedScope === 'ARCHIVED' ? '目前沒有已封存的實驗主題' : selectedScope === 'ALL' ? '目前沒有實驗主題。' : '探索尚未開始。先為一個想弄懂的問題，留下一處收集材料的地方。'"
       >
         <el-button v-if="selectedScope === 'ACTIVE'" type="primary" :icon="Plus" @click="openCreate">
           建立第一個實驗主題
@@ -292,6 +297,7 @@ const submit = () => {
   />
 
   <ExperimentExplorationHistoryDialog
+    :experiment-id="historyExperimentId ?? undefined"
     v-if="historyExperimentId !== null"
     v-model="historyVisible"
     :records="historyQuery.data.value?.records ?? []"

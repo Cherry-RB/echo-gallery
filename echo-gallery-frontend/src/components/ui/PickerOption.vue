@@ -1,15 +1,28 @@
 <script setup lang="ts">
-defineProps<{ selected: boolean; title: string }>()
+defineOptions({ inheritAttrs: false })
+defineProps<{ selected: boolean; title: string; disabled?: boolean; multiple?: boolean }>()
 defineEmits<{ select: [] }>()
 </script>
 <template>
-  <button type="button" class="picker-option" :class="{ selected }" :aria-pressed="selected" @click="$emit('select')">
+  <div v-if="$slots.actions" class="picker-option-row" :class="{ selected }">
+  <button v-bind="$attrs" type="button" class="picker-option in-row" :disabled="disabled" :class="{ selected }" :aria-pressed="selected" @click="$emit('select')">
     <span class="picker-option-content"><strong>{{ title }}</strong><span class="picker-metadata"><slot /></span></span>
-    <span class="selection-label"><span v-if="selected" aria-hidden="true">✓ </span>{{ selected ? '已選擇' : '選擇' }}</span>
+    <span class="selection-label"><span v-if="selected" aria-hidden="true">✓ </span>{{ selected ? (multiple ? '已勾選' : '已選擇') : (multiple ? '勾選' : '選擇') }}</span>
+  </button>
+  <div v-if="$slots.actions" class="picker-option-actions"><slot name="actions" /></div>
+  </div>
+  <button v-else v-bind="$attrs" type="button" class="picker-option" :disabled="disabled" :class="{ selected }" :aria-pressed="selected" @click="$emit('select')">
+    <span class="picker-option-content"><strong>{{ title }}</strong><span class="picker-metadata"><slot /></span></span>
+    <span class="selection-label"><span v-if="selected" aria-hidden="true">✓ </span>{{ selected ? (multiple ? '已勾選' : '已選擇') : (multiple ? '勾選' : '選擇') }}</span>
   </button>
 </template>
 <style scoped>
-.picker-option { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) var(--space-xs); border: 0; border-bottom: 1px solid var(--el-border-color-lighter); background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.picker-option-row { display: flex; align-items: center; min-width: 0; border-bottom: 1px solid var(--el-border-color-lighter); }
+.picker-option-row.selected { background: var(--el-color-primary-light-9); }
+.picker-option { display: flex; width: 100%; min-width: 0; flex: 1; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) var(--space-xs); border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.picker-option:disabled { cursor: not-allowed; opacity: 0.6; }
+.picker-option:not(.in-row) { border-bottom: 1px solid var(--el-border-color-lighter); }
+.picker-option-actions { flex-shrink: 0; padding-inline: var(--space-xs); }
 .picker-option:hover { background: var(--surface-subtle); }
 .picker-option.selected { background: var(--el-color-primary-light-9); }
 .picker-option.selected { box-shadow: inset 3px 0 var(--el-color-primary); }

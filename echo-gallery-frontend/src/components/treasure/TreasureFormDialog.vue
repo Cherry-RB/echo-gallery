@@ -8,11 +8,11 @@ import FieldCounter from '../ui/FieldCounter.vue'
 import TreasureSourceSummary from './TreasureSourceSummary.vue'
 import { imageUrlError } from '../../utils/imageUrl'
 import TreasureSourcePicker from './TreasureSourcePicker.vue'
-import type { TreasureDetail, TreasureReference } from '../../types/treasure'
+import type { TreasureContent, TreasureDetail, TreasureReference } from '../../types/treasure'
 import { treasureApi } from '../../utils/api/treasureApi'
 import { contentOf, errorMessage, today } from '../../utils/treasure'
 
-const props = defineProps<{ modelValue: boolean; treasure?: TreasureDetail }>()
+const props = defineProps<{ modelValue: boolean; treasure?: TreasureDetail; prefill?: Partial<TreasureContent>; sourceExperiment?: TreasureReference; createHandler?: (data: TreasureContent) => Promise<TreasureDetail> }>()
 const emit = defineEmits<{ 'update:modelValue': [boolean]; saved: [TreasureDetail] }>()
 const form = reactive(contentOf())
 const saving = ref(false)
@@ -48,9 +48,10 @@ const hasSources = computed(() => !!cardSource.value || !!experimentSource.value
 watch(() => props.modelValue, visible => {
   if (visible) {
     Object.assign(form, contentOf(props.treasure))
+    if (!props.treasure && props.prefill) Object.assign(form, props.prefill)
     selectedSources.value = [...(props.treasure?.sourceTreasures ?? [])]
     cardSource.value = props.treasure?.sourceCard ?? null
-    experimentSource.value = props.treasure?.sourceExperiment ?? null
+    experimentSource.value = props.treasure?.sourceExperiment ?? props.sourceExperiment ?? null
     sourceVisible.value = false; error.value = ''
   }
 }, { immediate: true })
@@ -62,7 +63,7 @@ const save = async () => {
   saving.value = true; error.value = ''
   try {
     const data = { ...form, title: form.title.trim(), sourceCardId: cardSource.value?.id ?? null, sourceExperimentId: experimentSource.value?.id ?? null, sourceTreasureIds: selectedSources.value.map(s => s.id) }
-    const result = props.treasure ? await treasureApi.update(props.treasure.id, data) : await treasureApi.create(data)
+    const result = props.treasure ? await treasureApi.update(props.treasure.id, data) : await (props.createHandler ?? treasureApi.create)(data)
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['treasures'] }), queryClient.invalidateQueries({ queryKey: ['overview'] }), queryClient.invalidateQueries({ queryKey: ['treasure-source-picker'] })])
     ElMessage.success(props.treasure ? '奇珍變更已儲存。' : '一件新的奇珍已收入館藏。它的故事，從此有了值得回望的地方。')
     emit('saved', result); emit('update:modelValue', false)
@@ -73,7 +74,7 @@ const save = async () => {
 <template>
   <AppDialog :busy="saving" :draft="sourceVisible ? undefined : [form, cardSource?.id, experimentSource?.id, selectedSources.map(s => s.id)]" :model-value="modelValue" :title="sourceVisible ? '管理成果來源' : treasure ? '編輯奇珍' : '收入奇珍'" :width="sourceVisible ? 'min(980px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" scroll-body :before-close="beforeClose" :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="close">
     <div ref="content" class="form-content" tabindex="-1">
-    <el-form v-show="!sourceVisible" label-position="top" @submit.prevent="save">
+    <el-form v-show="!sourceVisible" label-position="top" :disabled="saving" @submit.prevent="save">
       <el-form-item label="成果名稱" required><el-input v-model="form.title" maxlength="255" /></el-form-item>
       <el-form-item label="成果說明（選填）"><el-input v-model="form.description" type="textarea" :rows="6" maxlength="50000" /><FieldCounter :value="form.description" :limit="50000" /></el-form-item>
       <el-form-item label="完成日期" required><el-date-picker v-model="form.acquiredOn" type="date" value-format="YYYY-MM-DD" :disabled-date="disabledDate" /></el-form-item>

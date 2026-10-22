@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UseForWork from '../components/work/UseForWork.vue'
 defineOptions({ name: 'CardDetail' })
 
 import { ArrowLeft, Calendar, Clock, CollectionTag, Edit, Link, MoreFilled, Plus, Star, StarFilled } from '@element-plus/icons-vue'
@@ -593,6 +594,10 @@ const {
             </section>
 
             <CardIssueManager :card-id="props.id" />
+            <section class="property-card">
+              <header class="property-heading"><h2>作品引用</h2></header>
+              <UseForWork :key="props.id" :card-id="Number(props.id)" :card-title="cardData.title" />
+            </section>
 
             <section class="property-card experiment-context-card">
               <header class="property-heading">

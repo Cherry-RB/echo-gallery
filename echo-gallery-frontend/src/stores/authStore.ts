@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '../utils/api/authApi'
+import { workDrafts } from '../utils/workDrafts'
+import { ElMessageBox } from 'element-plus'
+import { queryClient } from '../utils/queryClient'
 
 export const useAuthStore = defineStore('auth', () => {
   // 1. 狀態 (State) - 初始化時直接從 localStorage 讀取，確保重整網頁不會跳登出
@@ -36,6 +39,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   const resetDemo = async () => {
     const res = await authApi.resetDemoSession()
+    if (id.value) await workDrafts.clear(String(id.value)).catch(() => {})
+    await queryClient.cancelQueries()
+    queryClient.clear()
     if (res?.token) setAuth(res.token, res.username, res.id)
     return res
   }
@@ -51,18 +57,29 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 登出 Action
   const logout = async () => {
+    const owner = id.value ? String(id.value) : ''
+    const drafts = await workDrafts.list(owner).catch(() => [])
+    if (drafts.length) {
+      const demo = localStorage.getItem('demoSession') === 'true'
+      await ElMessageBox.confirm(demo ? '此展示帳號有尚未同步的作品草稿。登出會清理展示草稿，請先複製或下載需要保留的內容。' : '此瀏覽器有尚未同步的作品草稿。登出後仍會保留，需以同一帳號登入才能復原；請先確認已複製或下載重要內容。', '作品草稿尚未同步', { confirmButtonText: demo ? '清理草稿並登出' : '保留草稿並登出', cancelButtonText: '暫不登出' })
+    }
     try {
       await authApi.logout();
     } catch (err) {
       // 秉持你原先優秀的防禦性設計：後端失敗，前端依然要強制清理
       console.error('後端登出通知失敗，執行前端強制清理:', err)
     } finally {
+      if (localStorage.getItem('demoSession') === 'true') await workDrafts.clear(owner).catch(() => {})
       clearAuth()
     }
   }
 
   // 內部輔助函式：設定憑證
   function setAuth(userToken: string, name: string, inputUserId: number) {
+    if (id.value !== inputUserId) {
+      void queryClient.cancelQueries()
+      queryClient.clear()
+    }
     token.value = userToken
     username.value = name
     id.value = inputUserId
@@ -73,6 +90,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 內部輔助函式：清除憑證
   function clearAuth() {
+    void queryClient.cancelQueries()
+    queryClient.clear()
     token.value = null
     username.value = '訪客'
     id.value = null

@@ -3,8 +3,8 @@ import type { TreasureAttempt, AttemptRequest } from '../../types/treasure'
 import type { TreasureContent, TreasureDetail, TreasurePage, TreasureReference, TreasureSummary, TreasureRank, TreasureStats, TreasureTrial, TreasureYield, TrialRequest, YieldRequest } from '../../types/treasure'
 
 export const treasureApi = {
-  list(params: { keyword?: string; rank?: TreasureRank; archived?: boolean; page?: number; size?: number }): Promise<TreasurePage<TreasureSummary>> {
-    return request({ url: '/treasures', method: 'GET', params })
+  list(params: { keyword?: string; rank?: TreasureRank; ranks?: TreasureRank[]; archived?: boolean | 'all'; page?: number; size?: number }): Promise<TreasurePage<TreasureSummary>> {
+    return request({ url: '/treasures', method: 'GET', params: { ...params, ranks: params.ranks?.join(',') || undefined } })
   },
   detail(id: number): Promise<TreasureDetail> { return request({ url: `/treasures/${id}`, method: 'GET' }) },
   create(data: TreasureContent): Promise<TreasureDetail> { return request({ url: '/treasures', method: 'POST', data }) },

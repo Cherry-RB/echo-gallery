@@ -44,6 +44,8 @@ const routes = [
     component: () => import('../layout/MainLayout.vue'),
     meta: { requiresAuth: true }, // 直接在父路由加上需要權限，子路由會自動繼承
     children: [
+    { path: 'works', name: 'WorkList', component: () => import('../views/work/WorkList.vue') },
+    { path: 'works/:id', name: 'WorkDetail', component: () => import('../views/work/WorkDetail.vue') },
     {
       path: 'card/new', // 新建卡片
       name: 'CardCreate',

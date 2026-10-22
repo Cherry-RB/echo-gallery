@@ -1,6 +1,13 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { workUseTarget } from '../../utils/workFlow'
 import ExperimentExplorationHistoryDialog from './ExperimentExplorationHistoryDialog.vue'
+vi.mock('../../utils/api/workApi', () => ({ workApi: { usages: vi.fn().mockResolvedValue([]) } }))
+const clients: QueryClient[] = []
+const wrappers: ReturnType<typeof mount>[] = []
+beforeEach(() => { workUseTarget.value = undefined })
+afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()); workUseTarget.value = undefined })
 
 const records = [{
   id: 12,
@@ -20,26 +27,42 @@ const records = [{
   exports: [],
 }]
 
-const mountDialog = () => mount(ExperimentExplorationHistoryDialog, {
+const mountDialog = () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client)
+  const wrapper = mount(ExperimentExplorationHistoryDialog, {
   props: { modelValue: true, records },
   global: {
+    plugins: [[VueQueryPlugin, { queryClient: client }]],
     stubs: {
       'el-dialog': {
         props: ['modelValue', 'title'],
         template: '<section v-if="modelValue"><h2>{{ title }}</h2><slot /><slot name="footer" /></section>',
       },
-      'el-button': { emits: ['click'], template: '<button @click="$emit(\'click\')"><slot /></button>' },
+      'el-button': { emits: ['click'], template: '<button @click="$emit(\'click\', $event)"><slot /></button>' },
       'el-skeleton': true,
       'el-tooltip': { template: '<span><slot /></span>' },
       'el-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
       'el-dropdown-menu': { template: '<div><slot /></div>' },
       'el-dropdown-item': { template: '<button><slot /></button>' },
       'el-icon': true,
+      RouterLink: { template: '<a><slot /></a>' },
     },
   },
-})
+  })
+  wrappers.push(wrapper); return wrapper
+}
 
 describe('ExperimentExplorationHistoryDialog', () => {
+  it('用於作品時切換到單一作品流程，關閉後返回原歷程', async () => {
+    const wrapper = mountDialog()
+    wrapper.findAllComponents({ name: 'HistoryEvent' })[0]!.vm.$emit('command', 'use-work')
+    await wrapper.vm.$nextTick()
+    expect(workUseTarget.value?.recordIds).toEqual([12])
+    expect(wrapper.text()).not.toContain('探索紀錄')
+    workUseTarget.value = undefined
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('整理成卡片')
+  })
   it('以同層欄位顯示試法、發現與整理結果', () => {
     const wrapper = mountDialog()
 

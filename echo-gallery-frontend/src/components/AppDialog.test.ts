@@ -26,6 +26,16 @@ async function render(props: Record<string, unknown> = {}) {
 }
 
 describe('彈窗離開保護', () => {
+  it('路由離開可等待草稿確認結果，取消時不得導頁', async () => {
+    const wrapper = await render({ draft: '原文' })
+    await wrapper.setProps({ draft: '改動' })
+    const shell = wrapper.vm as unknown as { confirmNavigation: () => Promise<boolean> }
+    confirm.mockRejectedValueOnce('cancel')
+    expect(await shell.confirmNavigation()).toBe(false)
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(await shell.confirmNavigation()).toBe(true)
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
+  })
   beforeEach(() => { confirm.mockReset(); confirm.mockResolvedValue('confirm') })
   afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()))
 

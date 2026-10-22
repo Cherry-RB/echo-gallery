@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkResume from '../../components/work/WorkResume.vue'
 import { computed, ref } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
@@ -148,13 +149,15 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       <template #actions><OverviewNavigation /></template>
     </PageHeader>
 
+    <div class="overview-workspace app-workspace app-workspace--edge-to-edge">
+      <div class="overview-stack app-stack">
+        <WorkResume />
     <div v-if="isLoading" class="overview-state">正在整理觀測資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得觀測資料" sub-title="請稍後再試。">
       <template #extra><el-button type="primary" @click="refetch()">重新載入</el-button></template>
     </el-result>
 
-    <div v-else-if="overview" class="overview-workspace app-workspace app-workspace--edge-to-edge">
-      <div class="overview-stack app-stack">
+    <template v-else-if="overview">
       <section v-if="current.experimentTries.length" class="experiment-tries-panel" aria-labelledby="overview-experiment-tries-title">
         <div class="section-title-row">
           <div>
@@ -262,6 +265,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         </div>
       </section>
 
+    </template>
       </div>
     </div>
 
@@ -281,6 +285,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       @closed="quickRecordExperimentId = null; editingExplorationRecord = null"
     />
     <ExperimentExplorationHistoryDialog
+      :experiment-id="historyExperimentId ?? undefined"
       v-if="historyExperimentId !== null"
       v-model="historyVisible"
       :records="historyQuery.data.value?.records ?? []"

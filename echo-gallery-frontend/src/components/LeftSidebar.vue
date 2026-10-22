@@ -6,6 +6,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Calendar,
   Postcard,
+  Document,
   Refresh,
   Search,
   Plus,
@@ -38,13 +39,14 @@ const menuItems = [
   { name: '總覽', path: '/overview', icon: Menu },
   { name: '今日回流', path: '/board/today', icon: Calendar },
   { name: '全部卡片', path: '/board/all', icon: Postcard },
+  { name: '我的作品', path: '/works', icon: Document },
   { name: '實驗場', path: '/experiments', icon: Aim },
   { name: '奇珍展覽館', path: '/treasures', icon: Trophy },
   { name: '標籤查詢', path: '/center/tag', icon: CollectionTag },
   { name: '卡片查詢', path: '/search', icon: Search },
 ]
 
-const activeMenu = computed(() => route.path)
+const activeMenu = computed(() => route.path.startsWith('/works/') ? '/works' : route.path)
 
 const openQuickCreate = () => {
   if (!isAuthenticated.value) {

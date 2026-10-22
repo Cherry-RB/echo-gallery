@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from './authStore'
+import { queryClient } from '../utils/queryClient'
 
 const authApiMock = vi.hoisted(() => ({
   login: vi.fn(),
@@ -15,6 +16,15 @@ vi.mock('../utils/api/authApi', () => ({
 }))
 
 describe('authStore', () => {
+  it('更換帳號時清除作品查詢快取，避免顯示上一個帳號內容', async () => {
+    const store = useAuthStore()
+    authApiMock.login.mockResolvedValueOnce({ id: 1, token: 'a', username: '甲' })
+    await store.login({ email: 'a@example.com', password: 'password123' })
+    queryClient.setQueryData(['works', 'detail', 1], { body: '私人正文' })
+    authApiMock.login.mockResolvedValueOnce({ id: 2, token: 'b', username: '乙' })
+    await store.login({ email: 'b@example.com', password: 'password123' })
+    expect(queryClient.getQueryData(['works', 'detail', 1])).toBeUndefined()
+  })
   beforeEach(() => {
     localStorage.clear()
     setActivePinia(createPinia())

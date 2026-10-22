@@ -2,6 +2,7 @@ import axios from "axios";
 import router from "../../router";
 import { ElMessage } from "element-plus";
 import { isNetworkError } from "../../stores/networkStatus";
+import { workDrafts } from '../workDrafts';
 
 // 建立 axios 實例
 const service = axios.create({
@@ -37,6 +38,9 @@ service.interceptors.response.use(
             const { status, data } = error.response;
             const message = data?.message; // 用 optional chaining
 
+            // 正文錯誤留在工作區持續顯示，避免自動儲存產生重複通知。
+            if (error.config?.url?.match(/\/creative-works\/\d+\/body$/) && status !== 401 && status !== 403) return Promise.reject(error);
+
             switch (status) {
                 case 400: // 格式錯誤
                   // alert(message || "輸入格式有誤");
@@ -51,6 +55,7 @@ service.interceptors.response.use(
                   const isAuthRequest = error.config.url?.includes('/login') || error.config.url?.includes('/register');
 
                   if (!isAuthRequest) {
+                      if (localStorage.getItem('demoSession') === 'true') void workDrafts.clear(localStorage.getItem('id') || '').catch(() => {});
                       // 只有在「不是」登入/註冊的請求時，才進行清理與跳轉
                       localStorage.removeItem("token");
                       localStorage.removeItem("username");

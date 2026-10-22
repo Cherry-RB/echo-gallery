@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkResume from '../../components/work/WorkResume.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRoute, useRouter } from 'vue-router'
@@ -57,6 +58,10 @@ watch(experimentId, () => {
   historyDialogVisible.value = false
   exportVisible.value = false
 })
+
+watch([experimentId, () => route.query.history], () => {
+  historyDialogVisible.value = route.query.history === '1'
+}, { immediate: true })
 
 const setExploration = (value: ExperimentExplorationDto) => {
   queryClient.setQueryData(['experiment-exploration', experimentId.value], value)
@@ -587,6 +592,7 @@ const handleGrownCard = async (_card: CardDto) => {
         </template>
       </section>
 
+      <WorkResume :experiment-id="experimentId" />
       <section ref="materialsRef" class="soil-workspace" aria-label="實驗主題中的卡片土壤">
         <header class="soil-workspace-heading">
           <div><h2>材料與線索</h2><p>土壤表示卡片在這裡的角色，不必依序前進。選一兩張卡可以並排閱讀。</p></div>
@@ -648,6 +654,7 @@ const handleGrownCard = async (_card: CardDto) => {
   </DetailShell>
 
   <ExperimentExplorationHistoryDialog
+    :experiment-id="experimentId"
     v-model="historyDialogVisible"
     :records="exploration.records"
     @record="openExplorationEditor($event)"

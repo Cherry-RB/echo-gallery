@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TreasureWorkLink from '../../components/work/TreasureWorkLink.vue'
 import CoverImage from '../../components/ui/CoverImage.vue'
 import { computed, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -90,6 +91,7 @@ const handleCommand = (command: string) => {
         <div class="detail-main-column">
         <section class="detail-panel detail-content">
           <h2>成果內容</h2>
+          <TreasureWorkLink :treasure-id="id" />
           <CoverImage :src="treasure.coverImageUrl" alt="成果封面" class="artifact-cover" />
           <div v-if="treasure.description" class="reading-copy"><ExpandableText :content="treasure.description" :lines="7" /></div>
           <p v-else class="empty-copy">這件奇珍的來歷尚未寫下。可透過「編輯奇珍」補充內容與經驗。</p>

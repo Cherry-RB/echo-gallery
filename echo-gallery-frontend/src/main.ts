@@ -12,6 +12,7 @@ import router from './router/index.ts'
 
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { VueQueryPlugin } from '@tanstack/vue-query'
+import { queryClient } from './utils/queryClient'
 import { initializeTheme } from './utils/theme'
 
 initializeTheme()
@@ -21,7 +22,7 @@ const app = createApp(App)
 app.use(router)
 app.use(createPinia())
 app.use(ElementPlus, { locale: zhTw })
-app.use(VueQueryPlugin)
+app.use(VueQueryPlugin, { queryClient })
 
 // 註冊 Icon
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {

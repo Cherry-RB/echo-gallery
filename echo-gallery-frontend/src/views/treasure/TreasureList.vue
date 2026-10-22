@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import CoverImage from '../../components/ui/CoverImage.vue'
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -13,17 +13,17 @@ import TreasureTrialDialog from '../../components/treasure/TreasureTrialDialog.v
 import TreasureYieldDialog from '../../components/treasure/TreasureYieldDialog.vue'
 import TreasureYieldHistory from '../../components/treasure/TreasureYieldHistory.vue'
 import HistoryDialog from '../../components/ui/HistoryDialog.vue'
-import TreasureRankSelect from '../../components/treasure/TreasureRankSelect.vue'
 import { treasureApi } from '../../utils/api/treasureApi'
 import { ranks, errorMessage, challengeState, nextRankOf, yieldHistoryDescription } from '../../utils/treasure'
 import type { TreasureDetail, TreasureRank, TreasureSummary } from '../../types/treasure'
 
 const router = useRouter()
 const queryClient = useQueryClient()
-const keyword = ref('')
-const search = ref('')
-const rank = ref<TreasureRank | ''>('')
-const archived = ref(false)
+type ArchiveScope = 'false' | 'true' | 'all'
+type TreasureFilters = { keyword: string; ranks: TreasureRank[] }
+const filters = reactive<TreasureFilters>({ keyword: '', ranks: [] })
+const appliedFilters = ref<TreasureFilters>({ keyword: '', ranks: [] })
+const scope = ref<ArchiveScope>('false')
 const page = ref(0)
 const createVisible = ref(false)
 const editingTreasure = ref<TreasureDetail>()
@@ -46,27 +46,34 @@ const openYield = (treasure: TreasureSummary) => { selectedTreasure.value = trea
 const openHistory = (treasure: TreasureSummary) => { selectedTreasure.value = treasure; historyVisible.value = true }
 const challengeMode = (treasure: TreasureSummary) => treasure.activeTrial?.status === 'PASSED' || treasure.isArchived ? 'route' : treasure.activeTrial?.targetRank === nextRankOf(treasure.rank) ? 'attempt' : 'edit'
 const query = useQuery({
-  queryKey: computed(() => ['treasures', 'list', search.value, rank.value, archived.value, page.value]),
-  queryFn: () => treasureApi.list({ keyword: search.value, rank: rank.value || undefined, archived: archived.value, page: page.value }),
+  queryKey: computed(() => ['treasures', 'list', scope.value, appliedFilters.value, page.value]),
+  queryFn: () => treasureApi.list({ keyword: appliedFilters.value.keyword || undefined, ranks: appliedFilters.value.ranks, archived: scope.value === 'all' ? 'all' : scope.value === 'true', page: page.value }),
 })
 const stats = useQuery({ queryKey: ['treasures', 'stats'], queryFn: treasureApi.stats })
 const rankCounts = computed(() => {
   const data = stats.data.value
   return data ? (Object.keys(ranks) as TreasureRank[]).map(rank => ({ rank, count: data[rank.toLowerCase() as 'stone' | 'bronze' | 'silver' | 'gold'] })).filter(item => item.count > 0) : []
 })
-watch([search, rank, archived], () => { page.value = 0 })
-const archive = async (id: number) => {
+const filtersApplied = computed(() => appliedFilters.value.keyword !== '' || appliedFilters.value.ranks.length > 0)
+const hasPendingFilters = computed(() => JSON.stringify(filters) !== JSON.stringify(appliedFilters.value))
+function applyFilters() {
+  appliedFilters.value = { keyword: filters.keyword.trim(), ranks: [...filters.ranks] }
+  page.value = 0
+}
+function selectScope(value: ArchiveScope) { if (scope.value !== value) { scope.value = value; page.value = 0 } }
+function resetFilters() { Object.assign(filters, { keyword: '', ranks: [] }); applyFilters() }
+const archive = async (treasure: TreasureSummary) => {
   if (pendingArchive.value !== null) return
-  pendingArchive.value = id
+  pendingArchive.value = treasure.id
   try {
-    await treasureApi.archive(id, !archived.value)
+    await treasureApi.archive(treasure.id, !treasure.isArchived)
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['treasures'] }), queryClient.invalidateQueries({ queryKey: ['overview'] })])
     if (!query.data.value?.content.length && page.value > 0) page.value--
   } catch (e) { ElMessage.error(errorMessage(e)) } finally { pendingArchive.value = null }
 }
 const handleCardCommand = (treasure: TreasureSummary, command: string) => {
   if (command === 'edit') void openEdit(treasure)
-  else if (command === 'archive') void archive(treasure.id)
+  else if (command === 'archive') void archive(treasure)
 }
 const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void router.push(`/treasures/${treasure.id}`) }
 </script>
@@ -77,18 +84,21 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
       <template #actions><el-button type="primary" :icon="Plus" @click="openCreate">收入奇珍</el-button></template>
     </PageHeader>
     <div class="treasure-workspace app-workspace app-workspace--edge-to-edge">
-    <form class="treasure-toolbar app-toolbar" @submit.prevent="search = keyword.trim()">
-      <el-radio-group v-model="archived" class="app-list-scope" aria-label="館藏範圍"><el-radio-button :value="false">館藏</el-radio-button><el-radio-button :value="true">已封存</el-radio-button></el-radio-group>
+    <form class="treasure-toolbar app-toolbar" @submit.prevent="applyFilters">
+      <el-radio-group :model-value="scope" class="app-list-scope" aria-label="館藏範圍" @update:model-value="selectScope"><el-radio-button value="false">館藏</el-radio-button><el-radio-button value="true">已封存</el-radio-button><el-radio-button value="all">全部</el-radio-button></el-radio-group>
+      <div class="treasure-filter-panel">
       <div class="treasure-search-controls app-toolbar__controls">
-        <TreasureRankSelect v-model="rank" />
-        <el-input v-model="keyword" :prefix-icon="Search" placeholder="搜尋奇珍名稱" maxlength="255" clearable aria-label="奇珍名稱" />
-        <el-button native-type="submit">查詢</el-button>
+        <el-input v-model="filters.keyword" :prefix-icon="Search" placeholder="搜尋奇珍名稱" maxlength="255" clearable aria-label="奇珍名稱" />
+        <el-select v-model="filters.ranks" multiple clearable collapse-tags collapse-tags-tooltip placeholder="所有等級" aria-label="篩選奇珍等級，可多選"><el-option v-for="(label, value) in ranks" :key="value" :label="label" :value="value" /></el-select>
+        <el-button native-type="submit" type="primary">套用篩選</el-button>
+        <el-button v-if="hasPendingFilters || filtersApplied" native-type="button" @click="resetFilters">清除</el-button>
+      </div>
       </div>
     </form>
     <div class="treasure-results-heading" aria-live="polite">
-      <span>{{ archived ? '已封存' : '館藏之中' }}<template v-if="query.data.value"> · {{ query.data.value.totalElements }} 件{{ search || rank ? '符合條件' : '' }}</template></span>
-      <div v-if="!archived && stats.data.value" class="treasure-stats" aria-label="全部未封存館藏統計">
-        <span v-if="search || rank">全部館藏 {{ stats.data.value.total }} 件</span>
+      <span>{{ scope === 'true' ? '已封存' : scope === 'all' ? '全部奇珍' : '館藏之中' }}<template v-if="query.data.value"> · {{ query.data.value.totalElements }} 件{{ filtersApplied ? '符合條件' : '' }}</template></span>
+      <div v-if="scope === 'false' && stats.data.value" class="treasure-stats" aria-label="全部未封存館藏統計">
+        <span v-if="appliedFilters.keyword || appliedFilters.ranks.length">全部館藏 {{ stats.data.value.total }} 件</span>
         <span v-for="item in rankCounts" :key="item.rank">{{ ranks[item.rank] }} {{ item.count }}</span>
       </div>
     </div>
@@ -104,7 +114,7 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
             <button v-if="treasure.yieldCount > 0" type="button" class="output-count" :aria-label="`查看 ${treasure.yieldCount} 筆收益`" @click="openHistory(treasure)">{{ treasure.yieldCount }}</button>
             <el-dropdown trigger="click" @command="handleCardCommand(treasure, $event)">
               <el-button text circle :icon="MoreFilled" :disabled="pendingArchive !== null || pendingEdit !== null" :loading="pendingArchive === treasure.id || pendingEdit === treasure.id" :aria-label="`${treasure.title}的操作`" />
-              <template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">編輯奇珍</el-dropdown-item><el-dropdown-item command="archive" divided>{{ archived ? '還原奇珍' : '封存奇珍' }}</el-dropdown-item></el-dropdown-menu></template>
+              <template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">編輯奇珍</el-dropdown-item><el-dropdown-item command="archive" divided>{{ treasure.isArchived ? '還原奇珍' : '封存奇珍' }}</el-dropdown-item></el-dropdown-menu></template>
             </el-dropdown>
             </div>
           </div>
@@ -119,7 +129,7 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
           </footer>
         </article>
       </div>
-      <AppEmptyState v-else :description="search || rank ? '沒有符合條件的奇珍。' : archived ? '目前沒有已封存的奇珍。' : '展櫃尚且空著。第一件奇珍，會有什麼來歷？'"><el-button v-if="!archived && !search && !rank" type="primary" :icon="Plus" @click="openCreate">收入奇珍</el-button></AppEmptyState>
+      <AppEmptyState v-else :description="filtersApplied ? '沒有符合條件的奇珍。' : scope === 'true' ? '目前沒有已封存的奇珍。' : '展櫃尚且空著。第一件奇珍，會有什麼來歷？'"><el-button v-if="scope === 'false' && !filtersApplied" type="primary" :icon="Plus" @click="openCreate">收入奇珍</el-button></AppEmptyState>
       <el-pagination v-if="(query.data.value?.totalElements ?? 0) > 20" class="app-list-pagination" :current-page="page + 1" :page-size="20" :total="query.data.value?.totalElements ?? 0" layout="total, prev, pager, next" @current-change="page = $event - 1" />
     </div>
     </div>
@@ -135,10 +145,9 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
 </template>
 
 <style scoped>
-.treasure-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-md); align-items: center; }
-.treasure-search-controls { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; }
-.treasure-search-controls :deep(.el-input) { width: 260px; }
-.treasure-search-controls :deep(.el-select) { width: 140px; }
+.treasure-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-md) var(--space-xl); align-items: flex-start; }
+.treasure-filter-panel { flex: 1 1 680px; max-width: 820px; margin-left: auto; }
+.treasure-search-controls { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(170px, .8fr) auto auto; gap: var(--space-sm); align-items: center; }
 .treasure-results-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm); margin: var(--space-md) 0 var(--space-md); font-size: var(--type-secondary); color: var(--el-text-color-regular); }
 .treasure-stats { display: flex; flex-wrap: wrap; gap: var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .treasure-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); }
@@ -166,8 +175,8 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
 @media (max-width: 760px) {
   .treasure-grid { grid-template-columns: 1fr; }
   .treasure-toolbar { align-items: stretch; flex-direction: column; }
-  .treasure-search-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
-  .treasure-search-controls :deep(.el-select) { grid-column: 1 / -1; width: 100%; }
-  .treasure-search-controls :deep(.el-input) { width: 100%; min-width: 0; }
+  .treasure-filter-panel { max-width: none; margin-left: 0; width: 100%; }
+  .treasure-search-controls { grid-template-columns: minmax(0, 1fr) auto; }
+  .treasure-search-controls > .el-input, .treasure-search-controls > .el-select { grid-column: 1 / -1; }
 }
 </style>

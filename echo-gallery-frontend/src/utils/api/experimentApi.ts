@@ -15,7 +15,7 @@ import type {
 import request from './request'
 
 export const experimentApi = {
-  getExperiments(archived = false, page = 0, size = 20): Promise<PageResponse<ExperimentDto>> {
+  getExperiments(archived: false | true | 'all' = false, page = 0, size = 20): Promise<PageResponse<ExperimentDto>> {
     return request({ url: '/experiments', method: 'GET', params: { archived, page, size } })
   },
   getExperiment(id: number): Promise<ExperimentDto> {

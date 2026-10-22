@@ -20,6 +20,7 @@ const props = withDefaults(defineProps<{
   busy?: boolean
   draft?: unknown
   draftReady?: boolean
+  draftBaseline?: string
 }>(), {
   width: 'min(680px, calc(100vw - 32px))',
   pattern: 'form',
@@ -50,12 +51,12 @@ watch([() => props.modelValue, () => props.draftReady], async ([visible, ready])
   if (!visible || !ready) return
   // 等待呼叫端完成該次開啟的欄位初始化，再建立比較基準。
   await nextTick()
-  if (generation === current && props.modelValue) initialDraft.value = serializeDraft()
+  if (generation === current && props.modelValue) initialDraft.value = props.draftBaseline ?? serializeDraft()
 }, { immediate: true, flush: 'post' })
 const hasDraft = computed(() => props.draft !== undefined)
 let confirming = false
 const confirmClose = async (done: () => void) => {
-  if (props.busy || confirming) return
+  if (props.busy || confirming) return false
   const current = generation
   if (initialDraft.value !== undefined && serializeDraft() !== initialDraft.value) {
     confirming = true
@@ -63,9 +64,10 @@ const confirmClose = async (done: () => void) => {
       await ElMessageBox.confirm('尚有未儲存內容，放棄後將遺失這些變更。確定要放棄嗎？', '放棄變更', {
         confirmButtonText: '放棄內容', cancelButtonText: '繼續編輯', type: 'warning',
       })
-    } catch { return } finally { confirming = false }
+    } catch { return false } finally { confirming = false }
   }
-  if (!props.busy && props.modelValue && generation === current) done()
+  if (!props.busy && props.modelValue && generation === current) { done(); return true }
+  return false
 }
 const beforeClose = (done: () => void) => {
   if (props.busy || confirming) return
@@ -73,7 +75,7 @@ const beforeClose = (done: () => void) => {
   else void confirmClose(done)
 }
 const requestClose = () => beforeClose(() => emit('update:modelValue', false))
-defineExpose({ requestClose })
+defineExpose({ requestClose, confirmNavigation: () => confirmClose(() => emit('update:modelValue', false)) })
 </script>
 
 <template>
