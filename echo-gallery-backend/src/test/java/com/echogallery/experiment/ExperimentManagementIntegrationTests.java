@@ -100,6 +100,23 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void allScopeIncludesActiveAndArchivedExperiments() throws Exception {
+        String token = register("all-scope-owner", "all-scope-owner@example.com");
+        createExperiment(token, "active experiment");
+        long archivedId = createExperiment(token, "archived experiment");
+
+        mockMvc.perform(put("/api/experiments/{id}/archive", archivedId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/experiments")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .param("archived", "all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test
     void explorationCardIsCreatedAndPlantedInGrowingStageTogether() throws Exception {
         String token = register("exploration-card-owner", "exploration-card-owner@example.com");
         long experimentId = createExperiment(token, "exploration card test");

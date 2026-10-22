@@ -21,10 +21,12 @@ public class TreasureController {
     public PageResponse<TreasureResponses.Summary> list(
             @RequestParam(name = "keyword", required = false) String keyword,
             @RequestParam(name = "rank", required = false) TreasureRank rank,
-            @RequestParam(name = "archived", defaultValue = "false") boolean archived,
+            @RequestParam(name = "ranks", required = false) java.util.List<TreasureRank> ranks,
+            @RequestParam(name = "archived", defaultValue = "false") String archived,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
-        return service.list(keyword, rank, archived, page, size);
+        return service.list(keyword, ranks != null ? ranks : rank == null ? java.util.List.of() : java.util.List.of(rank),
+                "all".equals(archived) ? null : Boolean.valueOf(archived), page, size);
     }
     @GetMapping("/stats") public TreasureResponses.Stats stats() { return service.stats(); }
     @PostMapping public TreasureResponses.Detail create(@Valid @RequestBody TreasureRequests.Content request) { return service.create(request); }

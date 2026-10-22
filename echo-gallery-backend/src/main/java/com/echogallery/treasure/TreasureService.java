@@ -30,14 +30,14 @@ public class TreasureService {
     private final TreasureLifecycle lifecycle;
     private final Clock clock;
 
-    public PageResponse<TreasureResponses.Summary> list(String keyword, TreasureRank rank, boolean archived, int page, int size) {
+    public PageResponse<TreasureResponses.Summary> list(String keyword, List<TreasureRank> ranks, Boolean archived, int page, int size) {
         Long owner = owner();
         String term = clean(keyword);
         Specification<Treasure> spec = (root, query, cb) -> {
             var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
             predicates.add(cb.equal(root.get("user").get("id"), owner));
-            predicates.add(cb.equal(root.get("archived"), archived));
-            if (rank != null) predicates.add(cb.equal(root.get("rank"), rank));
+            if (archived != null) predicates.add(cb.equal(root.get("archived"), archived));
+            if (!ranks.isEmpty()) predicates.add(root.get("rank").in(ranks));
             if (term != null) {
                 String escaped = term.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
                 predicates.add(cb.like(cb.lower(root.get("title")), "%" + escaped + "%", '\\'));

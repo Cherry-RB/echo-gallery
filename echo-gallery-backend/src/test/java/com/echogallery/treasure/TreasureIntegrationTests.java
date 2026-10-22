@@ -82,6 +82,20 @@ class TreasureIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void listAcceptsMultipleRanksAndAllArchiveScope() throws Exception {
+        String token = register();
+        create(token, "stone", List.of());
+        long bronze = create(token, "bronze", List.of());
+        long archived = create(token, "archived", List.of());
+        transactions.executeWithoutResult(status -> treasures.findById(bronze).orElseThrow().setRank(TreasureRank.BRONZE));
+        send(put("/api/treasures/{id}/archive", archived), token, null).andExpect(status().isOk());
+        send(get("/api/treasures").param("ranks", "STONE,BRONZE"), token, null)
+                .andExpect(jsonPath("$.totalElements").value(2));
+        send(get("/api/treasures").param("archived", "all"), token, null)
+                .andExpect(jsonPath("$.totalElements").value(3));
+    }
+
+    @Test
     void listOrdersByLatestActivityAcrossFiltersPagesAndArchive() throws Exception {
         String token = register();
         long first = create(token, "排序成果一", List.of());

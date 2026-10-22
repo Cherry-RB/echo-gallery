@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
     Page<Experiment> findByUserIdAndIsArchivedOrderByUpdatedAtDescIdDesc(Long userId, boolean isArchived, Pageable pageable);
 
+    Page<Experiment> findByUserIdOrderByUpdatedAtDescIdDesc(Long userId, Pageable pageable);
+
     List<Experiment> findByUserIdAndIsArchivedFalseOrderByUpdatedAtDescIdDesc(Long userId, Pageable pageable);
 
     long countByUserIdAndIsArchivedFalse(Long userId);

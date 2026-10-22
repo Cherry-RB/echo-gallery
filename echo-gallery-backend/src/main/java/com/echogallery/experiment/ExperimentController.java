@@ -26,10 +26,11 @@ public class ExperimentController {
 
     @GetMapping
     public ResponseEntity<PageResponse<ExperimentResponse>> getExperiments(
-            @RequestParam(name = "archived", defaultValue = "false") boolean archived,
+            @RequestParam(name = "archived", defaultValue = "false") String archived,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
-        return ResponseEntity.ok(experimentService.getExperiments(archived, page, size));
+        return ResponseEntity.ok(experimentService.getExperiments(
+                "all".equals(archived) ? null : Boolean.valueOf(archived), page, size));
     }
 
     @PostMapping

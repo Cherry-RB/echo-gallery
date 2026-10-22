@@ -44,11 +44,14 @@ public class ExperimentService {
     private final com.echogallery.treasure.TreasureLifecycle treasureLifecycle;
 
     @Transactional(readOnly = true)
-    public PageResponse<ExperimentResponse> getExperiments(boolean archived, int requestedPage, int requestedSize) {
+    public PageResponse<ExperimentResponse> getExperiments(Boolean archived, int requestedPage, int requestedSize) {
         int page = Math.max(0, requestedPage);
         int size = Math.max(1, Math.min(requestedSize, MAX_PAGE_SIZE));
-        Page<Experiment> experiments = experimentRepository.findByUserIdAndIsArchivedOrderByUpdatedAtDescIdDesc(
-                SecurityUtil.getCurrentUserId(), archived, PageRequest.of(page, size));
+        PageRequest pageable = PageRequest.of(page, size);
+        Page<Experiment> experiments = archived == null
+                ? experimentRepository.findByUserIdOrderByUpdatedAtDescIdDesc(SecurityUtil.getCurrentUserId(), pageable)
+                : experimentRepository.findByUserIdAndIsArchivedOrderByUpdatedAtDescIdDesc(
+                        SecurityUtil.getCurrentUserId(), archived, pageable);
         List<Long> experimentIds = experiments.getContent().stream().map(Experiment::getId).toList();
         Map<Long, ExperimentStageCount> counts = getCounts(experimentIds);
         Map<Long, String> currentTries = getCurrentTries(experimentIds);

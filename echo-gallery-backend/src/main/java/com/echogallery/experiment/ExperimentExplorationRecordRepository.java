@@ -10,7 +10,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface ExperimentExplorationRecordRepository extends JpaRepository<ExperimentExplorationRecord, Long> {
+public interface ExperimentExplorationRecordRepository extends JpaRepository<ExperimentExplorationRecord, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<ExperimentExplorationRecord> {
+    @Override @EntityGraph(attributePaths = {"experiment"})
+    org.springframework.data.domain.Page<ExperimentExplorationRecord> findAll(org.springframework.data.jpa.domain.Specification<ExperimentExplorationRecord> spec, org.springframework.data.domain.Pageable pageable);
 
     @EntityGraph(attributePaths = { "exports", "exports.card" })
     List<ExperimentExplorationRecord> findByExperimentIdOrderByCreatedAtDescIdDesc(Long experimentId);

@@ -46,6 +46,7 @@ public class DemoSessionService {
     private final DemoCatalog demoCatalog;
     private final com.echogallery.treasure.TreasureLifecycle treasureLifecycle;
     private final com.echogallery.experiment.ExperimentRepository experimentRepository;
+    private final com.echogallery.work.CreativeWorkRepository workRepository;
 
     @Transactional
     public AuthDto.AuthResponse create(String libraryKey) {
@@ -91,6 +92,14 @@ public class DemoSessionService {
     }
 
     private void seed(User user, DemoLibrary library, ZonedDateTime now) {
+        var work = new com.echogallery.work.CreativeWork();
+        work.setUser(user);
+        work.setTitle("範例作品：雨天的修理店");
+        work.setDescription("虛構展示內容，可自由續寫。");
+        work.setBody("# 雨天的修理店\n\n雨停之前，修理店收到了一把不願打開的傘。\n\n這是虛構範例，你可以從這裡開始續寫。");
+        work.setNextStep("例如：寫下傘的主人為什麼回到店裡。");
+        work.setCreatedAt(now); work.setEditedAt(now); work.setStageChangedAt(now);
+        workRepository.save(work);
         DemoCatalog.Library catalog = demoCatalog.library(library);
         Map<String, Tag> tags = new HashMap<>();
         for (DemoCatalog.Entry entry : catalog.cards()) {
