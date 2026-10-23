@@ -17,5 +17,8 @@ public class ExperimentRequest {
     @Size(max = 2000, message = "假設不可超過 2000 字")
     private String hypothesis;
 
+    @Size(max = 10000, message = "實驗結論不可超過 10000 字")
+    private String conclusion;
+
     private ExperimentThemeColor themeColor;
 }

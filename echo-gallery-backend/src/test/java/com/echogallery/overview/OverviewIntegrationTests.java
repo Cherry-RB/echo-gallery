@@ -6,12 +6,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.OffsetDateTime;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -31,6 +34,9 @@ class OverviewIntegrationTests extends IntegrationTestBase {
 
     @Autowired
     private ExperimentRepository experimentRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @AfterEach
     void cleanExperimentData() {
@@ -65,6 +71,39 @@ class OverviewIntegrationTests extends IntegrationTestBase {
                 .andReturn();
         long emptyExperimentId = objectMapper.readTree(emptyExperimentResult.getResponse().getContentAsString())
                 .get("id").asLong();
+        MvcResult cardResult = mockMvc.perform(post("/api/cards")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"note\",\"title\":\"散步線索\",\"intervalDays\":10}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        long cardId = objectMapper.readTree(cardResult.getResponse().getContentAsString()).get("id").asLong();
+        jdbcTemplate.update("update cards set created_at = ? where id = ?", OffsetDateTime.now().minusDays(60), cardId);
+        MvcResult resultCardResult = mockMvc.perform(post("/api/cards")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"note\",\"title\":\"整理成果\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        long resultCardId = objectMapper.readTree(resultCardResult.getResponse().getContentAsString()).get("id").asLong();
+        jdbcTemplate.update("update cards set created_at = ? where id = ?", OffsetDateTime.now().minusDays(60), resultCardId);
+        MvcResult threadResult = mockMvc.perform(post("/api/experiments/{id}/threads", experimentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"開始行動\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        long threadId = objectMapper.readTree(threadResult.getResponse().getContentAsString()).get("id").asLong();
+        mockMvc.perform(post("/api/experiments/{id}/threads/{threadId}/cards", experimentId, threadId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"cardId\":%d,\"role\":\"MATERIAL\"}".formatted(cardId)))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/experiments/{id}/threads/{threadId}/cards", experimentId, threadId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"cardId\":%d,\"role\":\"RESULT\"}".formatted(resultCardId)))
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/overview/current")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
@@ -73,21 +112,24 @@ class OverviewIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.recurringCardCount").isNumber())
                 .andExpect(jsonPath("$.activeExperimentCount").value(2))
                 .andExpect(jsonPath("$.experimentTries.length()").value(2))
-                .andExpect(jsonPath("$.experimentTries[0].experimentId").value(emptyExperimentId))
-                .andExpect(jsonPath("$.experimentTries[0].currentTry").value(""))
-                .andExpect(jsonPath("$.experimentTries[0].explorationRecordCount").value(0))
-                .andExpect(jsonPath("$.experimentTries[1].experimentId").value(experimentId))
-                .andExpect(jsonPath("$.experimentTries[1].currentTry").value("晚餐後畫兩分鐘"))
-                .andExpect(jsonPath("$.experimentTries[1].explorationRecordCount").value(1));
+                .andExpect(jsonPath("$.experimentTries[0].experimentId").value(experimentId))
+                .andExpect(jsonPath("$.experimentTries[0].currentTry").value("晚餐後畫兩分鐘"))
+                .andExpect(jsonPath("$.experimentTries[0].explorationRecordCount").value(1))
+                .andExpect(jsonPath("$.experimentTries[1].experimentId").value(emptyExperimentId))
+                .andExpect(jsonPath("$.experimentTries[1].currentTry").value(""))
+                .andExpect(jsonPath("$.experimentTries[1].explorationRecordCount").value(0));
 
         mockMvc.perform(get("/api/overview/recent")
                         .param("periodDays", "30")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.periodDays").value(30))
-                .andExpect(jsonPath("$.period.flow.reengagedCardCount").isNumber())
+                .andExpect(jsonPath("$.period.flow.reengagedCardCount").value(1))
                 .andExpect(jsonPath("$.period.activities.length()").value(9))
-                .andExpect(jsonPath("$.period.recentExperimentMaterials").isArray());
+                .andExpect(jsonPath("$.period.activities[3].key").value("experiment-material"))
+                .andExpect(jsonPath("$.period.activities[3].value").value(1))
+                .andExpect(jsonPath("$.period.recentExperimentMaterials[0].cardId").value(cardId))
+                .andExpect(jsonPath("$.period.recentExperimentMaterials[0].experimentId").value(experimentId));
 
         mockMvc.perform(get("/api/overview/card-return")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))

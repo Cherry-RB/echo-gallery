@@ -240,6 +240,14 @@ public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificat
                         AND experimentCard.addedAt < :periodEndAt
                   )
                   OR EXISTS (
+                      SELECT threadCard.id
+                      FROM ExplorationThreadCard threadCard
+                      WHERE threadCard.card = c
+                        AND threadCard.role = com.echogallery.experiment.ExplorationThreadCardRole.MATERIAL
+                        AND threadCard.createdAt >= :periodStartAt
+                        AND threadCard.createdAt < :periodEndAt
+                  )
+                  OR EXISTS (
                       SELECT relation.id
                       FROM CardRelation relation
                       WHERE relation.sourceCard = c

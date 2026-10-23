@@ -40,6 +40,7 @@ public class ExperimentService {
     private final UserRepository userRepository;
     private final ExperimentExplorationRepository experimentExplorationRepository;
     private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
+    private final ExplorationThreadMethodRepository explorationThreadMethodRepository;
     private final ExplorationRecordCardRepository explorationRecordCardRepository;
     private final com.echogallery.treasure.TreasureLifecycle treasureLifecycle;
 
@@ -89,6 +90,7 @@ public class ExperimentService {
                 .title(request.getTitle().trim())
                 .description(normalizeOptionalText(request.getDescription()))
                 .hypothesis(normalizeOptionalText(request.getHypothesis()))
+                .conclusion(normalizeOptionalText(request.getConclusion()))
                 .themeColor(request.getThemeColor() == null ? ExperimentThemeColor.LEAF : request.getThemeColor())
                 .build();
         return toExperimentResponse(experimentRepository.save(experiment), null, null, 0L);
@@ -100,6 +102,7 @@ public class ExperimentService {
         experiment.setTitle(request.getTitle().trim());
         experiment.setDescription(normalizeOptionalText(request.getDescription()));
         experiment.setHypothesis(normalizeOptionalText(request.getHypothesis()));
+        experiment.setConclusion(normalizeOptionalText(request.getConclusion()));
         if (request.getThemeColor() != null) {
             experiment.setThemeColor(request.getThemeColor());
         }
@@ -227,12 +230,6 @@ public class ExperimentService {
         List<ExperimentExplorationRecord> records = getOwnedExplorationRecords(
                 experimentId, request.getRecordIds());
         Card newCard = cardService.createCardEntity(request);
-        ExperimentCard experimentCard = ExperimentCard.builder()
-                .experiment(experiment)
-                .card(newCard)
-                .stage(ExperimentStage.GROWING)
-                .build();
-        experimentCardRepository.save(experimentCard);
         createExplorationCardLinks(records, newCard);
         touchExperiment(experiment);
         return cardService.convertToDetailResponse(newCard);
@@ -249,6 +246,7 @@ public class ExperimentService {
         Experiment experiment = getOwnedExperiment(experimentId, SecurityUtil.getCurrentUserId());
         ExperimentExploration exploration = getOrCreateExploration(experiment);
         exploration.setCurrentTry(normalizeOptionalText(request.currentTry()));
+        exploration.setCurrentTrySourceMethod(resolveSourceMethod(experimentId, request.sourceMethodId()));
         touchExperiment(experiment);
         return toExplorationResponse(experimentId);
     }
@@ -283,14 +281,19 @@ public class ExperimentService {
         String tryText = request.includeCurrentTry() && exploration != null
                 ? normalizeOptionalText(exploration.getCurrentTry())
                 : null;
+        ExplorationThreadMethod sourceMethod = exploration == null
+                ? null
+                : exploration.getCurrentTrySourceMethod();
         ExperimentExplorationRecord record = ExperimentExplorationRecord.builder()
                 .experiment(experiment)
                 .tryText(tryText)
+                .sourceThreadMethod(sourceMethod)
                 .discovery(request.discovery().trim())
                 .build();
         experimentExplorationRecordRepository.save(record);
         if (tryText != null) {
             exploration.setCurrentTry(null);
+            exploration.setCurrentTrySourceMethod(null);
         }
         touchExperiment(experiment);
         return toExplorationResponse(experimentId);
@@ -341,9 +344,6 @@ public class ExperimentService {
             ExperimentExplorationAppendRequest request) {
         Long userId = SecurityUtil.getCurrentUserId();
         Experiment experiment = getOwnedExperiment(experimentId, userId);
-        if (!experimentCardRepository.existsByExperimentIdAndCardId(experimentId, cardId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "只能整理到目前實驗場中的卡片");
-        }
         Card card = cardRepository.findByIdForUpdate(cardId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到卡片"));
         if (!card.getUser().getId().equals(userId)) {
@@ -482,7 +482,7 @@ public class ExperimentService {
             String currentTry,
             long explorationRecordCount) {
         return new ExperimentResponse(
-                experiment.getId(), experiment.getTitle(), experiment.getDescription(), experiment.getHypothesis(),
+                experiment.getId(), experiment.getTitle(), experiment.getDescription(), experiment.getHypothesis(), experiment.getConclusion(),
                 currentTry, explorationRecordCount,
                 experiment.getThemeColor() == null ? ExperimentThemeColor.LEAF : experiment.getThemeColor(), experiment.isArchived(),
                 count == null ? 0 : count.getSeedCount(),
@@ -558,6 +558,9 @@ public class ExperimentService {
                 .toList();
         return new ExperimentExplorationResponse(
                 exploration == null || exploration.getCurrentTry() == null ? "" : exploration.getCurrentTry(),
+                exploration == null || exploration.getCurrentTrySourceMethod() == null
+                        ? null
+                        : exploration.getCurrentTrySourceMethod().getId(),
                 favoriteTries,
                 records);
     }
@@ -567,6 +570,7 @@ public class ExperimentService {
         return new ExperimentExplorationResponse.RecordResponse(
                 record.getId(),
                 record.getTryText(),
+                record.getSourceThreadMethod() == null ? null : record.getSourceThreadMethod().getId(),
                 record.getDiscovery(),
                 record.getCreatedAt(),
                 record.getExports().stream()
@@ -580,6 +584,15 @@ public class ExperimentService {
 
     private void touchExperiment(Experiment experiment) {
         experiment.setUpdatedAt(ZonedDateTime.now());
+    }
+
+    private ExplorationThreadMethod resolveSourceMethod(Long experimentId, Long sourceMethodId) {
+        if (sourceMethodId == null) {
+            return null;
+        }
+        return explorationThreadMethodRepository.findById(sourceMethodId)
+                .filter(method -> method.getThread().getExperiment().getId().equals(experimentId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "找不到這個實驗的探索線試法"));
     }
 
     private String normalizeOptionalText(String value) {

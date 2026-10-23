@@ -14,6 +14,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Index;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -26,6 +28,7 @@ import lombok.Setter;
 @Entity
 @Table(
         name = "experiment_explorations",
+        indexes = @Index(name = "idx_explorations_current_try_source_method", columnList = "current_try_source_method_id"),
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_experiment_explorations_experiment",
                 columnNames = "experiment_id"))
@@ -47,6 +50,11 @@ public class ExperimentExploration {
 
     @Column(name = "current_try", columnDefinition = "TEXT")
     private String currentTry;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_try_source_method_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    private ExplorationThreadMethod currentTrySourceMethod;
 
     @Column(name = "favorite_try_1", columnDefinition = "TEXT")
     private String favoriteTry1;

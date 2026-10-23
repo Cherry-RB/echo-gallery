@@ -7,6 +7,7 @@ public record ExperimentResponse(
         String title,
         String description,
         String hypothesis,
+        String conclusion,
         String currentTry,
         long explorationRecordCount,
         ExperimentThemeColor themeColor,

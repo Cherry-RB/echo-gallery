@@ -32,6 +32,7 @@ import com.echogallery.experiment.ExperimentExplorationRepository;
 import com.echogallery.experiment.ExperimentExplorationRecordRepository;
 import com.echogallery.experiment.ExperimentRepository;
 import com.echogallery.experiment.ExplorationRecordCardRepository;
+import com.echogallery.experiment.ExplorationThreadCardRepository;
 import com.echogallery.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 
@@ -50,6 +51,7 @@ public class OverviewService {
     private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
     private final ExplorationRecordCardRepository explorationRecordCardRepository;
     private final CardRelationRepository cardRelationRepository;
+    private final ExplorationThreadCardRepository explorationThreadCardRepository;
     private final com.echogallery.treasure.TreasureService treasureService;
     private final Clock clock;
 
@@ -198,8 +200,7 @@ public class OverviewService {
                 activity("created", cardRepository.countByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("offered", cardRepository.countByUserIdAndLastOfferedAtGreaterThanEqualAndLastOfferedAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("reviewed", cardRepository.countByUserIdAndLastOpenAtGreaterThanEqualAndLastOpenAtLessThan(userId, periodStartAt, periodEndAt)),
-                activity("experiment-material", experimentCardRepository.countStandaloneMaterialsByUserIdAndAddedAtBetween(
-                        userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
+                activity("experiment-material", recentExperimentMaterials(userId, periodStartAt, periodEndAt).size()),
                 activity("derived", cardRelationRepository.countDistinctDerivedCardsByUserIdAndCreatedAtBetween(
                         userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
                 activity("exploration-record", experimentExplorationRecordRepository
@@ -250,40 +251,53 @@ public class OverviewService {
             Long userId,
             ZonedDateTime periodStartAt,
             ZonedDateTime periodEndAt) {
-        List<ExperimentCard> materials = experimentCardRepository.findRecentStandaloneMaterialsByUserId(
-                        userId,
-                        CardRelationType.DERIVED_FROM,
-                        periodStartAt,
-                        periodEndAt,
-                        PageRequest.of(0, DERIVED_CARD_LIMIT))
-                .stream().toList();
+        List<ExperimentMaterial> materials = recentExperimentMaterials(userId, periodStartAt, periodEndAt);
         Set<ExperimentCardKey> explorationCardKeys = materials.isEmpty()
                 ? Set.of()
                 : explorationRecordCardRepository.findExplorationExperimentCardKeys(
-                                userId, materials.stream().map(material -> material.getCard().getId()).toList())
+                                userId, materials.stream().map(material -> material.card().getId()).toList())
                         .stream()
                         .map(key -> new ExperimentCardKey(key.getExperimentId(), key.getCardId()))
                         .collect(Collectors.toSet());
-        return materials.stream()
+        return materials.stream().limit(DERIVED_CARD_LIMIT)
                 .map(material -> toExperimentMaterial(material, explorationCardKeys))
                 .toList();
     }
 
+    private List<ExperimentMaterial> recentExperimentMaterials(Long userId, ZonedDateTime periodStartAt,
+            ZonedDateTime periodEndAt) {
+        List<ExperimentMaterial> materials = new ArrayList<>();
+        experimentCardRepository.findAllStandaloneMaterialsByUserId(
+                        userId,
+                        CardRelationType.DERIVED_FROM,
+                        periodStartAt,
+                        periodEndAt)
+                .forEach(link -> materials.add(new ExperimentMaterial(link.getExperiment(), link.getCard(), link.getAddedAt())));
+        explorationThreadCardRepository.findRecentMaterials(userId, periodStartAt, periodEndAt)
+                .forEach(link -> materials.add(new ExperimentMaterial(link.getThread().getExperiment(), link.getCard(), link.getCreatedAt())));
+        Map<ExperimentCardKey, ExperimentMaterial> unique = new LinkedHashMap<>();
+        materials.stream().sorted(Comparator.comparing(ExperimentMaterial::addedAt).reversed())
+                .forEach(material -> unique.putIfAbsent(
+                        new ExperimentCardKey(material.experiment().getId(), material.card().getId()), material));
+        return unique.values().stream().toList();
+    }
+
     private OverviewResponse.ExperimentMaterialResponse toExperimentMaterial(
-            ExperimentCard experimentCard,
+            ExperimentMaterial material,
             Set<ExperimentCardKey> explorationCardKeys) {
-        Card card = experimentCard.getCard();
-        ExperimentCardKey key = new ExperimentCardKey(experimentCard.getExperiment().getId(), card.getId());
+        Card card = material.card();
+        ExperimentCardKey key = new ExperimentCardKey(material.experiment().getId(), card.getId());
         return new OverviewResponse.ExperimentMaterialResponse(
                 card.getId(),
                 card.getTitle(),
-                experimentCard.getAddedAt(),
-                experimentCard.getExperiment().getId(),
-                experimentCard.getExperiment().getTitle(),
+                material.addedAt(),
+                material.experiment().getId(),
+                material.experiment().getTitle(),
                 explorationCardKeys.contains(key) ? "EXPLORATION" : "MATERIAL",
                 card.getTags().stream().map(tag -> tag.getName()).sorted().toList());
     }
 
+    private record ExperimentMaterial(Experiment experiment, Card card, ZonedDateTime addedAt) {}
     private record ExperimentCardKey(Long experimentId, Long cardId) {
     }
 

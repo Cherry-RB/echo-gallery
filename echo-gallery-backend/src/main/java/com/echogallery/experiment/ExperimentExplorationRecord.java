@@ -28,7 +28,8 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "experiment_exploration_records", indexes = {
-        @Index(name = "idx_exploration_records_experiment_created", columnList = "experiment_id, created_at")
+        @Index(name = "idx_exploration_records_experiment_created", columnList = "experiment_id, created_at"),
+        @Index(name = "idx_exploration_records_source_thread_method", columnList = "source_thread_method_id")
 })
 @Getter
 @Setter
@@ -48,6 +49,11 @@ public class ExperimentExplorationRecord {
 
     @Column(name = "try_text", columnDefinition = "TEXT")
     private String tryText;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_thread_method_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    private ExplorationThreadMethod sourceThreadMethod;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String discovery;

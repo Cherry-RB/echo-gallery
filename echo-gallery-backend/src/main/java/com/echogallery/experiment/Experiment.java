@@ -53,6 +53,9 @@ public class Experiment {
     @Column(columnDefinition = "TEXT")
     private String hypothesis;
 
+    @Column(columnDefinition = "TEXT")
+    private String conclusion;
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "theme_color", length = 20)
