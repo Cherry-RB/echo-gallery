@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SidePanel from '../../components/ui/SidePanel.vue'
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { InfoFilled } from '@element-plus/icons-vue'
@@ -100,7 +101,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
             </div>
           </section>
 
-          <section class="panel forecast-panel" aria-labelledby="card-return-forecast-title">
+          <SidePanel class="forecast-panel" aria-labelledby="card-return-forecast-title">
             <div class="section-heading">
               <div>
                 <span class="section-eyebrow">接下來 7 天</span>
@@ -118,7 +119,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
                 <small>{{ day.dateLabel }}</small>
               </article>
             </div>
-          </section>
+          </SidePanel>
         </div>
 
         <section class="panel snooze-panel" aria-labelledby="card-return-snooze-title">

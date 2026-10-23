@@ -5,9 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import WorkWorkspace from './WorkWorkspace.vue'
 import type { WorkDetail } from '../../types/work'
 import { workApi } from '../../utils/api/workApi'
+import { experimentApi } from '../../utils/api/experimentApi'
+import ExperimentThreads from '../experiment/ExperimentThreads.vue'
+import ExpandableText from '../ExpandableText.vue'
+import WorkSourceReadingDialog from './WorkSourceReadingDialog.vue'
 const route = vi.hoisted(() => ({ query: {} as Record<string, string> }))
-vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ push: vi.fn(), beforeEach: () => vi.fn() }), onBeforeRouteLeave: vi.fn(), onBeforeRouteUpdate: vi.fn() }))
-vi.mock('../../utils/api/workApi', () => ({ workApi: { sources: vi.fn().mockResolvedValue([]), body: vi.fn() } }))
+const navigation = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ push: navigation.push, beforeEach: () => vi.fn() }), onBeforeRouteLeave: vi.fn(), onBeforeRouteUpdate: vi.fn() }))
+vi.mock('../../utils/api/workApi', () => ({ workApi: { sources: vi.fn().mockResolvedValue([]), body: vi.fn(), update: vi.fn() } }))
 vi.mock('../../utils/api/request', () => ({ default: vi.fn() }))
 vi.mock('../../utils/api/treasureApi', () => ({ treasureApi: { list: vi.fn().mockResolvedValue({ content: [] }) } }))
 const clients: QueryClient[] = [], wrappers: ReturnType<typeof mount>[] = []
@@ -15,7 +20,7 @@ const base: WorkDetail = { work: { id: 987, title: '工作區測試', descriptio
 function render(initial: WorkDetail) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client)
   const wrapper = mount(WorkWorkspace, { props: { initial }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: {
-    AppDialog: true, WorkFormDialog: true, WorkSourcePicker: true, TreasureFormDialog: true,
+    AppDialog: true, WorkFormDialog: true, WorkSourcePicker: true, WorkSourceReadingDialog: true, TreasureFormDialog: true, ExperimentThreads: true,
     WorkMarkdownEditor: { props: ['modelValue', 'mode', 'readonly'], emits: ['update:modelValue'], template: '<div><textarea v-if="mode !== \'read\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><div v-else class="markdown-reading"><strong>{{ modelValue.replaceAll(\'**\', \'\') }}</strong></div></div>' },
     RouterLink: { template: '<a><slot /></a>' },
     'el-button': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
@@ -27,8 +32,55 @@ function render(initial: WorkDetail) {
   } } })
   wrappers.push(wrapper); return wrapper
 }
-afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()); route.query = {} })
+afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()); route.query = {}; navigation.push.mockClear(); vi.restoreAllMocks() })
 describe('作品工作區模式與封存', () => {
+  it('頁首下拉選單變更階段時保留完成日期，且不顯示舊的快捷按鈕', async () => {
+    const d = structuredClone(base); d.firstCompletedOn = '2026-10-01'
+    const saved = structuredClone(d); saved.work.stage = 'REVISING'
+    vi.mocked(workApi.update).mockResolvedValueOnce(saved)
+    const wrapper = render(d)
+    expect(wrapper.text()).not.toContain('標記初版完成')
+    expect(wrapper.find('.detail-heading-metadata').exists()).toBe(false)
+    wrapper.findAllComponents({ name: 'Dropdown' }).find(item => item.classes().includes('work-stage-menu'))!.vm.$emit('command', 'REVISING')
+    await vi.waitFor(() => expect(workApi.update).toHaveBeenCalledWith(base.work.id, 'stage', { stage: 'REVISING', firstCompletedOn: '2026-10-01' }))
+    await vi.waitFor(() => expect(wrapper.get('.work-stage-menu').text()).toContain('編修中'))
+  })
+
+  it('頁首切換發表狀態保留分享網址、日期及備註', async () => {
+    const d = structuredClone(base); d.shareUrl = 'https://example.com/story'; d.sharedOn = '2026-10-01'; d.shareNote = '原有分享備註'
+    const saved = structuredClone(d); saved.work.published = true
+    vi.mocked(workApi.update).mockResolvedValueOnce(saved)
+    const wrapper = render(d)
+    wrapper.findAllComponents({ name: 'Dropdown' }).find(item => item.classes().includes('work-publication-menu'))!.vm.$emit('command', 'PUBLISHED')
+    await vi.waitFor(() => expect(workApi.update).toHaveBeenCalledWith(base.work.id, 'share', { published: true, shareUrl: d.shareUrl, sharedOn: d.sharedOn, shareNote: d.shareNote }))
+    expect(wrapper.get('textarea').element.value).toBe(base.body)
+  })
+
+  it('參考素材整塊可閱讀，長篇下一步使用共用展開元件', async () => {
+    const source = { id: 6, cardId: 7, recordId: null, title: '來源卡片', text: '', experimentId: null, experimentTitle: null, archived: false }
+    vi.mocked(workApi.sources).mockResolvedValueOnce([source])
+    const d = structuredClone(base); d.work.nextStep = '下一步'.repeat(200)
+    const wrapper = render(d)
+    await vi.waitFor(() => expect(wrapper.find('.work-source').exists()).toBe(true))
+    expect(wrapper.get('.work-source').text()).not.toContain('閱讀全文')
+    await wrapper.get('.work-source').trigger('keydown.enter')
+    expect(wrapper.findComponent(WorkSourceReadingDialog).props('source')).toEqual(source)
+    expect(wrapper.findComponent(ExpandableText).props()).toMatchObject({ content: d.work.nextStep, lines: 3 })
+    expect(wrapper.findAll('.work-disclosure > summary button').map(button => button.text())).toEqual(['加入來源', '編輯分享資訊'])
+  })
+  it('關聯探索線在作品原頁開窗，關閉後保留正文', async () => {
+    vi.spyOn(experimentApi, 'getWorkThreads').mockResolvedValue([{ threadId: 3, threadName: '散步探索', experimentId: 8, experimentTitle: '生活實驗', status: 'IN_PROGRESS' }])
+    const wrapper = render(structuredClone(base))
+    await vi.waitFor(() => expect(wrapper.find('.work-related-item').exists()).toBe(true))
+    await wrapper.get('.work-related-item').trigger('click')
+    const dialog = wrapper.findComponent(ExperimentThreads)
+    expect(dialog.props()).toMatchObject({ experimentId: 8, initialThreadId: 3, dialogOnly: true })
+    expect(navigation.push).not.toHaveBeenCalled()
+    dialog.vm.$emit('closed')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent(ExperimentThreads).exists()).toBe(false)
+    expect(wrapper.get('textarea').element.value).toBe(base.body)
+  })
   it('正文儲存成功後同步詳情快取的正文與版本', async () => {
     const saved = { body: '已儲存的新稿', bodyVersion: 1, editedAt: '2026-10-22T10:00:00Z' }
     vi.mocked(workApi.body).mockResolvedValueOnce(saved)

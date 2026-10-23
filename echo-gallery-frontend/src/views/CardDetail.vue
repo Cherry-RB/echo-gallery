@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import TagSelection from '../components/ui/TagSelection.vue'
 import UseForWork from '../components/work/UseForWork.vue'
+import SidePanel from '../components/ui/SidePanel.vue'
+import { workUseTarget } from '../utils/workFlow'
 defineOptions({ name: 'CardDetail' })
 
 import { ArrowLeft, Calendar, Clock, CollectionTag, Edit, Link, MoreFilled, Plus, Star, StarFilled } from '@element-plus/icons-vue'
@@ -25,6 +28,7 @@ import CoverImageField from '../components/ui/CoverImageField.vue';
 import { cardDetailQueryKey } from '../utils/cardDetailQuery';
 import RecurrenceIntervalPicker from '../components/RecurrenceIntervalPicker.vue';
 import AddCardToExperimentDialog from '../components/experiment/AddCardToExperimentDialog.vue';
+import ExperimentThreads from '../components/experiment/ExperimentThreads.vue';
 import { getTextLength, trimToTextLength } from '../utils/textLength';
 
 const props = defineProps<{ id: string }>();
@@ -61,6 +65,8 @@ const editSection = ref<EditSection>('all')
 const cardData = ref<CardDto>(getDefaultCardData());
 
 const addExperimentDialogVisible = ref(false)
+const openedThread = ref<{ experimentId: number; threadId: number }>()
+watch(() => props.id, () => { openedThread.value = undefined })
 
 // 監聽路由的 id 變動，當從詳情頁切換到 'new' (新增模式) 時，強制重置表單與狀態
 watch(() => props.id, (newId) => {
@@ -82,14 +88,18 @@ const { data: fetchedCard, isLoading, isError, refetch } = useQuery({
   enabled: computed(() => !isCreateMode.value && !!props.id),
   refetchOnWindowFocus: false,
 });
-const { data: cardExperimentContext } = useQuery({
-  queryKey: computed(() => ['card-experiment-context', props.id]),
-  queryFn: () => experimentApi.getCardExperimentContext(props.id),
+const { data: cardThreads, isError: cardThreadsError, isPending: cardThreadsLoading, refetch: retryCardThreads } = useQuery({
+  queryKey: computed(() => ['card-exploration-threads', props.id]),
+  queryFn: () => experimentApi.getCardThreads(props.id),
   enabled: computed(() => !isCreateMode.value && !!props.id),
   refetchOnWindowFocus: false,
 });
-const cardExperiments = computed(() => cardExperimentContext.value?.experiments ?? []);
-const cardRelations = computed(() => cardExperimentContext.value?.relations ?? []);
+const linkedThreads = computed(() => cardThreads.value ?? []);
+const legacyRelationsQuery = useQuery({
+  queryKey: computed(() => ['card-relations', props.id]),
+  queryFn: () => experimentApi.getLegacyCardRelations(props.id),
+  enabled: computed(() => !isCreateMode.value && !!props.id),
+});
 
 const updateProcessingStatus = async (needsProcessing: boolean) => {
   const updated = await cardApi.updateProcessingStatus(props.id, needsProcessing);
@@ -497,8 +507,8 @@ const {
           </main>
 
           <aside class="card-properties-panel" aria-label="卡片管理資訊">
-            <section v-if="cardData.type === 'link'" class="property-card source-property-card">
-              <header class="property-heading">
+            <SidePanel v-if="cardData.type === 'link'" class="property-card source-property-card">
+              <header class="property-heading side-panel-heading">
                 <div>
                   <span class="property-eyebrow">來源</span>
                   <h2>{{ cardData.url ? getUrlDomain(cardData.url) : '尚未設定來源' }}</h2>
@@ -508,10 +518,10 @@ const {
               <el-button type="primary" class="full-width-action" :disabled="!cardData.url" @click="openSourceUrl">
                 開啟來源連結
               </el-button>
-            </section>
+            </SidePanel>
 
-            <section class="property-card">
-              <header class="property-heading">
+            <SidePanel class="property-card">
+              <header class="property-heading side-panel-heading">
                 <div>
                   <span class="property-eyebrow">回流安排</span>
                   <h2>{{ isRecurrencePaused ? '目前已暫停' : `每 ${cardData.intervalDays} 天回流` }}</h2>
@@ -548,10 +558,10 @@ const {
                 </template>
               </div>
               <p v-if="cardData.isArchived && !isRecurrencePaused" class="property-hint">還原卡片後才能調整回流週期。</p>
-            </section>
+            </SidePanel>
 
-            <section class="property-card">
-              <header class="property-heading">
+            <SidePanel class="property-card">
+              <header class="property-heading side-panel-heading">
                 <div>
                   <span class="property-eyebrow">卡片狀態</span>
                   <h2>整理與使用</h2>
@@ -591,49 +601,46 @@ const {
                   </dd>
                 </div>
               </dl>
-            </section>
+            </SidePanel>
 
             <CardIssueManager :card-id="props.id" />
-            <section class="property-card">
-              <header class="property-heading"><h2>作品引用</h2></header>
-              <UseForWork :key="props.id" :card-id="Number(props.id)" :card-title="cardData.title" />
-            </section>
+            <SidePanel class="property-card">
+              <header class="property-heading side-panel-heading"><h2>作品引用</h2><el-button type="primary" link size="small" :icon="Plus" @click="workUseTarget = { cardIds: [Number(props.id)], cardTitle: cardData.title }">用於作品</el-button></header>
+              <UseForWork :key="props.id" :card-id="Number(props.id)" :card-title="cardData.title" :show-action="false" />
+            </SidePanel>
 
-            <section class="property-card experiment-context-card">
-              <header class="property-heading">
-                <div>
-                  <span class="property-eyebrow">實驗場</span>
-                  <h2>實驗脈絡</h2>
-                </div>
+            <SidePanel class="property-card experiment-context-card">
+              <header class="property-heading side-panel-heading">
+                <h2>關聯探索線</h2>
                 <div class="experiment-context-actions">
-                  <el-button text size="small" @click="router.push('/experiments')">前往實驗場</el-button>
-                  <el-button type="primary" plain size="small" @click="addExperimentDialogVisible = true">放入實驗場</el-button>
+                  <el-button type="primary" link size="small" :icon="Plus" @click="addExperimentDialogVisible = true">加入探索線</el-button>
+                  <el-button type="primary" link size="small" @click="router.push('/experiments')">前往實驗場</el-button>
                 </div>
               </header>
               <div class="experiment-context-section">
-                <h3>所在實驗主題</h3>
-                <p v-if="!cardExperiments.length" class="property-hint">尚未加入任何實驗主題。</p>
+                <p v-if="cardThreadsLoading" class="property-hint">正在載入探索線…</p>
+                <p v-else-if="cardThreadsError" class="property-hint">無法載入探索線。<el-button text @click="retryCardThreads()">重試</el-button></p>
+                <p v-else-if="!linkedThreads.length" class="property-hint">尚未加入任何探索線。</p>
                 <div v-else class="experiment-context-list">
-                  <button v-for="experiment in cardExperiments" :key="experiment.experimentId" type="button" class="experiment-context-item" @click="router.push(`/experiments/${experiment.experimentId}`)">
-                    <span>{{ experiment.stage === 'SEED' ? '🌱' : experiment.stage === 'GROWING' ? '🌿' : '🌳' }} {{ experiment.experimentTitle }}</span>
-                    <small v-if="experiment.experimentHypothesis">{{ experiment.experimentHypothesis }}</small>
-                    <small v-if="experiment.note">備註：{{ experiment.note }}</small>
-                    <el-tag v-if="experiment.experimentArchived" type="info" size="small">已封存</el-tag>
+                  <button v-for="thread in linkedThreads" :key="`${thread.threadId}-${thread.role}`" type="button" class="experiment-context-item side-relation" @click="openedThread = thread">
+                    <span>{{ thread.threadName }}</span>
+                    <small>{{ thread.experimentTitle }} · {{ thread.role === 'MATERIAL' ? '材料與線索' : '成果卡片' }}</small>
+                    <small v-if="thread.note">備註：{{ thread.note }}</small>
+                    <el-tag v-if="thread.experimentArchived" type="info" size="small">實驗已封存</el-tag>
                   </button>
                 </div>
               </div>
-              <div class="experiment-context-section lineage-section">
-                <h3>由此長出／長自</h3>
-                <p v-if="!cardRelations.length" class="property-hint">尚未留下衍生關係。</p>
-                <div v-else class="experiment-context-list">
-                  <button v-for="relation in cardRelations" :key="relation.id" type="button" class="experiment-context-item" @click="router.push(`/card/${relation.sourceCard.cardId === Number(props.id) ? relation.derivedCard.cardId : relation.sourceCard.cardId}`)">
-                    <span>{{ relation.sourceCard.cardId === Number(props.id) ? '由此長出：' : '長自：' }} {{ relation.sourceCard.cardId === Number(props.id) ? relation.derivedCard.cardTitle : relation.sourceCard.cardTitle }}</span>
-                    <small>{{ relation.experimentTitle }}</small>
-                  </button>
-                </div>
+            </SidePanel>
+
+            <section v-if="legacyRelationsQuery.data.value?.length" class="experiment-context-section lineage-section">
+              <h3>歷史衍生脈絡</h3>
+              <div class="experiment-context-list">
+                <button v-for="relation in legacyRelationsQuery.data.value" :key="relation.id" type="button" class="experiment-context-item side-relation" @click="router.push('/card/' + (relation.sourceCard.cardId === Number(props.id) ? relation.derivedCard.cardId : relation.sourceCard.cardId))">
+                  <span>{{ relation.sourceCard.cardId === Number(props.id) ? '由此整理：' : '來源：' }}{{ relation.sourceCard.cardId === Number(props.id) ? relation.derivedCard.cardTitle : relation.sourceCard.cardTitle }}</span><small>{{ relation.experimentTitle }}</small>
+                </button>
               </div>
             </section>
-
+            <ExperimentThreads v-if="openedThread" :key="openedThread.threadId" :experiment-id="openedThread.experimentId" :initial-thread-id="openedThread.threadId" dialog-only @closed="openedThread = undefined" />
             <AddCardToExperimentDialog
               v-if="addExperimentDialogVisible"
               v-model="addExperimentDialogVisible"
@@ -695,26 +702,7 @@ const {
                   <template #reference>
                     <el-button size="small" class="button-new-tag"><el-icon><Plus /></el-icon> 新增標籤</el-button>
                   </template>
-                  <div class="tag-popover-content">
-                    <div class="tag-input-group">
-                      <el-input v-model="tagSearchQuery" placeholder="加上標籤或搜尋..." size="small" clearable @keyup.enter="handleConfirmAddTag" />
-                      <el-button type="primary" size="small" @click="handleConfirmAddTag">新增</el-button>
-                    </div>
-                    <div class="existing-tags-section">
-                      <div class="popover-subtitle">既有標籤（點選切換）</div>
-                      <div class="popover-tags-list">
-                        <el-tag
-                          v-for="tag in filteredExistingTags"
-                          :key="tag.id"
-                          size="small"
-                          :effect="cardData.tags.includes(tag.name) ? 'dark' : 'plain'"
-                          class="clickable-popover-tag"
-                          @click="handleToggleSelectTag(tag.name)"
-                        >{{ tag.name }}</el-tag>
-                        <span v-if="filteredExistingTags.length === 0" class="no-tag-tip">尚無符合的既有標籤</span>
-                      </div>
-                    </div>
-                  </div>
+                  <TagSelection v-model:search="tagSearchQuery" :tags="filteredExistingTags" :selected="cardData.tags" @toggle="handleToggleSelectTag" @add="handleConfirmAddTag" />
                 </el-popover>
               </div>
             </el-form-item>
@@ -864,43 +852,7 @@ const {
                       <el-icon><Plus /></el-icon> 新增標籤
                     </el-button>
                   </template>
-
-                <!-- Popover 內部內容 -->
-                <div class="tag-popover-content">
-                  <!-- 手機與桌面共用的搜尋與輸入框 -->
-                  <div class="tag-input-group" style="display: flex; gap: 6px;">
-                    <el-input
-                      v-model="tagSearchQuery"
-                      placeholder="加上標籤或搜尋..."
-                      size="small"
-                      clearable
-                      @keyup.enter="handleConfirmAddTag"
-                    />
-                    <!-- 💡 新增的明顯觸控確認按鈕，解決手機沒有 Enter/Esc 的痛點 -->
-                    <el-button type="primary" size="small" @click="handleConfirmAddTag">
-                      新增
-                    </el-button>
-                  </div>
-
-                  <div class="existing-tags-section">
-                    <div class="popover-subtitle">既有標籤（點選切換）</div>
-                    <div class="popover-tags-list">
-                      <el-tag
-                        v-for="t in filteredExistingTags"
-                        :key="t.id"
-                        size="small"
-                        :effect="cardData.tags?.includes(t.name) ? 'dark' : 'plain'"
-                        class="clickable-popover-tag"
-                        @click="handleToggleSelectTag(t.name)"
-                      >
-                        {{ t.name }}
-                      </el-tag>
-                      <div v-if="filteredExistingTags.length === 0" class="no-tag-tip">
-                        沒有找到相符標籤
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  <TagSelection v-model:search="tagSearchQuery" :tags="filteredExistingTags" :selected="cardData.tags" @toggle="handleToggleSelectTag" @add="handleConfirmAddTag" />
                 </el-popover>
               </el-form-item>
             </div>
@@ -958,8 +910,8 @@ const {
       </div>
 
       <div class="right-sidebar">
-        <el-card v-if="cardData.type === 'link'" class="sidebar-card">
-          <div class="sidebar-card-header">
+        <SidePanel v-if="cardData.type === 'link'" class="sidebar-card">
+          <div class="sidebar-card-header side-panel-heading">
             <el-icon><Link /></el-icon>
             <div class="domain-text">
               <span v-if="!isEditMode">{{ cardData.url ? getUrlDomain(cardData.url) : '未設定連結' }}</span>
@@ -977,10 +929,10 @@ const {
               <el-input v-model="cardData.url" placeholder="https://..." size="small" />
             </el-form-item>
           </template>
-        </el-card>
+        </SidePanel>
 
-        <el-card class="sidebar-card">
-          <div class="sidebar-card-header">
+        <SidePanel class="sidebar-card">
+          <div class="sidebar-card-header side-panel-heading">
             <el-icon><Clock /></el-icon>
             <span>回流設定</span>
           </div>
@@ -1024,10 +976,10 @@ const {
               {{ formatDate(cardData.lastOpenAt || '') || '尚無回顧' }}
             </el-descriptions-item>
           </el-descriptions>
-        </el-card>
+        </SidePanel>
 
-        <el-card class="sidebar-card status-card" v-if="!isCreateMode">
-          <div class="sidebar-card-header">
+        <SidePanel class="sidebar-card status-card" v-if="!isCreateMode">
+          <div class="sidebar-card-header side-panel-heading">
             <el-icon><CollectionTag /></el-icon>
             <span>卡片狀態</span>
           </div>
@@ -1095,7 +1047,7 @@ const {
             <div>建立於：{{ formatDate(cardData.createdAt || '') }}</div>
             <div>更新於：{{ formatDate(cardData.updatedAt || '') }}</div>
           </div>
-        </el-card>
+        </SidePanel>
 
         <CardIssueManager
           v-if="fetchedCard && !isEditMode"
@@ -1459,7 +1411,7 @@ const {
   background: var(--surface-page);
 }
 
-.property-card {
+.property-card:not(.side-panel) {
   padding: var(--space-md);
   border: 1px solid var(--el-border-color-light);
   border-radius: var(--radius-md);
@@ -1643,26 +1595,27 @@ const {
   }
 }
 
-.experiment-context-card {
-  margin-top: var(--space-md);
-}
+.card-properties-panel > :deep(.side-panel + .side-panel) { margin-top: var(--space-md); }
 
 .experiment-context-actions {
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
+  justify-content: flex-end;
+  min-width: 0;
+  flex-wrap: wrap;
   gap: var(--space-xs);
   margin-top: 0;
 }
 
 .experiment-context-card .property-heading > div:first-child {
-  min-width: max-content;
+  min-width: 0;
 }
 
 .experiment-context-card .property-heading h2 {
-  white-space: nowrap;
+  white-space: normal;
 }
+
+.experiment-context-card .property-heading { display: flex; flex-wrap: wrap; align-items: center; }
 
 .experiment-context-actions :deep(.el-button + .el-button) {
   margin-left: 0;
@@ -1700,8 +1653,9 @@ const {
 }
 
 .experiment-context-item:hover {
-  border-color: var(--el-color-success-light-5);
+  border-color: var(--el-color-primary-light-5);
 }
+.experiment-context-item:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 
 .experiment-context-item small {
   grid-column: 1 / -1;

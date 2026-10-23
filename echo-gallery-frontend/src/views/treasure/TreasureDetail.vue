@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SidePanel from '../../components/ui/SidePanel.vue'
 import TreasureWorkLink from '../../components/work/TreasureWorkLink.vue'
 import CoverImage from '../../components/ui/CoverImage.vue'
 import { computed, ref, watch } from 'vue'
@@ -118,11 +119,11 @@ const handleCommand = (command: string) => {
         </section>
         <section class="detail-panel yield-panel"><TreasureYieldHistory :treasure-id="id" :archived="treasure.isArchived" compact /></section>
         </div>
-        <section class="detail-panel challenge-panel">
+        <SidePanel class="challenge-panel">
           <p v-if="routeQuery.isLoading.value">正在讀取試煉…</p>
           <el-button v-else-if="routeQuery.isError.value" @click="routeQuery.refetch()">讀取失敗，重試</el-button>
           <TreasureChallengeRoute v-else v-model="selectedRank" :treasure-id="id" :rank="treasure.rank" :trials="routeQuery.data.value ?? []" :archived="treasure.isArchived" @edit="openChallenge('edit', $event)" @attempt="openChallenge('attempt', $event.targetRank ?? undefined)" @help="openChallenge('help')" />
-        </section>
+        </SidePanel>
       </div>
       </main>
       <TreasureFormDialog v-model="editVisible" :treasure="treasure" />

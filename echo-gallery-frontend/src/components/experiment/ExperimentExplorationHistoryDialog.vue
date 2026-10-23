@@ -38,13 +38,15 @@ const emit = defineEmits<{
   edit: [record: ExperimentExplorationRecordDto]
   delete: [recordId: number]
   organize: []
+  'add-thread': [recordId?: number]
   'open-card': [cardId: number]
   record: ['TRY' | 'DISCOVERY']
 }>()
 
-function handleRecordCommand(record: ExperimentExplorationRecordDto, command: 'edit' | 'delete' | 'use-work') {
+function handleRecordCommand(record: ExperimentExplorationRecordDto, command: 'edit' | 'delete' | 'use-work' | 'use-thread') {
   if (command === 'edit') emit('edit', record)
   else if (command === 'delete') emit('delete', record.id)
+  else if (command === 'use-thread') emit('add-thread', record.id)
   else workUseTarget.value = { recordIds: [record.id], experimentId: props.experimentId, returnToHistory: true }
 }
 </script>
@@ -61,6 +63,7 @@ function handleRecordCommand(record: ExperimentExplorationRecordDto, command: 'e
         :latest="index === 0"
         :manageable="manageable"
         :use-for-work="manageable"
+        :use-for-thread="manageable"
         :operation-label="`${formatDate(record.createdAt)} 的紀錄操作`"
         @command="handleRecordCommand(record, $event)"
       >
@@ -85,7 +88,7 @@ function handleRecordCommand(record: ExperimentExplorationRecordDto, command: 'e
     </HistoryTimeline>
     <p v-else class="history-empty">這段探索尚未留下紀錄。等試過或發現了什麼，再回來記上一筆。</p>
     <template v-if="records.length && showOrganize" #footer>
-      <div class="history-footer"><span>整理成卡片後，原探索紀錄仍會保留。</span><div><el-button @click="emit('update:modelValue', false)">關閉</el-button><el-button type="primary" plain @click="emit('organize')">整理成卡片</el-button></div></div>
+      <div class="history-footer"><span>整理後，原探索紀錄仍會保留。</span><div><el-button @click="emit('update:modelValue', false)">關閉</el-button><el-button plain @click="emit('add-thread')">加入探索線</el-button><el-button type="primary" plain @click="emit('organize')">整理成卡片</el-button></div></div>
     </template>
   </HistoryDialog>
 </template>

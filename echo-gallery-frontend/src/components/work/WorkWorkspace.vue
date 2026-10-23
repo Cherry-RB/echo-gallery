@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, ArrowLeft, Edit, MoreFilled } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowLeft, Edit, MoreFilled, Plus } from '@element-plus/icons-vue'
 import { formatDate } from '../../utils/formatDate'
 import AppDialog from '../AppDialog.vue'
 import DetailShell from '../ui/DetailShell.vue'
+import SidePanel from '../ui/SidePanel.vue'
+import PickerOption from '../ui/PickerOption.vue'
 import DetailHeading from '../ui/DetailHeading.vue'
 import ExpandableText from '../ExpandableText.vue'
 import WorkMarkdownEditor from './WorkMarkdownEditor.vue'
@@ -15,6 +17,8 @@ import WorkSourcePicker from './WorkSourcePicker.vue'
 import WorkSourceReadingDialog from './WorkSourceReadingDialog.vue'
 import TreasureFormDialog from '../treasure/TreasureFormDialog.vue'
 import { workApi } from '../../utils/api/workApi'
+import { experimentApi } from '../../utils/api/experimentApi'
+import ExperimentThreads from '../experiment/ExperimentThreads.vue'
 import { treasureApi } from '../../utils/api/treasureApi'
 import { useWorkAutosave } from '../../composables/useWorkAutosave'
 import { useWorkDialogGuard } from '../../composables/useWorkDialogGuard'
@@ -53,10 +57,11 @@ const form = reactive({ nextStep: '', stage: 'WORKING' as WorkStage, firstComple
 const recovery = ref<WorkDraft[]>([])
 const reloading = ref(false)
 const sources = useQuery({ queryKey: ['works', 'sources', id], queryFn: () => workApi.sources(id) })
+const explorationThreads = useQuery({ queryKey: ['work-exploration-threads', id], queryFn: () => experimentApi.getWorkThreads(id) })
+const openedThread = ref<{ experimentId: number; threadId: number }>()
 const treasureMode = ref('new'), treasureKeyword = ref(''), selectedTreasure = ref<number>(), treasurePage = ref(1), treasureForm = ref(false)
 const treasures = useQuery({ queryKey: computed(() => ['treasures', 'work-link', treasureKeyword.value, treasurePage.value]), queryFn: () => treasureApi.list({ keyword: treasureKeyword.value, page: treasurePage.value - 1 }), enabled: computed(() => dialog.value === 'treasure') })
 const count = computed(() => Array.from(body.value).length)
-const recommended = computed<WorkStage | undefined>(() => ({ WORKING: 'FIRST_DRAFT', FIRST_DRAFT: 'REVISING', REVISING: 'REVISED', REVISED: 'SHAREABLE', SHAREABLE: undefined } as const)[detail.value.work.stage])
 async function invalidate() { await client.invalidateQueries({ queryKey: ['works'] }); await client.invalidateQueries({ queryKey: ['treasures'] }) }
 function pageCommand(value: string) { return value === 'archive' ? archive() : remove() }
 async function safeBody() {
@@ -69,6 +74,29 @@ function openDialog(value: typeof dialog.value) {
   const d = detail.value
   Object.assign(form, { nextStep: d.work.nextStep || '', stage: d.work.stage, firstCompletedOn: d.firstCompletedOn || '', published: d.work.published, shareUrl: d.shareUrl || '', sharedOn: d.sharedOn || '', shareNote: d.shareNote || '' })
   error.value = ''; dialog.value = value
+}
+async function changeStage(value: string) {
+  if (readonly.value || busy.value) return
+  if (value === 'EDIT_DATE') { openDialog('stage'); return }
+  if (!(value in workStages) || value === detail.value.work.stage) return
+  busy.value = true; error.value = ''
+  try {
+    if (!(await safeBody())) return
+    detail.value = await workApi.update(id, 'stage', { stage: value, firstCompletedOn: detail.value.firstCompletedOn || (value === 'FIRST_DRAFT' ? today() : null) })
+    await invalidate()
+  } catch { error.value = '無法變更作品階段，請重試。' } finally { busy.value = false }
+}
+async function changePublication(value: string) {
+  if (readonly.value || busy.value) return
+  if (value === 'EDIT') { openDialog('share'); return }
+  if (!['PUBLISHED', 'UNPUBLISHED'].includes(value) || (value === 'PUBLISHED') === detail.value.work.published) return
+  busy.value = true; error.value = ''
+  try {
+    if (!(await safeBody())) return
+    const current = detail.value
+    detail.value = await workApi.update(id, 'share', { published: value === 'PUBLISHED', shareUrl: current.shareUrl, sharedOn: current.sharedOn, shareNote: current.shareNote })
+    await invalidate()
+  } catch { error.value = '無法變更發表狀態，請重試。' } finally { busy.value = false }
 }
 async function saveDialog() {
   if (busy.value) return
@@ -167,12 +195,28 @@ onBeforeUnmount(() => { void auto.dispose(); window.removeEventListener('beforeu
     <template #navigation>
       <nav class="app-detail-navigation">
         <div class="work-return">
-          <el-button text :icon="ArrowLeft" @click="returnToLibrary">返回我的作品</el-button>
+          <el-button text :icon="ArrowLeft" @click="returnToLibrary">返回爛紙頭</el-button>
           <router-link v-if="detail.work.experimentId" class="work-experiment-link" :to="`/experiments/${detail.work.experimentId}`">實驗 · {{ detail.work.experimentTitle }}</router-link>
+          <span class="work-status" title="可在編輯資訊中更改主要編輯位置">{{ internal ? '內建 Markdown' : '外部工具' }}</span>
         </div>
         <div class="detail-actions work-actions">
+          <el-dropdown class="work-stage-menu" trigger="click" :disabled="readonly || busy" @command="changeStage">
+            <button type="button" class="status-trigger" :disabled="readonly || busy" aria-label="變更作品階段">
+              <span class="work-status-dot" :class="`work-stage-${detail.work.stage.toLowerCase()}`"></span>
+              <span>{{ workStages[detail.work.stage] }}</span>
+              <el-icon class="status-trigger-arrow"><ArrowDown /></el-icon>
+            </button>
+            <template #dropdown><el-dropdown-menu><el-dropdown-item v-for="(label, value) in workStages" :key="value" :command="value" :disabled="value === detail.work.stage">{{ label }}</el-dropdown-item><el-dropdown-item divided command="EDIT_DATE">編輯首次完成日期</el-dropdown-item></el-dropdown-menu></template>
+          </el-dropdown>
+          <el-dropdown class="work-publication-menu" trigger="click" :disabled="readonly || busy" @command="changePublication">
+            <button type="button" class="status-trigger" :disabled="readonly || busy" aria-label="變更發表狀態">
+              <span class="work-status-dot" :class="detail.work.published ? 'work-publication-published' : 'work-publication-unpublished'"></span>
+              <span>{{ detail.work.published ? '已發表' : '未發表' }}</span>
+              <el-icon class="status-trigger-arrow"><ArrowDown /></el-icon>
+            </button>
+            <template #dropdown><el-dropdown-menu><el-dropdown-item command="UNPUBLISHED" :disabled="!detail.work.published">未發表</el-dropdown-item><el-dropdown-item command="PUBLISHED" :disabled="detail.work.published">已發表</el-dropdown-item><el-dropdown-item divided command="EDIT">編輯分享資訊</el-dropdown-item></el-dropdown-menu></template>
+          </el-dropdown>
           <el-button v-if="!readonly" plain type="primary" :icon="Edit" :disabled="busy" @click="safeBody().then(ok => { if (ok) editingInfo = true })">編輯資訊</el-button>
-          <el-button v-if="!readonly && recommended" type="primary" :disabled="busy" @click="openDialog('stage'); form.stage = recommended!; if (!form.firstCompletedOn && recommended === 'FIRST_DRAFT') form.firstCompletedOn = today()">標記{{ workStages[recommended] }}</el-button>
           <el-button v-if="!readonly && detail.work.stage === 'SHAREABLE' && !detail.work.treasureId" type="primary" :disabled="busy" @click="openDialog('treasure')">收入奇珍</el-button>
           <el-button v-if="readonly" :disabled="busy" @click="archive">還原作品</el-button>
           <el-dropdown trigger="click" :disabled="busy" @command="pageCommand">
@@ -182,7 +226,7 @@ onBeforeUnmount(() => { void auto.dispose(); window.removeEventListener('beforeu
         </div>
       </nav>
     </template>
-    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="我的作品"><template #metadata>{{ workStages[detail.work.stage] }} · {{ internal ? '內建 Markdown' : '外部工具' }} · {{ detail.work.published ? '已發表' : '未發表' }}</template></DetailHeading></header>
+    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="我的作品" /></header>
     <ExpandableText v-if="detail.work.description" :content="detail.work.description" :lines="3" />
     <el-alert v-if="readonly" title="此作品已封存，可以閱讀、複製與匯出；還原後才能編輯。" type="info" :closable="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert" />
@@ -200,51 +244,60 @@ onBeforeUnmount(() => { void auto.dispose(); window.removeEventListener('beforeu
             <el-dropdown class="work-export" trigger="click" @command="exportWork"><el-button text :icon="ArrowDown">複製與匯出</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="markdown">複製 Markdown</el-dropdown-item><el-dropdown-item command="plain">複製純文字</el-dropdown-item><el-dropdown-item command="download">匯出 Markdown</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
           </div>
         </div>
-        <div v-if="detail.work.nextStep" class="next-step"><div class="next-step-heading"><span>下次接著做</span><el-button v-if="!readonly" text type="primary" @click="openDialog('next')">編輯下一步</el-button></div><p>{{ detail.work.nextStep }}</p></div>
+        <div v-if="detail.work.nextStep" class="next-step"><div class="next-step-heading"><span>下次接著做</span><el-button v-if="!readonly" link type="primary" @click="openDialog('next')">編輯下一步</el-button></div><ExpandableText :content="detail.work.nextStep" :lines="3" /></div>
         <el-button v-else-if="!readonly" class="next-step-add" text type="primary" @click="openDialog('next')">留下次接著做</el-button>
         <WorkMarkdownEditor :model-value="body" :mode="preview" :readonly="readonly || reloading" @update:model-value="auto.edit" />
 
       </template>
-      <template v-else><div class="work-section-heading"><h2>外部作品文件</h2><el-button v-if="!readonly" text type="primary" @click="openDialog('next')">{{ detail.work.nextStep ? '編輯下一步' : '＋留下次接著做' }}</el-button></div><div v-if="detail.work.nextStep" class="next-step"><span>下次接著做</span><p>{{ detail.work.nextStep }}</p></div><p>正文保存在外部工具。此處不會同步、預覽或匯出該文件。</p><a v-if="detail.externalUrl" :href="detail.externalUrl" target="_blank" rel="noopener noreferrer">開啟原始文件</a><p v-else>尚未設定文件網址，可在作品資訊中補上。</p></template>
+      <template v-else><div class="work-section-heading"><h2>外部作品文件</h2><el-button v-if="!readonly" link type="primary" @click="openDialog('next')">{{ detail.work.nextStep ? '編輯下一步' : '＋留下次接著做' }}</el-button></div><div v-if="detail.work.nextStep" class="next-step"><span>下次接著做</span><ExpandableText :content="detail.work.nextStep" :lines="3" /></div><p>正文保存在外部工具。此處不會同步、預覽或匯出該文件。</p><a v-if="detail.externalUrl" :href="detail.externalUrl" target="_blank" rel="noopener noreferrer">開啟原始文件</a><p v-else>尚未設定文件網址，可在作品資訊中補上。</p></template>
     </section>
     <aside class="work-aside">
-      <details class="work-panel work-disclosure" open>
-        <summary><h2>參考素材</h2><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></summary>
+      <SidePanel v-if="explorationThreads.isPending.value || explorationThreads.isError.value || explorationThreads.data.value?.length" >
+        <h2>關聯探索線</h2>
+        <p v-if="explorationThreads.isPending.value" class="work-hint">正在載入…</p>
+        <p v-else-if="explorationThreads.isError.value" class="work-hint">無法載入探索線。<el-button text @click="explorationThreads.refetch()">重試</el-button></p>
+        <div class="work-related-list"><button v-for="thread in explorationThreads.data.value" :key="thread.threadId" type="button" class="work-related-item side-relation" @click="openedThread = thread">
+          <strong>{{ thread.threadName }}</strong><small>{{ thread.experimentTitle }} · {{ experimentApi.threadStatusLabel(thread.status) }}</small>
+        </button></div>
+      </SidePanel>
+      <SidePanel as="details" class="work-disclosure" open>
+        <summary class="side-panel-heading"><h2>參考素材</h2><div class="disclosure-actions" @keydown.stop><el-button v-if="!readonly" type="primary" link size="small" :icon="Plus" @click.stop.prevent="picker = true">加入來源</el-button><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></div></summary>
         <div class="work-disclosure-content">
-          <el-button v-if="!readonly" text type="primary" @click="picker = true">加入來源</el-button>
           <p v-if="sources.isPending.value">正在載入素材…</p>
           <p v-else-if="sources.isError.value">無法載入素材。<el-button text type="primary" @click="sources.refetch()">重試</el-button></p>
           <p v-else-if="!sources.data.value?.length" class="work-hint">尚未加入素材，正文可以獨立開始。</p>
-          <article v-for="source in sources.data.value" :key="source.id!" class="work-source"><strong>{{ source.title }}</strong><small>{{ source.experimentTitle }} {{ source.archived ? '（已封存）' : '' }}</small><div class="work-actions"><el-button link type="primary" @click="reading = source">閱讀全文</el-button><el-button v-if="!readonly" link @click="removeSource(source)">移除關聯</el-button></div></article>
+          <article v-for="source in sources.data.value" :key="source.id!" class="work-source side-relation" role="button" tabindex="0" :aria-label="'閱讀全文：' + source.title" @click="reading = source" @keydown.enter.self.prevent="reading = source" @keydown.space.self.prevent="reading = source">
+            <div class="work-source-heading"><strong class="work-source-title">{{ source.title }}</strong><div class="work-source-tools" @click.stop @keydown.stop><el-dropdown v-if="!readonly" trigger="click"><el-button text circle size="small" :icon="MoreFilled" aria-label="素材操作" /><template #dropdown><el-dropdown-menu><el-dropdown-item @click="removeSource(source)">移除關聯</el-dropdown-item></el-dropdown-menu></template></el-dropdown></div></div>
+            <small>{{ source.cardId ? '卡片' : '探索紀錄' }}<template v-if="source.experimentTitle"> · {{ source.experimentTitle }}</template>{{ source.archived ? ' · 已封存' : '' }}</small>
+          </article>
         </div>
-      </details>
-      <details class="work-panel work-disclosure" open>
-        <summary><h2>作品階段</h2><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></summary>
+      </SidePanel>
+      <SidePanel as="details" class="work-disclosure" open>
+        <summary class="side-panel-heading"><h2>作品階段</h2><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></summary>
         <div class="work-disclosure-content">
           <dl class="work-properties"><div><dt>目前階段</dt><dd>{{ workStages[detail.work.stage] }}</dd></div><div v-if="detail.firstCompletedOn"><dt>首次初版完成</dt><dd>{{ detail.firstCompletedOn }}</dd></div><div><dt>階段切換</dt><dd>{{ formatDate(detail.stageChangedAt) }}</dd></div></dl>
-          <el-button v-if="!readonly" text type="primary" @click="openDialog('stage')">更改階段</el-button>
         </div>
-      </details>
-      <details class="work-panel work-disclosure" :open="shareInitiallyOpen">
-        <summary><h2>分享與入藏</h2><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></summary>
+      </SidePanel>
+      <SidePanel as="details" class="work-disclosure" :open="shareInitiallyOpen">
+        <summary class="side-panel-heading"><h2>分享與入藏</h2><div class="disclosure-actions" @keydown.stop><el-button v-if="!readonly" type="primary" link size="small" :icon="Edit" @click.stop.prevent="openDialog('share')">編輯分享資訊</el-button><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></div></summary>
         <div class="work-disclosure-content">
           <dl class="work-properties"><div><dt>發表狀態</dt><dd>{{ detail.work.published ? '已發表' : '未發表' }}</dd></div><div v-if="detail.sharedOn"><dt>分享日期</dt><dd>{{ detail.sharedOn }}</dd></div></dl>
           <a v-if="detail.shareUrl" :href="detail.shareUrl" target="_blank" rel="noopener noreferrer">查看分享連結</a>
           <p v-if="detail.shareNote" class="private-note">{{ detail.shareNote }}</p>
-          <el-button v-if="!readonly" text type="primary" @click="openDialog('share')">編輯分享資訊</el-button>
           <div class="work-treasure-context"><template v-if="detail.work.treasureId"><router-link :to="`/treasures/${detail.work.treasureId}`">前往奇珍</router-link><el-button v-if="!readonly" link @click="unlink">解除關聯</el-button></template><el-button v-else-if="!readonly && detail.work.stage === 'SHAREABLE'" text type="primary" @click="openDialog('treasure')">收入奇珍</el-button><p v-else-if="!readonly" class="work-hint">作品標記可分享後，可以選擇收入奇珍。</p></div>
         </div>
-      </details>
+      </SidePanel>
     </aside></div>
+    <ExperimentThreads v-if="openedThread" :key="openedThread.threadId" :experiment-id="openedThread.experimentId" :initial-thread-id="openedThread.threadId" dialog-only @closed="openedThread = undefined" />
     <WorkFormDialog v-if="editingInfo" v-model="editingInfo" :work="detail" @saved="detail = $event; auto.reset($event.body, $event.bodyVersion)" />
     <WorkSourcePicker v-if="picker" v-model="picker" :work-id="id" @saved="sources.refetch(); invalidate()" />
     <WorkSourceReadingDialog v-if="reading" :model-value="true" :source="reading" @update:model-value="reading = undefined" />
-    <AppDialog :pattern="dialog === 'treasure' ? 'picker' : 'compact-form'" :width="dialog === 'treasure' ? 'min(760px, calc(100vw - 32px))' : 'min(620px, calc(100vw - 32px))'" ref="manualShell" :model-value="!!dialog" :title="dialog === 'next' ? '下次接著做' : dialog === 'stage' ? '更改作品階段' : dialog === 'share' ? '分享資訊' : '收入奇珍'" :draft="[form, treasureMode, selectedTreasure]" :busy="busy" scroll-body @update:model-value="dialog = ''">
+    <AppDialog pattern="compact-form" :width="dialog === 'treasure' ? 'min(560px, calc(100vw - 32px))' : 'min(620px, calc(100vw - 32px))'" ref="manualShell" :model-value="!!dialog" :title="dialog === 'next' ? '下次接著做' : dialog === 'stage' ? '編輯首次完成日期' : dialog === 'share' ? '分享資訊' : '收入奇珍'" :draft="[form, treasureMode, selectedTreasure]" :busy="busy" scroll-body @update:model-value="dialog = ''">
       <el-form class="app-record-form" label-position="top" :disabled="busy" @submit.prevent="saveDialog">
         <el-form-item v-if="dialog === 'next'" label="下次接著做（選填）"><el-input v-model="form.nextStep" type="textarea" :rows="5" maxlength="50000" /><p class="app-field-counter">總字數：{{ form.nextStep.length }} / 50,000</p><p class="app-field-help">留下一個容易接續的切入點即可，不必填寫完整計畫。</p></el-form-item>
-        <template v-if="dialog === 'stage'"><el-form-item label="作品階段"><el-select v-model="form.stage"><el-option v-for="(label, value) in workStages" :key="value" :label="label" :value="value" /></el-select></el-form-item><el-form-item label="首次初版完成日期（選填）"><el-date-picker v-model="form.firstCompletedOn" type="date" value-format="YYYY-MM-DD" /></el-form-item><p class="app-field-help">階段由你判斷，可以跳選或回退；不會因修改正文自動變更。</p></template>
+        <template v-if="dialog === 'stage'"><el-form-item label="首次初版完成日期（選填）"><el-date-picker v-model="form.firstCompletedOn" type="date" value-format="YYYY-MM-DD" /></el-form-item><p class="app-field-help">作品階段請在頁首選單變更；這裡只調整首次初版完成日期。</p></template>
         <template v-if="dialog === 'share'"><p class="app-dialog-intro">只保存最近一筆分享資訊；儲存會取代原有網址、日期與備註。複製、匯出或分享連結不會自動標記已發表。</p><el-form-item label="發表狀態"><el-switch v-model="form.published" active-text="已發表" inactive-text="未發表" /></el-form-item><el-form-item label="分享網址（選填）"><el-input v-model="form.shareUrl" maxlength="2048" /></el-form-item><el-form-item label="實際分享日期（選填）"><el-date-picker v-model="form.sharedOn" type="date" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="分享或回饋備註（選填）"><el-input v-model="form.shareNote" type="textarea" :rows="4" maxlength="50000" /><p class="app-field-counter">總字數：{{ form.shareNote.length }} / 50,000</p></el-form-item></template>
-        <template v-if="dialog === 'treasure'"><el-radio-group v-model="treasureMode"><el-radio value="new">新增奇珍</el-radio><el-radio value="existing">連到已有奇珍</el-radio></el-radio-group><template v-if="treasureMode === 'existing'"><p class="app-dialog-intro">保留奇珍原有說明、等級與收益；一件奇珍最多連到一件作品。</p><el-input v-model="treasureKeyword" placeholder="搜尋奇珍名稱" @input="treasurePage = 1" /><p v-if="treasures.isPending.value" role="status">正在載入奇珍…</p><el-alert v-else-if="treasures.isError.value" title="無法載入奇珍" type="error" :closable="false"><el-button @click="treasures.refetch()">重新載入</el-button></el-alert><p v-else-if="!treasures.data.value?.content.length" class="app-field-help">找不到符合條件的奇珍，可調整搜尋或改為新增奇珍。</p><el-radio-group v-model="selectedTreasure" class="treasure-options"><el-radio v-for="t in treasures.data.value?.content" :key="t.id" :value="t.id">{{ t.title }}</el-radio></el-radio-group><el-pagination v-if="(treasures.data.value?.totalElements ?? 0) > 20" v-model:current-page="treasurePage" :page-size="20" :total="treasures.data.value?.totalElements ?? 0" layout="prev, pager, next" /></template></template>
+        <template v-if="dialog === 'treasure'"><el-radio-group v-model="treasureMode"><el-radio value="new">新增奇珍</el-radio><el-radio value="existing">連到已有奇珍</el-radio></el-radio-group><template v-if="treasureMode === 'existing'"><p class="app-dialog-intro">保留奇珍原有說明、等級與收益；一件奇珍最多連到一件作品。</p><el-input v-model="treasureKeyword" placeholder="搜尋奇珍名稱" @input="treasurePage = 1" /><p v-if="treasures.isPending.value" role="status">正在載入奇珍…</p><el-alert v-else-if="treasures.isError.value" title="無法載入奇珍" type="error" :closable="false"><el-button @click="treasures.refetch()">重新載入</el-button></el-alert><p v-else-if="!treasures.data.value?.content.length" class="app-field-help">找不到符合條件的奇珍，可調整搜尋或改為新增奇珍。</p><div class="treasure-options"><PickerOption v-for="t in treasures.data.value?.content" :key="t.id" :title="t.title" :selected="selectedTreasure === t.id" :disabled="busy" @select="selectedTreasure = t.id" /></div><el-pagination v-if="(treasures.data.value?.totalElements ?? 0) > 20" v-model:current-page="treasurePage" :page-size="20" :total="treasures.data.value?.totalElements ?? 0" layout="prev, pager, next" /></template></template>
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
       </el-form>
       <template #footer="{ requestClose }"><el-button :disabled="busy" @click="requestClose">取消</el-button><el-button type="primary" :loading="busy" :disabled="dialog === 'treasure' && treasureMode === 'existing' && !selectedTreasure" @click="saveDialog">{{ dialog === 'treasure' && treasureMode === 'new' ? '填寫入藏資訊' : '儲存變更' }}</el-button></template>
@@ -266,24 +319,27 @@ h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-
 .work-panel > * + * { margin-top: var(--space-sm); }
 .work-panel summary { cursor: pointer; font-size: var(--type-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-section-title); color: var(--el-text-color-primary); }
 .work-disclosure summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); list-style: none; }
+.work-disclosure summary h2 { flex: 1 1 auto; min-width: 0; }
+.disclosure-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-xs); }
+.disclosure-actions :deep(.el-button) { margin: 0; }
 .work-disclosure summary::-webkit-details-marker { display: none; }
 .work-disclosure summary:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: var(--space-2xs); }
 .disclosure-toggle { flex-shrink: 0; color: var(--el-color-primary); font-size: var(--type-metadata); font-weight: var(--weight-regular); }
 .when-open, .work-disclosure[open] .when-closed { display: none; }
 .work-disclosure[open] .when-open { display: inline; }
-.work-disclosure-content { display: grid; justify-items: start; gap: var(--space-sm); padding-top: var(--space-xs); }
-.work-disclosure-content > .el-button { margin: 0; }
+.work-disclosure-content { display: grid; justify-items: stretch; gap: var(--space-sm); padding-top: var(--space-xs); }
+.work-disclosure-content > .el-button { margin: 0; justify-self: start; }
 .work-properties { display: grid; gap: var(--space-sm); margin: 0; width: 100%; min-width: 0; }
-.work-properties > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2xs); }
+.work-properties > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: baseline; gap: var(--space-xs); }
 .work-properties dt { color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
 .work-properties dd { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: anywhere; }
 .work-hint { color: var(--el-text-color-secondary); }
 .work-treasure-context { display: flex; width: 100%; flex-wrap: wrap; align-items: center; gap: var(--space-sm); border-top: 1px solid var(--el-border-color-light); padding-top: var(--space-sm); }
-.work-panel:not([open]) summary { margin-bottom: 0; }
+.work-disclosure:not([open]) summary { margin-bottom: 0; }
 .next-step { padding: var(--space-sm); border-radius: var(--radius-sm); background: var(--surface-summary); }
 .next-step-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs); }
 .next-step span { color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
-.next-step p { margin-top: var(--space-xs); }
+.next-step :deep(.expandable-text) { margin-top: var(--space-xs); font-size: var(--type-body); line-height: var(--leading-body); }
 .next-step-add { margin-left: 0; }
 .next-step p, .private-note { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--type-body); line-height: var(--leading-body); }
 .work-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 320px); gap: var(--space-lg); align-items: start; margin-top: var(--space-lg); }
@@ -292,13 +348,28 @@ h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-
 .work-editor-heading { align-items: flex-start; }
 .work-aside p { font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: anywhere; }
 .work-status { color: var(--el-text-color-secondary); font-size: var(--type-metadata); font-weight: var(--weight-medium); line-height: var(--leading-metadata); }
-.work-source { padding-block: var(--space-sm); border-bottom: 1px solid var(--el-border-color-light); overflow-wrap: anywhere; }
+.work-source { min-width: 0; padding: var(--space-sm); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-md); background: var(--surface-subtle); overflow-wrap: anywhere; cursor: pointer; }
+.work-source:hover { border-color: var(--el-color-primary-light-5); }
+.work-source:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.work-source-heading { display: flex; align-items: flex-start; gap: var(--space-xs); }
+.work-source-title { flex: 1; min-width: 0; border: 0; padding: 0; background: transparent; font: inherit; font-size: var(--type-secondary); font-weight: var(--weight-semibold); line-height: var(--leading-ui); color: var(--el-text-color-primary); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.work-related-list { display: grid; gap: var(--space-xs); }
+.work-related-item { display: grid; min-width: 0; width: 100%; gap: var(--space-2xs); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-md); padding: var(--space-sm); background: var(--surface-subtle); color: var(--el-text-color-primary); font: inherit; text-align: left; cursor: pointer; }
+.work-related-item:hover { border-color: var(--el-color-primary-light-5); }
+.work-related-item strong { font-size: var(--type-secondary); font-weight: var(--weight-semibold); line-height: var(--leading-ui); overflow-wrap: anywhere; }
+.work-related-item small { color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-metadata); overflow-wrap: anywhere; }
+.work-related-item:focus-visible, .work-source-title:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .work-source strong { font-size: var(--type-secondary); font-weight: var(--weight-semibold); line-height: var(--leading-ui); }
 .work-source small { display: block; margin-block: var(--space-2xs) var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
+.status-trigger { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-width: 120px; padding: 7px 10px; border: 1px solid var(--el-border-color); border-radius: var(--radius-sm); background: var(--el-fill-color-blank); color: var(--el-text-color-regular); font: inherit; white-space: nowrap; cursor: pointer; }
+.status-trigger:hover, .status-trigger:focus-visible { border-color: var(--el-color-primary-light-5); color: var(--el-color-primary); }
+.status-trigger:disabled { cursor: wait; opacity: 0.65; }
+.status-trigger-arrow { margin-left: 2px; color: var(--el-text-color-placeholder); }
+.work-status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--el-text-color-placeholder); }
+.work-stage-drafting, .work-stage-revising { background: var(--el-color-info); }
+.work-stage-first_completed, .work-stage-shareable, .work-publication-published { background: var(--el-color-success); }
+.work-publication-unpublished { background: var(--el-text-color-placeholder); }
 .treasure-options { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-xs); margin-block: var(--space-md); }
-.treasure-options :deep(.el-radio) { height: auto; margin: 0; padding: var(--space-sm); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-md); }
-.treasure-options :deep(.el-radio.is-checked) { background: var(--el-color-primary-light-9); border-color: var(--el-color-primary-light-7); }
-.treasure-options :deep(.el-radio__label) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .el-alert { margin-block: var(--space-sm); }
 @media (max-width: 1060px) { .work-layout { grid-template-columns: minmax(0, 1fr); } .work-aside { display: grid; gap: var(--space-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); } }
 @media (max-width: 760px) { .work-aside { display: grid; grid-template-columns: minmax(0, 1fr); } .work-return { width: 100%; } .editor-controls { justify-content: flex-start; width: 100%; } }

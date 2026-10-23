@@ -13,7 +13,8 @@ withDefaults(defineProps<{ settingsStyle?: 'surface' | 'plain' }>(), { settingsS
 .picker-settings { align-self: start; min-width: 0; max-height: min(68vh, 650px); overflow-y: auto; box-sizing: border-box; padding: var(--space-md); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-subtle); }
 .picker-settings--plain { padding: var(--space-2xs) 0 0 var(--space-lg); border: 0; border-left: 1px solid var(--el-border-color-lighter); border-radius: 0; background: transparent; }
 .picker-settings :deep(h3) { margin: 0 0 var(--space-sm); font-size: var(--type-card-title); }
-.picker-browser :deep(.picker-results) { min-height: 0; margin-top: var(--space-sm); overflow-y: auto; border-top: 1px solid var(--el-border-color-lighter); }
+.picker-browser :deep(.picker-results) { display: flex; flex-direction: column; gap: var(--space-xs); min-height: 0; margin-top: var(--space-sm); overflow-y: auto; }
+.picker-browser :deep(.picker-results > *) { flex-shrink: 0; }
 .picker-browser { max-height: min(68vh, 650px); }
 .picker-browser :deep(.el-tabs), .picker-browser :deep(.el-input), .picker-browser :deep(.source-rule) { flex-shrink: 0; }
 @media (max-width: 760px) {

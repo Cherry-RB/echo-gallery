@@ -29,7 +29,7 @@ const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null
 const quickRecordVisible = ref(false)
 const historyExperimentId = ref<number | null>(null)
 const historyVisible = ref(false)
-const form = reactive<ExperimentRequest>({ title: '', hypothesis: '', description: '', themeColor: 'LEAF' })
+const form = reactive<ExperimentRequest>({ title: '', hypothesis: '', conclusion: '', description: '', themeColor: 'LEAF' })
 
 const experimentsQuery = useQuery({
   queryKey: computed(() => ['experiments', selectedScope.value, currentPage.value]),
@@ -77,6 +77,7 @@ const openCreate = () => {
   editingId.value = null
   form.title = ''
   form.hypothesis = ''
+  form.conclusion = ''
   form.description = ''
   form.themeColor = 'LEAF'
   dialogVisible.value = true
@@ -86,6 +87,7 @@ const openEdit = (experiment: ExperimentDto) => {
   editingId.value = experiment.id
   form.title = experiment.title
   form.hypothesis = experiment.hypothesis ?? ''
+  form.conclusion = experiment.conclusion ?? ''
   form.description = experiment.description ?? ''
   form.themeColor = experiment.themeColor
   dialogVisible.value = true
@@ -141,6 +143,7 @@ const openHistory = (experimentId: number) => {
 const submit = () => {
   form.title = trimToTextLength(form.title, 255).trim()
   form.hypothesis = trimToTextLength(form.hypothesis ?? '', 2000).trim()
+  form.conclusion = trimToTextLength(form.conclusion ?? '', 10000).trim()
   form.description = trimToTextLength(form.description ?? '', 5000)
   if (!form.title || saveMutation.isPending.value) return
   saveMutation.mutate()
@@ -229,11 +232,6 @@ const submit = () => {
                   </template>
                 </el-dropdown>
               </header>
-              <section class="soil-summary-grid" aria-label="土壤概況">
-                <div class="soil-summary" :aria-label="`種子 ${experiment.seedCount} 張`"><strong>{{ experiment.seedCount }}</strong><span aria-hidden="true">🌱</span></div>
-                <div class="soil-summary" :aria-label="`茁壯 ${experiment.growingCount} 張`"><strong>{{ experiment.growingCount }}</strong><span aria-hidden="true">🌿</span></div>
-                <div class="soil-summary" :aria-label="`成熟 ${experiment.matureCount} 張`"><strong>{{ experiment.matureCount }}</strong><span aria-hidden="true">🌳</span></div>
-              </section>
               <footer class="experiment-card-footer">最近活動於 {{ formatDate(experiment.updatedAt) }}</footer>
             </aside>
           </div>
@@ -259,15 +257,19 @@ const submit = () => {
     scroll-body
     destroy-on-close
   >
-    <p class="dialog-intro">先為想探索的方向取個名字；目前想弄懂的事，之後再補也可以。</p>
+    <p class="dialog-intro">先為想探索的方向取個名字；實驗目的與結論之後再補也可以。</p>
     <el-form label-position="top" @submit.prevent="submit">
       <el-form-item label="實驗主題名稱" required>
         <el-input v-model="form.title" maxlength="255" placeholder="例如：尋找一種適合自己的學習方式" />
         <p class="field-counter">總字數：{{ getTextLength(form.title) }} / 255</p>
       </el-form-item>
-      <el-form-item label="目前想弄懂什麼？（選填）">
+      <el-form-item label="實驗目的（選填）">
         <el-input v-model="form.hypothesis" type="textarea" :rows="3" maxlength="2000" placeholder="想弄懂哪個問題？還不清楚，也可以先留白。" />
         <p class="field-counter">總字數：{{ getTextLength(form.hypothesis ?? '') }} / 2000</p>
+      </el-form-item>
+      <el-form-item label="實驗結論（選填）">
+        <el-input v-model="form.conclusion" type="textarea" :rows="4" maxlength="10000" placeholder="形成階段性理解後，再寫下目前的結論。" />
+        <p class="field-counter">總字數：{{ getTextLength(form.conclusion ?? '') }} / 10,000</p>
       </el-form-item>
       <el-form-item label="主題說明（選填）">
         <el-input v-model="form.description" type="textarea" :rows="3" maxlength="5000" placeholder="補充背景、動機或預計如何觀察。" />
@@ -307,6 +309,7 @@ const submit = () => {
     @record="historyExperimentId !== null && openQuickRecord(historyExperimentId, $event)"
     @edit="editExplorationRecord"
     @delete="deleteExplorationRecord"
+    @add-thread="router.push({ path: '/experiments/' + historyExperimentId, query: { importRecord: $event == null ? 'all' : String($event) } })"
     @open-card="router.push(`/card/${$event}`)"
   />
 </template>
@@ -318,7 +321,7 @@ const submit = () => {
 .experiment-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: var(--space-md); }
 .experiment-list-card { box-shadow: none; cursor: pointer; }
 .experiment-list-card :deep(.el-card__body) { padding: var(--space-md); }
-.experiment-card-content { display: grid; min-height: 150px; grid-template-columns: minmax(0, 1.55fr) minmax(190px, 0.85fr); gap: var(--space-lg); }
+.experiment-card-content { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-md); }
 .experiment-card-header { display: flex; align-items: center; justify-content: flex-end; min-height: 28px; gap: var(--space-sm); }
 .experiment-copy { min-width: 0; padding: 0; }
 .experiment-title { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); overflow-wrap: anywhere; }
@@ -328,10 +331,6 @@ const submit = () => {
 .exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .exploration-record-count:hover, .exploration-record-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .experiment-summary-side { display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
-.soil-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-xs); margin-top: var(--space-md); padding: var(--space-sm); border: 1px solid color-mix(in srgb, var(--experiment-vivid) 40%, var(--el-bg-color)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--experiment-vivid) 26%, var(--el-bg-color)); }
-.soil-summary { display: flex; align-items: center; justify-content: center; min-width: 0; gap: var(--space-2xs); font-size: var(--type-card-title); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.soil-summary span { line-height: 1; }
-.soil-summary strong { color: var(--experiment-vivid); font-size: inherit; font-weight: var(--weight-semibold); line-height: 1; }
 .experiment-card-footer { margin-top: auto; color: var(--el-text-color-placeholder); font-size: var(--type-meta); text-align: right; }
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .field-counter { width: 100%; margin: 6px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
@@ -340,5 +339,5 @@ const submit = () => {
 .theme-option > span { width: 14px; height: 14px; border-radius: 50%; background: var(--option-color); }
 .theme-option.active { border-color: color-mix(in srgb, var(--option-color) 40%, var(--el-bg-color)); background: color-mix(in srgb, var(--option-color) 26%, var(--el-bg-color)); color: var(--el-text-color-primary); }
 @media (max-width: 900px) { .experiment-list { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .experiment-list-toolbar { width: 100%; } .experiment-card-content { min-height: 0; grid-template-columns: 1fr; gap: var(--space-sm); } .soil-summary-grid { margin-top: var(--space-sm); grid-template-columns: repeat(3, minmax(0, 1fr)); } .experiment-card-footer { margin-top: var(--space-sm); } }
+@media (max-width: 760px) { .experiment-list-toolbar { width: 100%; } .experiment-card-content { min-height: 0; grid-template-columns: 1fr; gap: var(--space-sm); } .experiment-card-footer { margin-top: var(--space-sm); } }
 </style>

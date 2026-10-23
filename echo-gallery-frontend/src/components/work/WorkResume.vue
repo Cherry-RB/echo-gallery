@@ -14,7 +14,7 @@ const query = useQuery({ queryKey: ['works', 'resume', params], queryFn: () => w
 </script>
 <template>
   <section class="resume-work">
-    <SectionHeader eyebrow="我的作品" :title="experimentId ? '正在製作' : '接著創作'"><template #actions><el-button :icon="Plus" @click="creating = true">建立作品</el-button><router-link class="resume-all" :to="{ path: '/works', query: experimentId ? { experimentId } : {} }">查看全部作品</router-link></template></SectionHeader>
+    <SectionHeader eyebrow="爛紙頭" :title="experimentId ? '正在製作' : '接著創作'"><template #actions><el-button :icon="Plus" @click="creating = true">建立作品</el-button><router-link class="resume-all" :to="{ path: '/works', query: experimentId ? { experimentId } : {} }">查看全部作品</router-link></template></SectionHeader>
     <p v-if="query.isPending.value">正在載入作品…</p>
     <el-alert v-else-if="query.isError.value" title="無法載入作品" type="error" :closable="false"><el-button @click="query.refetch()">重新載入</el-button></el-alert>
     <div v-else-if="query.data.value?.content.length" class="resume-list" :class="{ 'resume-list--experiment': experimentId }"><WorkResumeEntry v-for="w in query.data.value.content" :key="w.id" :work="w" /></div>

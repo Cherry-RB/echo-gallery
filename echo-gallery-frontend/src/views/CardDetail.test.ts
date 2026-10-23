@@ -3,18 +3,21 @@ import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CardDto } from '../types/card'
 import CardDetail from './CardDetail.vue'
+import ExperimentThreads from '../components/experiment/ExperimentThreads.vue'
+import router from '../router'
 
 const queryState = vi.hoisted(() => ({
   card: undefined as CardDto | undefined,
   loading: false,
   error: false,
+  threads: [] as Array<{ threadId: number; threadName: string; experimentId: number; experimentTitle: string; role: string }>,
 }))
 
 vi.mock('@tanstack/vue-query', async () => {
   const { ref: vueRef } = await import('vue')
   return {
-    useQuery: () => ({
-      data: vueRef(queryState.card),
+    useQuery: (options: { queryKey: { value: string[] } }) => ({
+      data: vueRef(options.queryKey.value[0] === 'card-exploration-threads' ? queryState.threads : options.queryKey.value[0] === 'card-relations' ? [] : queryState.card),
       isLoading: vueRef(queryState.loading),
       isError: vueRef(queryState.error),
       refetch: vi.fn(),
@@ -84,6 +87,7 @@ const mountDetail = () => shallowMount(CardDetail, {
   props: { id: '7' },
   global: {
     stubs: {
+      SidePanel: false,
       'el-button': { template: '<button><slot /></button>' },
       'el-tag': { template: '<span><slot /></span>' },
       'el-result': { props: ['title'], template: '<section class="result-stub">{{ title }}<slot name="extra" /></section>' },
@@ -100,6 +104,22 @@ describe('CardDetail', () => {
     queryState.card = undefined
     queryState.loading = false
     queryState.error = false
+    queryState.threads = []
+    vi.mocked(router.push).mockClear()
+  })
+
+  it('點擊關聯探索線在卡片原頁開啟共用彈窗', async () => {
+    queryState.card = card
+    queryState.threads = [{ threadId: 3, threadName: '散步探索', experimentId: 8, experimentTitle: '生活實驗', role: 'MATERIAL' }]
+    const wrapper = mountDetail()
+    await wrapper.get('.experiment-context-item').trigger('click')
+    const dialog = wrapper.findComponent(ExperimentThreads)
+    expect(dialog.props()).toMatchObject({ experimentId: 8, initialThreadId: 3, dialogOnly: true })
+    expect(router.push).not.toHaveBeenCalled()
+    dialog.vm.$emit('closed')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent(ExperimentThreads).exists()).toBe(false)
+    wrapper.unmount()
   })
 
   it('載入期間不會同時顯示預設卡片內容', () => {

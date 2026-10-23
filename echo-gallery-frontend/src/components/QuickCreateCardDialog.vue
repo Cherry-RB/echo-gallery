@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TagSelection from './ui/TagSelection.vue'
 import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
 import type { FormInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -242,7 +243,7 @@ const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
         <div v-if="canPlaceCreatedCard" class="create-placement-actions">
           <span>接著安放（選填）</span>
           <div>
-            <el-button plain @click="addExperimentDialogVisible = true">放入實驗場</el-button>
+            <el-button plain @click="addExperimentDialogVisible = true">加入探索線</el-button>
             <el-button plain @click="addIssueDialogVisible = true">加入議題</el-button>
           </div>
         </div>
@@ -338,26 +339,7 @@ const limitTextLength = (field: 'title' | 'cardNote', maximum: number) => {
               <template #reference>
                 <el-button size="small" class="button-new-tag"><el-icon><Plus /></el-icon> 新增標籤</el-button>
               </template>
-              <div class="tag-popover-content">
-                <div class="tag-input-group">
-                  <el-input v-model="tagSearchQuery" placeholder="加上標籤或搜尋..." size="small" clearable @keyup.enter="handleConfirmAddTag" />
-                  <el-button type="primary" size="small" @click="handleConfirmAddTag">新增</el-button>
-                </div>
-                <div class="existing-tags-section">
-                  <div class="popover-subtitle">既有標籤（點選切換）</div>
-                  <div class="popover-tags-list">
-                    <el-tag
-                      v-for="tag in filteredExistingTags"
-                      :key="tag.id"
-                      size="small"
-                      :effect="cardData.tags.includes(tag.name) ? 'dark' : 'plain'"
-                      class="clickable-popover-tag"
-                      @click="handleToggleSelectTag(tag.name)"
-                    >{{ tag.name }}</el-tag>
-                    <div v-if="filteredExistingTags.length === 0" class="no-tag-tip">尚無符合的既有標籤</div>
-                  </div>
-                </div>
-              </div>
+              <TagSelection v-model:search="tagSearchQuery" :tags="filteredExistingTags" :selected="cardData.tags" @toggle="handleToggleSelectTag" @add="handleConfirmAddTag" />
             </el-popover>
           </div>
         </el-form-item>

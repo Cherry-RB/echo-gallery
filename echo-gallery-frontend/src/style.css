@@ -373,6 +373,13 @@ code {
   line-height: var(--leading-section-title);
 }
 
+.app-section-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 .app-section-eyebrow {
   display: block;
   margin: 0 0 var(--space-xs);

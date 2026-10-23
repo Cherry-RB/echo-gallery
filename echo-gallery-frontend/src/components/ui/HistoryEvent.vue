@@ -7,6 +7,7 @@ withDefaults(defineProps<{
   latest?: boolean
   manageable?: boolean
   useForWork?: boolean
+  useForThread?: boolean
   showTimeline?: boolean
   busy?: boolean
   dateFormat?: string
@@ -14,7 +15,7 @@ withDefaults(defineProps<{
   operationLabel?: string
 }>(), { dateFormat: 'YYYY/MM/DD HH:mm', operationLabel: '紀錄操作', showTimeline: true })
 
-const emit = defineEmits<{ command: ['edit' | 'delete' | 'use-work'] }>()
+const emit = defineEmits<{ command: ['edit' | 'delete' | 'use-work' | 'use-thread'] }>()
 </script>
 
 <template>
@@ -23,12 +24,13 @@ const emit = defineEmits<{ command: ['edit' | 'delete' | 'use-work'] }>()
     <article class="record-entry">
       <header class="record-header">
         <div class="record-time"><span v-if="latest" class="latest-label">最新</span><time :datetime="date">{{ datePrefix }}{{ formatDate(date, dateFormat) }}</time></div>
-        <el-dropdown v-if="manageable || useForWork" trigger="click" @command="emit('command', $event)">
+        <el-dropdown v-if="manageable || useForWork || useForThread" trigger="click" @command="emit('command', $event)">
           <button type="button" class="more-button" :disabled="busy" :aria-label="operationLabel"><el-icon><MoreFilled /></el-icon></button>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item v-if="useForThread" command="use-thread">加入探索線</el-dropdown-item>
               <el-dropdown-item v-if="useForWork" command="use-work">用於作品</el-dropdown-item>
-              <el-dropdown-item v-if="manageable" command="edit" :icon="Edit" :divided="useForWork">編輯</el-dropdown-item>
+              <el-dropdown-item v-if="manageable" command="edit" :icon="Edit" :divided="useForWork || useForThread">編輯</el-dropdown-item>
               <el-dropdown-item v-if="manageable" command="delete" :icon="Delete">刪除</el-dropdown-item>
             </el-dropdown-menu>
           </template>

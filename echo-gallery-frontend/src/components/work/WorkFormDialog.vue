@@ -2,7 +2,7 @@
 import { reactive, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import AppDialog from '../AppDialog.vue'
-import WorkInfoFields from './WorkInfoFields.vue'
+import WorkInfoFields, { WORK_FORM_WIDTH } from './WorkInfoFields.vue'
 import { useWorkDialogGuard } from '../../composables/useWorkDialogGuard'
 import { workApi } from '../../utils/api/workApi'
 import type { WorkDetail, WorkInfo } from '../../types/work'
@@ -35,7 +35,7 @@ async function save() {
 }
 </script>
 <template>
-  <AppDialog ref="shell" :model-value="modelValue" :title="work ? '編輯作品資訊' : '建立作品'" pattern="form" width="min(680px, calc(100vw - 32px))" :draft="form" :busy="saving" scroll-body @update:model-value="emit('update:modelValue', $event)">
+  <AppDialog ref="shell" :model-value="modelValue" :title="work ? '編輯作品資訊' : '建立作品'" pattern="form" :width="WORK_FORM_WIDTH" :draft="form" :busy="saving" scroll-body @update:model-value="emit('update:modelValue', $event)">
     <el-form label-position="top" :disabled="saving" @submit.prevent="save">
       <WorkInfoFields :model-value="form" :experiments="experiments.data.value" :original-mode="work?.work.editorMode" />
       <el-alert v-if="source" title="原始素材會加入參考來源，不會搬移或貼入正文。" :closable="false" />

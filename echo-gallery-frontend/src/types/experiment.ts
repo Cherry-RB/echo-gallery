@@ -1,13 +1,15 @@
-import type { CardContentRequest, CardType, PageResponse } from './card'
+import type { CardContentRequest, PageResponse } from './card'
 
-export type ExperimentStage = 'SEED' | 'GROWING' | 'MATURE'
 export type ExperimentThemeColor = 'LEAF' | 'LAKE' | 'AMBER' | 'LAVENDER' | 'CORAL' | 'MIST'
+export type ExplorationThreadStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'PAUSED' | 'CONCLUDED'
+export type ExplorationThreadCardRole = 'MATERIAL' | 'RESULT'
 
 export interface ExperimentDto {
   id: number
   title: string
   description: string | null
   hypothesis: string | null
+  conclusion: string | null
   currentTry: string | null
   explorationRecordCount: number
   themeColor: ExperimentThemeColor
@@ -19,66 +21,12 @@ export interface ExperimentDto {
   updatedAt: string
 }
 
-export interface ExperimentCardDto {
-  cardId: number
-  cardType: CardType
-  cardTitle: string
-  cardNote: string | null
-  cardTags: string[]
-  cardArchived: boolean
-  intervalDays: number | null
-  nextShowAt: string | null
-  needsProcessing: boolean
-  stage: ExperimentStage
-  note: string | null
-  addedAt: string
-}
-
 export interface ExperimentRequest {
   title: string
   description?: string
   hypothesis?: string
+  conclusion?: string
   themeColor?: ExperimentThemeColor
-}
-
-export interface ExperimentCardRequest {
-  cardId: number
-  stage: ExperimentStage
-  note?: string
-}
-
-export interface CardExperimentDto {
-  experimentId: number
-  experimentTitle: string
-  experimentHypothesis: string | null
-  experimentArchived: boolean
-  stage: ExperimentStage
-  note: string | null
-  addedAt: string
-}
-
-export interface CardLineageCardDto {
-  cardId: number
-  cardTitle: string
-  cardType: CardType
-  cardArchived: boolean
-}
-
-export interface CardRelationDto {
-  id: number
-  experimentId: number
-  experimentTitle: string
-  experimentHypothesis: string | null
-  relationType: 'DERIVED_FROM'
-  sourceCard: CardLineageCardDto
-  derivedCard: CardLineageCardDto
-  createdAt: string
-}
-
-export interface ExperimentGrowRequest extends CardContentRequest {
-  sourceCardIds: number[]
-  stage: ExperimentStage
-  note?: string
 }
 
 export interface ExperimentExplorationCardRequest extends CardContentRequest {
@@ -87,6 +35,7 @@ export interface ExperimentExplorationCardRequest extends CardContentRequest {
 
 export interface ExperimentExplorationDto {
   currentTry: string
+  currentTrySourceMethodId: number | null
   favoriteTries: string[]
   records: ExperimentExplorationRecordDto[]
 }
@@ -94,6 +43,7 @@ export interface ExperimentExplorationDto {
 export interface ExperimentExplorationRecordDto {
   id: number
   tryText: string | null
+  sourceThreadMethodId?: number | null
   discovery: string
   createdAt: string
   exports: Array<{
@@ -103,10 +53,106 @@ export interface ExperimentExplorationRecordDto {
   }>
 }
 
-export interface CardExperimentContextDto {
-  experiments: CardExperimentDto[]
-  relations: CardRelationDto[]
+export type ExperimentPage = PageResponse<ExperimentDto>
+
+export interface ExplorationThreadMethodDto {
+  id: number
+  content: string
+  sortOrder: number
+  sourceRecordId: number | null
+  createdAt: string
+  updatedAt: string
 }
 
-export type ExperimentPage = PageResponse<ExperimentDto>
-export type ExperimentCardPage = PageResponse<ExperimentCardDto>
+export interface ExplorationThreadRecordItemDto {
+  id: number
+  methodId: number | null
+  discovery: string
+  sortOrder: number
+  sourceRecordId: number | null
+  occurredAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ExplorationThreadCardDto {
+  id: number
+  cardId: number
+  cardTitle: string
+  cardNote: string | null
+  cardType: string
+  role: ExplorationThreadCardRole
+  note: string | null
+  sortOrder: number
+  cardArchived: boolean
+  createdAt: string
+}
+
+export interface ExplorationThreadWorkDto {
+  id: number
+  workId: number
+  workTitle: string
+  stage: string
+  workArchived: boolean
+  createdAt: string
+}
+
+export interface ExplorationThreadDto {
+  id: number
+  experimentId: number
+  name: string
+  status: ExplorationThreadStatus
+  conclusion: string | null
+  sortOrder: number
+  lastActivityAt: string
+  createdAt: string
+  updatedAt: string
+  methods: ExplorationThreadMethodDto[]
+  records: ExplorationThreadRecordItemDto[]
+  cards: ExplorationThreadCardDto[]
+  works: ExplorationThreadWorkDto[]
+}
+
+export interface ExplorationThreadSummaryDto {
+  id: number
+  experimentId: number
+  name: string
+  status: ExplorationThreadStatus
+  conclusion: string | null
+  sortOrder: number
+  lastActivityAt: string
+  materialCount: number
+  methodCount: number
+  recordCount: number
+  resultCardCount: number
+  workCount: number
+  firstMethodContent: string | null
+  recentMaterials: Array<{ cardId: number; title: string; note: string | null }>
+  recentRecords: Array<{ id: number; methodContent: string | null; discovery: string; occurredAt: string | null; createdAt: string }>
+}
+
+export interface CardExplorationThreadDto {
+  threadId: number
+  threadName: string
+  experimentId: number
+  experimentTitle: string
+  experimentArchived: boolean
+  status: ExplorationThreadStatus
+  role: ExplorationThreadCardRole
+  note: string | null
+}
+
+export interface ExplorationThreadRequest {
+  name: string
+  status?: ExplorationThreadStatus
+  conclusion?: string
+}
+
+export interface ExplorationThreadImportItem {
+  recordId: number
+  includeMethod: boolean
+  includeDiscovery: boolean
+  methodContent?: string
+  discovery?: string
+  targetMethodId?: number | null
+}

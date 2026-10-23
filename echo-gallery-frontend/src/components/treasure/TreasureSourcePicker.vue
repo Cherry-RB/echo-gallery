@@ -65,7 +65,7 @@ defineExpose({ confirm })
         <el-skeleton v-if="query.isLoading.value" :rows="3" animated />
         <el-button v-else-if="query.isError.value && !query.data.value" @click="query.refetch()">來源讀取失敗，重試</el-button>
         <div v-else class="source-options picker-results" aria-label="瀏覽來源">
-          <PickerOption v-for="item in candidates" :key="item.id" :title="item.title" :selected="isSelected(item)" @select="select(item)"><span>#{{ item.id }}</span><span v-for="text in item.metadata" :key="text">{{ text }}</span></PickerOption>
+          <PickerOption v-for="item in candidates" :key="item.id" :title="item.title" :selected="isSelected(item)" :multiple="sourceKind === 'treasure'" @select="select(item)"><span>#{{ item.id }}</span><span v-for="text in item.metadata" :key="text">{{ text }}</span></PickerOption>
           <p v-if="!candidates.length" class="app-field-help">{{ keyword ? '沒有符合搜尋條件的來源。' : '目前沒有可選擇的來源。' }}</p>
           <div v-if="query.hasNextPage.value && !query.isFetchNextPageError.value" class="load-more-row"><el-button :loading="query.isFetchingNextPage.value" @click="query.fetchNextPage()">載入更多</el-button></div>
           <el-button v-if="query.isFetchNextPageError.value" @click="query.fetchNextPage()">後續來源讀取失敗，重試</el-button>

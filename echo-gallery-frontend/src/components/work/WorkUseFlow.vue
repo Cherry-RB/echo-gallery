@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import AppDialog from '../AppDialog.vue'
-import WorkInfoFields from './WorkInfoFields.vue'
+import WorkInfoFields, { WORK_FORM_WIDTH } from './WorkInfoFields.vue'
 import PickerOption from '../ui/PickerOption.vue'
 import PickerWorkspace from '../ui/PickerWorkspace.vue'
 import SelectionSummary from '../ui/SelectionSummary.vue'
@@ -12,7 +12,7 @@ import { workStages } from '../../types/work'
 import { useWorkDialogGuard } from '../../composables/useWorkDialogGuard'
 import { workUseTarget } from '../../utils/workFlow'
 import { workApi } from '../../utils/api/workApi'
-import type { WorkInfo, WorkSource, WorkSummary } from '../../types/work'
+import type { WorkInfo, WorkSource } from '../../types/work'
 
 const router = useRouter()
 const client = useQueryClient()
@@ -56,7 +56,6 @@ const works = useQuery({
   queryFn: () => workApi.list(workParams.value),
   enabled: computed(() => !!workUseTarget.value && step.value === 'target' && mode.value === 'existing'),
 })
-const selectedWork = computed<WorkSummary | undefined>(() => works.data.value?.content.find(work => work.id === selectedWorkId.value))
 const selectedSourceCount = computed(() => selectedSources.size)
 const cardOriginTitle = computed(() => workUseTarget.value?.cardTitle || [...selectedSources.values()].find(source => source.cardId)?.title || '目前卡片')
 
@@ -144,7 +143,7 @@ async function save() {
 </script>
 
 <template>
-  <AppDialog v-if="!reading" ref="shell" :model-value="!!workUseTarget" title="用於作品" pattern="picker" width="min(980px, calc(100vw - 32px))" :draft="[step, mode, [...selectedSources.keys()], form, selectedWorkId]" :draft-baseline="draftBaseline" :busy="busy" scroll-body @update:model-value="workUseTarget = undefined">
+  <AppDialog v-if="!reading" ref="shell" :model-value="!!workUseTarget" title="用於作品" :pattern="step === 'sources' ? 'picker' : 'form'" :width="step === 'sources' ? 'min(980px, calc(100vw - 32px))' : mode === 'new' ? WORK_FORM_WIDTH : 'min(560px, calc(100vw - 32px))'" :draft="[step, mode, [...selectedSources.keys()], form, selectedWorkId]" :draft-baseline="draftBaseline" :busy="busy" scroll-body @update:model-value="workUseTarget = undefined">
     <template v-if="step === 'sources'">
       <p class="app-dialog-intro">選擇想用於同一件作品的探索紀錄。原始紀錄會保留。</p>
       <PickerWorkspace>
@@ -186,11 +185,8 @@ async function save() {
         <p v-if="works.isPending.value">正在載入作品…</p>
         <el-alert v-else-if="works.isError.value" title="無法載入作品" type="error" :closable="false"><el-button link type="primary" @click="works.refetch()">重新載入</el-button></el-alert>
         <p v-else-if="!works.data.value?.content.length">找不到符合條件的作品。</p>
-        <el-radio-group v-else v-model="selectedWorkId" class="work-options" :disabled="busy">
-          <el-radio v-for="work in works.data.value.content" :key="work.id" :value="work.id">{{ work.title }}<small>{{ work.experimentTitle || '未設定主要實驗' }} · {{ workStages[work.stage] }}</small></el-radio>
-        </el-radio-group>
+        <div v-else class="work-options"><PickerOption v-for="work in works.data.value.content" :key="work.id" :title="work.title" :selected="selectedWorkId === work.id" :disabled="busy" @select="selectedWorkId = work.id"><span>{{ work.experimentTitle || '未設定主要實驗' }} · {{ workStages[work.stage] }}</span></PickerOption></div>
         <el-pagination v-if="(works.data.value?.totalElements ?? 0) > 20" v-model:current-page="workPage" :disabled="busy" :page-size="20" :total="works.data.value?.totalElements ?? 0" layout="prev, pager, next" />
-        <SelectionSummary v-if="selectedWorkId" label="已選作品" :title="selectedWork?.title || '已選作品'" :metadata="selectedWork ? selectedWork.experimentTitle || '未設定主要實驗' : undefined" />
       </section>
     </template>
     <el-alert v-if="error" class="flow-error" :title="error" type="error" :closable="false" />
@@ -209,11 +205,7 @@ async function save() {
 .source-rule { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); }
 .selected-sources { display: grid; gap: var(--space-sm); }
 .el-form, .work-targets { margin-top: var(--space-md); }
-.work-options { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-xs); padding-block: var(--space-md); }
-.work-options :deep(.el-radio) { height: auto; margin: 0; padding: var(--space-sm); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-md); }
-.work-options :deep(.el-radio.is-checked) { border-color: var(--el-color-primary-light-7); background: var(--el-color-primary-light-9); }
-.work-options :deep(.el-radio__label) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
-.work-options small { display: block; margin-top: var(--space-2xs); color: var(--el-text-color-secondary); font-size: var(--type-metadata); }
+.work-options { display: grid; gap: var(--space-xs); margin-top: var(--space-sm); }
 .flow-error { margin-top: var(--space-md); }
 .el-pagination { margin-top: var(--space-md); }
 </style>

@@ -333,7 +333,7 @@ const deleteCard = async () => {
     <template #dropdown>
       <el-dropdown-menu>
         <el-dropdown-item v-if="!data.isArchived" @click.stop="addExperimentDialogVisible = true">
-          放入實驗場
+          加入探索線
         </el-dropdown-item>
         <el-dropdown-item v-if="!data.isArchived" @click.stop="addIssueDialogVisible = true">
           加入議題

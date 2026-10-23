@@ -96,6 +96,7 @@ defineExpose({ requestClose, confirmNavigation: () => confirmClose(() => emit('u
     @opened="emit('opened')"
     @closed="emit('closed')"
   >
+    <template v-if="$slots.header" #header><slot name="header" /></template>
     <slot />
     <template v-if="$slots.footer" #footer><slot name="footer" :request-close="requestClose" /></template>
   </el-dialog>

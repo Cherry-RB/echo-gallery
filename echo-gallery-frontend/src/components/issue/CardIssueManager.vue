@@ -7,6 +7,7 @@ import type { IssueCardStatus } from '../../types/issue'
 import { issueApi } from '../../utils/api/issueApi'
 import { issueStatusMeta } from '../../utils/issueStatus'
 import AddCardToIssueDialog from './AddCardToIssueDialog.vue'
+import SidePanel from '../ui/SidePanel.vue'
 
 const props = defineProps<{ cardId: string }>()
 const router = useRouter()
@@ -35,8 +36,8 @@ const openIssue = (issueId: number) => {
 </script>
 
 <template>
-  <el-card class="sidebar-card issue-relations-card">
-    <header class="issue-card-header">
+  <SidePanel class="issue-relations-card">
+    <header class="side-panel-heading">
       <div class="header-title">
         <el-icon><FolderOpened /></el-icon>
         <span>所在議題</span>
@@ -71,10 +72,10 @@ const openIssue = (issueId: number) => {
         v-for="relation in cardIssues"
         :key="relation.issueId"
         type="button"
-        class="relation-item"
+        class="relation-item side-relation"
         @click="openIssue(relation.issueId)"
       >
-        <span class="relation-title">{{ relation.issueTitle }}</span>
+        <span class="relation-title side-relation-title">{{ relation.issueTitle }}</span>
         <span class="relation-metadata">
           <el-tag
             :type="relationStatusMeta[relation.status].type"
@@ -96,7 +97,7 @@ const openIssue = (issueId: number) => {
       v-model="addIssueDialogVisible"
       :card-id="props.cardId"
     />
-  </el-card>
+  </SidePanel>
 </template>
 
 <style scoped>

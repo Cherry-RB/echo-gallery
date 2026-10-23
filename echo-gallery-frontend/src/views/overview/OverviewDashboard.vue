@@ -294,6 +294,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       :show-organize="false"
       @edit="editExplorationRecord"
       @delete="deleteExplorationRecord"
+      @add-thread="router.push({ path: '/experiments/' + historyExperimentId, query: { importRecord: $event == null ? 'all' : String($event) } })"
       @open-card="openCard"
     />
   </section>
