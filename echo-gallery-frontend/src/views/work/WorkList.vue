@@ -58,7 +58,7 @@ watch(() => route.fullPath, () => Object.assign(filters, filtersFromRoute()))
 </script>
 <template>
   <main class="work-library app-list-page app-page app-page--workspace">
-    <PageHeader title="我的作品" description="不同階段的創作，都能在這裡繼續。"><template #actions><el-button type="primary" :icon="Plus" @click="creating = true">建立作品</el-button></template></PageHeader>
+    <PageHeader title="爛紙頭" description="不同階段的創作，都能在這裡繼續。"><template #actions><el-button type="primary" :icon="Plus" @click="creating = true">建立作品</el-button></template></PageHeader>
     <div class="app-workspace app-workspace--edge-to-edge app-stack">
     <form class="work-toolbar app-toolbar" role="search" aria-label="搜尋與篩選作品" @submit.prevent="applyFilters">
       <el-radio-group :model-value="scope" class="app-list-scope" aria-label="作品範圍" @update:model-value="selectScope"><el-radio-button value="false">未封存</el-radio-button><el-radio-button value="true">已封存</el-radio-button><el-radio-button value="all">全部</el-radio-button></el-radio-group>

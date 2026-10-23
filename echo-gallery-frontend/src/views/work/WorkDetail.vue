@@ -40,7 +40,7 @@ const hasInitialLoadError = computed(() => initialLoadFailed.value || (query.isE
 </script>
 <template>
   <DetailShell v-if="waitingForLatest || hasInitialLoadError || !query.data.value">
-    <template #navigation><nav class="app-detail-navigation"><el-button text :icon="ArrowLeft" @click="router.push('/works')">返回我的作品</el-button></nav></template>
+    <template #navigation><nav class="app-detail-navigation"><el-button text :icon="ArrowLeft" @click="router.push('/works')">返回爛紙頭</el-button></nav></template>
     <el-skeleton v-if="waitingForLatest" :rows="8" animated aria-label="正在載入作品" aria-busy="true" />
     <el-result v-else icon="error" title="無法載入作品" sub-title="作品可能已被刪除，或暫時無法連線。"><template #extra><el-button @click="fetchInitial">重新載入</el-button></template></el-result>
   </DetailShell>
