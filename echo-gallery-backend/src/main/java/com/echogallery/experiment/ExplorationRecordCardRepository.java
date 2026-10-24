@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface ExplorationRecordCardRepository extends JpaRepository<ExplorationRecordCard, Long> {
 
-    interface ExperimentCardKey {
+    interface ExplorationMaterialKey {
         Long getExperimentId();
 
         Long getCardId();
@@ -29,7 +29,7 @@ public interface ExplorationRecordCardRepository extends JpaRepository<Explorati
             WHERE link.card.id IN :cardIds
               AND link.explorationRecord.experiment.user.id = :userId
             """)
-    List<ExperimentCardKey> findExplorationExperimentCardKeys(
+    List<ExplorationMaterialKey> findExplorationMaterialKeys(
             @Param("userId") Long userId,
             @Param("cardIds") Collection<Long> cardIds);
 }

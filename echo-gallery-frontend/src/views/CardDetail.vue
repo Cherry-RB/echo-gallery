@@ -95,12 +95,6 @@ const { data: cardThreads, isError: cardThreadsError, isPending: cardThreadsLoad
   refetchOnWindowFocus: false,
 });
 const linkedThreads = computed(() => cardThreads.value ?? []);
-const legacyRelationsQuery = useQuery({
-  queryKey: computed(() => ['card-relations', props.id]),
-  queryFn: () => experimentApi.getLegacyCardRelations(props.id),
-  enabled: computed(() => !isCreateMode.value && !!props.id),
-});
-
 const updateProcessingStatus = async (needsProcessing: boolean) => {
   const updated = await cardApi.updateProcessingStatus(props.id, needsProcessing);
   cardData.value.needsProcessing = updated.needsProcessing;
@@ -632,14 +626,6 @@ const {
               </div>
             </SidePanel>
 
-            <section v-if="legacyRelationsQuery.data.value?.length" class="experiment-context-section lineage-section">
-              <h3>歷史衍生脈絡</h3>
-              <div class="experiment-context-list">
-                <button v-for="relation in legacyRelationsQuery.data.value" :key="relation.id" type="button" class="experiment-context-item side-relation" @click="router.push('/card/' + (relation.sourceCard.cardId === Number(props.id) ? relation.derivedCard.cardId : relation.sourceCard.cardId))">
-                  <span>{{ relation.sourceCard.cardId === Number(props.id) ? '由此整理：' : '來源：' }}{{ relation.sourceCard.cardId === Number(props.id) ? relation.derivedCard.cardTitle : relation.sourceCard.cardTitle }}</span><small>{{ relation.experimentTitle }}</small>
-                </button>
-              </div>
-            </section>
             <ExperimentThreads v-if="openedThread" :key="openedThread.threadId" :experiment-id="openedThread.experimentId" :initial-thread-id="openedThread.threadId" dialog-only @closed="openedThread = undefined" />
             <AddCardToExperimentDialog
               v-if="addExperimentDialogVisible"

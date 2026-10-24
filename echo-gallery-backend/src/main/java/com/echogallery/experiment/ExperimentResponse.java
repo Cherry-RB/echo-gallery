@@ -12,9 +12,6 @@ public record ExperimentResponse(
         long explorationRecordCount,
         ExperimentThemeColor themeColor,
         boolean isArchived,
-        long seedCount,
-        long growingCount,
-        long matureCount,
         ZonedDateTime createdAt,
         ZonedDateTime updatedAt) {
 }

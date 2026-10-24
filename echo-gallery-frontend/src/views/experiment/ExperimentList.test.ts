@@ -10,7 +10,7 @@ vi.mock('vue-router', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('element-plus', async importOriginal => ({
   ...await importOriginal<typeof import('element-plus')>(), ElMessage: { success: vi.fn(), error: vi.fn() },
 }))
-const experiment = { id: 1, title: '探索主題', currentTry: '先試一次', explorationRecordCount: 1, themeColor: 'LEAF', seedCount: 1, growingCount: 0, matureCount: 0, updatedAt: '2026-10-16T00:00:00Z', isArchived: false }
+const experiment = { id: 1, title: '探索主題', currentTry: '先試一次', explorationRecordCount: 1, themeColor: 'LEAF', updatedAt: '2026-10-16T00:00:00Z', isArchived: false }
 const clients: QueryClient[] = []
 const wrappers: ReturnType<typeof mount>[] = []
 function render() {

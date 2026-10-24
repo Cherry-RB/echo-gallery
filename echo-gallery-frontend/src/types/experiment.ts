@@ -14,9 +14,6 @@ export interface ExperimentDto {
   explorationRecordCount: number
   themeColor: ExperimentThemeColor
   isArchived: boolean
-  seedCount: number
-  growingCount: number
-  matureCount: number
   createdAt: string
   updatedAt: string
 }

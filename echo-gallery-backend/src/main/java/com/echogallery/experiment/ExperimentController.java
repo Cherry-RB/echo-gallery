@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.echogallery.card.CardDetailResponse;
 import com.echogallery.card.PageResponse;
 
 import jakarta.validation.Valid;
@@ -66,53 +65,6 @@ public class ExperimentController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{experimentId}/cards")
-    public ResponseEntity<PageResponse<ExperimentCardResponse>> getCards(
-            @PathVariable("experimentId") Long experimentId,
-            @RequestParam(name = "stage") ExperimentStage stage,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "10") int size) {
-        return ResponseEntity.ok(experimentService.getExperimentCards(experimentId, stage, page, size));
-    }
-
-    @PostMapping("/{experimentId}/cards")
-    public ResponseEntity<ExperimentCardResponse> addCard(
-            @PathVariable("experimentId") Long experimentId,
-            @Valid @RequestBody ExperimentCardRequest request) {
-        return ResponseEntity.ok(experimentService.addExperimentCard(experimentId, request));
-    }
-
-    @PutMapping("/{experimentId}/cards/{cardId}/stage")
-    public ResponseEntity<ExperimentCardResponse> updateStage(
-            @PathVariable("experimentId") Long experimentId,
-            @PathVariable("cardId") Long cardId,
-            @Valid @RequestBody ExperimentCardStageRequest request) {
-        return ResponseEntity.ok(experimentService.updateExperimentCardStage(experimentId, cardId, request));
-    }
-
-    @PutMapping("/{experimentId}/cards/{cardId}/note")
-    public ResponseEntity<ExperimentCardResponse> updateNote(
-            @PathVariable("experimentId") Long experimentId,
-            @PathVariable("cardId") Long cardId,
-            @Valid @RequestBody ExperimentCardNoteRequest request) {
-        return ResponseEntity.ok(experimentService.updateExperimentCardNote(experimentId, cardId, request));
-    }
-
-    @DeleteMapping("/{experimentId}/cards/{cardId}")
-    public ResponseEntity<Void> removeCard(
-            @PathVariable("experimentId") Long experimentId,
-            @PathVariable("cardId") Long cardId) {
-        experimentService.removeExperimentCard(experimentId, cardId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{experimentId}/grow")
-    public ResponseEntity<CardDetailResponse> growCard(
-            @PathVariable("experimentId") Long experimentId,
-            @Valid @RequestBody ExperimentGrowRequest request) {
-        return ResponseEntity.ok(experimentService.growCard(experimentId, request));
-    }
-
     @GetMapping("/{experimentId}/exploration")
     public ResponseEntity<ExperimentExplorationResponse> getExploration(
             @PathVariable("experimentId") Long experimentId) {
@@ -163,14 +115,14 @@ public class ExperimentController {
     }
 
     @PostMapping("/{experimentId}/exploration/cards")
-    public ResponseEntity<CardDetailResponse> createExplorationCard(
+    public ResponseEntity<com.echogallery.card.CardDetailResponse> createExplorationCard(
             @PathVariable("experimentId") Long experimentId,
             @Valid @RequestBody ExperimentExplorationCardRequest request) {
         return ResponseEntity.ok(experimentService.createExplorationCard(experimentId, request));
     }
 
     @PostMapping("/{experimentId}/exploration/cards/{cardId}")
-    public ResponseEntity<CardDetailResponse> appendExplorationToCard(
+    public ResponseEntity<com.echogallery.card.CardDetailResponse> appendExplorationToCard(
             @PathVariable("experimentId") Long experimentId,
             @PathVariable("cardId") Long cardId,
             @Valid @RequestBody ExperimentExplorationAppendRequest request) {

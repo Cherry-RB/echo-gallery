@@ -13,9 +13,9 @@ const wrappers: ReturnType<typeof mount>[] = []
 const clients: QueryClient[] = []
 function render(yields: TreasureEvent[] = [], progress: TreasureEvent[] = []) {
   state.recent.mockResolvedValue({ period: {
-    flow: { reengagedCardCount: 0, reviewedCardCount: 0 }, generativity: { derivedCardCount: 0, sourceCardCount: 0 },
+    flow: { reengagedCardCount: 0, reviewedCardCount: 0 },
     treasureGrowth: { collectedCount: 0, promotedTreasureCount: 0, yieldTreasureCount: 0, yieldRecordCount: 0 },
-    recentTreasureYields: yields, recentTreasureProgress: progress, activities: [], derivedCards: [], recentExperimentMaterials: [],
+    recentTreasureYields: yields, recentTreasureProgress: progress, activities: [], recentExperimentMaterials: [],
   } })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   clients.push(client)

@@ -20,12 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.echogallery.card.Card;
 import com.echogallery.card.CardRepository;
-import com.echogallery.experiment.CardRelation;
-import com.echogallery.experiment.CardRelationRepository;
-import com.echogallery.experiment.CardRelationType;
 import com.echogallery.experiment.Experiment;
-import com.echogallery.experiment.ExperimentCard;
-import com.echogallery.experiment.ExperimentCardRepository;
 import com.echogallery.experiment.ExperimentExploration;
 import com.echogallery.experiment.ExperimentExplorationRecordCount;
 import com.echogallery.experiment.ExperimentExplorationRepository;
@@ -42,15 +37,13 @@ public class OverviewService {
 
     private static final List<Integer> ALLOWED_PERIOD_DAYS = List.of(7, 30, 90);
     private static final int EXPERIMENT_TRY_LIMIT = 9;
-    private static final int DERIVED_CARD_LIMIT = 12;
+    private static final int EXPERIMENT_MATERIAL_LIMIT = 12;
 
     private final CardRepository cardRepository;
     private final ExperimentRepository experimentRepository;
-    private final ExperimentCardRepository experimentCardRepository;
     private final ExperimentExplorationRepository experimentExplorationRepository;
     private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
     private final ExplorationRecordCardRepository explorationRecordCardRepository;
-    private final CardRelationRepository cardRelationRepository;
     private final ExplorationThreadCardRepository explorationThreadCardRepository;
     private final com.echogallery.treasure.TreasureService treasureService;
     private final Clock clock;
@@ -127,21 +120,14 @@ public class OverviewService {
         OverviewResponse.FlowMetricResponse flow = new OverviewResponse.FlowMetricResponse(
                 safeInt(cardRepository.countReengagedByUserId(userId, periodStartAt, periodEndAt)),
                 reviewedCardCount);
-        OverviewResponse.GenerativityMetricResponse generativity = new OverviewResponse.GenerativityMetricResponse(
-                safeInt(cardRelationRepository.countDistinctDerivedCardsByUserIdAndCreatedAtBetween(
-                        userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
-                safeInt(cardRelationRepository.countDistinctSourceCardsByUserIdAndCreatedAtBetween(
-                        userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)));
         var growth = treasureService.growth(periodStartAt, periodEndAt);
         var treasureActivity = treasureService.recentActivity(periodStartAt, periodEndAt);
         return new OverviewResponse.OverviewPeriodResponse(
                 flow,
-                generativity,
                 growth,
                 treasureActivity.yields(),
                 treasureActivity.progress(),
                 buildActivities(userId, periodStartAt, periodEndAt, growth),
-                findDerivedCards(userId, periodStartAt, periodEndAt),
                 findRecentExperimentMaterials(userId, periodStartAt, periodEndAt));
     }
 
@@ -201,8 +187,6 @@ public class OverviewService {
                 activity("offered", cardRepository.countByUserIdAndLastOfferedAtGreaterThanEqualAndLastOfferedAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("reviewed", cardRepository.countByUserIdAndLastOpenAtGreaterThanEqualAndLastOpenAtLessThan(userId, periodStartAt, periodEndAt)),
                 activity("experiment-material", recentExperimentMaterials(userId, periodStartAt, periodEndAt).size()),
-                activity("derived", cardRelationRepository.countDistinctDerivedCardsByUserIdAndCreatedAtBetween(
-                        userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt)),
                 activity("exploration-record", experimentExplorationRecordRepository
                         .countByExperimentUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                                 userId, periodStartAt, periodEndAt)),
@@ -211,82 +195,35 @@ public class OverviewService {
                 activity("treasure-yield", growth.yieldRecordCount()));
     }
 
-    private List<OverviewResponse.DerivedCardResponse> findDerivedCards(
-            Long userId,
-            ZonedDateTime periodStartAt,
-            ZonedDateTime periodEndAt) {
-        List<CardRelation> relations = cardRelationRepository.findRecentDerivedRelationsByUserId(
-                userId, CardRelationType.DERIVED_FROM, periodStartAt, periodEndAt);
-        Map<Long, List<CardRelation>> relationsByDerivedCard = relations.stream()
-                .collect(Collectors.groupingBy(relation -> relation.getDerivedCard().getId(), LinkedHashMap::new, Collectors.toList()));
-
-        return relationsByDerivedCard.values().stream()
-                .map(this::toDerivedCard)
-                .sorted(Comparator.comparing(OverviewResponse.DerivedCardResponse::createdAt).reversed())
-                .limit(DERIVED_CARD_LIMIT)
-                .toList();
-    }
-
-    private OverviewResponse.DerivedCardResponse toDerivedCard(List<CardRelation> relations) {
-        CardRelation first = relations.getFirst();
-        Card derivedCard = first.getDerivedCard();
-        List<OverviewResponse.LineageCardResponse> sourceCards = relations.stream()
-                .map(CardRelation::getSourceCard)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(Card::getId, card -> card, (left, right) -> left, LinkedHashMap::new))
-                .values().stream()
-                .map(card -> new OverviewResponse.LineageCardResponse(card.getId(), card.getTitle()))
-                .toList();
-        return new OverviewResponse.DerivedCardResponse(
-                derivedCard.getId(),
-                derivedCard.getTitle(),
-                relations.stream().map(CardRelation::getCreatedAt).max(Comparator.naturalOrder()).orElse(first.getCreatedAt()),
-                first.getExperiment().getId(),
-                first.getExperiment().getTitle(),
-                sourceCards,
-                derivedCard.getTags().stream().map(tag -> tag.getName()).sorted().toList());
-    }
-
     private List<OverviewResponse.ExperimentMaterialResponse> findRecentExperimentMaterials(
             Long userId,
             ZonedDateTime periodStartAt,
             ZonedDateTime periodEndAt) {
         List<ExperimentMaterial> materials = recentExperimentMaterials(userId, periodStartAt, periodEndAt);
-        Set<ExperimentCardKey> explorationCardKeys = materials.isEmpty()
+        Set<ExplorationMaterialKey> explorationCardKeys = materials.isEmpty()
                 ? Set.of()
-                : explorationRecordCardRepository.findExplorationExperimentCardKeys(
+                : explorationRecordCardRepository.findExplorationMaterialKeys(
                                 userId, materials.stream().map(material -> material.card().getId()).toList())
                         .stream()
-                        .map(key -> new ExperimentCardKey(key.getExperimentId(), key.getCardId()))
+                        .map(key -> new ExplorationMaterialKey(key.getExperimentId(), key.getCardId()))
                         .collect(Collectors.toSet());
-        return materials.stream().limit(DERIVED_CARD_LIMIT)
+        return materials.stream().limit(EXPERIMENT_MATERIAL_LIMIT)
                 .map(material -> toExperimentMaterial(material, explorationCardKeys))
                 .toList();
     }
 
     private List<ExperimentMaterial> recentExperimentMaterials(Long userId, ZonedDateTime periodStartAt,
             ZonedDateTime periodEndAt) {
-        List<ExperimentMaterial> materials = new ArrayList<>();
-        experimentCardRepository.findAllStandaloneMaterialsByUserId(
-                        userId,
-                        CardRelationType.DERIVED_FROM,
-                        periodStartAt,
-                        periodEndAt)
-                .forEach(link -> materials.add(new ExperimentMaterial(link.getExperiment(), link.getCard(), link.getAddedAt())));
-        explorationThreadCardRepository.findRecentMaterials(userId, periodStartAt, periodEndAt)
-                .forEach(link -> materials.add(new ExperimentMaterial(link.getThread().getExperiment(), link.getCard(), link.getCreatedAt())));
-        Map<ExperimentCardKey, ExperimentMaterial> unique = new LinkedHashMap<>();
-        materials.stream().sorted(Comparator.comparing(ExperimentMaterial::addedAt).reversed())
-                .forEach(material -> unique.putIfAbsent(
-                        new ExperimentCardKey(material.experiment().getId(), material.card().getId()), material));
-        return unique.values().stream().toList();
+        return explorationThreadCardRepository.findRecentMaterials(userId, periodStartAt, periodEndAt).stream()
+                .map(link -> new ExperimentMaterial(link.getThread().getExperiment(), link.getCard(), link.getCreatedAt()))
+                .toList();
     }
 
     private OverviewResponse.ExperimentMaterialResponse toExperimentMaterial(
             ExperimentMaterial material,
-            Set<ExperimentCardKey> explorationCardKeys) {
+            Set<ExplorationMaterialKey> explorationCardKeys) {
         Card card = material.card();
-        ExperimentCardKey key = new ExperimentCardKey(material.experiment().getId(), card.getId());
+        ExplorationMaterialKey key = new ExplorationMaterialKey(material.experiment().getId(), card.getId());
         return new OverviewResponse.ExperimentMaterialResponse(
                 card.getId(),
                 card.getTitle(),
@@ -298,7 +235,7 @@ public class OverviewService {
     }
 
     private record ExperimentMaterial(Experiment experiment, Card card, ZonedDateTime addedAt) {}
-    private record ExperimentCardKey(Long experimentId, Long cardId) {
+    private record ExplorationMaterialKey(Long experimentId, Long cardId) {
     }
 
     private OverviewResponse.ExperimentTryResponse toExperimentTry(

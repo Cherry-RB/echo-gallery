@@ -19,29 +19,17 @@ export interface OverviewResponse {
   }
   period: {
     flow: { reengagedCardCount: number; reviewedCardCount: number }
-    generativity: { derivedCardCount: number; sourceCardCount: number }
     treasureGrowth: TreasureGrowth
     recentTreasureYields: TreasureEvent[]
     recentTreasureProgress: TreasureEvent[]
     activities: OverviewActivity[]
-    derivedCards: OverviewDerivedCard[]
     recentExperimentMaterials: OverviewExperimentMaterial[]
   }
 }
 
 export interface OverviewActivity {
-  key: 'created' | 'offered' | 'reviewed' | 'experiment-material' | 'derived' | 'exploration-record' | 'treasure-collected' | 'treasure-promoted' | 'treasure-yield'
+  key: 'created' | 'offered' | 'reviewed' | 'experiment-material' | 'exploration-record' | 'treasure-collected' | 'treasure-promoted' | 'treasure-yield'
   value: number
-}
-
-export interface OverviewDerivedCard {
-  cardId: number
-  title: string
-  createdAt: string
-  experimentId: number
-  experimentTitle: string
-  sourceCards: Array<{ cardId: number; title: string }>
-  tags: string[]
 }
 
 export interface OverviewExperimentMaterial {

@@ -19,12 +19,10 @@ const { data: overview, isLoading, isError, refetch } = useQuery({
 
 const period = computed(() => overview.value?.period ?? {
   flow: { reengagedCardCount: 0, reviewedCardCount: 0 },
-  generativity: { derivedCardCount: 0, sourceCardCount: 0 },
   treasureGrowth: { collectedCount: 0, promotedTreasureCount: 0, yieldTreasureCount: 0, yieldRecordCount: 0 },
   recentTreasureYields: [],
   recentTreasureProgress: [],
   activities: [],
-  derivedCards: [],
   recentExperimentMaterials: [],
 })
 
@@ -36,13 +34,12 @@ const treasureSections = computed(() => [
 ])
 
 const periodFigures = computed(() => [
-  { key: 'reengaged', value: period.value.flow.reengagedCardCount, unit: '張', label: '故物重逢', description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`, explanation: '建立於這段時間之前，且在這段時間重新被閱讀、加入探索線或成為衍生來源的卡片。不是越高越好。' },
-  { key: 'derived', value: period.value.generativity.derivedCardCount, unit: '張', label: '新枝萌生', description: `${period.value.generativity.sourceCardCount} 張既有卡片成為來源`, explanation: '保留一張或多張來源卡關係而建立的新卡；單純新增收藏或加入探索線不計入。' },
+  { key: 'reengaged', value: period.value.flow.reengagedCardCount, unit: '張', label: '故物重逢', description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`, explanation: '建立於這段時間之前，且在這段時間重新被閱讀或加入探索線的卡片。不是越高越好。' },
   { key: 'treasure-yield', value: period.value.treasureGrowth.yieldTreasureCount, unit: '件', label: '奇珍再現價值', description: `留下 ${period.value.treasureGrowth.yieldRecordCount} 筆收益`, explanation: '以實際發生日期計算。相同成果的多筆收益仍為一件奇珍；設定挑戰不算產出，也不代表已取得收入。' },
 ])
 
 const activityDefinitions = {
-  created: '新增卡片', offered: '今日回流再次出現', reviewed: '完成回顧', 'experiment-material': '加入探索材料', derived: '整理出新卡', 'exploration-record': '留下探索發現', 'treasure-collected': '奇珍入藏', 'treasure-promoted': '曾晉級的奇珍', 'treasure-yield': '奇珍收益',
+  created: '新增卡片', offered: '今日回流再次出現', reviewed: '完成回顧', 'experiment-material': '加入探索材料', 'exploration-record': '留下探索發現', 'treasure-collected': '奇珍入藏', 'treasure-promoted': '曾晉級的奇珍', 'treasure-yield': '奇珍收益',
 } as const
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', { month: 'numeric', day: 'numeric' }).format(new Date(value))
@@ -79,19 +76,8 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
         </section>
 
         <div class="content-grid">
-          <section class="content-panel" aria-labelledby="overview-derived-title">
-            <div class="section-title-row"><div><span class="section-eyebrow">新理解</span><h2 id="overview-derived-title">從舊日積累中長出的新篇章</h2></div></div>
-            <div v-if="period.derivedCards.length" class="content-list">
-              <article v-for="card in period.derivedCards.slice(0, 3)" :key="card.cardId" class="content-card">
-                <button type="button" class="content-card-main" @click="openCard(card.cardId)"><span>{{ formatDate(card.createdAt) }} 長出</span><h3>{{ card.title }}</h3></button>
-                <p>來自 {{ card.sourceCards.map(source => source.title).join('・') }}</p><button type="button" class="context-link" @click="openExperiment(card.experimentId)">{{ card.experimentTitle }}</button>
-              </article>
-            </div>
-            <p v-else class="empty-copy">這段時間沒有保留來源關係的新卡。</p>
-          </section>
-
           <section class="content-panel" aria-labelledby="overview-materials-title">
-            <div class="section-title-row"><div><span class="section-eyebrow">材料聚集</span><h2 id="overview-materials-title">新到手的探索材料</h2></div><el-tooltip content="這些是近期加入探索線、但不是從既有卡片衍生而來的材料；它們不計入「新枝萌生」。" placement="top"><el-icon class="info-icon"><InfoFilled /></el-icon></el-tooltip></div>
+            <div class="section-title-row"><div><span class="section-eyebrow">材料聚集</span><h2 id="overview-materials-title">新到手的探索材料</h2></div><el-tooltip content="這些是近期加入探索線的材料。" placement="top"><el-icon class="info-icon"><InfoFilled /></el-icon></el-tooltip></div>
             <div v-if="period.recentExperimentMaterials.length" class="content-list">
               <article v-for="material in period.recentExperimentMaterials.slice(0, 3)" :key="`${material.experimentId}-${material.cardId}`" class="content-card">
                 <button type="button" class="content-card-main" @click="openCard(material.cardId)"><span>{{ formatDate(material.addedAt) }} · {{ material.sourceKind === 'EXPLORATION' ? '探索整理' : '放入材料' }}</span><h3>{{ material.title }}</h3></button>

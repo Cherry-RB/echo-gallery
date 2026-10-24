@@ -125,7 +125,7 @@ class OverviewIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.periodDays").value(30))
                 .andExpect(jsonPath("$.period.flow.reengagedCardCount").value(1))
-                .andExpect(jsonPath("$.period.activities.length()").value(9))
+                .andExpect(jsonPath("$.period.activities.length()").value(8))
                 .andExpect(jsonPath("$.period.activities[3].key").value("experiment-material"))
                 .andExpect(jsonPath("$.period.activities[3].value").value(1))
                 .andExpect(jsonPath("$.period.recentExperimentMaterials[0].cardId").value(cardId))

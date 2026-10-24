@@ -67,9 +67,6 @@ export const experimentApi = {
   getCardThreads(cardId: string | number): Promise<CardExplorationThreadDto[]> {
     return request({ url: `/cards/${cardId}/exploration-threads`, method: 'GET' })
   },
-  getLegacyCardRelations(cardId: string | number): Promise<Array<{ id: number; experimentId: number; experimentTitle: string; sourceCard: { cardId: number; cardTitle: string }; derivedCard: { cardId: number; cardTitle: string } }>> {
-    return request({ url: `/cards/${cardId}/relations`, method: 'GET' })
-  },
   getThreads(experimentId: number): Promise<ExplorationThreadDto[]> {
     return request({ url: `/experiments/${experimentId}/threads`, method: 'GET' })
   },
