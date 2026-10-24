@@ -18,7 +18,7 @@ public class CardExplorationThreadController {
     private final ExplorationThreadService service;
 
     @GetMapping
-    public ResponseEntity<List<CardExplorationThreadResponse>> list(@PathVariable Long cardId) {
+    public ResponseEntity<List<CardExplorationThreadResponse>> list(@PathVariable("cardId") Long cardId) {
         return ResponseEntity.ok(service.listByCard(cardId));
     }
 }

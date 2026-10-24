@@ -11,7 +11,7 @@ public class WorkExplorationThreadController {
     private final ExplorationThreadService service;
 
     @GetMapping
-    public List<WorkThreadResponse> list(@PathVariable Long workId) {
+    public List<WorkThreadResponse> list(@PathVariable("workId") Long workId) {
         return service.listByWork(workId);
     }
 
