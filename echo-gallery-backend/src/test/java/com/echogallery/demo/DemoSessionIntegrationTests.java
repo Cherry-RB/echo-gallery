@@ -31,6 +31,9 @@ import com.echogallery.user.User;
 import com.echogallery.user.UserRepository;
 import com.echogallery.issue.IssueCardRepository;
 import com.echogallery.issue.IssueRepository;
+import com.echogallery.experiment.ExperimentRepository;
+import com.echogallery.experiment.ExplorationThreadRepository;
+import com.echogallery.work.CreativeWorkRepository;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -45,6 +48,9 @@ class DemoSessionIntegrationTests extends IntegrationTestBase {
     @Autowired UserRepository userRepository;
     @Autowired IssueCardRepository issueCardRepository;
     @Autowired IssueRepository issueRepository;
+    @Autowired ExperimentRepository experimentRepository;
+    @Autowired ExplorationThreadRepository explorationThreadRepository;
+    @Autowired CreativeWorkRepository workRepository;
     @Autowired DemoSessionService demoSessionService;
     @Autowired MutableClock clock;
 
@@ -90,6 +96,7 @@ class DemoSessionIntegrationTests extends IntegrationTestBase {
         assertLibrary(session.userId(), "writing", 15, 10);
         assertThat(cardRepository.findAllByUserId(session.userId()))
                 .extracting(Card::getTitle).doesNotContain("使用者已修改的資料");
+        assertThat(workRepository.countByUserId(session.userId())).isEqualTo(1);
         today(resetToken).andExpect(jsonPath("$.cards.length()").value(5));
     }
 
@@ -97,6 +104,14 @@ class DemoSessionIntegrationTests extends IntegrationTestBase {
     void expiredSessionsAreRejectedAndCleanupRemovesOnlyExpiredDemoData() throws Exception {
         DemoSession expired = start("tech");
         DemoSession active = start("visual");
+        long experimentId = createExperiment(expired.token(), "demo cleanup experiment");
+        long cardId = cardRepository.findAllByUserId(expired.userId()).getFirst().getId();
+        mockMvc.perform(post("/api/experiments/{id}/threads/materials", experimentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(expired.token()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"demo cleanup thread\",\"cardId\":%d}".formatted(cardId)))
+                .andExpect(status().isOk());
+        assertThat(explorationThreadRepository.countByExperimentId(experimentId)).isEqualTo(1);
         User expiredUser = userRepository.findById(expired.userId()).orElseThrow();
         expiredUser.setDemoExpiresAt(ZonedDateTime.now(clock).minusMinutes(1));
         userRepository.saveAndFlush(expiredUser);
@@ -108,6 +123,8 @@ class DemoSessionIntegrationTests extends IntegrationTestBase {
         demoSessionService.clearExpiredSessions();
         assertThat(userRepository.findById(expired.userId())).isEmpty();
         assertThat(cardRepository.findAllByUserId(expired.userId())).isEmpty();
+        assertThat(workRepository.countByUserId(expired.userId())).isZero();
+        assertThat(explorationThreadRepository.countByExperimentId(experimentId)).isZero();
         assertThat(userRepository.findById(active.userId())).isPresent();
         assertThat(cardRepository.findAllByUserId(active.userId())).hasSize(15);
     }
@@ -136,6 +153,16 @@ class DemoSessionIntegrationTests extends IntegrationTestBase {
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("token").asText();
+    }
+
+    private long createExperiment(String token, String title) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/experiments")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"%s\",\"hypothesis\":\"demo hypothesis\"}".formatted(title)))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
     }
 
     private org.springframework.test.web.servlet.ResultActions today(String token) throws Exception {

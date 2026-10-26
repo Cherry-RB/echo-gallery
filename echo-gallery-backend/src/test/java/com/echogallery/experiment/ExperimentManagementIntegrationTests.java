@@ -369,6 +369,83 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
         mockMvc.perform(delete("/api/creative-works/" + workId).header(HttpHeaders.AUTHORIZATION, bearer(token))).andExpect(status().isNoContent());
     }
 
+    @Test
+    void deletingCardWorkAndSourceRecordKeepsThreadDataConsistent() throws Exception {
+        String token = register("thread-cleanup", "thread-cleanup@example.com");
+        long experimentId = createExperiment(token, "cleanup experiment");
+        long cardId = createCard(token, "cleanup card");
+        String root = "/api/experiments/" + experimentId + "/threads";
+
+        MvcResult created = mockMvc.perform(post(root + "/materials")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"cleanup thread\",\"cardId\":%d}".formatted(cardId)))
+                .andExpect(status().isOk())
+                .andReturn();
+        long threadId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asLong();
+        String thread = root + "/" + threadId;
+
+        MvcResult work = mockMvc.perform(post("/api/creative-works")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"cleanup work\",\"editorMode\":\"INTERNAL\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        long workId = objectMapper.readTree(work.getResponse().getContentAsString()).get("work").get("id").asLong();
+        mockMvc.perform(post(thread + "/works")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"workId\":%d}".formatted(workId)))
+                .andExpect(status().isOk());
+
+        MvcResult sourceRecord = mockMvc.perform(post("/api/experiments/{id}/exploration/records", experimentId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"discovery\":\"source discovery\",\"includeCurrentTry\":false}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        long sourceRecordId = objectMapper.readTree(sourceRecord.getResponse().getContentAsString())
+                .get("records").get(0).get("id").asLong();
+        mockMvc.perform(post(thread + "/imports")
+                .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"items":[{
+                          "recordId":%d,
+                          "includeMethod":true,
+                          "includeDiscovery":true,
+                          "methodContent":"source method",
+                          "discovery":"thread discovery"
+                        }]}
+                        """.formatted(sourceRecordId)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/cards/{id}", cardId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get(thread).header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.length()").value(0))
+                .andExpect(jsonPath("$.works.length()").value(1));
+
+        mockMvc.perform(delete("/api/creative-works/{id}", workId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get(thread).header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.works.length()").value(0));
+
+        mockMvc.perform(delete("/api/experiments/{experimentId}/exploration/records/{recordId}", experimentId, sourceRecordId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get(thread).header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.methods[0].content").value("source method"))
+                .andExpect(jsonPath("$.methods[0].sourceRecordId").doesNotExist())
+                .andExpect(jsonPath("$.records[0].discovery").value("thread discovery"))
+                .andExpect(jsonPath("$.records[0].sourceRecordId").doesNotExist());
+    }
+
     private long createExperiment(String token, String title) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/experiments")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token))
