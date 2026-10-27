@@ -136,7 +136,7 @@ const handleClosed = () => {
 
 .update-field {
   display: block;
-  margin-top: 22px;
+  margin-top: var(--space-md);
 }
 
 .update-field > span {
