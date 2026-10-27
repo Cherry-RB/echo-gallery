@@ -78,11 +78,10 @@ class WorkIntegrationTests extends IntegrationTestBase {
         var user = works.findById(work).orElseThrow().getUser();
         var card = cards.saveAndFlush(Card.builder().user(user).title("封存素材").type("note").content("卡片全文").isArchived(true).build());
         var exp = new Experiment(); exp.setUser(user); exp.setTitle("來源實驗"); exp.setArchived(true); exp = experiments.saveAndFlush(exp);
-        var record = records.saveAndFlush(ExperimentExplorationRecord.builder().experiment(exp).tryText("試法關鍵字").discovery("發現全文").build());
-        var payload = Map.of("sources", List.of(Map.of("cardId", card.getId()), Map.of("recordId", record.getId())));
-        send(post(ROOT + "/{id}/sources", work), token, payload).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
-        send(post(ROOT + "/{id}/sources", work), token, payload).andExpect(jsonPath("$.length()").value(2));
-        send(get(ROOT + "/candidates").param("kind", "RECORD").param("keyword", "關鍵字"), token, null).andExpect(jsonPath("$.content[0].recordId").value(record.getId()));
+        var payload = Map.of("sources", List.of(Map.of("cardId", card.getId())));
+        send(post(ROOT + "/{id}/sources", work), token, payload).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        send(post(ROOT + "/{id}/sources", work), token, payload).andExpect(jsonPath("$.length()").value(1));
+        send(get(ROOT + "/candidates").param("kind", "RECORD"), token, null).andExpect(status().isBadRequest());
         send(get(ROOT + "/usages").param("cardIds", card.getId().toString()), token, null).andExpect(jsonPath("$[0].workId").value(work));
         send(get(ROOT + "/{id}", work), token, null).andExpect(jsonPath("$.work.experimentId").isEmpty()).andExpect(jsonPath("$.body").value(""));
         send(put(ROOT + "/{id}", work), token, Map.of("title", "跨域素材", "editorMode", "INTERNAL", "experimentId", exp.getId())).andExpect(status().isOk());
@@ -93,29 +92,12 @@ class WorkIntegrationTests extends IntegrationTestBase {
         assertThat(works.findById(work)).isPresent();
         send(get(ROOT + "/{id}", work), token, null).andExpect(jsonPath("$.work.experimentId").isEmpty()).andExpect(jsonPath("$.body").value("已貼入的文字仍保留"));
     }
-    @Test void recordSourcesPreserveSeparateFieldsAndParagraphs() throws Exception {
-        String token = register(); long work = create(token, "來源欄位");
-        var user = works.findById(work).orElseThrow().getUser();
-        var exp = new Experiment(); exp.setUser(user); exp.setTitle("欄位測試"); exp = experiments.saveAndFlush(exp);
-        var discoveryOnly = records.saveAndFlush(ExperimentExplorationRecord.builder().experiment(exp)
-                .discovery("只有發現\n\n第二段發現").build());
-        var paragraphs = records.saveAndFlush(ExperimentExplorationRecord.builder().experiment(exp)
-                .tryText("試法第一段\n\n試法第二段").discovery("真正的發現").build());
-        send(get(ROOT + "/candidates").param("kind", "RECORD").param("experimentId", exp.getId().toString()), token, null)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].tryText").value("試法第一段\n\n試法第二段"))
-                .andExpect(jsonPath("$.content[0].discovery").value("真正的發現"))
-                .andExpect(jsonPath("$.content[1].tryText").isEmpty())
-                .andExpect(jsonPath("$.content[1].discovery").value("只有發現\n\n第二段發現"));
-        send(post(ROOT + "/{id}/sources", work), token,
-                Map.of("sources", List.of(Map.of("recordId", discoveryOnly.getId()), Map.of("recordId", paragraphs.getId()))))
-                .andExpect(status().isOk());
-        send(get(ROOT + "/{id}/sources", work), token, null)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].tryText").value("試法第一段\n\n試法第二段"))
-                .andExpect(jsonPath("$[0].discovery").value("真正的發現"))
-                .andExpect(jsonPath("$[1].tryText").isEmpty())
-                .andExpect(jsonPath("$[1].text").value("只有發現\n\n第二段發現"));
+    @Test void temporaryRecordsCannotBeAddedToWorkSources() throws Exception {
+        String token = register(); long work = create(token, "卡片素材");
+        send(get(ROOT + "/candidates").param("kind", "RECORD"), token, null).andExpect(status().isBadRequest());
+        send(post(ROOT + "/{id}/sources", work), token, Map.of("sources", List.of(Map.of("recordId", 999L))))
+                .andExpect(status().isBadRequest());
+        send(get(ROOT + "/{id}/sources", work), token, null).andExpect(jsonPath("$.length()").value(0));
     }
     @Test void foreignOwnersCannotReadWriteOrAttach() throws Exception {
         String a = register(), b = register(); long work = create(a, "私人作品"), other = create(b, "他人作品");

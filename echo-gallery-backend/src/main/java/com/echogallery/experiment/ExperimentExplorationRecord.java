@@ -1,68 +1,26 @@
 package com.echogallery.experiment;
-
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
-
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.*;
 @Entity
 @Table(name = "experiment_exploration_records", indexes = {
-        @Index(name = "idx_exploration_records_experiment_created", columnList = "experiment_id, created_at"),
-        @Index(name = "idx_exploration_records_source_thread_method", columnList = "source_thread_method_id")
+    @Index(name = "idx_discoveries_experiment_time", columnList = "experiment_id, occurred_at, id"),
+    @Index(name = "idx_discoveries_thread_time", columnList = "thread_id, occurred_at, id"),
+    @Index(name = "idx_discoveries_method_time", columnList = "method_id, occurred_at, id")
 })
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ExperimentExplorationRecord {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "experiment_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    private Experiment experiment;
-
-    @Column(name = "try_text", columnDefinition = "TEXT")
-    private String tryText;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "source_thread_method_id")
-    @OnDelete(action = OnDeleteAction.SET_NULL)
-    private ExplorationThreadMethod sourceThreadMethod;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String discovery;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private ZonedDateTime createdAt;
-
-    @OneToMany(mappedBy = "explorationRecord", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<ExplorationRecordCard> exports = new ArrayList<>();
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "experiment_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE) private Experiment experiment;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "thread_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE) private ExplorationThread thread;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "method_id") private ExplorationThreadMethod method;
+    @Column(nullable = false, columnDefinition = "TEXT") private String discovery;
+    @Column(name = "occurred_at", nullable = false) private ZonedDateTime occurredAt;
+    @Column(nullable = false) private long version;
+    @CreationTimestamp @Column(name = "created_at", nullable = false, updatable = false) private ZonedDateTime createdAt;
+    @UpdateTimestamp @Column(name = "updated_at", nullable = false) private ZonedDateTime updatedAt;
+    public String getTryText() { return method == null ? null : method.getContent(); }
 }

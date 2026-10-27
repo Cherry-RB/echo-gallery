@@ -26,7 +26,6 @@ import com.echogallery.experiment.ExperimentExplorationRecordCount;
 import com.echogallery.experiment.ExperimentExplorationRepository;
 import com.echogallery.experiment.ExperimentExplorationRecordRepository;
 import com.echogallery.experiment.ExperimentRepository;
-import com.echogallery.experiment.ExplorationRecordCardRepository;
 import com.echogallery.experiment.ExplorationThreadCardRepository;
 import com.echogallery.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +42,6 @@ public class OverviewService {
     private final ExperimentRepository experimentRepository;
     private final ExperimentExplorationRepository experimentExplorationRepository;
     private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
-    private final ExplorationRecordCardRepository explorationRecordCardRepository;
     private final ExplorationThreadCardRepository explorationThreadCardRepository;
     private final com.echogallery.treasure.TreasureService treasureService;
     private final Clock clock;
@@ -74,12 +72,12 @@ public class OverviewService {
         int highSnoozeCardCount = safeInt(cardRepository.countActiveByUserIdAndSnoozeCountGreaterThanEqual(userId, 3));
         List<Experiment> activeExperiments = experimentRepository
                 .findByUserIdAndIsArchivedFalseOrderByUpdatedAtDescIdDesc(userId, PageRequest.of(0, EXPERIMENT_TRY_LIMIT));
-        Map<Long, ExperimentExploration> explorationsByExperimentId = activeExperiments.isEmpty()
+        Map<Long, ExperimentExplorationRepository.CurrentTry> explorationsByExperimentId = activeExperiments.isEmpty()
                 ? Map.of()
-                : experimentExplorationRepository.findByExperimentIdIn(
+                : experimentExplorationRepository.currentTries(
                         activeExperiments.stream().map(Experiment::getId).toList())
                         .stream()
-                        .collect(Collectors.toMap(exploration -> exploration.getExperiment().getId(), exploration -> exploration));
+                        .collect(Collectors.toMap(ExperimentExplorationRepository.CurrentTry::getExperimentId, exploration -> exploration));
         Map<Long, Long> explorationRecordCounts = activeExperiments.isEmpty()
                 ? Map.of()
                 : experimentExplorationRecordRepository.countByExperimentIds(
@@ -202,7 +200,7 @@ public class OverviewService {
         List<ExperimentMaterial> materials = recentExperimentMaterials(userId, periodStartAt, periodEndAt);
         Set<ExplorationMaterialKey> explorationCardKeys = materials.isEmpty()
                 ? Set.of()
-                : explorationRecordCardRepository.findExplorationMaterialKeys(
+                : explorationThreadCardRepository.findExplorationMaterialKeys(
                                 userId, materials.stream().map(material -> material.card().getId()).toList())
                         .stream()
                         .map(key -> new ExplorationMaterialKey(key.getExperimentId(), key.getCardId()))
@@ -240,7 +238,7 @@ public class OverviewService {
 
     private OverviewResponse.ExperimentTryResponse toExperimentTry(
             Experiment experiment,
-            ExperimentExploration exploration,
+            ExperimentExplorationRepository.CurrentTry exploration,
             long explorationRecordCount) {
         return new OverviewResponse.ExperimentTryResponse(
                 experiment.getId(),

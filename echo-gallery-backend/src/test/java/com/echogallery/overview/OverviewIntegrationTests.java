@@ -53,15 +53,15 @@ class OverviewIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andReturn();
         long experimentId = objectMapper.readTree(experimentResult.getResponse().getContentAsString()).get("id").asLong();
-        mockMvc.perform(put("/api/experiments/{id}/exploration/current-try", experimentId)
+        mockMvc.perform(put("/api/experiments/{id}/activity/focus", experimentId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"currentTry\":\"晚餐後畫兩分鐘\"}"))
+                        .content("{\"newContent\":\"晚餐後畫兩分鐘\",\"expectedVersion\":0}"))
                 .andExpect(status().isOk());
-        mockMvc.perform(post("/api/experiments/{id}/exploration/records", experimentId)
+        mockMvc.perform(post("/api/experiments/{id}/activity/records", experimentId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"discovery\":\"留下第一次觀察\",\"includeCurrentTry\":false}"))
+                        .content("{\"discovery\":\"留下第一次觀察\"}"))
                 .andExpect(status().isOk());
         MvcResult emptyExperimentResult = mockMvc.perform(post("/api/experiments")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token))

@@ -31,6 +31,8 @@ export interface ExperimentExplorationCardRequest extends CardContentRequest {
 }
 
 export interface ExperimentExplorationDto {
+  recordCount?: number
+  version?: number
   currentTry: string
   currentTrySourceMethodId: number | null
   favoriteTries: string[]
@@ -38,6 +40,12 @@ export interface ExperimentExplorationDto {
 }
 
 export interface ExperimentExplorationRecordDto {
+  threadId?: number
+  threadName?: string
+  methodId?: number | null
+  version?: number
+  occurredAt?: string
+  updatedAt?: string
   id: number
   tryText: string | null
   sourceThreadMethodId?: number | null
@@ -53,6 +61,10 @@ export interface ExperimentExplorationRecordDto {
 export type ExperimentPage = PageResponse<ExperimentDto>
 
 export interface ExplorationThreadMethodDto {
+  version?: number
+  discoveryCount?: number
+  hasHistory?: boolean
+  lastOrganizedAt?: string | null
   id: number
   content: string
   sortOrder: number
@@ -62,6 +74,9 @@ export interface ExplorationThreadMethodDto {
 }
 
 export interface ExplorationThreadRecordItemDto {
+  version?: number
+  threadId?: number
+  tryText?: string | null
   id: number
   methodId: number | null
   discovery: string
@@ -95,6 +110,13 @@ export interface ExplorationThreadWorkDto {
 }
 
 export interface ExplorationThreadDto {
+  version?: number
+  unassignedVersion?: number
+  systemKey?: string | null
+  methodCount?: number
+  recordCount?: number
+  hasUnassignedHistory?: boolean
+  unassignedRecordCount?: number
   id: number
   experimentId: number
   name: string
@@ -111,6 +133,9 @@ export interface ExplorationThreadDto {
 }
 
 export interface ExplorationThreadSummaryDto {
+  orderVersion?: number
+  version?: number
+  systemKey?: string | null
   id: number
   experimentId: number
   name: string
@@ -140,6 +165,7 @@ export interface CardExplorationThreadDto {
 }
 
 export interface ExplorationThreadRequest {
+  expectedVersion?: number
   name: string
   status?: ExplorationThreadStatus
   conclusion?: string

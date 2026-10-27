@@ -8,6 +8,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ExplorationThreadCardRepository extends JpaRepository<ExplorationThreadCard, Long> {
+    interface ExplorationMaterialKey { Long getExperimentId(); Long getCardId(); }
+    @Query("select distinct l.thread.experiment.id as experimentId, l.card.id as cardId from ExplorationThreadCard l where l.thread.experiment.user.id = :userId and l.card.id in :cardIds and l.role = com.echogallery.experiment.ExplorationThreadCardRole.RESULT")
+    List<ExplorationMaterialKey> findExplorationMaterialKeys(@Param("userId") Long userId, @Param("cardIds") java.util.Collection<Long> cardIds);
     List<ExplorationThreadCard> findByThreadIdOrderByRoleAscSortOrderAscIdAsc(Long threadId);
     List<ExplorationThreadCard> findByCardIdAndThreadExperimentUserIdOrderByCreatedAtDesc(Long cardId, Long userId);
     Optional<ExplorationThreadCard> findByIdAndThreadId(Long id, Long threadId);

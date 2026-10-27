@@ -12,7 +12,10 @@ import lombok.*;
 @Table(name = "exploration_threads", indexes = {
         @Index(name = "idx_threads_experiment_sort", columnList = "experiment_id, sort_order"),
         @Index(name = "idx_threads_experiment_activity", columnList = "experiment_id, last_activity_at")
-}, uniqueConstraints = @UniqueConstraint(name = "uk_threads_experiment_migration", columnNames = { "experiment_id", "migration_key" }))
+}, uniqueConstraints = {
+    @UniqueConstraint(name = "uk_threads_experiment_migration", columnNames = { "experiment_id", "migration_key" }),
+    @UniqueConstraint(name = "uk_threads_system", columnNames = { "experiment_id", "system_key" })
+})
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ExplorationThread {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
@@ -25,6 +28,11 @@ public class ExplorationThread {
     @Column(name = "sort_order", nullable = false) private int sortOrder;
     @Column(name = "last_activity_at", nullable = false) private ZonedDateTime lastActivityAt;
     @Column(name = "migration_key", length = 50) private String migrationKey;
+    @Column(name = "system_key", length = 30) private String systemKey;
+    @Builder.Default @Column(name = "unassigned_history_text", nullable = false, columnDefinition = "TEXT") private String unassignedHistoryText = "";
+    @Column(name = "unassigned_last_organized_at") private ZonedDateTime unassignedLastOrganizedAt;
+    @Column(name = "unassigned_version", nullable = false) private long unassignedVersion;
+    @Column(nullable = false) private long version;
     @CreationTimestamp @Column(name = "created_at", nullable = false, updatable = false) private ZonedDateTime createdAt;
     @UpdateTimestamp @Column(name = "updated_at", nullable = false) private ZonedDateTime updatedAt;
 }

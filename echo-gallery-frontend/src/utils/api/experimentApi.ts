@@ -1,13 +1,11 @@
-import type { CardDto, PageResponse } from '../../types/card'
+import type { PageResponse } from '../../types/card'
 import type {
-  ExperimentExplorationCardRequest,
   ExperimentExplorationDto,
   ExperimentDto,
   ExperimentRequest,
   ExplorationThreadDto,
   ExplorationThreadSummaryDto,
   ExplorationThreadRequest,
-  ExplorationThreadImportItem,
   ExplorationThreadStatus,
   ExplorationThreadCardRole,
   CardExplorationThreadDto,
@@ -33,36 +31,8 @@ export const experimentApi = {
   deleteExperiment(id: number): Promise<void> {
     return request({ url: `/experiments/${id}`, method: 'DELETE' })
   },
-  createExplorationCard(experimentId: number, data: ExperimentExplorationCardRequest): Promise<CardDto> {
-    return request({ url: `/experiments/${experimentId}/exploration/cards`, method: 'POST', data })
-  },
   getExploration(experimentId: number): Promise<ExperimentExplorationDto> {
-    return request({ url: `/experiments/${experimentId}/exploration`, method: 'GET' })
-  },
-  updateCurrentTry(experimentId: number, currentTry: string, sourceMethodId: number | null = null): Promise<ExperimentExplorationDto> {
-    return request({ url: `/experiments/${experimentId}/exploration/current-try`, method: 'PUT', data: { currentTry, sourceMethodId } })
-  },
-  updateFavoriteTries(experimentId: number, favoriteTries: string[]): Promise<ExperimentExplorationDto> {
-    return request({ url: `/experiments/${experimentId}/exploration/favorite-tries`, method: 'PUT', data: { favoriteTries } })
-  },
-  createExplorationRecord(experimentId: number, discovery: string, includeCurrentTry: boolean): Promise<ExperimentExplorationDto> {
-    return request({ url: `/experiments/${experimentId}/exploration/records`, method: 'POST', data: { discovery, includeCurrentTry } })
-  },
-  updateExplorationRecord(experimentId: number, recordId: number, tryText: string, discovery: string): Promise<ExperimentExplorationDto> {
-    return request({ url: `/experiments/${experimentId}/exploration/records/${recordId}`, method: 'PUT', data: { tryText, discovery } })
-  },
-  deleteExplorationRecord(experimentId: number, recordId: number): Promise<void> {
-    return request({ url: `/experiments/${experimentId}/exploration/records/${recordId}`, method: 'DELETE' })
-  },
-  clearExploration(experimentId: number): Promise<void> {
-    return request({ url: `/experiments/${experimentId}/exploration`, method: 'DELETE' })
-  },
-  appendExplorationToCard(experimentId: number, cardId: number, recordIds: number[], content: string): Promise<CardDto> {
-    return request({
-      url: `/experiments/${experimentId}/exploration/cards/${cardId}`,
-      method: 'POST',
-      data: { recordIds, content },
-    })
+    return request({ url: `/experiments/${experimentId}/activity`, method: 'GET' })
   },
   getCardThreads(cardId: string | number): Promise<CardExplorationThreadDto[]> {
     return request({ url: `/cards/${cardId}/exploration-threads`, method: 'GET' })
@@ -79,14 +49,8 @@ export const experimentApi = {
   getWorkThreads(workId: number): Promise<Array<{ threadId: number; threadName: string; experimentId: number; experimentTitle: string; status: ExplorationThreadStatus }>> {
     return request({ url: `/creative-works/${workId}/exploration-threads`, method: 'GET' })
   },
-  createThreadWithImports(experimentId: number, name: string, items: ExplorationThreadImportItem[]): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/imports`, method: 'POST', data: { name, items } })
-  },
   createThreadWithMaterial(experimentId: number, name: string, cardId: number): Promise<ExplorationThreadDto> {
     return request({ url: `/experiments/${experimentId}/threads/materials`, method: 'POST', data: { name, cardId } })
-  },
-  createThreadDiscovery(experimentId: number, threadId: number, data: { methodId: number | null; tryText: string; discovery: string }): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/discoveries`, method: 'POST', data })
   },
   addThreadCards(experimentId: number, threadId: number, cardIds: number[], role: ExplorationThreadCardRole): Promise<ExplorationThreadDto> {
     return request({ url: `/experiments/${experimentId}/threads/${threadId}/cards/batch`, method: 'POST', data: { cardIds, role } })
@@ -103,32 +67,11 @@ export const experimentApi = {
   deleteThread(experimentId: number, threadId: number): Promise<void> {
     return request({ url: `/experiments/${experimentId}/threads/${threadId}`, method: 'DELETE' })
   },
-  reorderThreads(experimentId: number, threadIds: number[]): Promise<ExplorationThreadDto[]> {
-    return request({ url: `/experiments/${experimentId}/threads/order`, method: 'PUT', data: { threadIds } })
+  reorderThreads(experimentId: number, threadIds: number[], expectedVersion: number): Promise<ExplorationThreadDto[]> {
+    return request({ url: `/experiments/${experimentId}/threads/order`, method: 'PUT', data: { threadIds, expectedVersion } })
   },
-  moveThread(experimentId: number, threadId: number, targetThreadId: number, after: boolean): Promise<void> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/position`, method: 'PUT', data: { targetThreadId, after } })
-  },
-  addThreadMethod(experimentId: number, threadId: number, content: string, sourceRecordId: number | null = null): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/methods`, method: 'POST', data: { content, sourceRecordId } })
-  },
-  updateThreadMethod(experimentId: number, threadId: number, methodId: number, content: string, sourceRecordId: number | null = null): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/methods/${methodId}`, method: 'PUT', data: { content, sourceRecordId } })
-  },
-  deleteThreadMethod(experimentId: number, threadId: number, methodId: number): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/methods/${methodId}`, method: 'DELETE' })
-  },
-  addThreadRecord(experimentId: number, threadId: number, data: { methodId?: number | null; discovery: string; sourceRecordId?: number | null; occurredAt?: string | null }): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/records`, method: 'POST', data })
-  },
-  updateThreadRecord(experimentId: number, threadId: number, recordId: number, data: { methodId?: number | null; discovery: string; sourceRecordId?: number | null; occurredAt?: string | null }): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/records/${recordId}`, method: 'PUT', data })
-  },
-  importThreadRecords(experimentId: number, threadId: number, items: ExplorationThreadImportItem[]): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/imports`, method: 'POST', data: { items } })
-  },
-  deleteThreadRecord(experimentId: number, threadId: number, recordId: number): Promise<ExplorationThreadDto> {
-    return request({ url: `/experiments/${experimentId}/threads/${threadId}/records/${recordId}`, method: 'DELETE' })
+  moveThread(experimentId: number, threadId: number, targetThreadId: number, after: boolean, expectedVersion: number): Promise<void> {
+    return request({ url: `/experiments/${experimentId}/threads/${threadId}/position`, method: 'PUT', data: { targetThreadId, after, expectedVersion } })
   },
   addThreadCard(experimentId: number, threadId: number, cardId: number, role: ExplorationThreadCardRole, note = ''): Promise<ExplorationThreadDto> {
     return request({ url: `/experiments/${experimentId}/threads/${threadId}/cards`, method: 'POST', data: { cardId, role, note } })

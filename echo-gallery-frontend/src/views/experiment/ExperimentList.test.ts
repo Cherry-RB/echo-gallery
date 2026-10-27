@@ -6,7 +6,7 @@ import ExperimentList from './ExperimentList.vue'
 const state = vi.hoisted(() => ({ list: vi.fn(), archive: vi.fn(), push: vi.fn() }))
 vi.mock('../../utils/api/experimentApi', () => ({ experimentApi: { getExperiments: state.list, setExperimentArchived: state.archive } }))
 vi.mock('../../utils/api/workApi', () => ({ workApi: { usages: vi.fn().mockResolvedValue([]) } }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: state.push }) }))
+vi.mock('vue-router', async importOriginal => ({ ...await importOriginal<typeof import('vue-router')>(), useRouter: () => ({ push: state.push }) }))
 vi.mock('element-plus', async importOriginal => ({
   ...await importOriginal<typeof import('element-plus')>(), ElMessage: { success: vi.fn(), error: vi.fn() },
 }))

@@ -217,9 +217,10 @@ public class CardService {
 
         // 1. 安全地從安全上下文取得目前登入的 userId（防範前端越權傳參）
         Long currentUserId = SecurityUtil.getCurrentUserId();
+        treasureLifecycle.lockOwner(currentUserId);
 
         // 2. 查詢資料庫是否有這張卡片
-        Card card = cardRepository.findById(cardId)
+        Card card = cardRepository.findByIdForUpdate(cardId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
 
         // 3. 核心安全檢查：這張卡片的主人，是目前登入的這名用戶嗎？
@@ -237,6 +238,10 @@ public class CardService {
         card.setUrl(request.getUrl());
         card.setCoverImageUrl(request.getCoverImageUrl());
         card.setCardNote(request.getCardNote());
+        if (request.getExpectedContentVersion() == null || card.getContentVersion() != request.getExpectedContentVersion()) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "卡片正文已有更新，請保留草稿並重新載入");
+        }
+        if (!java.util.Objects.equals(card.getContent(), request.getContent())) card.setContentVersion(card.getContentVersion() + 1);
         card.setContent(request.getContent());
         if (request.getNeedsProcessing() != null) {
             card.setNeedsProcessing(request.getNeedsProcessing());
@@ -402,6 +407,7 @@ public class CardService {
         response.setCoverImageUrl(card.getCoverImageUrl());
         response.setCardNote(card.getCardNote());
         response.setContent(card.getContent());
+        response.setContentVersion(card.getContentVersion());
         response.setUrl(card.getUrl());
         response.setIntervalDays(card.getIntervalDays());
         response.setNextShowAt(card.getNextShowAt());

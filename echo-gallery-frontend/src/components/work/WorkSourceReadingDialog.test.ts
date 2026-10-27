@@ -28,7 +28,7 @@ describe('共用素材原文閱讀', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     try {
       const wrapper = render(source)
-      expect(wrapper.get('section[aria-label="試法"]').text()).toContain('沒有填寫試法')
+      expect(wrapper.get('section[aria-label="行動"]').text()).toContain('沒有填寫行動')
       expect(wrapper.get('section[aria-label="發現"]').text()).toContain(source.discovery)
       const copy = wrapper.findAll('button').find(b => b.text() === '複製內容')!
       expect(copy.attributes('disabled')).toBeUndefined()
@@ -42,7 +42,7 @@ describe('共用素材原文閱讀', () => {
   })
   it('試法中的空行不會移到發現欄', () => {
     const wrapper = render({ ...source, tryText: '試法第一段\n\n第二段', discovery: '真正發現' })
-    expect(wrapper.get('section[aria-label="試法"]').text()).toContain('試法第一段\n\n第二段')
+    expect(wrapper.get('section[aria-label="行動"]').text()).toContain('試法第一段\n\n第二段')
     expect(wrapper.get('section[aria-label="發現"]').text()).toContain('真正發現')
     expect(wrapper.get('section[aria-label="發現"]').text()).not.toContain('第二段')
   })

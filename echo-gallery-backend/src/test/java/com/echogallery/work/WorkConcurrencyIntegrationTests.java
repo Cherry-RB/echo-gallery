@@ -54,7 +54,7 @@ class WorkConcurrencyIntegrationTests extends IntegrationTestBase {
         JsonNode user = register(); String token = user.get("token").asText(); long owner = user.get("id").asLong();
         mvc.perform(post("/api/creative-works").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(Map.of("title", "來源失效", "editorMode", "INTERNAL", "sources", List.of(Map.of("recordId", Long.MAX_VALUE))))))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
         assertThat(works.findAll().stream().filter(w -> w.getUser().getId().equals(owner))).isEmpty();
     }
     private JsonNode register() throws Exception {

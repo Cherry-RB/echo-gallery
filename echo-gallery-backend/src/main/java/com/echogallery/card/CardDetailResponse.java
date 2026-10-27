@@ -15,6 +15,7 @@ public class CardDetailResponse {
     private String coverImageUrl;
     private String cardNote;
     private String content;
+    private long contentVersion;
     private String url;
     private Integer intervalDays;
     private ZonedDateTime nextShowAt;

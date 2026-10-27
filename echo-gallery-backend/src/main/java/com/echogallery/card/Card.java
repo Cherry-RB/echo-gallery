@@ -15,6 +15,7 @@ import com.echogallery.user.User;
 
 @Entity
 @Table(name = "cards")
+@org.hibernate.annotations.DynamicUpdate
 @Getter
 @Setter
 @NoArgsConstructor
@@ -50,6 +51,8 @@ public class Card {
 
     @Column(columnDefinition = "TEXT")
     private String content;
+    @Column(name = "content_version", nullable = false)
+    private long contentVersion;
 
 
     @Column(name = "interval_days")

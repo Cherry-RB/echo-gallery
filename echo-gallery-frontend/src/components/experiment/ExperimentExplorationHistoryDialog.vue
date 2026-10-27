@@ -1,108 +1,94 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { workApi } from '../../utils/api/workApi'
-import UseForWork from '../work/UseForWork.vue'
-import { workUseTarget } from '../../utils/workFlow'
+import { ElMessageBox } from 'element-plus'
 import type { ExperimentExplorationRecordDto } from '../../types/experiment'
-import { formatDate } from '../../utils/formatDate'
+import type { ActivityRecord } from '../../types/explorationActivity'
+import { explorationActivityApi as api } from '../../utils/api/explorationActivityApi'
+import { apiErrorMessage } from '../../utils/api/errorMessage'
+import { useExplorationInvalidation } from '../../composables/useExplorationInvalidation'
 import HistoryDialog from '../ui/HistoryDialog.vue'
 import HistoryTimeline from '../ui/HistoryTimeline.vue'
-import HistoryFields from '../ui/HistoryFields.vue'
-import HistoryEvent from '../ui/HistoryEvent.vue'
+import RecordCount from '../ui/RecordCount.vue'
+import ExplorationRecordItem from './ExplorationRecordItem.vue'
+import ExperimentExplorationEditor from './ExperimentExplorationEditor.vue'
+import ExplorationOrganizationDialog from './ExplorationOrganizationDialog.vue'
 import ExperimentQuickRecordAction from './ExperimentQuickRecordAction.vue'
-import ExpandableText from '../ExpandableText.vue'
-
-const props = withDefaults(defineProps<{
-  modelValue: boolean
-  experimentId?: number
-  records: ExperimentExplorationRecordDto[]
-  manageable?: boolean
-  showOrganize?: boolean
-  loading?: boolean
-}>(), { manageable: true, showOrganize: true, loading: false })
-
-const recordIds = computed(() => props.records.map(record => record.id))
-const workUsages = useQuery({
-  queryKey: computed(() => ['works', 'record-usages', recordIds.value]),
-  queryFn: async () => {
-    const chunks = []
-    for (let index = 0; index < recordIds.value.length; index += 100) chunks.push(recordIds.value.slice(index, index + 100))
-    return (await Promise.all(chunks.map(ids => workApi.usages([], ids)))).flat()
-  },
-  enabled: computed(() => props.modelValue && recordIds.value.length > 0),
-})
-
+const props = withDefaults(defineProps<{ modelValue: boolean; experimentId?: number; records: ExperimentExplorationRecordDto[]; manageable?: boolean; showOrganize?: boolean; loading?: boolean }>(), { manageable: true, showOrganize: true, loading: false })
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  edit: [record: ExperimentExplorationRecordDto]
-  delete: [recordId: number]
-  organize: []
-  'add-thread': [recordId?: number]
-  'open-card': [cardId: number]
-  record: ['TRY' | 'DISCOVERY']
+  'update:modelValue': [value: boolean]; edit: [record: ExperimentExplorationRecordDto]; delete: [recordId: number];
+  organize: []; 'add-thread': [recordId?: number]; 'open-card': [cardId: number]; record: ['TRY' | 'DISCOVERY']
 }>()
-
-function handleRecordCommand(record: ExperimentExplorationRecordDto, command: 'edit' | 'delete' | 'use-work' | 'use-thread') {
-  if (command === 'edit') emit('edit', record)
-  else if (command === 'delete') emit('delete', record.id)
-  else if (command === 'use-thread') emit('add-thread', record.id)
-  else workUseTarget.value = { recordIds: [record.id], experimentId: props.experimentId, returnToHistory: true }
+const invalidate = useExplorationInvalidation()
+const page = ref(1), editorVisible = ref(false), organizationVisible = ref(false), error = ref('')
+const editing = ref<ActivityRecord | null>(null), initial = ref<ActivityRecord[]>([])
+const mode = ref<'TRY' | 'DISCOVERY'>('DISCOVERY'), intent = ref<'SELECT' | 'EDIT' | 'ASSIGN'>('SELECT')
+const historyContent = ref<HTMLElement>()
+let scrollPosition = 0, returnFocus = ''
+const query = useQuery({
+  queryKey: computed(() => ['experiment-activity-records', props.experimentId, 'history', page.value]),
+  queryFn: () => api.records(props.experimentId!, { page: page.value - 1 }),
+  enabled: computed(() => props.modelValue && props.experimentId != null),
+})
+const shown = computed(() => props.experimentId != null ? query.data.value?.content ?? [] : props.records as ActivityRecord[])
+const total = computed(() => props.experimentId != null ? query.data.value?.totalElements : props.records.length)
+watch(() => props.experimentId, () => { page.value = 1; scrollPosition = 0; returnFocus = '' })
+watch(() => query.data.value, data => {
+  if (data && page.value > Math.max(1, data.totalPages)) page.value = Math.max(1, data.totalPages)
+})
+function rememberPosition(selector: string) {
+  scrollPosition = historyContent.value?.closest<HTMLElement>('.el-dialog__body')?.scrollTop ?? 0
+  returnFocus = selector
+}
+async function restorePosition() {
+  await nextTick()
+  if (!props.modelValue || editorVisible.value || organizationVisible.value) return
+  const body = historyContent.value?.closest<HTMLElement>('.el-dialog__body')
+  if (body) body.scrollTop = scrollPosition
+  if (returnFocus) historyContent.value?.closest('.el-dialog')?.querySelector<HTMLElement>(returnFocus)?.focus({ preventScroll: true })
+}
+function openEditor(record: ActivityRecord, assign = false) {
+  rememberPosition(`[data-record-id="${record.id}"] [aria-label="發現操作"]`)
+  editing.value = record; mode.value = 'DISCOVERY'; intent.value = assign ? 'ASSIGN' : 'EDIT'; editorVisible.value = true
+}
+function quick(value: 'TRY' | 'DISCOVERY') {
+  rememberPosition('.quick-record-trigger')
+  editing.value = null; mode.value = value; intent.value = 'SELECT'; editorVisible.value = true
+}
+function organize(record?: ActivityRecord) {
+  rememberPosition(record ? `[data-record-id="${record.id}"] [aria-label="發現操作"]` : '.organize-history')
+  initial.value = record ? [record] : []; organizationVisible.value = true
+}
+async function remove(record: ActivityRecord) {
+  if (props.experimentId == null) return
+  try { await ElMessageBox.confirm('將從上方與探索線同步刪除這筆發現；歷次整理、卡片與作品保留。', '刪除發現', { type: 'warning', confirmButtonText: '刪除', cancelButtonText: '取消' }) }
+  catch { return }
+  try { await api.deleteRecord(props.experimentId, record.id, record.version); await invalidate(props.experimentId) }
+  catch (e) { error.value = apiErrorMessage(e, '無法刪除，請重新確認資料版本。') }
 }
 </script>
-
 <template>
-  <HistoryDialog v-if="!workUseTarget" :model-value="modelValue" title="探索紀錄" description="沿著留下的痕跡，回看試過的路與帶回的發現。" @update:model-value="emit('update:modelValue', $event)">
-    <template v-if="manageable" #actions><ExperimentQuickRecordAction @select="emit('record', $event)" /></template>
-    <el-skeleton v-if="loading" :rows="3" animated />
-    <HistoryTimeline v-else-if="records.length">
-      <HistoryEvent
-        v-for="(record, index) in records"
-        :key="record.id"
-        :date="record.createdAt"
-        :latest="index === 0"
-        :manageable="manageable"
-        :use-for-work="manageable"
-        :use-for-thread="manageable"
-        :operation-label="`${formatDate(record.createdAt)} 的紀錄操作`"
-        @command="handleRecordCommand(record, $event)"
-      >
-        <HistoryFields left-label="試法" right-label="發現">
-          <template #left><ExpandableText v-if="record.tryText" :content="record.tryText" :lines="6" /><p v-else class="empty">這次直接留下發現。</p></template>
-          <template #right><ExpandableText v-if="record.discovery" :content="record.discovery" :lines="6" /><p v-else class="empty">這筆紀錄沒有填寫發現。</p></template>
-        </HistoryFields>
-
-        <div v-if="record.exports.length" class="record-exports">
-          <span>整理結果</span>
-          <div>
-            <button v-for="recordExport in record.exports" :key="`${recordExport.cardId}-${recordExport.exportedAt}`" type="button" @click="emit('open-card', recordExport.cardId)">
-              {{ recordExport.cardTitle }}
-            </button>
-          </div>
-        </div>
-
-        <template v-if="workUsages.data.value?.some(work => work.recordId === record.id)" #related>
-          <UseForWork :record-id="record.id" :experiment-id="experimentId" :usages="workUsages.data.value?.filter(work => work.recordId === record.id) || []" :show-action="false" />
-        </template>
-      </HistoryEvent>
-    </HistoryTimeline>
-    <p v-else class="history-empty">這段探索尚未留下紀錄。等試過或發現了什麼，再回來記上一筆。</p>
-    <template v-if="records.length && showOrganize" #footer>
-      <div class="history-footer"><span>整理後，原探索紀錄仍會保留。</span><div><el-button @click="emit('update:modelValue', false)">關閉</el-button><el-button plain @click="emit('add-thread')">加入探索線</el-button><el-button type="primary" plain @click="emit('organize')">整理成卡片</el-button></div></div>
-    </template>
+  <!-- 子流程期間卸下歷程外殼，避免關閉動畫把畫面切換誤當成整個歷程關閉。 -->
+  <HistoryDialog v-if="!editorVisible && !organizationVisible" :model-value="modelValue" title="探索紀錄" description="查看各探索線的發現，保留行動與觀察的脈絡。" @opened="restorePosition" @update:model-value="emit('update:modelValue', $event)">
+    <template #actions><span v-if="total != null" class="history-total">共 <RecordCount :count="total" /> 筆發現</span><ExperimentQuickRecordAction v-if="manageable && experimentId != null" @select="quick" /></template>
+    <div ref="historyContent" class="history-content">
+      <el-skeleton v-if="loading || (experimentId != null && query.isPending.value)" :rows="3" animated />
+      <p v-else-if="experimentId != null && query.isError.value">紀錄載入失敗。<el-button type="primary" link @click="query.refetch()">重試</el-button></p>
+      <template v-else><HistoryTimeline v-if="shown.length" class="exploration-history-list"><li v-for="item in shown" :key="item.id" class="exploration-history-entry" :data-record-id="item.id"><ExplorationRecordItem :record="item" show-method :readonly="!manageable || experimentId == null" @edit="openEditor(item)" @assign="openEditor(item, true)" @organize="organize(item)" @delete="remove(item)" /></li></HistoryTimeline><p v-else class="metadata">尚無活動探索紀錄。</p></template>
+      <el-alert v-if="error" :title="error" type="error" :closable="false" />
+    </div>
+    <template #footer><div class="history-footer"><el-pagination v-if="(query.data.value?.totalPages ?? 0) > 1" v-model:current-page="page" :page-size="20" :total="query.data.value?.totalElements ?? 0" layout="prev, pager, next" /><div><el-button @click="emit('update:modelValue', false)">關閉</el-button><el-button v-if="showOrganize && manageable && experimentId != null" class="organize-history" type="primary" @click="organize()">整理內容</el-button></div></div></template>
   </HistoryDialog>
+  <ExperimentExplorationEditor v-if="editorVisible && experimentId != null" v-model="editorVisible" :experiment-id="experimentId" :mode="mode" :record="editing" :intent="intent" />
+  <ExplorationOrganizationDialog v-if="organizationVisible && experimentId != null" v-model="organizationVisible" :experiment-id="experimentId" :initial-records="initial" />
 </template>
-
 <style scoped>
-.history-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); width: 100%; }
-.history-footer > span { color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.history-footer > div { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-xs); }
-.history-footer > div :deep(.el-button) { margin-left: 0; }
-.empty { color: var(--el-text-color-placeholder); }
-.record-exports { margin-top: var(--space-sm); padding-top: var(--space-xs); border-top: 1px solid var(--el-border-color-lighter); }
-.record-exports div { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-sm); margin-top: var(--space-2xs); }
-.record-exports button { padding: 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); text-align: left; }
-.record-exports button:hover, .record-exports button:focus-visible { text-decoration: underline; }
-.history-empty { margin: 0; padding: var(--space-xl); color: var(--el-text-color-placeholder); font-size: var(--type-caption); line-height: var(--leading-ui); text-align: center; }
-@media (max-width: 760px) { .history-footer { align-items: stretch; flex-direction: column; } }
+.history-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-sm); width: 100%; }
+.history-footer > div { margin-left: auto; }
+.history-total { display: inline-flex; align-items: center; gap: var(--space-xs); margin-right: var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-meta); }
+.history-content { min-width: 0; }
+.exploration-history-list { display: grid; gap: var(--space-sm); padding: 0; }
+.exploration-history-entry { min-width: 0; border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-summary); }
+.exploration-history-entry :deep(.finding-row) { padding: var(--space-md); }
+.metadata { color: var(--el-text-color-secondary); }
 </style>

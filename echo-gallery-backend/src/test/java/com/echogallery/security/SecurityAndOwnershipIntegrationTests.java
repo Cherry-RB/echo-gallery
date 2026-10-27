@@ -320,7 +320,8 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
                 "測試內容",
                 tags,
                 10,
-                false
+                false,
+                0L
         ));
     }
 
@@ -337,7 +338,8 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
             String content,
             String[] tags,
             Integer intervalDays,
-            Boolean isArchived
+            Boolean isArchived,
+            Long expectedContentVersion
     ) {}
 
     private record IssuePayload(String title, String description, String externalUrl) {}

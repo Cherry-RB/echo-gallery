@@ -6,7 +6,7 @@ defineEmits<{ select: [] }>()
 
 <template>
   <PickerOption :title="title" :selected="selected" :disabled="disabled" multiple @select="$emit('select')">
-    <span class="record-picker-fields"><span v-if="tryText"><small>試法</small>{{ tryText }}</span><span v-if="discovery"><small>發現</small>{{ discovery }}</span><slot /></span>
+    <span class="record-picker-fields"><span v-if="tryText"><small>行動</small>{{ tryText }}</span><span v-if="discovery"><small>發現</small>{{ discovery }}</span><slot /></span>
   </PickerOption>
 </template>
 

@@ -8,10 +8,10 @@ const emit = defineEmits<{
 
 <template>
   <el-dropdown trigger="click" @command="(command: RecordMode) => emit('select', command)">
-    <button type="button" class="quick-record-trigger" aria-label="設定試法或記下發現" @click.stop>＋ 記錄</button>
+    <button type="button" class="quick-record-trigger" aria-label="設定下一步或記下發現" @click.stop>＋ 記錄</button>
     <template #dropdown>
       <el-dropdown-menu>
-        <el-dropdown-item command="TRY">＋ 試法</el-dropdown-item>
+        <el-dropdown-item command="TRY">設定下一步</el-dropdown-item>
         <el-dropdown-item command="DISCOVERY">＋ 發現</el-dropdown-item>
       </el-dropdown-menu>
     </template>

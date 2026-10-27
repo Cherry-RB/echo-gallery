@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import RecordPickerOption from '../../components/ui/RecordPickerOption.vue'
 import WorkResume from '../../components/work/WorkResume.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -9,14 +8,12 @@ import { ArrowDown, ArrowLeft, Delete, Edit } from '@element-plus/icons-vue'
 import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentThreads from '../../components/experiment/ExperimentThreads.vue'
-import QuickCreateCardDialog from '../../components/QuickCreateCardDialog.vue'
-import CardPickerDialog from '../../components/CardPickerDialog.vue'
+import ExplorationOrganizationDialog from '../../components/experiment/ExplorationOrganizationDialog.vue'
 import AppDialog from '../../components/AppDialog.vue'
 import RecordHistoryTrigger from '../../components/ui/RecordHistoryTrigger.vue'
 import DetailShell from '../../components/ui/DetailShell.vue'
 import DetailHeading from '../../components/ui/DetailHeading.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
-import type { CardContentRequest, CardDto } from '../../types/card'
 import type { ExperimentExplorationDto, ExperimentExplorationRecordDto, ExperimentRequest } from '../../types/experiment'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import { formatDate } from '../../utils/formatDate'
@@ -43,168 +40,19 @@ const explorationEditorVisible = ref(false)
 const explorationEditorMode = ref<'TRY' | 'DISCOVERY'>('TRY')
 const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
 const historyDialogVisible = ref(false)
-const returnToHistory = ref(false)
-const threadsWorkspace = ref<InstanceType<typeof ExperimentThreads> | null>(null)
-const exportVisible = ref(false)
-const exportCreateVisible = ref(false)
-const exportDestination = ref<'NEW' | 'EXISTING'>('NEW')
-const exportTopic = ref('')
-const exportTitle = ref('')
-const selectedExportRecordIds = ref<number[]>([])
-const selectedExportCardId = ref<number | null>(null)
-const selectedExportCard = ref<CardDto | null>(null)
-const exportCardPickerVisible = ref(false)
-const exportCardInitialData = ref<Partial<CardDto>>({})
-const pendingExportRecordIds = ref<number[]>([])
-const isExporting = ref(false)
-
+const organizationVisible = ref(false)
 watch(experimentId, () => {
   explorationEditorVisible.value = false
   historyDialogVisible.value = false
-  exportVisible.value = false
+  organizationVisible.value = false
 })
-
 watch([experimentId, () => route.query.history], () => {
   historyDialogVisible.value = route.query.history === '1'
 }, { immediate: true })
-
-const setExploration = (value: ExperimentExplorationDto) => {
-  queryClient.setQueryData(['experiment-exploration', experimentId.value], value)
-  void queryClient.invalidateQueries({ queryKey: ['experiment', experimentId.value] })
-  void queryClient.invalidateQueries({ queryKey: ['experiments'] })
-  void queryClient.invalidateQueries({ queryKey: ['overview'] })
-}
-
 const openExplorationEditor = (mode: 'TRY' | 'DISCOVERY', record: ExperimentExplorationRecordDto | null = null) => {
   explorationEditorMode.value = mode
   editingExplorationRecord.value = record
   explorationEditorVisible.value = true
-}
-
-const clearExploration = async () => {
-  try {
-    await ElMessageBox.confirm('將永久刪除目前試法、常用試法與原始探索紀錄。已整理至探索線、卡片或作品的內容會保留。', '清除探索紀錄', {
-      confirmButtonText: '清除', cancelButtonText: '取消', type: 'warning',
-    })
-  } catch {
-    return
-  }
-
-  try {
-    await experimentApi.clearExploration(experimentId.value)
-    setExploration({ ...emptyExploration })
-    ElMessage.success('原始探索紀錄已清除；整理後的內容仍保留。')
-  } catch {
-    ElMessage.error('清除探索紀錄失敗，請稍後再試')
-  }
-}
-
-const deleteExplorationRecord = async (recordId: number) => {
-  try {
-    await ElMessageBox.confirm('刪除這筆探索紀錄？刪除後無法復原；已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
-      confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning',
-    })
-  } catch {
-    return
-  }
-
-  try {
-    await experimentApi.deleteExplorationRecord(experimentId.value, recordId)
-    await queryClient.invalidateQueries({ queryKey: ['experiment-exploration', experimentId.value] })
-    void queryClient.invalidateQueries({ queryKey: ['experiments'] })
-    ElMessage.success('探索紀錄已刪除。')
-  } catch {
-    ElMessage.error('刪除探索紀錄失敗，請稍後再試')
-  }
-}
-
-const openThreadImport = (recordId?: number) => {
-  returnToHistory.value = historyDialogVisible.value
-  historyDialogVisible.value = false
-  threadsWorkspace.value?.openImport(recordId == null ? undefined : [recordId])
-}
-const finishThreadImport = () => {
-  if (returnToHistory.value) historyDialogVisible.value = true
-  returnToHistory.value = false
-}
-
-const openExport = () => {
-  const experiment = experimentQuery.data.value
-  selectedExportRecordIds.value = exportRecords.value.map(record => record.id)
-  exportDestination.value = 'NEW'
-  exportTopic.value = experiment?.title ?? ''
-  exportTitle.value = ''
-  selectedExportCardId.value = null
-  selectedExportCard.value = null
-  pendingExportRecordIds.value = []
-  exportVisible.value = true
-}
-
-const organizeFromHistory = () => {
-  historyDialogVisible.value = false
-  openExport()
-}
-
-const toggleExportRecord = (recordId: number) => {
-  selectedExportRecordIds.value = selectedExportRecordIds.value.includes(recordId)
-    ? selectedExportRecordIds.value.filter(id => id !== recordId)
-    : [...selectedExportRecordIds.value, recordId]
-}
-
-const openCreateExportCard = () => {
-  if (!canExport.value) return
-  pendingExportRecordIds.value = [...exportableRecordIds.value]
-  exportCardInitialData.value = {
-    type: 'note',
-    title: resolvedExportTitle.value,
-    content: exportContent.value,
-  }
-  exportVisible.value = false
-  exportCreateVisible.value = true
-}
-
-const createExportCard = async (request: CardContentRequest) => {
-  const card = await experimentApi.createExplorationCard(experimentId.value, {
-    ...request,
-    recordIds: pendingExportRecordIds.value,
-  })
-  pendingExportRecordIds.value = []
-  return card
-}
-
-const handleExportCardCreated = async () => {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['cards'] }),
-    queryClient.invalidateQueries({ queryKey: ['experiment', experimentId.value] }),
-    queryClient.invalidateQueries({ queryKey: ['experiment-cards', experimentId.value] }),
-    queryClient.invalidateQueries({ queryKey: ['experiment-exploration', experimentId.value] }),
-    queryClient.invalidateQueries({ queryKey: ['experiments'] }),
-  ])
-  ElMessage.success('探索紀錄已整理成新卡；原紀錄仍保留。')
-}
-
-const appendToExistingCard = async () => {
-  if (!canExport.value || !selectedExportCard.value) return
-  isExporting.value = true
-  try {
-    await experimentApi.appendExplorationToCard(
-      experimentId.value,
-      Number(selectedExportCard.value.id),
-      exportableRecordIds.value,
-      exportContent.value,
-    )
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['cards'] }),
-      queryClient.invalidateQueries({ queryKey: ['experiment-exploration', experimentId.value] }),
-      queryClient.invalidateQueries({ queryKey: ['experiments'] }),
-    ])
-    exportVisible.value = false
-    ElMessage.success('探索紀錄已加入卡片內容；原紀錄仍保留。')
-  } catch {
-    ElMessage.error('加入卡片內容失敗，探索紀錄尚未標記為已整理。')
-  } finally {
-    isExporting.value = false
-  }
 }
 
 const editVisible = ref(false)
@@ -213,42 +61,6 @@ const experimentQuery = useQuery({
   queryKey: computed(() => ['experiment', experimentId.value]),
   queryFn: () => experimentApi.getExperiment(experimentId.value)
 })
-
-const exportRecords = computed(() => exploration.value.records)
-const selectedExportRecords = computed(() => exportRecords.value
-  .filter(record => selectedExportRecordIds.value.includes(record.id))
-  .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()))
-const exportableRecords = computed(() => {
-  if (exportDestination.value !== 'EXISTING' || !selectedExportCardId.value) return selectedExportRecords.value
-  return selectedExportRecords.value
-    .filter(record => !record.exports.some(recordExport => recordExport.cardId === selectedExportCardId.value))
-})
-const exportableRecordIds = computed(() => exportableRecords.value.map(record => record.id))
-const resolvedExportTopic = computed(() => {
-  const experiment = experimentQuery.data.value
-  return trimToTextLength(exportTopic.value, 255).trim() || experiment?.title || '未命名主題'
-})
-const exportTimeRange = computed(() => {
-  const records = exportableRecords.value
-  if (!records.length) return ''
-  const start = formatDate(records[0].createdAt, 'YYYY/MM/DD HH:mm')
-  const end = formatDate(records.at(-1)?.createdAt, 'YYYY/MM/DD HH:mm')
-  return start === end ? start : `${start}–${end}`
-})
-const defaultExportTitle = computed(() => `【探索紀錄｜${exportTimeRange.value}｜${resolvedExportTopic.value}】`)
-const resolvedExportTitle = computed(() => trimToTextLength(exportTitle.value, 255).trim() || defaultExportTitle.value)
-const exportContent = computed(() => {
-  if (!exportableRecords.value.length) return ''
-  const rows = exportableRecords.value.map(record => [
-    formatDate(record.createdAt, 'YYYY/MM/DD HH:mm'),
-    record.tryText ? `試：${record.tryText}` : null,
-    `發現：${record.discovery}`,
-  ].filter((line): line is string => Boolean(line)).join('\n'))
-  return [defaultExportTitle.value, ...rows].join('\n\n')
-})
-const canExport = computed(() => selectedExportRecordIds.value.length > 0
-  && (exportDestination.value === 'NEW' || Boolean(selectedExportCardId.value))
-  && exportableRecordIds.value.length > 0)
 
 const invalidateExperiment = async () => {
   await Promise.all([
@@ -299,7 +111,7 @@ const confirmDeleteExperiment = async () => {
   if (!experiment || deleteMutation.isPending.value) return
   try {
     await ElMessageBox.confirm(
-      `「${experiment.title}」的探索線、試法、發現、原始探索紀錄與成果關聯都會永久刪除；卡片與作品本身會保留。`,
+      `「${experiment.title}」的探索線、行動、發現、原始探索紀錄與成果關聯都會永久刪除；卡片與作品本身會保留。`,
       '永久刪除實驗主題',
       { confirmButtonText: '永久刪除', cancelButtonText: '取消', type: 'warning' }
     )
@@ -387,10 +199,10 @@ const submitEdit = () => {
 
       <section class="exploration-workspace" aria-label="這次想怎麼探索">
         <header class="exploration-heading">
-          <h2>這次想怎麼探索？</h2>
+          <h2>下一步與發現</h2>
           <div v-if="!explorationQuery.isLoading.value && !explorationQuery.isError.value" class="exploration-actions">
             <time v-if="latestObservation?.createdAt" :datetime="latestObservation.createdAt">{{ formatDate(latestObservation.createdAt) }}</time>
-            <RecordHistoryTrigger v-if="exploration.records.length" label="探索紀錄" :count="exploration.records.length" @click="historyDialogVisible = true" />
+            <RecordHistoryTrigger v-if="exploration.records.length" label="探索紀錄" :count="exploration.recordCount ?? exploration.records.length" @click="historyDialogVisible = true" />
           </div>
         </header>
         <el-skeleton v-if="explorationQuery.isLoading.value" :rows="3" animated />
@@ -401,8 +213,8 @@ const submitEdit = () => {
         <div class="exploration-overview">
           <div :class="['exploration-snapshot', 'current-try-snapshot', { 'is-next-action': !exploration.currentTry }]">
             <div class="exploration-snapshot-heading">
-              <span>{{ exploration.currentTry ? '目前想試' : '1．設定試法' }}</span>
-              <el-button :text="Boolean(exploration.currentTry)" type="primary" size="small" @click="openExplorationEditor('TRY')">{{ exploration.currentTry ? '編輯試法' : '設定試法' }}</el-button>
+              <span>{{ exploration.currentTry ? '下一步' : '1．設定下一步' }}</span>
+              <el-button :text="Boolean(exploration.currentTry)" type="primary" size="small" @click="openExplorationEditor('TRY')">設定下一步</el-button>
             </div>
             <ExpandableText
               v-if="exploration.currentTry"
@@ -410,7 +222,7 @@ const submitEdit = () => {
               :content="exploration.currentTry"
               :lines="6"
             />
-            <p v-else class="empty">新的試法尚未寫下。不妨先翻翻收集的材料。</p>
+            <p v-else class="empty">還沒設定下一步。不妨先翻翻收集的材料。</p>
           </div>
           <div :class="['exploration-snapshot', { 'is-next-action': Boolean(exploration.currentTry) && !latestObservation }]">
             <div class="exploration-snapshot-heading">
@@ -423,20 +235,20 @@ const submitEdit = () => {
               :content="latestObservation.text"
               :lines="6"
             />
-            <p v-else class="empty">{{ exploration.currentTry ? '試過、沒試成或改變想法，都可以記在這裡。' : '設定試法後，再留下觀察；也可以直接記錄現在的發現。' }}</p>
+            <p v-else class="empty">{{ exploration.currentTry ? '試過、沒試成或改變想法，都可以記在這裡。' : '設定下一步後，再留下觀察；也可以直接記錄現在的發現。' }}</p>
           </div>
         </div>
         <div class="exploration-footnote">
-          <span>探索紀錄會同步保存；整理成卡片後，原紀錄仍會保留。</span>
+          <span>上方與探索線共用活動發現；整理後可選擇清除，歷史留在探索線。</span>
           <div class="exploration-utility-actions">
-            <el-button v-if="exploration.currentTry || exploration.records.length || exploration.favoriteTries.length" text type="danger" size="small" @click="clearExploration">清除探索紀錄</el-button>
+            <el-button v-if="exploration.records.length" text type="primary" size="small" @click="organizationVisible = true">整理或清除發現</el-button>
           </div>
         </div>
         </template>
       </section>
 
       <WorkResume :experiment-id="experimentId" />
-      <ExperimentThreads ref="threadsWorkspace" :experiment-id="experimentId" :exploration-records="exploration.records" @import-closed="finishThreadImport" />
+      <ExperimentThreads :experiment-id="experimentId" />
 
       <section class="experiment-supporting" aria-label="實驗主題補充資訊">
         <details>
@@ -462,11 +274,6 @@ const submitEdit = () => {
     :experiment-id="experimentId"
     v-model="historyDialogVisible"
     :records="exploration.records"
-    @record="openExplorationEditor($event)"
-    @edit="openExplorationEditor('DISCOVERY', $event)"
-    @delete="deleteExplorationRecord"
-    @organize="organizeFromHistory"
-    @add-thread="openThreadImport"
     @open-card="router.push(`/card/${$event}`)"
   />
 
@@ -478,71 +285,7 @@ const submitEdit = () => {
     @closed="editingExplorationRecord = null"
   />
 
-  <AppDialog :busy="isExporting" :draft="[exportDestination, exportTopic, exportTitle, selectedExportRecordIds, selectedExportCardId]" v-model="exportVisible" title="整理探索紀錄" width="min(980px, calc(100vw - 32px))" scroll-body>
-    <p class="dialog-intro">把選取的探索紀錄整理成卡片內容。成功後會保留原紀錄，並標示它已整理到哪張卡片。</p>
-    <div class="export-workspace">
-      <section class="export-selection-pane">
-        <h3>選擇探索紀錄</h3>
-        <div class="export-record-list">
-          <RecordPickerOption v-for="record in exportRecords" :key="record.id" :title="formatDate(record.createdAt, 'YYYY/MM/DD HH:mm')" :selected="selectedExportRecordIds.includes(record.id)" :try-text="record.tryText || '?????????'" :discovery="record.discovery" :disabled="isExporting" @select="toggleExportRecord(record.id)" />
-        </div>
-      </section>
-      <div class="export-settings-pane">
-        <section class="export-dialog-section">
-          <h3>整理到哪裡？</h3>
-          <el-radio-group v-model="exportDestination">
-            <el-radio-button value="NEW">新增卡片</el-radio-button>
-            <el-radio-button value="EXISTING">加入既有卡片</el-radio-button>
-          </el-radio-group>
-          <template v-if="exportDestination === 'EXISTING'">
-            <el-button class="export-card-select" @click="exportCardPickerVisible = true">{{ selectedExportCard?.title || '選擇卡片' }}</el-button>
-            <p v-if="selectedExportCard && !exportableRecordIds.length" class="dialog-hint">所選紀錄都已整理到這張卡片；可改選其他紀錄或其他卡片。</p>
-          </template>
-        </section>
-        <section class="export-dialog-section">
-          <label for="export-topic">主題</label>
-          <el-input id="export-topic" v-model="exportTopic" maxlength="255" placeholder="例如：這次探索的線索" />
-          <p class="dialog-hint">會出現在整理內容的標頭；可自由修改。</p>
-          <template v-if="exportDestination === 'NEW'">
-            <label for="export-title">卡片標題（選填）</label>
-            <el-input id="export-title" v-model="exportTitle" maxlength="255" :placeholder="defaultExportTitle" />
-            <p class="dialog-hint">留空時會自動使用上方格式；下一步仍可編輯完整卡片。</p>
-          </template>
-        </section>
-        <section v-if="exportContent" class="export-preview">
-          <span>將寫入的內容</span>
-          <pre>{{ exportContent }}</pre>
-        </section>
-      </div>
-    </div>
-    <template #footer="{ requestClose }">
-      <el-button :disabled="isExporting" @click="requestClose">取消</el-button>
-      <el-button v-if="exportDestination === 'NEW'" type="primary" :disabled="!canExport" @click="openCreateExportCard">繼續建立卡片</el-button>
-      <el-button v-else type="primary" :loading="isExporting" :disabled="!canExport" @click="appendToExistingCard">加入卡片內容</el-button>
-    </template>
-  </AppDialog>
-
-  <CardPickerDialog
-    v-model="exportCardPickerVisible"
-    title="選擇整理目的卡片"
-    description="選擇要加入整理內容的既有卡片。原始探索紀錄仍會保留。"
-    confirm-label="選擇卡片"
-    settings-style="plain"
-    @confirm="selectedExportCard = $event; selectedExportCardId = Number($event.id); exportCardPickerVisible = false"
-  />
-
-  <QuickCreateCardDialog
-    v-model="exportCreateVisible"
-    title="建立探索紀錄卡片"
-    description="已帶入整理內容；建立後仍可從原探索紀錄查看這張卡片。"
-    create-label="建立卡片"
-    success-title="探索紀錄卡片已建立"
-    success-description="卡片已建立；原探索紀錄仍保留。"
-    :initial-data="exportCardInitialData"
-    :create-card="createExportCard"
-    create-error-message="建立探索紀錄卡片失敗，請稍後再試"
-    @created="handleExportCardCreated"
-  />
+  <ExplorationOrganizationDialog v-if="organizationVisible" v-model="organizationVisible" :experiment-id="experimentId" />
 
   <AppDialog :busy="editMutation.isPending.value" :draft="editForm" v-model="editVisible" title="編輯實驗主題" width="min(680px, calc(100vw - 32px))" scroll-body>
     <el-form label-position="top" @submit.prevent="submitEdit">

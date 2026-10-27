@@ -23,14 +23,23 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ExplorationThreadService {
     private final ExperimentRepository experiments;
-    private final ExperimentExplorationRecordRepository sourceRecords;
+    private final ExplorationActivityService activity;
+    private final ExperimentExplorationRepository states;
     private final ExplorationThreadRepository threads;
     private final ExplorationThreadMethodRepository methods;
-    private final ExplorationThreadRecordRepository records;
+    private final ExperimentExplorationRecordRepository records;
     private final ExplorationThreadCardRepository threadCards;
     private final ExplorationThreadWorkRepository threadWorks;
     private final CardRepository cards;
     private final CreativeWorkRepository works;
+    public record ThreadOption(Long id, String name, String systemKey, boolean available) {}
+    @Transactional(readOnly = true)
+    public PageResponse<ThreadOption> options(Long experimentId, String keyword, Long cardId, int page) {
+        ownedExperiment(experimentId);
+        String search = keyword == null || keyword.isBlank() ? "" : "%" + keyword.strip().toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+        var result = threads.options(experimentId, search, cardId, PageRequest.of(Math.max(0, page), 20));
+        return new PageResponse<>(result.getContent().stream().map(t -> new ThreadOption(t.getId(), t.getName(), t.getSystemKey(), t.getAvailable())).toList(), result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());
+    }
 
     @Transactional(readOnly = true)
     public List<WorkExplorationThreadController.WorkThreadResponse> listByWork(Long workId) {
@@ -43,9 +52,7 @@ public class ExplorationThreadService {
 
     @Transactional
     public ExplorationThreadResponse createWithImports(Long experimentId, ExplorationThreadRequests.NewImportRequest request) {
-        ExplorationThreadResponse thread = create(experimentId,
-                new ExplorationThreadRequests.ThreadRequest(request.name(), null, null));
-        return importRecords(experimentId, thread.id(), new ExplorationThreadRequests.ImportRequest(request.items()));
+        throw new ResponseStatusException(HttpStatus.GONE, "副本匯入已退場，請使用調整歸屬或整理");
     }
 
     @Transactional
@@ -58,21 +65,13 @@ public class ExplorationThreadService {
 
     @Transactional
     public ExplorationThreadResponse discover(Long experimentId, Long threadId, ExplorationThreadRequests.DiscoveryRequest request) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        ExplorationThreadMethod method = request.methodId() == null ? null : ownedMethod(threadId, request.methodId());
-        ExperimentExplorationRecord source = sourceRecords.save(ExperimentExplorationRecord.builder()
-                .experiment(thread.getExperiment()).sourceThreadMethod(method)
-                .tryText(optional(request.tryText())).discovery(request.discovery().trim()).build());
-        // 原始紀錄與探索線發現同一交易保存，避免部分成功造成重複提交。
-        records.save(ExplorationThreadRecord.builder().thread(thread).method(method)
-                .sourceRecord(source).discovery(source.getDiscovery()).occurredAt(source.getCreatedAt())
-                .sortOrder((int) records.countByThreadId(threadId)).build());
-        touch(thread.getExperiment(), thread);
-        return response(thread);
+        activity.createRecord(experimentId, new ExplorationActivityRequests.Discovery(threadId, request.methodId(), request.discovery(), null, null, request.expectedMethodVersion()));
+        return get(experimentId, threadId);
     }
 
     @Transactional
     public ExplorationThreadResponse addCards(Long experimentId, Long threadId, ExplorationThreadRequests.CardsRequest request) {
+        activity.lock(experimentId);
         ExplorationThread thread = ownedThread(experimentId, threadId);
         Set<Long> ids = new LinkedHashSet<>(request.cardIds());
         Map<Long, Card> available = new HashMap<>();
@@ -95,6 +94,7 @@ public class ExplorationThreadService {
 
     @Transactional
     public ExplorationThreadResponse updateCardNote(Long experimentId, Long threadId, Long linkId, ExplorationThreadRequests.NoteRequest request) {
+        activity.lock(experimentId);
         ExplorationThread thread = ownedThread(experimentId, threadId);
         ExplorationThreadCard link = threadCards.findByIdAndThreadId(linkId, threadId).orElseThrow(this::missing);
         link.setNote(optional(request.note()));
@@ -105,7 +105,7 @@ public class ExplorationThreadService {
     @Transactional(readOnly = true)
     public List<ExplorationThreadResponse> list(Long experimentId) {
         ownedExperiment(experimentId);
-        return threads.findByExperimentIdOrderBySortOrderAscIdAsc(experimentId).stream().map(this::response).toList();
+        return threads.listRows(experimentId, PageRequest.of(0, 50)).stream().map(this::metadata).toList();
     }
 
     /** 列表只取得固定數量的摘要與預覽，完整關聯在讀取單條詳情時才載入。 */
@@ -114,8 +114,9 @@ public class ExplorationThreadService {
         ownedExperiment(experimentId);
         int page = Math.max(0, requestedPage);
         int size = Math.max(1, Math.min(requestedSize, 20));
-        Page<ExplorationThread> result = threads.findByExperimentIdOrderBySortOrderAscIdAsc(experimentId, PageRequest.of(page, size));
-        List<Long> ids = result.getContent().stream().map(ExplorationThread::getId).toList();
+        Page<ExplorationThreadRepository.ListRow> result = threads.listRows(experimentId, PageRequest.of(page, size));
+        long orderVersion = states.findByExperimentId(experimentId).map(ExperimentExploration::getOrderVersion).orElse(0L);
+        List<Long> ids = result.getContent().stream().map(ExplorationThreadRepository.ListRow::getId).toList();
         if (ids.isEmpty()) return new PageResponse<>(List.of(), page, size, result.getTotalElements(), result.getTotalPages());
 
         Map<Long, Long> methodCounts = countMap(methods.countByThreadIds(ids));
@@ -140,19 +141,20 @@ public class ExplorationThreadService {
                     new ExplorationThreadSummaryResponse.RecordPreview(number(row[1]), text(row[2]), text(row[3]), time(row[4]), time(row[5])));
         }
         List<ExplorationThreadSummaryResponse> content = result.getContent().stream().map(thread ->
-                new ExplorationThreadSummaryResponse(thread.getId(), thread.getExperiment().getId(), thread.getName(),
+                new ExplorationThreadSummaryResponse(thread.getId(), thread.getExperimentId(), thread.getName(),
                         thread.getStatus(), thread.getConclusion(), thread.getSortOrder(), thread.getLastActivityAt(),
                         materialCounts.getOrDefault(thread.getId(), 0L), methodCounts.getOrDefault(thread.getId(), 0L),
                         recordCounts.getOrDefault(thread.getId(), 0L), resultCounts.getOrDefault(thread.getId(), 0L),
                         workCounts.getOrDefault(thread.getId(), 0L), firstMethods.get(thread.getId()), materials.getOrDefault(thread.getId(), List.of()),
-                        previews.getOrDefault(thread.getId(), List.of())))
+                        previews.getOrDefault(thread.getId(), List.of()), thread.getVersion(), thread.getSystemKey(), orderVersion))
                 .toList();
         return new PageResponse<>(content, page, size, result.getTotalElements(), result.getTotalPages());
     }
 
     @Transactional(readOnly = true)
     public ExplorationThreadResponse get(Long experimentId, Long threadId) {
-        return response(ownedThread(experimentId, threadId));
+        ownedExperiment(experimentId);
+        return response(threads.detailRow(experimentId, threadId).orElseThrow(this::missing));
     }
 
     @Transactional(readOnly = true)
@@ -175,21 +177,27 @@ public class ExplorationThreadService {
 
     @Transactional
     public ExplorationThreadResponse create(Long experimentId, ExplorationThreadRequests.ThreadRequest request) {
-        Experiment experiment = ownedExperiment(experimentId);
+        Experiment experiment = activity.lock(experimentId);
         ZonedDateTime now = ZonedDateTime.now();
         ExplorationThread thread = threads.save(ExplorationThread.builder()
                 .experiment(experiment).name(request.name().trim())
                 .status(request.status() == null ? ExplorationThreadStatus.NOT_STARTED : request.status())
-                .conclusion(optional(request.conclusion())).sortOrder((int) threads.countByExperimentId(experimentId))
+                .conclusion(optional(request.conclusion())).sortOrder(threads.nextPosition(experimentId))
                 .lastActivityAt(now).build());
         touch(experiment, thread);
+        var ordering = activity.settings(experiment);
+        ordering.setOrderVersion(ordering.getOrderVersion() + 1);
         return response(thread);
     }
 
     @Transactional
     public ExplorationThreadResponse update(Long experimentId, Long threadId, ExplorationThreadRequests.ThreadRequest request) {
+        activity.lock(experimentId);
         ExplorationThread thread = ownedThread(experimentId, threadId);
-        thread.setName(request.name().trim());
+        ExplorationActivityService.version(thread.getVersion(), request.expectedVersion());
+        if (thread.getSystemKey() != null && !thread.getName().equals(request.name().strip()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "系統未設定探索線不可改名");
+        thread.setName(request.name().strip());
         thread.setStatus(request.status() == null ? thread.getStatus() : request.status());
         thread.setConclusion(optional(request.conclusion()));
         touch(thread.getExperiment(), thread);
@@ -198,161 +206,113 @@ public class ExplorationThreadService {
 
     @Transactional
     public List<ExplorationThreadResponse> reorder(Long experimentId, ExplorationThreadRequests.OrderRequest request) {
-        ownedExperiment(experimentId);
-        List<ExplorationThread> all = threads.findByExperimentIdOrderBySortOrderAscIdAsc(experimentId);
+        var state = activity.settings(activity.lock(experimentId));
+        ExplorationActivityService.version(state.getOrderVersion(), request.expectedVersion());
+        List<Long> all = threads.orderedIds(experimentId);
         Set<Long> requested = new LinkedHashSet<>(request.threadIds());
-        Set<Long> existing = new HashSet<>(all.stream().map(ExplorationThread::getId).toList());
+        Set<Long> existing = new HashSet<>(all);
         if (requested.size() != request.threadIds().size() || !requested.equals(existing)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "排序內容必須包含這個實驗的全部探索線，且不可重複");
         }
-        Map<Long, ExplorationThread> byId = new HashMap<>();
-        all.forEach(thread -> byId.put(thread.getId(), thread));
-        for (int index = 0; index < request.threadIds().size(); index++) byId.get(request.threadIds().get(index)).setSortOrder(index);
-        return request.threadIds().stream().map(byId::get).map(this::response).toList();
+        saveOrder(experimentId, request.threadIds(), state);
+        return list(experimentId);
     }
 
     @Transactional
     public void move(Long experimentId, Long threadId, ExplorationThreadRequests.PositionRequest request) {
-        ownedExperiment(experimentId);
-        ExplorationThread source = ownedThread(experimentId, threadId);
-        ExplorationThread target = ownedThread(experimentId, request.targetThreadId());
-        if (source.getId().equals(target.getId())) return;
-        List<ExplorationThread> ordered = new ArrayList<>(threads.findByExperimentIdOrderBySortOrderAscIdAsc(experimentId));
-        ordered.removeIf(item -> item.getId().equals(source.getId()));
-        int targetIndex = java.util.stream.IntStream.range(0, ordered.size())
-                .filter(index -> ordered.get(index).getId().equals(target.getId())).findFirst().orElseThrow(this::missing);
-        ordered.add(targetIndex + (request.after() ? 1 : 0), source);
-        for (int index = 0; index < ordered.size(); index++) ordered.get(index).setSortOrder(index);
+        var state = activity.settings(activity.lock(experimentId));
+        ExplorationActivityService.version(state.getOrderVersion(), request.expectedVersion());
+        List<Long> ordered = new ArrayList<>(threads.orderedIds(experimentId));
+        if (!ordered.contains(threadId) || !ordered.contains(request.targetThreadId())) throw missing();
+        if (threadId.equals(request.targetThreadId())) return;
+        ordered.remove(threadId);
+        ordered.add(ordered.indexOf(request.targetThreadId()) + (request.after() ? 1 : 0), threadId);
+        saveOrder(experimentId, ordered, state);
+    }
+
+    private void saveOrder(Long experimentId, List<Long> ids, ExperimentExploration state) {
+        threads.saveOrder(experimentId, ids.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+        state.setOrderVersion(state.getOrderVersion() + 1);
     }
 
     @Transactional
     public void delete(Long experimentId, Long threadId) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        threads.delete(thread);
-        thread.getExperiment().setUpdatedAt(ZonedDateTime.now());
+        var experiment = activity.lock(experimentId);
+        var source = ownedThread(experimentId, threadId);
+        if (source.getSystemKey() != null) throw new ResponseStatusException(HttpStatus.CONFLICT, "系統未設定探索線不可刪除");
+        var children = methods.findByThreadIdOrderBySortOrderAscIdAsc(threadId);
+        var discoveries = records.findByThreadIdOrderByOccurredAtAscIdAsc(threadId);
+        var target = activity.unassigned(experiment);
+        for (var method : children) activity.checkName(target.getId(), method.getContent(), method.getId());
+        int nextPosition = methods.nextPosition(target.getId());
+        for (var method : children) { method.setThread(target); method.setSortOrder(nextPosition++); method.setVersion(method.getVersion() + 1); }
+        for (var record : discoveries) { record.setThread(target); record.setVersion(record.getVersion() + 1); }
+        String preserved = source.getUnassignedHistoryText();
+        if (source.getConclusion() != null && !source.getConclusion().isBlank())
+            preserved = ExplorationActivityService.append(preserved, "原小結論：\n" + source.getConclusion());
+        if (!preserved.isBlank()) {
+            target.setUnassignedHistoryText(ExplorationActivityService.append(target.getUnassignedHistoryText(),
+                "已移除探索線：" + source.getName() + "\n\n" + preserved));
+            target.setUnassignedLastOrganizedAt(ZonedDateTime.now());
+        }
+        var state = states.findByExperimentId(experimentId).orElse(null);
+        if (state != null && state.getCurrentThread() != null && state.getCurrentThread().getId().equals(threadId)) {
+            state.setCurrentThread(target); state.setVersion(state.getVersion() + 1);
+        }
+        activity.bump(target, null);
+        methods.flush(); records.flush(); states.flush();
+        threads.delete(source);
+        var ordering = activity.settings(experiment);
+        ordering.setOrderVersion(ordering.getOrderVersion() + 1);
     }
 
     @Transactional
     public ExplorationThreadResponse addMethod(Long experimentId, Long threadId, ExplorationThreadRequests.MethodRequest request) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        ExperimentExplorationRecord source = ownedSource(experimentId, request.sourceRecordId());
-        ensureMethodSourceAvailable(threadId, source, null);
-        methods.save(ExplorationThreadMethod.builder().thread(thread).content(request.content().trim())
-                .sortOrder((int) methods.countByThreadId(threadId)).sourceRecord(source).build());
-        touch(thread.getExperiment(), thread);
-        return response(thread);
+        activity.createMethod(experimentId, new ExplorationActivityRequests.Method(threadId, request.content(), null, null));
+        return get(experimentId, threadId);
     }
 
     @Transactional
     public ExplorationThreadResponse updateMethod(Long experimentId, Long threadId, Long methodId, ExplorationThreadRequests.MethodRequest request) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        ExplorationThreadMethod method = ownedMethod(threadId, methodId);
-        ExperimentExplorationRecord source = ownedSource(experimentId, request.sourceRecordId());
-        ensureMethodSourceAvailable(threadId, source, methodId);
-        method.setContent(request.content().trim());
-        method.setSourceRecord(source);
-        touch(thread.getExperiment(), thread);
-        return response(thread);
+        activity.updateMethod(experimentId, methodId, new ExplorationActivityRequests.Method(threadId, request.content(), null, request.expectedVersion()));
+        return get(experimentId, threadId);
     }
 
     @Transactional
-    public ExplorationThreadResponse deleteMethod(Long experimentId, Long threadId, Long methodId, boolean deleteRecords) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        ExplorationThreadMethod method = ownedMethod(threadId, methodId);
-        if (deleteRecords) records.deleteByMethodId(methodId); else records.detachMethod(methodId);
-        methods.delete(method);
-        touch(thread.getExperiment(), thread);
-        return response(thread);
+    public ExplorationThreadResponse deleteMethod(Long experimentId, Long threadId, Long methodId, boolean deleteRecords, long expectedVersion) {
+        ownedThread(experimentId, threadId);
+        if (!activity.method(experimentId, methodId).getThread().getId().equals(threadId)) throw missing();
+        activity.deleteMethod(experimentId, methodId, expectedVersion, deleteRecords);
+        return get(experimentId, threadId);
     }
 
     @Transactional
     public ExplorationThreadResponse addRecord(Long experimentId, Long threadId, ExplorationThreadRequests.RecordRequest request) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        ExplorationThreadMethod method = request.methodId() == null ? null : ownedMethod(threadId, request.methodId());
-        ExperimentExplorationRecord source = ownedSource(experimentId, request.sourceRecordId());
-        ensureRecordSourceAvailable(threadId, source, null);
-        records.save(ExplorationThreadRecord.builder().thread(thread).method(method).discovery(request.discovery().trim())
-                .sourceRecord(source).occurredAt(request.occurredAt())
-                .sortOrder((int) records.countByThreadId(threadId)).build());
-        touch(thread.getExperiment(), thread);
-        return response(thread);
+        activity.createRecord(experimentId, new ExplorationActivityRequests.Discovery(threadId, request.methodId(), request.discovery(), request.occurredAt(), null, request.expectedMethodVersion()));
+        return get(experimentId, threadId);
     }
 
     @Transactional
     public ExplorationThreadResponse importRecords(Long experimentId, Long threadId, ExplorationThreadRequests.ImportRequest request) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        Set<Long> requestedIds = new HashSet<>();
-        List<ImportPlan> plans = new ArrayList<>();
-
-        for (ExplorationThreadRequests.ImportItem item : request.items()) {
-            if (!requestedIds.add(item.recordId())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "同一筆探索紀錄不可重複選取");
-            }
-            if (!item.includeMethod() && !item.includeDiscovery()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "每筆探索紀錄至少要選擇試法或發現");
-            }
-            if (item.includeMethod() && item.targetMethodId() != null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "建立新試法時不可同時指定既有試法");
-            }
-
-            ExperimentExplorationRecord source = ownedSource(experimentId, item.recordId());
-            String methodContent = item.includeMethod() ? requiredText(item.methodContent(), "請填寫要加入的試法") : null;
-            String discovery = item.includeDiscovery() ? requiredText(item.discovery(), "請填寫要加入的發現") : null;
-            ExplorationThreadMethod targetMethod = item.targetMethodId() == null ? null : ownedMethod(threadId, item.targetMethodId());
-
-            if (item.includeMethod() && methods.existsByThreadIdAndSourceRecordId(threadId, source.getId())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "所選紀錄的試法已加入這條探索線");
-            }
-            if (item.includeDiscovery() && records.existsByThreadIdAndSourceRecordId(threadId, source.getId())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "所選紀錄的發現已加入這條探索線");
-            }
-            plans.add(new ImportPlan(source, item.includeMethod(), methodContent, discovery, targetMethod));
-        }
-
-        int methodOrder = (int) methods.countByThreadId(threadId);
-        int recordOrder = (int) records.countByThreadId(threadId);
-        for (ImportPlan plan : plans) {
-            ExplorationThreadMethod targetMethod = plan.targetMethod();
-            if (plan.includeMethod()) {
-                targetMethod = methods.save(ExplorationThreadMethod.builder()
-                        .thread(thread).content(plan.methodContent()).sortOrder(methodOrder++)
-                        .sourceRecord(plan.source()).build());
-            }
-            if (plan.discovery() != null) {
-                records.save(ExplorationThreadRecord.builder()
-                        .thread(thread).method(targetMethod).discovery(plan.discovery())
-                        .sourceRecord(plan.source()).occurredAt(plan.source().getCreatedAt())
-                        .sortOrder(recordOrder++).build());
-            }
-        }
-        touch(thread.getExperiment(), thread);
-        return response(thread);
+        throw new ResponseStatusException(HttpStatus.GONE, "副本匯入已退場，請使用調整歸屬或整理");
     }
 
     @Transactional
     public ExplorationThreadResponse updateRecord(Long experimentId, Long threadId, Long recordId, ExplorationThreadRequests.RecordRequest request) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        ExplorationThreadRecord record = records.findByIdAndThreadId(recordId, threadId).orElseThrow(this::missing);
-        ExperimentExplorationRecord source = ownedSource(experimentId, request.sourceRecordId());
-        ensureRecordSourceAvailable(threadId, source, recordId);
-        record.setMethod(request.methodId() == null ? null : ownedMethod(threadId, request.methodId()));
-        record.setDiscovery(request.discovery().trim());
-        record.setSourceRecord(source);
-        record.setOccurredAt(request.occurredAt());
-        touch(thread.getExperiment(), thread);
-        return response(thread);
+        activity.updateRecord(experimentId, recordId, new ExplorationActivityRequests.Discovery(threadId, request.methodId(), request.discovery(), null, request.expectedVersion(), request.expectedMethodVersion()));
+        return get(experimentId, threadId);
     }
 
     @Transactional
-    public ExplorationThreadResponse deleteRecord(Long experimentId, Long threadId, Long recordId) {
-        ExplorationThread thread = ownedThread(experimentId, threadId);
-        records.delete(records.findByIdAndThreadId(recordId, threadId).orElseThrow(this::missing));
-        touch(thread.getExperiment(), thread);
-        return response(thread);
+    public ExplorationThreadResponse deleteRecord(Long experimentId, Long threadId, Long recordId, long expectedVersion) {
+        if (!activity.ownedRecord(experimentId, recordId).getThread().getId().equals(threadId)) throw missing();
+        activity.deleteRecord(experimentId, recordId, expectedVersion);
+        return get(experimentId, threadId);
     }
 
     @Transactional
     public ExplorationThreadResponse addCard(Long experimentId, Long threadId, ExplorationThreadRequests.CardRequest request) {
+        activity.lock(experimentId);
         ExplorationThread thread = ownedThread(experimentId, threadId);
         Card card = cards.findById(request.cardId()).filter(value -> value.getUser().getId().equals(owner())).orElseThrow(this::missing);
         if (threadCards.existsByThreadIdAndCardIdAndRole(threadId, card.getId(), request.role())) {
@@ -366,6 +326,7 @@ public class ExplorationThreadService {
 
     @Transactional
     public ExplorationThreadResponse removeCard(Long experimentId, Long threadId, Long linkId) {
+        activity.lock(experimentId);
         ExplorationThread thread = ownedThread(experimentId, threadId);
         threadCards.delete(threadCards.findByIdAndThreadId(linkId, threadId).orElseThrow(this::missing));
         touch(thread.getExperiment(), thread);
@@ -374,6 +335,7 @@ public class ExplorationThreadService {
 
     @Transactional
     public ExplorationThreadResponse addWork(Long experimentId, Long threadId, ExplorationThreadRequests.WorkRequest request) {
+        activity.lock(experimentId);
         ExplorationThread thread = ownedThread(experimentId, threadId);
         CreativeWork work = works.findByIdAndUserId(request.workId(), owner()).orElseThrow(this::missing);
         if (threadWorks.existsByThreadIdAndWorkId(threadId, work.getId())) throw new ResponseStatusException(HttpStatus.CONFLICT, "這件作品已經是探索線成果");
@@ -384,6 +346,7 @@ public class ExplorationThreadService {
 
     @Transactional
     public ExplorationThreadResponse removeWork(Long experimentId, Long threadId, Long linkId) {
+        activity.lock(experimentId);
         ExplorationThread thread = ownedThread(experimentId, threadId);
         threadWorks.delete(threadWorks.findByIdAndThreadId(linkId, threadId).orElseThrow(this::missing));
         touch(thread.getExperiment(), thread);
@@ -391,15 +354,36 @@ public class ExplorationThreadService {
     }
 
     private ExplorationThreadResponse response(ExplorationThread thread) {
-        List<ExplorationThreadResponse.MethodResponse> methodResponses = methods.findByThreadIdOrderBySortOrderAscIdAsc(thread.getId()).stream()
-                .map(value -> new ExplorationThreadResponse.MethodResponse(value.getId(), value.getContent(), value.getSortOrder(), id(value.getSourceRecord()), value.getCreatedAt(), value.getUpdatedAt())).toList();
-        List<ExplorationThreadResponse.RecordResponse> recordResponses = records.findByThreadIdOrderBySortOrderAscIdAsc(thread.getId()).stream()
-                .map(value -> new ExplorationThreadResponse.RecordResponse(value.getId(), id(value.getMethod()), value.getDiscovery(), value.getSortOrder(), id(value.getSourceRecord()), value.getOccurredAt(), value.getCreatedAt(), value.getUpdatedAt())).toList();
-        List<ExplorationThreadResponse.CardResponse> cardResponses = threadCards.findByThreadIdOrderByRoleAscSortOrderAscIdAsc(thread.getId()).stream()
-                .map(value -> new ExplorationThreadResponse.CardResponse(value.getId(), value.getCard().getId(), value.getCard().getTitle(), value.getCard().getCardNote(), value.getCard().getType(), value.getRole(), value.getNote(), value.getSortOrder(), value.getCard().isArchived(), value.getCreatedAt())).toList();
-        List<ExplorationThreadResponse.WorkResponse> workResponses = threadWorks.findByThreadIdOrderByCreatedAtAscIdAsc(thread.getId()).stream()
-                .map(value -> new ExplorationThreadResponse.WorkResponse(value.getId(), value.getWork().getId(), value.getWork().getTitle(), ExplorationThreadResponse.CreativeWorkStage.valueOf(value.getWork().getStage().name()), value.getWork().isArchived(), value.getCreatedAt())).toList();
-        return new ExplorationThreadResponse(thread.getId(), thread.getExperiment().getId(), thread.getName(), thread.getStatus(), thread.getConclusion(), thread.getSortOrder(), thread.getLastActivityAt(), thread.getCreatedAt(), thread.getUpdatedAt(), methodResponses, recordResponses, cardResponses, workResponses);
+        threads.flush();
+        return response(threads.detailRow(thread.getExperiment().getId(), thread.getId()).orElseThrow(this::missing));
+    }
+
+    private ExplorationThreadResponse metadata(ExplorationThreadRepository.ListRow t) {
+        return new ExplorationThreadResponse(t.getId(), t.getExperimentId(), t.getName(), t.getStatus(), t.getConclusion(),
+            t.getSortOrder(), t.getLastActivityAt(), null, null, List.of(), List.of(), List.of(), List.of(),
+            t.getVersion(), t.getUnassignedVersion(), t.getSystemKey(), 0, 0, t.getHasUnassignedHistory(), 0);
+    }
+
+    private ExplorationThreadResponse response(ExplorationThreadRepository.ListRow t) {
+        var methodPage = activity.methods(t.getExperimentId(), t.getId(), "", 0, 20);
+        var methodResponses = methodPage.content().stream().map(m ->
+            new ExplorationThreadResponse.MethodResponse(m.id(), m.content(), 0, null, null, null,
+                m.version(), m.discoveryCount(), m.hasHistory(), m.lastOrganizedAt())).toList();
+        var recordPage = activity.records(t.getExperimentId(), t.getId(), null, false, 0, 20);
+        var recordResponses = recordPage.content().stream().map(r ->
+            new ExplorationThreadResponse.RecordResponse(r.id(), r.methodId(), r.discovery(), 0, null,
+                r.occurredAt(), r.createdAt(), r.updatedAt(), r.version(), r.threadId(), r.tryText())).toList();
+        var cardResponses = threadCards.findByThreadIdOrderByRoleAscSortOrderAscIdAsc(t.getId()).stream()
+            .map(v -> new ExplorationThreadResponse.CardResponse(v.getId(), v.getCard().getId(), v.getCard().getTitle(),
+                v.getCard().getCardNote(), v.getCard().getType(), v.getRole(), v.getNote(), v.getSortOrder(),
+                v.getCard().isArchived(), v.getCreatedAt())).toList();
+        var workResponses = threadWorks.findByThreadIdOrderByCreatedAtAscIdAsc(t.getId()).stream()
+            .map(v -> new ExplorationThreadResponse.WorkResponse(v.getId(), v.getWork().getId(), v.getWork().getTitle(),
+                ExplorationThreadResponse.CreativeWorkStage.valueOf(v.getWork().getStage().name()),
+                v.getWork().isArchived(), v.getCreatedAt())).toList();
+        return new ExplorationThreadResponse(t.getId(), t.getExperimentId(), t.getName(), t.getStatus(), t.getConclusion(),
+            t.getSortOrder(), t.getLastActivityAt(), null, null, methodResponses, recordResponses, cardResponses, workResponses,
+            t.getVersion(), t.getUnassignedVersion(), t.getSystemKey(), methodPage.totalElements(), recordPage.totalElements(), t.getHasUnassignedHistory(), records.countByThreadIdAndMethodIsNull(t.getId()));
     }
 
     private Experiment ownedExperiment(Long id) {
@@ -409,40 +393,9 @@ public class ExplorationThreadService {
         ownedExperiment(experimentId);
         return threads.findByIdAndExperimentId(id, experimentId).orElseThrow(this::missing);
     }
-    private ExplorationThreadMethod ownedMethod(Long threadId, Long id) { return methods.findByIdAndThreadId(id, threadId).orElseThrow(this::missing); }
-    private ExperimentExplorationRecord ownedSource(Long experimentId, Long id) {
-        if (id == null) return null;
-        return sourceRecords.findByIdAndExperimentId(id, experimentId).orElseThrow(this::missing);
-    }
-    private void ensureMethodSourceAvailable(Long threadId, ExperimentExplorationRecord source, Long currentId) {
-        if (source == null) return;
-        boolean exists = currentId == null
-                ? methods.existsByThreadIdAndSourceRecordId(threadId, source.getId())
-                : methods.existsByThreadIdAndSourceRecordIdAndIdNot(threadId, source.getId(), currentId);
-        if (exists) throw new ResponseStatusException(HttpStatus.CONFLICT, "所選紀錄的試法已加入這條探索線");
-    }
-    private void ensureRecordSourceAvailable(Long threadId, ExperimentExplorationRecord source, Long currentId) {
-        if (source == null) return;
-        boolean exists = currentId == null
-                ? records.existsByThreadIdAndSourceRecordId(threadId, source.getId())
-                : records.existsByThreadIdAndSourceRecordIdAndIdNot(threadId, source.getId(), currentId);
-        if (exists) throw new ResponseStatusException(HttpStatus.CONFLICT, "所選紀錄的發現已加入這條探索線");
-    }
-    private void touch(Experiment experiment, ExplorationThread thread) { ZonedDateTime now = ZonedDateTime.now(); thread.setLastActivityAt(now); experiment.setUpdatedAt(now); }
-    private String optional(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private String requiredText(String submitted, String message) {
-        String value = optional(submitted);
-        if (value == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
-        return value;
-    }
-    private record ImportPlan(ExperimentExplorationRecord source, boolean includeMethod,
-            String methodContent, String discovery, ExplorationThreadMethod targetMethod) {}
-    private Long id(Object value) {
-        if (value == null) return null;
-        if (value instanceof ExperimentExplorationRecord source) return source.getId();
-        if (value instanceof ExplorationThreadMethod method) return method.getId();
-        throw new IllegalArgumentException("不支援的來源型別");
-    }
+    private void touch(Experiment experiment, ExplorationThread thread) { activity.touch(thread); }
+    private String optional(String value) { return value == null || value.isBlank() ? null : value.strip(); }
+
     private Map<Long, Long> countMap(List<Object[]> rows) {
         Map<Long, Long> counts = new HashMap<>();
         for (Object[] row : rows) counts.put(number(row[0]), number(row[1]));

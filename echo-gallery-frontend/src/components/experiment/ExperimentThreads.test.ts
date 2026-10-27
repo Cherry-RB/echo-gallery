@@ -1,102 +1,70 @@
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ExperimentThreads from './ExperimentThreads.vue'
-
-const api = vi.hoisted(() => ({ getThreads: vi.fn(), getThread: vi.fn(), getThreadSummaries: vi.fn(), getExploration: vi.fn(), importThreadRecords: vi.fn(), createThreadWithImports: vi.fn() }))
+const api = vi.hoisted(() => ({ getThread: vi.fn(), getThreadSummaries: vi.fn(), getExploration: vi.fn(), moveThread: vi.fn() }))
 vi.mock('../../utils/api/experimentApi', () => ({ experimentApi: api }))
 vi.mock('../../utils/api/workApi', () => ({ workApi: { list: vi.fn() } }))
-const thread = { id: 3, name: '散步探索', status: 'IN_PROGRESS', experimentId: 1, lastActivityAt: '2026-10-23T06:00:00Z', conclusion: '', cards: [], works: [], records: [], methods: [{ id: 11, content: '每天散步', sourceRecordId: null }] }
-const record = { id: 7, tryText: '每天散步', discovery: '比較容易開始工作', sourceThreadMethodId: 11, createdAt: '2026-10-23T06:00:00Z', exports: [] }
-const clients: QueryClient[] = []
-const wrappers: ReturnType<typeof mount>[] = []
+const thread = { id: 3, name: '散步探索', status: 'IN_PROGRESS', experimentId: 1, lastActivityAt: '2026-10-23T06:00:00Z', conclusion: '', cards: [], works: [], records: [], methods: [], version: 1, orderVersion: 8 }
+const record = { id: 7, threadId: 3, methodId: null, tryText: null, discovery: '比較容易開始工作', createdAt: '2026-10-23T06:00:00Z', exports: [], version: 0 }
+const clients: QueryClient[] = [], wrappers: ReturnType<typeof mount>[] = []
 async function render(query: string, dialogOnly = false) {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/experiments/:id', component: { template: '<div />' } }] })
   await router.push('/experiments/1?' + query)
-  await router.isReady()
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
-  clients.push(client)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client)
   const wrapper = mount(ExperimentThreads, { props: { experimentId: 1, explorationRecords: [record], dialogOnly, initialThreadId: dialogOnly ? 3 : undefined }, global: {
-    plugins: [router, [VueQueryPlugin, { queryClient: client }]],
-    stubs: {
+    plugins: [router, [VueQueryPlugin, { queryClient: client }]], stubs: {
       AppDialog: { props: ['modelValue', 'title'], template: '<section v-if="modelValue" class="dialog"><h2>{{ title }}</h2><slot /><footer><slot name="footer" :request-close="() => $emit(\'update:modelValue\', false)" /></footer></section>' },
-      ExperimentExplorationEditor: true, CardPickerDialog: true, SourceReadingDialog: true,
+      ExperimentExplorationEditor: { name: 'ExperimentExplorationEditor', props: ['modelValue', 'threadId', 'mode'], emits: ['update:modelValue'], template: '<section v-if="modelValue" class="editor"><button @click="$emit(\'update:modelValue\', false)">取消</button></section>' },
+      ExplorationOrganizationDialog: { name: 'ExplorationOrganizationDialog', props: ['modelValue', 'initialRecords'], template: '<section v-if="modelValue" class="organization" />' },
+      ExplorationThreadActivity: true, CardPickerDialog: true, SourceReadingDialog: true,
       'el-button': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
-      'el-checkbox': { props: ['modelValue', 'disabled'], template: '<label><input type="checkbox" :checked="modelValue" :disabled="disabled" /><slot /></label>' },
-      'el-dropdown': true, 'el-tag': true, 'el-icon': true, 'el-radio-group': true,
-      'el-select': { props: ['modelValue'], template: '<select :value="modelValue"><slot /></select>' },
-      'el-option': { props: ['value', 'label'], template: '<option :value="value">{{ label }}</option>' },
-      'el-input': { props: ['modelValue'], template: '<textarea :value="modelValue" />' },
+      'el-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' }, 'el-dropdown-menu': { template: '<div><slot /></div>' },
+      'el-dropdown-item': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
+      'el-tag': true, 'el-icon': true, 'el-radio-group': true, 'el-skeleton': true, 'el-result': true, 'el-pagination': true,
     },
-  } })
-  wrappers.push(wrapper)
-  return wrapper
+  } }); wrappers.push(wrapper); return wrapper
 }
 beforeEach(() => {
   vi.clearAllMocks()
-  api.getThreads.mockResolvedValue([thread])
   api.getThread.mockResolvedValue(thread)
   api.getThreadSummaries.mockResolvedValue({ content: [thread], page: 0, size: 20, totalElements: 1, totalPages: 1 })
   api.getExploration.mockResolvedValue({ currentTry: '', favoriteTries: [], records: [record] })
-  api.importThreadRecords.mockResolvedValue(thread)
+  api.moveThread.mockResolvedValue(undefined)
   Element.prototype.scrollIntoView = vi.fn()
 })
-afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); clients.splice(0).forEach(client => client.clear()) })
-
-describe('探索線的跨入口流程', () => {
-  it('獨立彈窗模式不切換路由，也不顯示實驗頁的摘要區塊', async () => {
-    const wrapper = await render('', true)
-    await vi.waitFor(() => expect(wrapper.find('.thread-detail-grid').exists()).toBe(true))
-    expect(wrapper.find('.thread-workspace').exists()).toBe(false)
-    expect(wrapper.vm.$route.fullPath).toBe('/experiments/1?')
+afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()) })
+describe('探索線的共用入口', () => {
+  it('獨立詳情彈窗保持原路由及三欄布局', async () => {
+    const w = await render('', true)
+    await vi.waitFor(() => expect(w.find('.thread-detail-grid').exists()).toBe(true))
+    expect(w.find('.thread-workspace').exists()).toBe(false)
+    expect(w.vm.$route.fullPath).toBe('/experiments/1?')
     expect(api.getThread).toHaveBeenCalledWith(1, 3)
-    expect(api.getExploration).toHaveBeenCalledWith(1)
   })
-  it('反向連結可直接開啟指定探索線', async () => {
-    const wrapper = await render('thread=3')
-    await vi.waitFor(() => expect(wrapper.find('.dialog').text()).toContain('散步探索'))
-    expect(wrapper.find('.thread-detail-grid').exists()).toBe(true)
+  it.each(['新增行動備選', '記下發現'])('詳情「%s」採共用編輯器，取消仍保留同一詳情', async action => {
+    const w = await render('thread=3')
+    await vi.waitFor(() => expect(w.find('.thread-detail-grid').exists()).toBe(true))
+    const detail = w.get('.thread-detail-grid').element
+    await w.findAll('button').find(b => b.text() === action)!.trigger('click')
+    expect(w.find('.editor').exists()).toBe(true)
+    expect(w.findComponent({ name: 'ExperimentExplorationEditor' }).props('threadId')).toBe(3)
+    expect(w.get('.thread-detail-grid').element).toBe(detail)
+    await w.get('.editor button').trigger('click')
+    expect(w.find('.editor').exists()).toBe(false)
+    expect(w.get('.thread-detail-grid').element).toBe(detail)
   })
-
-  it.each(['新增試法', '加入紀錄'])('從詳情開啟「%s」再取消，仍保留同一個詳情內容', async action => {
-    const wrapper = await render('thread=3')
-    await vi.waitFor(() => expect(wrapper.find('.thread-detail-grid').exists()).toBe(true))
-    const detail = wrapper.get('.thread-detail-grid').element
-    await wrapper.findAll('.dialog button').find(button => button.text() === action)!.trigger('click')
-    expect(wrapper.findAll('.dialog')).toHaveLength(2)
-    expect(wrapper.get('.thread-detail-grid').element).toBe(detail)
-    expect(wrapper.find('.dialog').attributes('close-on-press-escape')).toBe('false')
-    await wrapper.findAll('.dialog').at(-1)!.findAll('footer button').find(button => button.text() === '取消')!.trigger('click')
-    expect(wrapper.findAll('.dialog')).toHaveLength(1)
-    expect(wrapper.get('.thread-detail-grid').element).toBe(detail)
+  it('舊歷程入口改開共用整理，不重建來源副本', async () => {
+    const w = await render('importRecord=7')
+    await vi.waitFor(() => expect(w.find('.organization').exists()).toBe(true))
+    expect(w.findComponent({ name: 'ExplorationOrganizationDialog' }).props('initialRecords')).toEqual([record])
   })
-
-  it('從歷程匯入時保留原試法歸屬，確認不重建相同試法', async () => {
-    const wrapper = await render('importRecord=7')
-    await vi.waitFor(() => expect(wrapper.find('.dialog').text()).toContain('已選 1／100 筆'))
-    await wrapper.findAll('footer button').find(button => button.text() === '下一步')!.trigger('click')
-    const methodCheckbox = wrapper.findAll('label').find(label => label.text() === '建立新試法')!
-    expect((methodCheckbox.get('input').element as HTMLInputElement).checked).toBe(false)
-    expect(wrapper.find('.source-editor select').element).toHaveProperty('value', '11')
-    await wrapper.findAll('footer button').find(button => button.text() === '加入探索線')!.trigger('click')
-    await vi.waitFor(() => expect(api.importThreadRecords).toHaveBeenCalledWith(1, 3, [expect.objectContaining({ recordId: 7, includeMethod: false, includeDiscovery: true, targetMethodId: 11 })]))
-    expect(api.createThreadWithImports).not.toHaveBeenCalled()
-  })
-
-  it('切換匯入目標仍保留已整理的文字', async () => {
-    const target = { ...thread, id: 4, name: '另一條探索線', methods: [] }
-    api.getThreads.mockResolvedValue([thread, target])
-    const wrapper = await render('importRecord=7')
-    await vi.waitFor(() => expect(wrapper.find('.dialog').text()).toContain('已選 1／100 筆'))
-    await wrapper.findAll('footer button').find(button => button.text() === '下一步')!.trigger('click')
-    ;(wrapper.findComponent('.source-editor textarea') as VueWrapper).vm.$emit('update:modelValue', '重新整理後的發現')
-    await wrapper.vm.$nextTick()
-    await wrapper.findAll('footer button').find(button => button.text() === '上一步')!.trigger('click')
-    ;(wrapper.findComponent('.source-target select') as VueWrapper).vm.$emit('update:modelValue', 4)
-    await wrapper.vm.$nextTick()
-    await wrapper.findAll('footer button').find(button => button.text() === '下一步')!.trigger('click')
-    await wrapper.findAll('footer button').find(button => button.text() === '加入探索線')!.trigger('click')
-    await vi.waitFor(() => expect(api.importThreadRecords).toHaveBeenCalledWith(1, 4, [expect.objectContaining({ discovery: '重新整理後的發現' })]))
+  it('排序傳入目前頁面的全域排序版本', async () => {
+    api.getThreadSummaries.mockResolvedValue({ content: [thread, { ...thread, id: 4 }], page: 0, size: 20, totalElements: 2, totalPages: 1 })
+    const w = await render('')
+    await vi.waitFor(() => expect(w.findAll('button').some(b => b.text() === '往下移動')).toBe(true))
+    await w.findAll('button').find(b => b.text() === '往下移動')!.trigger('click')
+    await vi.waitFor(() => expect(api.moveThread).toHaveBeenCalledWith(1, 3, 4, true, 8))
   })
 })

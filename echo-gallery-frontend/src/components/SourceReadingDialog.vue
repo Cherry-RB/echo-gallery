@@ -74,7 +74,7 @@ function openOriginal() {
     </article>
     <article v-else class="source-reading">
       <header class="source-reading-heading"><p class="source-reading-eyebrow">探索紀錄</p><h2>{{ source.title }}</h2><p v-if="source.experimentTitle" class="source-reading-meta">{{ source.experimentTitle }}{{ source.archived ? ' · 已封存' : '' }}</p></header>
-      <HistoryTimeline><HistoryEvent :date="source.title" :show-timeline="false"><HistoryFields left-label="試法" right-label="發現"><template #left><p>{{ recordParts.tryText || '這筆紀錄沒有填寫試法。' }}</p></template><template #right><p>{{ recordParts.discovery || '這筆紀錄沒有填寫發現。' }}</p></template></HistoryFields></HistoryEvent></HistoryTimeline>
+      <HistoryTimeline><HistoryEvent :date="source.title" :show-timeline="false"><HistoryFields left-label="行動" right-label="發現"><template #left><p>{{ recordParts.tryText || '這筆紀錄沒有填寫行動。' }}</p></template><template #right><p>{{ recordParts.discovery || '這筆紀錄沒有填寫發現。' }}</p></template></HistoryFields></HistoryEvent></HistoryTimeline>
     </article>
     <template #footer="{ requestClose }"><el-button @click="requestClose">{{ closeLabel }}</el-button><el-button :disabled="!!source.cardId && !card.data.value" @click="copy">複製內容</el-button><el-button type="primary" plain @click="openOriginal">{{ source.cardId ? '查看原卡片' : '查看探索紀錄' }}</el-button></template>
   </AppDialog>

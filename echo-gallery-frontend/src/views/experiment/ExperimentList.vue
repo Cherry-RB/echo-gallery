@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { MoreFilled, Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import type { ExperimentDto, ExperimentExplorationRecordDto, ExperimentRequest } from '../../types/experiment'
@@ -106,35 +106,6 @@ const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
   quickRecordVisible.value = true
 }
 
-const editExplorationRecord = (record: ExperimentExplorationRecordDto) => {
-  if (historyExperimentId.value === null) return
-  quickRecordExperimentId.value = historyExperimentId.value
-  quickRecordMode.value = 'DISCOVERY'
-  editingExplorationRecord.value = record
-  quickRecordVisible.value = true
-}
-
-const deleteExplorationRecord = async (recordId: number) => {
-  if (historyExperimentId.value === null) return
-  try {
-    await ElMessageBox.confirm('刪除這筆探索紀錄？刪除後無法復原；已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
-      confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning',
-    })
-  } catch {
-    return
-  }
-  try {
-    await experimentApi.deleteExplorationRecord(historyExperimentId.value, recordId)
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['experiment-exploration', historyExperimentId.value] }),
-      queryClient.invalidateQueries({ queryKey: ['experiments'] }),
-    ])
-    ElMessage.success('探索紀錄已刪除。')
-  } catch {
-    ElMessage.error('刪除探索紀錄失敗，請稍後再試。')
-  }
-}
-
 const openHistory = (experimentId: number) => {
   historyExperimentId.value = experimentId
   historyVisible.value = true
@@ -209,10 +180,10 @@ const submit = () => {
               <el-tooltip :content="experiment.title" :show-after="400" placement="top" popper-class="content-tooltip">
                 <h2 class="experiment-title">{{ experiment.title }}</h2>
               </el-tooltip>
-              <el-tooltip :content="experiment.currentTry || experiment.hypothesis || experiment.description || '新的試法尚未寫下。不妨先翻翻收集的材料。'" :show-after="400" placement="top" popper-class="content-tooltip">
+              <el-tooltip :content="experiment.currentTry || experiment.hypothesis || experiment.description || '還沒設定下一步。不妨先翻翻收集的材料。'" :show-after="400" placement="top" popper-class="content-tooltip">
                 <p :class="['experiment-hypothesis', { empty: !experiment.currentTry && !experiment.hypothesis && !experiment.description }]">
                   <span v-if="experiment.currentTry" class="experiment-current-try-label">目前想試</span>
-                  {{ experiment.currentTry || experiment.hypothesis || experiment.description || '新的試法尚未寫下。不妨先翻翻收集的材料。' }}
+                  {{ experiment.currentTry || experiment.hypothesis || experiment.description || '還沒設定下一步。不妨先翻翻收集的材料。' }}
                 </p>
               </el-tooltip>
             </div>
@@ -307,8 +278,6 @@ const submit = () => {
     manageable
     :show-organize="false"
     @record="historyExperimentId !== null && openQuickRecord(historyExperimentId, $event)"
-    @edit="editExplorationRecord"
-    @delete="deleteExplorationRecord"
     @add-thread="router.push({ path: '/experiments/' + historyExperimentId, query: { importRecord: $event == null ? 'all' : String($event) } })"
     @open-card="router.push(`/card/${$event}`)"
   />

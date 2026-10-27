@@ -24,7 +24,7 @@ const links = computed(() => props.usages ?? ownUsages.data.value ?? [])
 
 <template>
   <div v-if="showAction || links.length" class="use-work">
-    <el-button v-if="showAction" link type="primary" @click.stop="workUseTarget = { cardIds: cardId ? [cardId] : [], cardTitle, recordIds: recordId ? [recordId] : [], experimentId }">用於作品</el-button>
+    <el-button v-if="showAction && cardId" link type="primary" @click.stop="workUseTarget = { cardIds: [cardId], cardTitle, experimentId }">用於作品</el-button>
     <router-link v-for="work in links" :key="work.workId" class="work-usage-link" :to="`/works/${work.workId}`">{{ work.title }}{{ work.archived ? '（已封存）' : '' }}</router-link>
   </div>
 </template>

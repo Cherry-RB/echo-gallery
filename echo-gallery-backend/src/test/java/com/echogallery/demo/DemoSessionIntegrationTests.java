@@ -53,6 +53,7 @@ class DemoSessionIntegrationTests extends IntegrationTestBase {
     @Autowired CreativeWorkRepository workRepository;
     @Autowired DemoSessionService demoSessionService;
     @Autowired MutableClock clock;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @BeforeEach
     void cleanDatabase() {
@@ -112,6 +113,7 @@ class DemoSessionIntegrationTests extends IntegrationTestBase {
                         .content("{\"name\":\"demo cleanup thread\",\"cardId\":%d}".formatted(cardId)))
                 .andExpect(status().isOk());
         assertThat(explorationThreadRepository.countByExperimentId(experimentId)).isEqualTo(1);
+        seedActivity(expired, experimentId);
         User expiredUser = userRepository.findById(expired.userId()).orElseThrow();
         expiredUser.setDemoExpiresAt(ZonedDateTime.now(clock).minusMinutes(1));
         userRepository.saveAndFlush(expiredUser);
@@ -125,8 +127,40 @@ class DemoSessionIntegrationTests extends IntegrationTestBase {
         assertThat(cardRepository.findAllByUserId(expired.userId())).isEmpty();
         assertThat(workRepository.countByUserId(expired.userId())).isZero();
         assertThat(explorationThreadRepository.countByExperimentId(experimentId)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from experiment_method_preferences where experiment_id=?", Long.class, experimentId)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from exploration_operation_receipts where user_id=?", Long.class, expired.userId())).isZero();
         assertThat(userRepository.findById(active.userId())).isPresent();
         assertThat(cardRepository.findAllByUserId(active.userId())).hasSize(15);
+    }
+
+    @Test
+    void resetClearsActivityHistoryPreferencesAndOperationReceipts() throws Exception {
+        DemoSession session = start("tech");
+        long id = createExperiment(session.token(), "重設活動資料");
+        seedActivity(session, id);
+        String token = reset(session.token());
+        assertThat(jdbc.queryForObject("select count(*) from experiment_method_preferences where experiment_id=?", Long.class, id)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from exploration_operation_receipts where user_id=?", Long.class, session.userId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from experiment_exploration_records where experiment_id=?", Long.class, id)).isZero();
+        assertThat(explorationThreadRepository.countByExperimentId(id)).isZero();
+        today(token).andExpect(status().isOk());
+    }
+
+    private tools.jackson.databind.JsonNode activityRequest(DemoSession session, String root, String method, Object body) throws Exception {
+        var request = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request(org.springframework.http.HttpMethod.valueOf(method), root)
+            .header(HttpHeaders.AUTHORIZATION, bearer(session.token())).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(body));
+        return objectMapper.readTree(mockMvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
+    private void seedActivity(DemoSession session, long id) throws Exception {
+        String root = "/api/experiments/"+id+"/activity";
+        var focus = activityRequest(session,root+"/focus","PUT",java.util.Map.of("newContent","範例試法","expectedVersion",0));
+        long method=focus.get("currentMethod").get("id").asLong(), thread=focus.get("currentThreadId").asLong();
+        activityRequest(session,root+"/favorites","PUT",java.util.Map.of("methodIds",java.util.List.of(method),"expectedVersion",1));
+        var record=activityRequest(session,root+"/records","POST",java.util.Map.of("threadId",thread,"methodId",method,"discovery","隔離觀察","expectedMethodVersion",0));
+        var preview=activityRequest(session,root+"/organizations/preview","POST",java.util.Map.of("mode","HISTORY","groups",java.util.List.of(java.util.Map.of("threadId",thread,"methodId",method,"recordIds",java.util.List.of(record.get("id").asLong()),"includeMethod",true))));
+        activityRequest(session,root+"/organizations","POST",java.util.Map.of("token",preview.get("token").asText(),"requestId",java.util.UUID.randomUUID().toString(),"clearRecords",false,"drafts",java.util.List.of(java.util.Map.of("key","method:"+method,"text","範例歷史"))));
+        assertThat(jdbc.queryForObject("select count(*) from exploration_operation_receipts where user_id=?",Long.class,session.userId())).isEqualTo(1);
     }
 
     private void assertLibrary(long userId, String library, int expectedCards, int expectedToday) {

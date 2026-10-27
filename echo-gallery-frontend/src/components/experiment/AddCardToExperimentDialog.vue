@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import { experimentApi } from '../../utils/api/experimentApi'
+import { explorationActivityApi } from '../../utils/api/explorationActivityApi'
 import AppDialog from '../AppDialog.vue'
 import FieldCounter from '../ui/FieldCounter.vue'
 import PickerOption from '../ui/PickerOption.vue'
@@ -20,6 +21,7 @@ const selectedThreadId = ref<number | null>(null)
 const creating = ref(false)
 const threadName = ref('')
 const threadKeyword = ref('')
+const threadPage = ref(1)
 const error = ref('')
 const shell = ref<InstanceType<typeof AppDialog>>()
 useWorkDialogGuard(shell, () => props.modelValue)
@@ -37,19 +39,15 @@ const experimentsQuery = useInfiniteQuery({
 })
 const experiments = computed(() => experimentsQuery.data.value?.pages.flatMap(page => page.content) ?? [])
 const threadsQuery = useQuery({
-  queryKey: computed(() => ['experiment-threads', selectedExperimentId.value]),
-  queryFn: () => experimentApi.getThreads(selectedExperimentId.value!),
+  queryKey: computed(() => ['experiment-thread-options', selectedExperimentId.value, threadKeyword.value, threadPage.value, props.cardId]),
+  queryFn: () => explorationActivityApi.threadOptions(selectedExperimentId.value!, { keyword: threadKeyword.value, page: threadPage.value - 1, cardId: Number(props.cardId) }),
   enabled: computed(() => dialogVisible.value && selectedExperimentId.value !== null),
 })
-const availableThreads = computed(() => (threadsQuery.data.value ?? []).filter(thread =>
-  !thread.cards.some(link => link.role === 'MATERIAL' && String(link.cardId) === String(props.cardId)),
-))
-const filteredThreads = computed(() => {
-  const keyword = threadKeyword.value.trim().toLocaleLowerCase()
-  return (threadsQuery.data.value ?? []).filter(thread => !keyword || thread.name.toLocaleLowerCase().includes(keyword))
-})
+const availableThreads = computed(() => (threadsQuery.data.value?.content ?? []).filter(thread => thread.available))
+const filteredThreads = computed(() => threadsQuery.data.value?.content ?? [])
+watch(threadKeyword, () => { threadPage.value = 1 })
 const isAvailable = (threadId: number) => availableThreads.value.some(thread => thread.id === threadId)
-watch(selectedExperimentId, () => { selectedThreadId.value = null; creating.value = false; threadKeyword.value = ''; error.value = '' })
+watch(selectedExperimentId, () => { selectedThreadId.value = null; creating.value = false; threadKeyword.value = ''; threadPage.value = 1; error.value = '' })
 watch(dialogVisible, visible => {
   if (!visible) {
     selectedExperimentId.value = null
@@ -116,7 +114,8 @@ const addMutation = useMutation({
         </template>
         <template v-else><el-input v-model="threadName" maxlength="255" placeholder="新探索線名稱" aria-label="新探索線名稱" /><FieldCounter :value="threadName" :limit="255" /></template>
         <p v-if="selectedExperimentId !== null && threadsQuery.isError.value" class="field-hint">無法載入探索線。<el-button text @click="threadsQuery.refetch()">重試</el-button></p>
-        <p v-else-if="selectedExperimentId !== null && threadsQuery.isSuccess.value && !threadsQuery.data.value?.length && !creating" class="field-hint">尚無探索線，可直接建立。</p>
+        <el-pagination v-if="(threadsQuery.data.value?.totalPages ?? 0) > 1" v-model:current-page="threadPage" :page-size="20" :total="threadsQuery.data.value?.totalElements ?? 0" layout="prev, pager, next" />
+        <p v-else-if="selectedExperimentId !== null && threadsQuery.isSuccess.value && !threadsQuery.data.value?.totalElements && !creating" class="field-hint">尚無符合的探索線，可直接建立。</p>
         <p v-else-if="selectedExperimentId !== null && threadsQuery.isSuccess.value && !filteredThreads.length && !creating" class="field-hint">找不到符合的探索線。</p>
       </el-form-item>
     </el-form>

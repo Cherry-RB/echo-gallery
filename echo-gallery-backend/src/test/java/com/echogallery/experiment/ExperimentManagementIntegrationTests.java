@@ -148,110 +148,15 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
-    void explorationThreadKeepsSnapshotWhenSourceExplorationIsCleared() throws Exception {
+    void retiredSnapshotEndpointsCannotCreateMoreCopies() throws Exception {
         String token = register("thread-owner", "thread-owner@example.com");
-        long experimentId = createExperiment(token, "thread test");
-
-        MvcResult threadResult = mockMvc.perform(post("/api/experiments/{id}/threads", experimentId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"既有材料與線索\",\"status\":\"NOT_STARTED\",\"conclusion\":\"先整理既有方向\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("NOT_STARTED"))
-                .andReturn();
-        long threadId = objectMapper.readTree(threadResult.getResponse().getContentAsString()).get("id").asLong();
-
-        long materialCardId = createCard(token, "thread material");
-        mockMvc.perform(post("/api/experiments/{id}/threads/{threadId}/cards", experimentId, threadId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"cardId\":%d,\"role\":\"MATERIAL\"}".formatted(materialCardId)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cards[0].role").value("MATERIAL"))
-                .andExpect(jsonPath("$.cards[0].cardTitle").value("thread material"))
-                .andExpect(jsonPath("$.cards[0].cardType").value("note"));
-        mockMvc.perform(get("/api/cards/{cardId}/exploration-threads", materialCardId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].threadId").value(threadId))
-                .andExpect(jsonPath("$[0].experimentId").value(experimentId));
-
-        mockMvc.perform(put("/api/experiments/{id}/exploration/current-try", experimentId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"currentTry\":\"每天散步二十分鐘\"}"))
-                .andExpect(status().isOk());
-        MvcResult explorationResult = mockMvc.perform(post("/api/experiments/{id}/exploration/records", experimentId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"discovery\":\"傍晚比較容易持續\",\"includeCurrentTry\":true}"))
-                .andExpect(status().isOk())
-                .andReturn();
-        long sourceRecordId = objectMapper.readTree(explorationResult.getResponse().getContentAsString())
-                .get("records").get(0).get("id").asLong();
-
-        mockMvc.perform(post("/api/experiments/{id}/threads/{threadId}/imports", experimentId, threadId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {"items":[{
-                          "recordId":%d,
-                          "includeMethod":true,
-                          "includeDiscovery":false,
-                          "methodContent":"   "
-                        }]}
-                        """.formatted(sourceRecordId)))
-                .andExpect(status().isBadRequest());
-
-        MvcResult importResult = mockMvc.perform(post("/api/experiments/{id}/threads/{threadId}/imports", experimentId, threadId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {"items":[{
-                          "recordId":%d,
-                          "includeMethod":true,
-                          "includeDiscovery":true,
-                          "methodContent":"每天傍晚散步二十分鐘",
-                          "discovery":"傍晚比較容易持續"
-                        }]}
-                        """.formatted(sourceRecordId)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.methods[0].sourceRecordId").value(sourceRecordId))
-                .andExpect(jsonPath("$.records[0].sourceRecordId").value(sourceRecordId))
-                .andReturn();
-        long methodId = objectMapper.readTree(importResult.getResponse().getContentAsString())
-                .get("methods").get(0).get("id").asLong();
-
-        mockMvc.perform(post("/api/experiments/{id}/threads/{threadId}/methods", experimentId, threadId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"content\":\"重複來源試法\",\"sourceRecordId\":%d}".formatted(sourceRecordId)))
-                .andExpect(status().isConflict());
-        mockMvc.perform(post("/api/experiments/{id}/threads/{threadId}/records", experimentId, threadId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"discovery\":\"重複來源發現\",\"sourceRecordId\":%d}".formatted(sourceRecordId)))
-                .andExpect(status().isConflict());
-
-        mockMvc.perform(post("/api/experiments/{id}/threads/{threadId}/imports", experimentId, threadId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"items\":[{\"recordId\":%d,\"includeMethod\":false,\"includeDiscovery\":true,\"discovery\":\"傍晚比較容易持續\"}]}"
-                        .formatted(sourceRecordId)))
-                .andExpect(status().isConflict());
-
-        mockMvc.perform(delete("/api/experiments/{id}/exploration", experimentId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/api/experiments/{id}/threads/{threadId}", experimentId, threadId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.methods[0].content").value("每天傍晚散步二十分鐘"))
-                .andExpect(jsonPath("$.methods[0].sourceRecordId").doesNotExist())
-                .andExpect(jsonPath("$.records[0].discovery").value("傍晚比較容易持續"))
-                .andExpect(jsonPath("$.records[0].methodId").value(methodId))
-                .andExpect(jsonPath("$.records[0].sourceRecordId").doesNotExist());
+        long id = createExperiment(token, "活動資料");
+        mockMvc.perform(post("/api/experiments/" + id + "/exploration/records")
+            .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+            .content("{\"discovery\":\"舊分頁不可新增副本\",\"includeCurrentTry\":false}"))
+            .andExpect(status().isGone());
+        mockMvc.perform(get("/api/experiments/" + id + "/exploration")
+            .header(HttpHeaders.AUTHORIZATION, bearer(token))).andExpect(jsonPath("$.recordCount").value(0));
     }
 
     @Test
@@ -281,7 +186,7 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
 
         mockMvc.perform(put(root + "/{threadId}/position", firstThreadId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"targetThreadId\":%d,\"after\":true}".formatted(secondThreadId)))
+                .content("{\"targetThreadId\":%d,\"after\":true,\"expectedVersion\":2}".formatted(secondThreadId)))
                 .andExpect(status().isNoContent());
         mockMvc.perform(get(root + "/summaries?page=0&size=20")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
@@ -332,7 +237,7 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
         long methodId = objectMapper.readTree(method.getResponse().getContentAsString()).get("methods").get(0).get("id").asLong();
         mockMvc.perform(post(thread + "/discoveries")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"methodId\":%d,\"tryText\":\"每天散步\",\"discovery\":\"比較容易開始工作\"}".formatted(methodId)))
+                .content("{\"methodId\":%d,\"tryText\":\"每天散步\",\"discovery\":\"比較容易開始工作\",\"expectedMethodVersion\":0}".formatted(methodId)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.records[0].methodId").value(methodId));
         MvcResult original = mockMvc.perform(get("/api/experiments/" + experimentId + "/exploration")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
@@ -342,7 +247,7 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
         mockMvc.perform(post(root + "/imports")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"不得留下空探索線\",\"items\":[{\"recordId\":%d,\"includeMethod\":true,\"includeDiscovery\":false,\"methodContent\":\"   \"}]}".formatted(recordId)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isGone());
         mockMvc.perform(get(root).header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(jsonPath("$.length()").value(1));
         MvcResult work = mockMvc.perform(post("/api/creative-works")
@@ -364,7 +269,7 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
         mockMvc.perform(get("/api/experiments/" + experimentId + "/exploration")
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(jsonPath("$.records[0].discovery").value("比較容易開始工作"))
-                .andExpect(jsonPath("$.records[0].sourceThreadMethodId").doesNotExist());
+                .andExpect(jsonPath("$.records[0].sourceThreadMethodId").value(methodId));
         mockMvc.perform(get("/api/cards/" + cardId).header(HttpHeaders.AUTHORIZATION, bearer(token))).andExpect(status().isOk());
         mockMvc.perform(delete("/api/creative-works/" + workId).header(HttpHeaders.AUTHORIZATION, bearer(token))).andExpect(status().isNoContent());
     }
@@ -398,27 +303,14 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
                 .content("{\"workId\":%d}".formatted(workId)))
                 .andExpect(status().isOk());
 
-        MvcResult sourceRecord = mockMvc.perform(post("/api/experiments/{id}/exploration/records", experimentId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"discovery\":\"source discovery\",\"includeCurrentTry\":false}"))
-                .andExpect(status().isOk())
-                .andReturn();
-        long sourceRecordId = objectMapper.readTree(sourceRecord.getResponse().getContentAsString())
-                .get("records").get(0).get("id").asLong();
-        mockMvc.perform(post(thread + "/imports")
-                .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {"items":[{
-                          "recordId":%d,
-                          "includeMethod":true,
-                          "includeDiscovery":true,
-                          "methodContent":"source method",
-                          "discovery":"thread discovery"
-                        }]}
-                        """.formatted(sourceRecordId)))
-                .andExpect(status().isOk());
+        MvcResult method = mockMvc.perform(post(thread + "/methods").header(HttpHeaders.AUTHORIZATION, bearer(token))
+            .contentType(MediaType.APPLICATION_JSON).content("{\"content\":\"source method\"}")).andExpect(status().isOk()).andReturn();
+        long methodId = objectMapper.readTree(method.getResponse().getContentAsString()).get("methods").get(0).get("id").asLong();
+        MvcResult sourceRecord = mockMvc.perform(post("/api/experiments/" + experimentId + "/activity/records")
+            .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+            .content("{\"threadId\":%d,\"methodId\":%d,\"discovery\":\"thread discovery\",\"expectedMethodVersion\":0}".formatted(threadId, methodId)))
+            .andExpect(status().isOk()).andReturn();
+        long sourceRecordId = objectMapper.readTree(sourceRecord.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(delete("/api/cards/{id}", cardId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(token)))
@@ -435,15 +327,14 @@ class ExperimentManagementIntegrationTests extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.works.length()").value(0));
 
-        mockMvc.perform(delete("/api/experiments/{experimentId}/exploration/records/{recordId}", experimentId, sourceRecordId)
-                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(delete("/api/experiments/{experimentId}/activity/records/{recordId}", experimentId, sourceRecordId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)).param("expectedVersion", "0"))
+                .andExpect(status().isOk());
         mockMvc.perform(get(thread).header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.methods[0].content").value("source method"))
                 .andExpect(jsonPath("$.methods[0].sourceRecordId").doesNotExist())
-                .andExpect(jsonPath("$.records[0].discovery").value("thread discovery"))
-                .andExpect(jsonPath("$.records[0].sourceRecordId").doesNotExist());
+                .andExpect(jsonPath("$.records.length()").value(0));
     }
 
     private long createExperiment(String token, String title) throws Exception {

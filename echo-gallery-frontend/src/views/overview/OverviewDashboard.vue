@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import WorkResume from '../../components/work/WorkResume.vue'
 import { computed, ref } from 'vue'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import SectionHeader from '../../components/ui/SectionHeader.vue'
 import RecordHistoryTrigger from '../../components/ui/RecordHistoryTrigger.vue'
@@ -25,7 +24,6 @@ import type { OverviewAttentionSignal } from '../../types/overview'
 import type { ExperimentExplorationRecordDto } from '../../types/experiment'
 
 const router = useRouter()
-const queryClient = useQueryClient()
 const quickRecordExperimentId = ref<number | null>(null)
 const quickRecordMode = ref<'TRY' | 'DISCOVERY'>('TRY')
 const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
@@ -101,34 +99,6 @@ const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
   editingExplorationRecord.value = null
   quickRecordVisible.value = true
 }
-const editExplorationRecord = (record: ExperimentExplorationRecordDto) => {
-  if (historyExperimentId.value === null) return
-  quickRecordExperimentId.value = historyExperimentId.value
-  quickRecordMode.value = 'DISCOVERY'
-  editingExplorationRecord.value = record
-  quickRecordVisible.value = true
-}
-const deleteExplorationRecord = async (recordId: number) => {
-  if (historyExperimentId.value === null) return
-  try {
-    await ElMessageBox.confirm('刪除這筆探索紀錄？刪除後無法復原；已整理成卡片的內容仍會保留。', '刪除探索紀錄', {
-      confirmButtonText: '刪除', cancelButtonText: '取消', type: 'warning',
-    })
-  } catch {
-    return
-  }
-  try {
-    await experimentApi.deleteExplorationRecord(historyExperimentId.value, recordId)
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['experiment-exploration', historyExperimentId.value] }),
-      queryClient.invalidateQueries({ queryKey: ['experiments'] }),
-      queryClient.invalidateQueries({ queryKey: ['overview'] }),
-    ])
-    ElMessage.success('探索紀錄已刪除。')
-  } catch {
-    ElMessage.error('刪除探索紀錄失敗，請稍後再試。')
-  }
-}
 const openHistory = (experimentId: number) => {
   historyExperimentId.value = experimentId
   historyVisible.value = true
@@ -179,7 +149,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
               <el-tooltip v-if="experimentTry.currentTry" :content="experimentTry.currentTry" :show-after="400" placement="top" popper-class="content-tooltip">
                 <strong>{{ experimentTry.currentTry }}</strong>
               </el-tooltip>
-              <p v-else class="experiment-try-empty">新的試法尚未寫下。不妨先翻翻收集的材料。</p>
+              <p v-else class="experiment-try-empty">還沒設定下一步。不妨先翻翻收集的材料。</p>
             </button>
             <div class="experiment-try-record-action">
               <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
@@ -292,8 +262,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       :loading="historyQuery.isLoading.value"
       manageable
       :show-organize="false"
-      @edit="editExplorationRecord"
-      @delete="deleteExplorationRecord"
       @add-thread="router.push({ path: '/experiments/' + historyExperimentId, query: { importRecord: $event == null ? 'all' : String($event) } })"
       @open-card="openCard"
     />

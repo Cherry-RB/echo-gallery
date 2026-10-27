@@ -1,362 +1,222 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { ExperimentExplorationDto, ExperimentExplorationRecordDto, ExplorationThreadMethodDto } from '../../types/experiment'
-import { experimentApi } from '../../utils/api/experimentApi'
-import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import AppDialog from '../AppDialog.vue'
 import FieldCounter from '../ui/FieldCounter.vue'
+import ExplorationThreadSelect from './ExplorationThreadSelect.vue'
+import ExplorationActionSelect from './ExplorationActionSelect.vue'
+import ExplorationOrganizationDialog from './ExplorationOrganizationDialog.vue'
+import type { ExperimentExplorationRecordDto, ExplorationThreadMethodDto } from '../../types/experiment'
+import type { ActivityRecord, ActivityState, FocusRequest, MethodOption } from '../../types/explorationActivity'
+import { explorationActivityApi as api } from '../../utils/api/explorationActivityApi'
+import { apiErrorMessage } from '../../utils/api/errorMessage'
+import { useExplorationInvalidation } from '../../composables/useExplorationInvalidation'
 import { useWorkDialogGuard } from '../../composables/useWorkDialogGuard'
 
-type EditorMode = 'TRY' | 'DISCOVERY'
-type TryPane = 'COMPOSE' | 'FAVORITES'
-
-const props = defineProps<{
-  modelValue: boolean
-  experimentId: number
-  mode: EditorMode
-  record?: ExperimentExplorationRecordDto | null
-  threadId?: number
-  method?: ExplorationThreadMethodDto | null
-}>()
-
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  closed: []
-  saved: []
-}>()
-
-const queryClient = useQueryClient()
-const visible = computed({
-  get: () => props.modelValue,
-  set: (value: boolean) => emit('update:modelValue', value),
-})
+const props = withDefaults(defineProps<{
+  modelValue: boolean; experimentId: number; mode: 'TRY' | 'DISCOVERY';
+  record?: ExperimentExplorationRecordDto | null; threadId?: number; method?: ExplorationThreadMethodDto | MethodOption | null;
+  intent?: 'SELECT' | 'CREATE' | 'EDIT' | 'COPY' | 'ASSIGN'
+}>(), { intent: 'SELECT' })
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; closed: []; saved: [] }>()
 const shell = ref<InstanceType<typeof AppDialog>>()
-useWorkDialogGuard(shell, () => props.modelValue)
-const emptyExploration: ExperimentExplorationDto = { currentTry: '', currentTrySourceMethodId: null, favoriteTries: [], records: [] }
-const tryPane = ref<TryPane>('COMPOSE')
-const tryDraft = ref('')
-const selectedTrySuggestion = ref('')
-const newFavoriteTryDraft = ref('')
-const editingFavoriteTry = ref<string | null>(null)
-const editingFavoriteTryDraft = ref('')
-const recordTryDraft = ref('')
-const discoveryDraft = ref('')
-const includeTryInDiscovery = ref(true)
-const saving = ref(false)
-const initializedMode = ref<EditorMode | null>(null)
-const selectedSourceMethodId = ref<number | null>(null)
-const sourceThreads = useQuery({
-  queryKey: computed(() => ['experiment-threads', props.experimentId]),
-  queryFn: () => experimentApi.getThreads(props.experimentId),
-  enabled: computed(() => visible.value && props.mode === 'TRY'),
+const organizationVisible = ref(false)
+const organizationStarted = ref(false)
+useWorkDialogGuard(shell, () => props.modelValue && !organizationVisible.value)
+const invalidate = useExplorationInvalidation()
+const state = ref<ActivityState | null>(null), selectedMethod = ref<MethodOption | null>(null)
+const targetThread = ref<number | null>(null), threadLabel = ref(''), tryDraft = ref(''), discovery = ref('')
+const action = ref<'SELECT' | 'CREATE' | 'EDIT' | 'COPY'>('SELECT')
+const loading = ref(false), saving = ref(false), initializationFailed = ref(false), error = ref('')
+const contextOpen = ref(false)
+const draftBaseline = ref<string>(), favoriteIds = ref<number[]>([])
+const seenMethods = ref(new Map<number, MethodOption>())
+const actionField = ref<InstanceType<typeof ExplorationActionSelect>>()
+const discoveryField = ref<{ focus: () => void }>()
+const threadField = ref<InstanceType<typeof ExplorationThreadSelect>>()
+let generation = 0
+const settingNext = computed(() => props.mode === 'TRY' && props.intent === 'SELECT')
+const editingAction = computed(() => action.value === 'EDIT' || action.value === 'COPY')
+const actionLabel = computed(() => settingNext.value ? '下一步行動' : action.value === 'COPY' ? '新行動內容' : '行動內容')
+const submitLabel = computed(() => {
+  if (props.mode === 'DISCOVERY') return '儲存'
+  if (action.value === 'EDIT') return selectedMethod.value?.discoveryCount ? '下一步：整理舊紀錄' : settingNext.value ? '更新並設為下一步' : '更新行動'
+  if (action.value === 'COPY') return settingNext.value ? '建立副本並設為下一步' : '建立副本'
+  return '儲存'
 })
-const sourceMethods = computed(() => (sourceThreads.data.value ?? []).flatMap(thread =>
-  thread.methods.map(method => ({ ...method, threadName: thread.name }))))
-const applySourceMethod = (id: number | null) => {
-  selectedSourceMethodId.value = id
-  const method = sourceMethods.value.find(item => item.id === id)
-  if (method) tryDraft.value = method.content
-}
-
-const explorationQuery = useQuery({
-  queryKey: computed(() => ['experiment-exploration', props.experimentId]),
-  queryFn: () => experimentApi.getExploration(props.experimentId),
-  enabled: visible,
+const title = computed(() => props.mode === 'DISCOVERY' ? props.record ? '編輯發現' : '記下發現'
+  : settingNext.value ? '設定下一步' : action.value === 'COPY' ? '複製行動' : action.value === 'EDIT' ? '更新行動' : '新增行動備選')
+const activityRecord = computed(() => props.record as ActivityRecord | null | undefined)
+const favorites = computed(() => {
+  const options = [...(state.value?.favoriteMethods ?? []), ...(state.value?.recentMethods ?? []), ...seenMethods.value.values()]
+  return favoriteIds.value.map(id => options.find(m => m.id === id)).filter((m): m is MethodOption => !!m)
 })
-const exploration = computed(() => explorationQuery.data.value ?? emptyExploration)
-const recentTries = computed(() => [...new Set(
-  exploration.value.records.map(record => record.tryText).filter((text): text is string => Boolean(text)),
-)].slice(0, 3))
-
-watch([visible, () => props.mode, explorationQuery.isSuccess], ([isVisible, mode, isLoaded]) => {
-  if (!isVisible) {
-    initializedMode.value = null
-    return
-  }
-  if (!isLoaded || initializedMode.value === mode) return
-  if (mode === 'TRY') {
-    tryPane.value = 'COMPOSE'
-    tryDraft.value = props.method?.content ?? exploration.value.currentTry
-    selectedSourceMethodId.value = props.method?.id ?? exploration.value.currentTrySourceMethodId
-    selectedTrySuggestion.value = ''
-  }
-  if (mode === 'DISCOVERY') {
-    recordTryDraft.value = props.record?.tryText ?? props.method?.content ?? ''
-    discoveryDraft.value = props.record?.discovery ?? ''
-    includeTryInDiscovery.value = true
-  }
-  initializedMode.value = mode
-}, { immediate: true })
-
-const close = () => {
-  tryPane.value = 'COMPOSE'
-  visible.value = false
-}
-
-const handleClosed = () => {
-  tryPane.value = 'COMPOSE'
-  emit('closed')
-}
-
-const setExploration = async (value: ExperimentExplorationDto) => {
-  queryClient.setQueryData(['experiment-exploration', props.experimentId], value)
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['experiment', props.experimentId] }),
-    queryClient.invalidateQueries({ queryKey: ['experiments'] }),
-    queryClient.invalidateQueries({ queryKey: ['overview'] }),
-  ])
-}
-
-const saveTry = async () => {
-  if (getTextLength(tryDraft.value) > 500) return
-  const currentTry = trimToTextLength(tryDraft.value, 500).trim()
-  if (saving.value) return
-  if (currentTry === exploration.value.currentTry && selectedSourceMethodId.value === exploration.value.currentTrySourceMethodId) {
-    close()
-    return
-  }
-
-  saving.value = true
+const favoritesChanged = computed(() => JSON.stringify(favoriteIds.value) !== JSON.stringify(state.value?.favoriteMethods.map(m => m.id) ?? []))
+const draft = computed(() => [action.value, targetThread.value, selectedMethod.value?.id, tryDraft.value, discovery.value, favoriteIds.value])
+async function initialize() {
+  const current = ++generation
+  if (!props.modelValue) return
+  loading.value = true; error.value = ''; initializationFailed.value = false; organizationVisible.value = false; organizationStarted.value = false
+  contextOpen.value = props.intent === 'ASSIGN'
+  action.value = props.mode === 'DISCOVERY' || props.intent === 'ASSIGN' ? 'SELECT' : props.intent
+  tryDraft.value = ''; discovery.value = props.record?.discovery ?? ''; selectedMethod.value = null
   try {
-    await setExploration(await experimentApi.updateCurrentTry(props.experimentId, currentTry, currentTry ? selectedSourceMethodId.value : null))
-    ElMessage.success('試法已更新')
-    close()
-  } catch {
-    ElMessage.error('儲存試法失敗，請稍後再試。')
+    const result = await api.state(props.experimentId)
+    if (current !== generation) return
+    state.value = result; favoriteIds.value = result.favoriteMethods.map(m => m.id)
+    seenMethods.value = new Map()
+    const methodId = props.record?.methodId ?? props.method?.id ?? props.record?.sourceThreadMethodId
+    const method = methodId != null ? await api.method(props.experimentId, methodId)
+      : props.record || props.threadId != null ? null : result.currentMethod
+    if (current !== generation) return
+    selectedMethod.value = method
+    if (method) seenMethods.value.set(method.id, method)
+    targetThread.value = props.record?.threadId ?? props.threadId ?? method?.threadId ?? result.currentThreadId
+    threadLabel.value = props.record?.threadName ?? method?.threadName ?? ''
+    tryDraft.value = method?.content ?? ''
+    if (props.intent === 'CREATE' && props.mode === 'TRY') { selectedMethod.value = null; tryDraft.value = '' }
+  } catch (e) {
+    if (current === generation) { initializationFailed.value = true; error.value = apiErrorMessage(e, '無法讀取探索資料，請重試。') }
   } finally {
-    saving.value = false
-  }
-}
-
-const saveDiscovery = async () => {
-  if (getTextLength(recordTryDraft.value) > 500 || getTextLength(discoveryDraft.value) > 1000) return
-  const discovery = trimToTextLength(discoveryDraft.value, 1000).trim()
-  const tryText = trimToTextLength(recordTryDraft.value, 500).trim()
-  if (saving.value) return
-  if (props.record && !tryText && !discovery) {
-    ElMessage.warning('試法與發現不可同時清空，請保留至少一項內容。')
-    return
-  }
-  if (!props.record && !discovery) return
-
-  saving.value = true
-  try {
-    if (props.threadId && !props.record) {
-      await experimentApi.createThreadDiscovery(props.experimentId, props.threadId, {
-        methodId: props.method?.id ?? null,
-        tryText: includeTryInDiscovery.value ? tryText : '',
-        discovery,
-      })
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['experiment-exploration', props.experimentId] }),
-        queryClient.invalidateQueries({ queryKey: ['experiment-threads', props.experimentId] }),
-        queryClient.invalidateQueries({ queryKey: ['experiment', props.experimentId] }),
-        queryClient.invalidateQueries({ queryKey: ['experiments'] }),
-        queryClient.invalidateQueries({ queryKey: ['overview'] }),
-      ])
-      ElMessage.success('發現已保存至探索紀錄與探索線')
-      emit('saved')
-      close()
-      return
+    if (current === generation) {
+      draftBaseline.value = JSON.stringify(draft.value); loading.value = false
+      await nextTick()
+      if (props.mode === 'DISCOVERY') {
+        if (props.intent === 'ASSIGN') threadField.value?.focus?.()
+        else discoveryField.value?.focus?.()
+      } else if (settingNext.value && !editingAction.value) actionField.value?.focus?.()
     }
-    await setExploration(props.record
-      ? await experimentApi.updateExplorationRecord(props.experimentId, props.record.id, tryText, discovery)
-      : await experimentApi.createExplorationRecord(props.experimentId, discovery, includeTryInDiscovery.value))
-    ElMessage.success(props.record ? '探索紀錄已更新' : '已留下這次發現')
-    emit('saved')
-    close()
-  } catch {
-    ElMessage.error('儲存發現失敗，請稍後再試。')
-  } finally {
-    saving.value = false
   }
 }
-
-const openFavoriteManagement = () => {
-  newFavoriteTryDraft.value = tryDraft.value
-  editingFavoriteTry.value = null
-  tryPane.value = 'FAVORITES'
+watch([() => props.modelValue, () => props.mode, () => props.experimentId, () => props.record?.id, () => props.method?.id, () => props.intent], () => { void initialize() }, { immediate: true })
+onBeforeUnmount(() => { generation++ })
+function choose(method: MethodOption) {
+  seenMethods.value.set(method.id, method)
+  selectedMethod.value = method; tryDraft.value = method.content; targetThread.value = method.threadId; threadLabel.value = method.threadName
+  action.value = 'SELECT'
 }
-
-const saveFavoriteTries = async (favoriteTries: string[], successMessage: string) => {
-  if (saving.value) return false
+function input(value: string) {
+  tryDraft.value = value
+  if (selectedMethod.value && value !== selectedMethod.value.content) selectedMethod.value = null
+  action.value = value.trim() ? 'CREATE' : 'SELECT'
+}
+function changeThread(id: number | null) {
+  targetThread.value = id; threadLabel.value = ''
+  if (selectedMethod.value && selectedMethod.value.threadId !== id && action.value !== 'COPY') {
+    selectedMethod.value = null; tryDraft.value = ''; action.value = 'SELECT'
+  }
+}
+function edit(kind: 'EDIT' | 'COPY') {
+  if (!selectedMethod.value) return
+  error.value = ''
+  action.value = kind; tryDraft.value = selectedMethod.value.content
+}
+function cancelEdit() {
+  error.value = ''
+  action.value = 'SELECT'; tryDraft.value = selectedMethod.value?.content ?? ''
+  if (selectedMethod.value) { targetThread.value = selectedMethod.value.threadId; threadLabel.value = selectedMethod.value.threadName }
+}
+function toggleFavorite(method: MethodOption) {
+  const ids = favoriteIds.value
+  if (ids.includes(method.id)) favoriteIds.value = ids.filter(id => id !== method.id)
+  else if (ids.length < 3) favoriteIds.value = [...ids, method.id]
+  else ElMessage.info('最多 3 筆常用行動，請先移除一筆。')
+}
+async function reload() {
+  try {
+    await ElMessageBox.confirm('重新載入會捨棄這次尚未儲存的編輯。請先複製需要保留的文字。', '重新載入資料', { confirmButtonText: '捨棄並重新載入', cancelButtonText: '返回編輯', type: 'warning' })
+    await initialize()
+  } catch { /* 保留原草稿。 */ }
+}
+async function finish() {
+  await invalidate(props.experimentId)
+  emit('saved'); emit('update:modelValue', false)
+}
+async function save() {
+  if (!canSave.value || saving.value || !state.value) return
+  error.value = ''
+  if (props.mode === 'TRY' && action.value === 'EDIT' && selectedMethod.value?.discoveryCount) {
+    organizationStarted.value = true; organizationVisible.value = true; return
+  }
   saving.value = true
   try {
-    await setExploration(await experimentApi.updateFavoriteTries(props.experimentId, favoriteTries))
-    ElMessage.success(successMessage)
-    return true
-  } catch {
-    ElMessage.error('儲存常用試法失敗，請稍後再試。')
-    return false
-  } finally {
-    saving.value = false
-  }
+    if (props.mode === 'DISCOVERY') {
+      const method = selectedMethod.value
+      if (activityRecord.value) {
+        await api.updateRecord(props.experimentId, activityRecord.value, discovery.value.trim(), method?.id ?? null, method?.version, targetThread.value ?? activityRecord.value.threadId)
+      } else {
+        await api.createRecord(props.experimentId, { threadId: targetThread.value, methodId: method?.id ?? null, discovery: discovery.value.trim(), expectedMethodVersion: method?.version })
+      }
+    } else if (settingNext.value) {
+      const request: FocusRequest = { threadId: targetThread.value, expectedVersion: state.value.version }
+      if (editingAction.value && selectedMethod.value) {
+        Object.assign(request, { methodId: selectedMethod.value.id, newContent: tryDraft.value.trim(), action: action.value === 'EDIT' ? 'UPDATE' : 'COPY', expectedMethodVersion: selectedMethod.value.version })
+      } else if (selectedMethod.value) Object.assign(request, { methodId: selectedMethod.value.id, expectedMethodVersion: selectedMethod.value.version })
+      else if (tryDraft.value.trim()) request.newContent = tryDraft.value.trim()
+      else request.methodId = null
+      if (favoritesChanged.value) request.favoriteMethodIds = favoriteIds.value
+      await api.focus(props.experimentId, request)
+    } else if (action.value === 'EDIT' && selectedMethod.value) {
+      await api.updateMethod(props.experimentId, selectedMethod.value.id, tryDraft.value.trim(), selectedMethod.value.version)
+    } else {
+      await api.createMethod(props.experimentId, { threadId: targetThread.value, content: tryDraft.value.trim(),
+        ...(action.value === 'COPY' && selectedMethod.value ? { sourceMethodId: selectedMethod.value.id, expectedVersion: selectedMethod.value.version } : {}) })
+    }
+    ElMessage.success('已儲存')
+    await finish()
+  } catch (e) { error.value = apiErrorMessage(e, '儲存失敗，草稿已保留。資料如已變更，請重新確認後再試。') }
+  finally { saving.value = false }
 }
-
-const addFavoriteTry = async () => {
-  const text = trimToTextLength(newFavoriteTryDraft.value, 500).trim()
-  if (!text) return
-  if (exploration.value.favoriteTries.includes(text)) {
-    ElMessage.info('這個試法已在常用清單中。')
-    return
-  }
-  if (exploration.value.favoriteTries.length >= 3) {
-    ElMessage.info('最多保存 3 種常用試法；可先修改或移除其中一種。')
-    return
-  }
-  if (await saveFavoriteTries([...exploration.value.favoriteTries, text], '已新增常用試法。')) {
-    newFavoriteTryDraft.value = ''
-  }
-}
-
-const startEditFavoriteTry = (text: string) => {
-  editingFavoriteTry.value = text
-  editingFavoriteTryDraft.value = text
-}
-
-const updateFavoriteTry = async () => {
-  const original = editingFavoriteTry.value
-  const text = trimToTextLength(editingFavoriteTryDraft.value, 500).trim()
-  if (!original || !text) return
-  if (text !== original && exploration.value.favoriteTries.includes(text)) {
-    ElMessage.info('這個試法已在常用清單中。')
-    return
-  }
-  if (await saveFavoriteTries(
-    exploration.value.favoriteTries.map(saved => saved === original ? text : saved),
-    '常用試法已更新。',
-  )) {
-    editingFavoriteTry.value = null
-  }
-}
-
-const removeFavoriteTry = async (text: string) => {
-  try {
-    await ElMessageBox.confirm('移除後不會影響已留下的探索紀錄。', '移除常用試法', {
-      confirmButtonText: '移除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
-  await saveFavoriteTries(
-    exploration.value.favoriteTries.filter(saved => saved !== text),
-    '已移除常用試法。',
-  )
-}
+const unchangedUpdate = computed(() => props.mode === 'TRY' && action.value === 'EDIT' && selectedMethod.value != null
+  && tryDraft.value.trim() === selectedMethod.value.content.trim())
+const validation = computed(() => unchangedUpdate.value ? '更新後的行動內容必須與原內容不同。若只要整理紀錄，請使用整理功能。'
+  : action.value === 'COPY' && tryDraft.value.trim() === selectedMethod.value?.content?.trim() ? '複製後的行動內容需與來源不同。' : '')
+const canSave = computed(() => !loading.value && !initializationFailed.value && !validation.value && !unchangedUpdate.value && (props.mode === 'DISCOVERY'
+  ? !!discovery.value.trim() && (!!selectedMethod.value || !tryDraft.value.trim())
+  : settingNext.value && !editingAction.value || !!tryDraft.value.trim()))
 </script>
-
 <template>
-  <AppDialog ref="shell" :busy="saving" :draft="[tryDraft, selectedSourceMethodId, recordTryDraft, discoveryDraft, includeTryInDiscovery, newFavoriteTryDraft && newFavoriteTryDraft !== tryDraft ? newFavoriteTryDraft : '', editingFavoriteTry && editingFavoriteTryDraft !== editingFavoriteTry ? editingFavoriteTryDraft : '']" :draft-ready="initializedMode !== null"
-    class="app-record-form"
-    v-model="visible"
-    :title="mode === 'TRY' ? (tryPane === 'COMPOSE' ? '設定試法' : '常用試法') : (record ? '編輯探索紀錄' : '記下發現')"
-    width="min(560px, calc(100vw - 32px))"
-    scroll-body
-    @closed="handleClosed"
-  >
-    <el-skeleton v-if="explorationQuery.isLoading.value" :rows="4" animated />
-    <el-result v-else-if="explorationQuery.isError.value" icon="error" title="無法載入探索資料">
-      <template #extra><el-button type="primary" @click="explorationQuery.refetch()">重新載入</el-button></template>
-    </el-result>
-    <template v-else-if="mode === 'TRY' && tryPane === 'COMPOSE'">
-      <p class="dialog-intro">先寫下一件容易開始的小事。它會留在「目前想試」，等你記下發現時再決定要不要一起收進一筆探索紀錄。</p>
-      <label class="try-input-label" for="source-method">探索線試法（選填）</label>
-      <el-select id="source-method" :model-value="selectedSourceMethodId" clearable filterable class="try-suggestion-select" :loading="sourceThreads.isPending.value" placeholder="自由輸入，或選擇探索線試法" @update:model-value="applySourceMethod($event ?? null)">
-        <el-option v-for="item in sourceMethods" :key="item.id" :value="item.id" :label="item.threadName + ' · ' + item.content" />
-      </el-select>
-      <p v-if="sourceThreads.isError.value" class="dialog-hint">無法載入探索線試法。<el-button text @click="sourceThreads.refetch()">重試</el-button></p>
-      <label class="try-suggestion-label" for="try-suggestion-select">從既有試法開始（可選）</label>
-      <el-select id="try-suggestion-select" v-model="selectedTrySuggestion" class="try-suggestion-select" placeholder="最近用過或常用試法" :disabled="!recentTries.length && !exploration.favoriteTries.length" @change="tryDraft = $event; selectedSourceMethodId = null">
-        <el-option-group v-if="recentTries.length" label="最近用過（最多 3 種）">
-          <el-option v-for="text in recentTries" :key="`recent-${text}`" :label="text" :value="text" />
-        </el-option-group>
-        <el-option-group v-if="exploration.favoriteTries.length" label="我的常用試法（最多 3 種）">
-          <el-option v-for="text in exploration.favoriteTries" :key="`saved-${text}`" :label="text" :value="text" />
-        </el-option-group>
-      </el-select>
-      <label class="try-input-label" for="try-draft">這次想試什麼？</label>
-      <el-input id="try-draft" v-model="tryDraft" type="textarea" :rows="4" maxlength="500" placeholder="例如：晚餐後拿起紙筆，隨意畫兩分鐘。" aria-label="這次想試的小事" @input="selectedTrySuggestion = ''" />
-      <FieldCounter :value="tryDraft" :limit="500" />
-      <p v-if="getTextLength(tryDraft) > 500" class="dialog-hint">此試法超過目前試法的 500 字限制，請先精簡採用文字；探索線原文會保留。</p>
-      <div class="try-secondary-actions">
-        <el-button text size="small" @click="openFavoriteManagement">管理常用試法</el-button>
-      </div>
-    </template>
-    <template v-else-if="mode === 'TRY'">
-      <p class="dialog-intro">將想反覆使用的起點放在這裡。最多保存 3 種；修改或移除不會影響已留下的探索紀錄。</p>
-      <section class="favorite-try-create">
-        <label for="new-favorite-try">新增常用試法</label>
-        <el-input id="new-favorite-try" v-model="newFavoriteTryDraft" type="textarea" :rows="2" maxlength="500" placeholder="輸入想保存的試法" />
-        <div><span>{{ getTextLength(newFavoriteTryDraft) }} / 500</span><el-button size="small" type="primary" :disabled="!newFavoriteTryDraft.trim() || exploration.favoriteTries.length >= 3" :loading="saving" @click="addFavoriteTry">新增</el-button></div>
-      </section>
-      <p v-if="exploration.favoriteTries.length >= 3" class="dialog-hint">已保存 3 種常用試法；可先修改或移除其中一種。</p>
-      <ul v-if="exploration.favoriteTries.length" class="favorite-try-list">
-        <li v-for="text in exploration.favoriteTries" :key="text">
-          <template v-if="editingFavoriteTry === text">
-            <el-input v-model="editingFavoriteTryDraft" type="textarea" :rows="2" maxlength="500" aria-label="編輯常用試法" />
-            <div class="favorite-try-row-actions"><el-button size="small" @click="editingFavoriteTry = null">取消</el-button><el-button size="small" type="primary" :loading="saving" :disabled="!editingFavoriteTryDraft.trim()" @click="updateFavoriteTry">儲存</el-button></div>
-          </template>
-          <template v-else>
-            <p>{{ text }}</p>
-            <div class="favorite-try-row-actions"><el-button text size="small" @click="startEditFavoriteTry(text)">編輯</el-button><el-button text type="danger" size="small" @click="removeFavoriteTry(text)">移除</el-button></div>
-          </template>
-        </li>
-      </ul>
-      <p v-else class="empty-copy">尚未保存常用試法。</p>
-    </template>
-    <template v-else>
-      <p v-if="threadId && !record" class="dialog-intro">確認後同時保存原始探索紀錄，並加入目前探索線。</p>
-      <p v-if="!threadId" class="dialog-intro">{{ record ? '可修改這筆紀錄的試法與發現；清空其中一欄後儲存即可。' : '試過、沒能開始、或想法變了，都可以寫一句。每次儲存只會產生一筆探索紀錄。' }}</p>
-      <template v-if="record || threadId">
-        <label class="record-input-label" for="record-try-draft">試法</label>
-        <el-input id="record-try-draft" v-model="recordTryDraft" type="textarea" :rows="3" maxlength="500" placeholder="尚未記下試法" aria-label="這筆紀錄的試法" />
-        <FieldCounter :value="recordTryDraft" :limit="500" />
-        <p v-if="getTextLength(recordTryDraft) > 500" class="dialog-hint">請將本次保留的試法精簡至 500 字內；探索線原文不受影響。</p>
-        <label class="record-input-label record-discovery-label" for="record-discovery-draft">發現</label>
-      </template>
-      <el-input :id="record ? 'record-discovery-draft' : undefined" v-model="discoveryDraft" type="textarea" :rows="5" maxlength="1000" placeholder="記下實際經過、遇到的阻礙，或尚待確認的線索。" aria-label="這次發生了什麼" />
-      <FieldCounter :value="discoveryDraft" :limit="1000" />
-      <div v-if="exploration.currentTry && !record && !threadId" class="discovery-try-choice">
-        <p><span>目前試法</span>{{ exploration.currentTry }}</p>
-        <el-checkbox v-model="includeTryInDiscovery">把它一起留在這筆探索紀錄</el-checkbox>
-        <small v-if="includeTryInDiscovery">儲存後會清空目前試法，並形成「試法 → 發現」的一筆紀錄。</small>
-        <small v-else>這次只記發現；目前試法會保留，之後仍可繼續使用。</small>
-      </div>
-    </template>
-    <template #footer="{ requestClose }">
-      <template v-if="mode === 'TRY' && tryPane === 'FAVORITES'">
-        <el-button :disabled="saving" @click="tryPane = 'COMPOSE'">返回試法</el-button>
+  <AppDialog v-if="!organizationVisible" ref="shell" :model-value="modelValue" :title="title" width="min(560px, calc(100vw - 32px))" scroll-body :busy="saving" :draft-ready="!loading" :draft-baseline="draftBaseline" :draft="draft" @update:model-value="emit('update:modelValue', $event)" @closed="emit('closed')">
+    <el-skeleton v-if="loading" :rows="3" animated />
+    <el-form v-else label-position="top" :disabled="saving" @submit.prevent="save">
+      <details v-if="mode === 'DISCOVERY'" class="discovery-context" :open="contextOpen" @toggle="contextOpen = ($event.target as HTMLDetailsElement).open">
+        <summary><span>歸屬設定</span><span class="context-summary">{{ threadLabel || (targetThread == null ? '未設定' : '已選探索線') }} · {{ selectedMethod?.content || (tryDraft.trim() ? '尚未選取行動' : '未指定行動') }}</span></summary>
+        <div class="context-fields">
+          <el-form-item label="探索線"><ExplorationThreadSelect ref="threadField" :experiment-id="experimentId" :model-value="targetThread" :label="threadLabel" :clearable="!record" @update:model-value="changeThread" @label-change="threadLabel = $event" /></el-form-item>
+          <el-form-item label="對應行動（選填）"><ExplorationActionSelect :experiment-id="experimentId" :thread-id="targetThread" :method="selectedMethod" :text="tryDraft" :recent="state?.recentMethods" :favorites="favorites" :disabled="saving" @input="input" @select="choose" /></el-form-item>
+        </div>
+      </details>
+      <template v-if="mode === 'TRY'">
+        <el-form-item label="探索線"><ExplorationThreadSelect ref="threadField" :experiment-id="experimentId" :model-value="targetThread" :label="threadLabel" :clearable="!record" :disabled="action === 'EDIT'" @update:model-value="changeThread" @label-change="threadLabel = $event" /></el-form-item>
+        <el-form-item :label="actionLabel" :required="!settingNext || editingAction" :error="validation">
+          <template #label><span class="action-label"><span>{{ actionLabel }}</span><span v-if="editingAction" class="editing-label">{{ action === 'EDIT' ? '更新原行動' : '複製為新行動' }}</span><el-button v-if="settingNext && editingAction" type="primary" link size="small" @click="cancelEdit">返回行動選擇</el-button></span></template>
+          <ExplorationActionSelect v-if="settingNext && !editingAction" ref="actionField" :experiment-id="experimentId" :thread-id="targetThread" :method="selectedMethod" :text="tryDraft" :recent="state?.recentMethods" :favorites="favorites" :disabled="saving" allow-create @input="input" @select="choose" @toggle-favorite="toggleFavorite" />
+          <template v-else><el-input v-model="tryDraft" type="textarea" :rows="4" maxlength="2000" aria-label="行動內容" /><FieldCounter :value="tryDraft" :limit="2000" /></template>
+        </el-form-item>
+        <div v-if="settingNext && selectedMethod && !editingAction" class="method-actions"><el-button type="primary" link size="small" @click="edit('EDIT')">更新</el-button><el-button type="primary" link size="small" @click="edit('COPY')">複製</el-button></div>
+        <p v-if="action === 'COPY'" class="metadata">原行動保留；不複製發現、歷次整理或常用標記。</p>
+        <el-alert v-if="action === 'EDIT' && selectedMethod?.discoveryCount" type="warning" :closable="false" :title="'下一步將整理此行動的 ' + selectedMethod.discoveryCount + ' 筆發現。確認更新後，整理文字會保存到探索線的歷次整理，原發現將從活動紀錄移除。'" />
       </template>
       <template v-else>
-        <el-button :disabled="saving" @click="requestClose">取消</el-button>
-        <el-button v-if="mode === 'TRY'" type="primary" :loading="saving" :disabled="getTextLength(tryDraft) > 500" @click="saveTry">儲存試法</el-button>
-        <el-button v-else type="primary" :loading="saving" :disabled="(!record && !discoveryDraft.trim()) || getTextLength(recordTryDraft) > 500 || getTextLength(discoveryDraft) > 1000" @click="saveDiscovery">{{ record ? '儲存探索紀錄' : '留下這次發現' }}</el-button>
+        <el-form-item label="發現" required><el-input ref="discoveryField" v-model="discovery" type="textarea" :rows="5" maxlength="10000" aria-label="發現內容" /><FieldCounter :value="discovery" :limit="10000" /></el-form-item>
       </template>
-    </template>
+    </el-form>
+    <el-alert v-if="error" :title="error" type="error" :closable="false" />
+    <template #footer="{ requestClose }"><el-button :disabled="saving" @click="requestClose">取消</el-button><el-button v-if="error" type="primary" link :disabled="saving" @click="reload">重新載入資料</el-button><el-button type="primary" :loading="saving" :disabled="!canSave" @click="save">{{ submitLabel }}</el-button></template>
   </AppDialog>
+  <ExplorationOrganizationDialog v-if="organizationStarted" :key="selectedMethod?.id" v-model="organizationVisible" :experiment-id="experimentId" :thread-id="selectedMethod?.threadId" :method="selectedMethod" mode="UPDATE_METHOD" return-to-editor :new-method-content="tryDraft" :expected-focus-version="settingNext ? state?.version : undefined" :focus-favorite-method-ids="settingNext && favoritesChanged ? favoriteIds : undefined" @return-to-editor="tryDraft = $event" @saved="organizationVisible = false; organizationStarted = false; finish()" />
 </template>
-
 <style scoped>
-.dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
-.field-counter { width: 100%; margin: var(--space-xs) 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.try-suggestion-label, .try-input-label, .favorite-try-create > label { display: block; margin-bottom: var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
-.try-suggestion-select { width: 100%; margin-bottom: var(--space-md); }
-.try-secondary-actions { display: flex; justify-content: flex-end; margin-top: var(--space-xs); }
-.record-input-label { display: block; margin: 0 0 var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
-.record-discovery-label { margin-top: var(--space-md); }
-.discovery-try-choice { margin-top: var(--space-md); padding: var(--space-sm) var(--space-md); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-subtle); }
-.discovery-try-choice p { margin: 0 0 var(--space-sm); color: var(--el-text-color-regular); line-height: var(--leading-ui); white-space: pre-line; overflow-wrap: anywhere; }
-.discovery-try-choice p span { display: block; margin-bottom: var(--space-2xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); }
-.discovery-try-choice small { display: block; margin-top: var(--space-xs); color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
-.favorite-try-create { padding-bottom: var(--space-md); border-bottom: 1px solid var(--el-border-color-lighter); }
-.favorite-try-create > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-xs); color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
-.dialog-hint, .empty-copy { margin: var(--space-md) 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
-.favorite-try-list { display: flex; flex-direction: column; gap: var(--space-sm); padding: 0; margin: var(--space-md) 0 0; list-style: none; }
-.favorite-try-list li { padding: var(--space-sm); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-sm); }
-.favorite-try-list p { margin: 0; color: var(--el-text-color-primary); white-space: pre-line; overflow-wrap: anywhere; }
-.favorite-try-row-actions { display: flex; justify-content: flex-end; gap: var(--space-xs); margin-top: var(--space-xs); }
+.method-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-xs); margin-top: calc(-1 * var(--space-xs)); margin-bottom: var(--space-md); }
+.action-label { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: var(--space-xs); min-width: 0; }
+.action-label .el-button { margin-left: auto; }
+.editing-label { color: var(--el-text-color-secondary); font-size: var(--type-meta); }
+.discovery-context { background: var(--surface-summary); border-radius: var(--radius-md); padding: var(--space-sm); margin-bottom: var(--space-md); min-width: 0; }
+.discovery-context summary { cursor: pointer; font-size: var(--type-ui); line-height: var(--leading-ui); }
+.context-summary { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-meta); margin: var(--space-2xs) 0 0 var(--space-md); overflow-wrap: anywhere; white-space: pre-wrap; }
+.context-fields { margin-top: var(--space-sm); }
+.context-fields :deep(.el-form-item:last-child) { margin-bottom: 0; }
+.metadata { color: var(--el-text-color-secondary); font-size: var(--type-meta); margin-block: var(--space-xs) var(--space-md); }
+.el-form :deep(.el-form-item) { margin-bottom: var(--space-md); }
+.el-form :deep(.el-form-item__label) { display: flex; align-items: baseline; width: 100%; height: auto; margin-bottom: var(--space-xs); padding-bottom: 0; }
 </style>

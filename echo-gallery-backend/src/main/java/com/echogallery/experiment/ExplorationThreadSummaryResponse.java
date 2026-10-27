@@ -9,7 +9,7 @@ public record ExplorationThreadSummaryResponse(
         int sortOrder, ZonedDateTime lastActivityAt,
         long materialCount, long methodCount, long recordCount, long resultCardCount, long workCount,
         String firstMethodContent,
-        List<MaterialPreview> recentMaterials, List<RecordPreview> recentRecords) {
+        List<MaterialPreview> recentMaterials, List<RecordPreview> recentRecords, long version, String systemKey, long orderVersion) {
     public record MaterialPreview(Long cardId, String title, String note) {}
     public record RecordPreview(Long id, String methodContent, String discovery,
             ZonedDateTime occurredAt, ZonedDateTime createdAt) {}

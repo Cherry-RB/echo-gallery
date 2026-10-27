@@ -182,6 +182,8 @@ const handleBeforeClose = (done: () => void) => {
   confirmDiscard().then(() => { if (!isSubmitting.value && props.modelValue) done() }).catch(() => undefined)
 }
 
+defineExpose({ requestClose })
+
 const createAnother = () => {
   resetForm()
   nextTick(() => titleInputRef.value?.focus())

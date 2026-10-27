@@ -66,7 +66,7 @@ describe('從卡片用於作品', () => {
     expect(wrapper.get('.work-options .picker-option').attributes('aria-pressed')).toBe('true')
     expect(api.addSources).not.toHaveBeenCalled()
     await wrapper.findAll('button').find(button => button.text() === '加入作品')!.trigger('click')
-    await vi.waitFor(() => expect(api.addSources).toHaveBeenCalledWith(22, [{ cardId: 7, recordId: undefined }]))
+    await vi.waitFor(() => expect(api.addSources).toHaveBeenCalledWith(22, [{ cardId: 7 }]))
     await vi.waitFor(() => expect(navigation.push).toHaveBeenCalledWith('/works/22'))
   })
 })

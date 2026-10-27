@@ -142,6 +142,7 @@ watch(fetchedCard, (newCard) => {
 }, {immediate: true})
 
 let backupData = '' // 用於存放編輯前的資料快照
+let editingContentVersion = 0
 
 const editDialogTitle = computed(() => ({
   all: '編輯卡片',
@@ -154,6 +155,7 @@ const editDialogTitle = computed(() => ({
 const hasUnsavedEdit = computed(() => Boolean(backupData) && backupData !== JSON.stringify(cardData.value));
 
 const openEditDialog = (section: EditSection = 'all') => {
+  editingContentVersion = cardData.value.contentVersion ?? 0;
   editSection.value = section;
   isClosingAfterSave.value = false;
   backupData = JSON.stringify(cardData.value);
@@ -196,6 +198,7 @@ const handleSave = async () => {
       console.log('送出 PUT API 更新卡片');
       // 調用對外接口更新卡片（傳入封裝好的參數物件）
       const request: UpdateCardRequest = {
+        expectedContentVersion: editingContentVersion,
         ...toCardContentRequest(cardData.value),
         isArchived: cardData.value.isArchived
       };

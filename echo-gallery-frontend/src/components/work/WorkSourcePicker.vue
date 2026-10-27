@@ -11,7 +11,7 @@ import { workApi } from '../../utils/api/workApi'
 import type { WorkSource } from '../../types/work'
 const props = defineProps<{ modelValue: boolean; workId: number }>()
 const emit = defineEmits<{ 'update:modelValue': [boolean]; saved: [] }>()
-const kind = ref('CARD'), keyword = ref(''), experimentId = ref<number>(), page = ref(1)
+const keyword = ref(''), page = ref(1)
 const selected = reactive(new Map<string, WorkSource>()), reading = ref<WorkSource>()
 const busy = ref(false), error = ref('')
 const shell = ref<InstanceType<typeof AppDialog>>()
@@ -29,10 +29,9 @@ function toggle(s: WorkSource) {
   if (selected.has(keyOf(s))) selected.delete(keyOf(s))
   else if (selected.size < 100) selected.set(keyOf(s), s)
 }
-const params = computed(() => ({ kind: kind.value, keyword: keyword.value, experimentId: experimentId.value, page: page.value - 1 }))
+const params = computed(() => ({ kind: 'CARD', keyword: keyword.value, page: page.value - 1 }))
 const query = useQuery({ queryKey: ['work-candidates', params], queryFn: () => workApi.candidates(params.value) })
-const experiments = useQuery({ queryKey: ['work-experiments'], queryFn: workApi.experiments })
-watch([kind, keyword, experimentId], () => { page.value = 1 })
+watch(keyword, () => { page.value = 1 })
 watch(() => props.modelValue, async visible => {
   if (!visible) return
   await nextTick()
@@ -49,8 +48,8 @@ async function save() {
   <AppDialog v-if="!reading" ref="shell" :model-value="modelValue" title="加入參考素材" pattern="picker" width="min(980px, calc(100vw - 32px))" :draft="[...selected.keys()]" :draft-baseline="draftBaseline" :busy="busy" scroll-body @update:model-value="emit('update:modelValue', $event)">
     <div>
       <PickerWorkspace>
-      <el-tabs v-model="kind" aria-label="素材種類"><el-tab-pane label="卡片" name="CARD" :disabled="busy" /><el-tab-pane label="探索紀錄" name="RECORD" :disabled="busy" /></el-tabs>
-      <div class="source-search"><el-input v-model="keyword" :disabled="busy" :placeholder="kind === 'CARD' ? '搜尋卡片標題或 ID' : '搜尋試法或發現'" clearable aria-label="搜尋參考素材" /><el-select v-if="kind === 'RECORD'" :disabled="busy" v-model="experimentId" clearable placeholder="所有實驗" aria-label="篩選實驗"><el-option v-for="e in experiments.data.value" :key="e.id" :value="e.id" :label="e.title + (e.archived ? '（已封存）' : '')" /></el-select></div>
+      <div class="source-search"><el-input v-model="keyword" :disabled="busy" placeholder="搜尋卡片標題或 ID" clearable aria-label="搜尋卡片素材" /></div>
+      <p class="source-rule">探索內容請先整理成卡片，再加入作品作為參考。</p>
       <p class="source-rule">已選 {{ selected.size }} 筆。可跨搜尋與分頁選取，最多 100 筆；原始內容不會貼入正文。</p>
       <div class="picker-results">
       <p v-if="query.isPending.value">正在搜尋…</p>

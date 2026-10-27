@@ -67,10 +67,12 @@ export interface CardContentRequest {
 export type CreateCardRequest = CardContentRequest;
 
 export interface UpdateCardRequest extends CardContentRequest {
+    expectedContentVersion: number;
     isArchived: boolean;
 }
 
 export interface CardDto {
+    contentVersion?: number;
     id: string;
 
     // 基本資訊
