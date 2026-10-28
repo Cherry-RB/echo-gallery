@@ -36,6 +36,14 @@ beforeEach(() => {
 })
 afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()) })
 describe('探索線的共用入口', () => {
+  it('標題計數使用所有探索線總數，不使用目前頁面的預覽筆數', async () => {
+    api.getThreadSummaries.mockResolvedValue({ content: [thread], page: 0, size: 20, totalElements: 23, totalPages: 2 })
+    const w = await render('')
+    await vi.waitFor(() => expect(w.find('[aria-label="探索線數量：23"]').exists()).toBe(true))
+    expect(w.get('.app-section-title').text()).toBe('探索線')
+    expect(w.get('[aria-label="探索線數量：23"]').text()).toBe('23')
+  })
+
   it('獨立詳情彈窗保持原路由及三欄布局', async () => {
     const w = await render('', true)
     await vi.waitFor(() => expect(w.find('.thread-detail-grid').exists()).toBe(true))

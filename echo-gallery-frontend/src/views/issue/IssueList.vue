@@ -11,6 +11,7 @@ import ExpandableText from '../../components/ExpandableText.vue'
 import IssueUpdateDialog from '../../components/issue/IssueUpdateDialog.vue'
 import IssueUpdates from '../../components/issue/IssueUpdates.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
+import RecordHistoryTrigger from '../../components/ui/RecordHistoryTrigger.vue'
 import type { CreateIssueRequest, IssueSummary } from '../../types/issue'
 import { formatDate } from '../../utils/formatDate'
 import { issueApi } from '../../utils/api/issueApi'
@@ -395,7 +396,7 @@ const submitCreateIssue = async () => {
                   <button type="button" class="quick-update-button" @click.stop="openQuickUpdate(issue.id)">
                     ＋ 記錄
                   </button>
-                  <button v-if="(issue.progressUpdateCount ?? 0) > 0" type="button" class="progress-update-count" :aria-label="`查看 ${issue.progressUpdateCount ?? 0} 筆近況更新`" @click.stop="openHistory(issue.id)">{{ issue.progressUpdateCount ?? 0 }}</button>
+                  <RecordHistoryTrigger v-if="(issue.progressUpdateCount ?? 0) > 0" label="近況更新" :count="issue.progressUpdateCount" count-only @click.stop="openHistory(issue.id)" />
                 </div>
               </header>
               <div class="issue-progress-fields">
@@ -419,7 +420,7 @@ const submitCreateIssue = async () => {
                 <button type="button" class="quick-update-button" @click.stop="openQuickUpdate(issue.id)">
                   ＋ 記錄
                 </button>
-                <button v-if="(issue.progressUpdateCount ?? 0) > 0" type="button" class="progress-update-count" :aria-label="`查看 ${issue.progressUpdateCount ?? 0} 筆近況更新`" @click.stop="openHistory(issue.id)">{{ issue.progressUpdateCount ?? 0 }}</button>
+                <RecordHistoryTrigger v-if="(issue.progressUpdateCount ?? 0) > 0" label="近況更新" :count="issue.progressUpdateCount" count-only @click.stop="openHistory(issue.id)" />
               </div>
             </div>
 
@@ -965,8 +966,6 @@ const submitCreateIssue = async () => {
 .quick-update-button:focus-visible {
   text-decoration: underline;
 }
-.progress-update-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
-.progress-update-count:hover, .progress-update-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 
 .no-progress-update {
   margin: 0;

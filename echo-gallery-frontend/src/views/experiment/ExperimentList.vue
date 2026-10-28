@@ -14,6 +14,7 @@ import ExperimentExplorationEditor from '../../components/experiment/ExperimentE
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
+import RecordHistoryTrigger from '../../components/ui/RecordHistoryTrigger.vue'
 import AppEmptyState from '../../components/ui/AppEmptyState.vue'
 
 const router = useRouter()
@@ -190,7 +191,7 @@ const submit = () => {
             <aside class="experiment-summary-side">
               <header class="experiment-card-header">
                 <ExperimentQuickRecordAction @select="openQuickRecord(experiment.id, $event)" />
-                <button v-if="experiment.explorationRecordCount > 0" type="button" class="exploration-record-count" :aria-label="`查看 ${experiment.explorationRecordCount} 筆探索紀錄`" @click.stop="openHistory(experiment.id)">{{ experiment.explorationRecordCount }}</button>
+                <RecordHistoryTrigger v-if="experiment.explorationRecordCount > 0" label="探索紀錄" :count="experiment.explorationRecordCount" count-only @click.stop="openHistory(experiment.id)" />
                 <el-dropdown trigger="click" @command="handleCardCommand(experiment, $event)">
                   <el-button text circle :icon="MoreFilled" :disabled="archiveMutation.isPending.value" aria-label="實驗主題操作" @click.stop />
                   <template #dropdown>
@@ -297,8 +298,6 @@ const submit = () => {
 .experiment-hypothesis { display: -webkit-box; margin: var(--space-xs) 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
 .experiment-hypothesis.empty { color: var(--el-text-color-placeholder); font-weight: 400; }
 .experiment-current-try-label { display: block; margin-bottom: var(--space-2xs); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); }
-.exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
-.exploration-record-count:hover, .exploration-record-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .experiment-summary-side { display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
 .experiment-card-footer { margin-top: auto; color: var(--el-text-color-placeholder); font-size: var(--type-meta); text-align: right; }
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }

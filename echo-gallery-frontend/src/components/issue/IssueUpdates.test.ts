@@ -167,6 +167,7 @@ describe('IssueUpdates', () => {
 
   it('開啟歷次更新後才查詢十筆歷程', async () => {
     vi.mocked(issueApi.getIssueUpdates).mockResolvedValue({
+      totalCount: 37,
       items: [{
         id: 2,
         issueId: 7,
@@ -189,6 +190,8 @@ describe('IssueUpdates', () => {
     await flushPromises()
 
     expect(issueApi.getIssueUpdates).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('.record-history-trigger').attributes('aria-label')).toBe('查看 37 筆歷次更新')
+    expect(wrapper.get('.record-history-trigger .record-count').text()).toBe('37')
     await wrapper.findAll('button').find((button) => button.text().includes('歷次更新'))?.trigger('click')
     await flushPromises()
 

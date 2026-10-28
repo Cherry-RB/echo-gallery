@@ -367,8 +367,7 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
 
 <template>
   <section v-if="!dialogOnly" class="thread-workspace">
-    <SectionHeader title="探索線">
-      <template #title-extra><RecordCount :count="summaryTotal" aria-label="探索線數量" /></template>
+    <SectionHeader title="探索線" :count="summariesQuery.data.value ? summaryTotal : undefined">
       <template #actions><el-button type="primary" :icon="Plus" @click="openCreate">建立探索線</el-button></template>
     </SectionHeader>
     <el-skeleton v-if="summariesQuery.isPending.value" :rows="5" animated />

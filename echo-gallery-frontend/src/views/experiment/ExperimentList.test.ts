@@ -3,8 +3,8 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ExperimentList from './ExperimentList.vue'
 
-const state = vi.hoisted(() => ({ list: vi.fn(), archive: vi.fn(), push: vi.fn() }))
-vi.mock('../../utils/api/experimentApi', () => ({ experimentApi: { getExperiments: state.list, setExperimentArchived: state.archive } }))
+const state = vi.hoisted(() => ({ list: vi.fn(), archive: vi.fn(), push: vi.fn(), exploration: vi.fn() }))
+vi.mock('../../utils/api/experimentApi', () => ({ experimentApi: { getExperiments: state.list, setExperimentArchived: state.archive, getExploration: state.exploration } }))
 vi.mock('../../utils/api/workApi', () => ({ workApi: { usages: vi.fn().mockResolvedValue([]) } }))
 vi.mock('vue-router', async importOriginal => ({ ...await importOriginal<typeof import('vue-router')>(), useRouter: () => ({ push: state.push }) }))
 vi.mock('element-plus', async importOriginal => ({
@@ -39,6 +39,7 @@ describe('實驗列表操作與分頁', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     state.list.mockResolvedValue({ content: [experiment], totalElements: 21 })
+    state.exploration.mockResolvedValue({ currentTry: '', favoriteTries: [], records: [] })
   })
   afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()) })
 
@@ -54,6 +55,18 @@ describe('實驗列表操作與分頁', () => {
     await card.trigger('keydown', { key: 'Enter' })
     await card.trigger('keydown', { key: ' ' })
     expect(state.push.mock.calls).toEqual([['/experiments/1'], ['/experiments/1']])
+  })
+
+  it('點擊共用歷程計數只開啟該實驗紀錄，不觸發外層卡片導頁', async () => {
+    const wrapper = render()
+    await vi.waitFor(() => expect(wrapper.find('.record-history-trigger').exists()).toBe(true))
+    const history = wrapper.get('.record-history-trigger')
+    expect(history.attributes('aria-label')).toBe('查看 1 筆探索紀錄')
+    await history.trigger('keydown', { key: 'Enter' })
+    await history.trigger('keydown', { key: ' ' })
+    await history.trigger('click')
+    expect(state.push).not.toHaveBeenCalled()
+    expect(wrapper.findComponent({ name: 'ExperimentExplorationHistoryDialog' }).props('experimentId')).toBe(1)
   })
 
   it('封存末頁最後一筆後回到前頁，分頁保持每頁二十筆', async () => {

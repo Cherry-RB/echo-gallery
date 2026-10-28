@@ -8,6 +8,7 @@ import { issueApi } from '../../utils/api/issueApi'
 import { formatDate } from '../../utils/formatDate'
 import AppDialog from '../AppDialog.vue'
 import ExpandableText from '../ExpandableText.vue'
+import RecordHistoryTrigger from '../ui/RecordHistoryTrigger.vue'
 import IssueUpdateDialog from './IssueUpdateDialog.vue'
 
 const props = withDefaults(defineProps<{
@@ -150,10 +151,7 @@ const wasEdited = (update: IssueUpdate) => (
         <time v-if="latestUpdate" :datetime="latestUpdate.createdAt">
           {{ formatDate(latestUpdate.createdAt, 'YYYY/MM/DD') }}
         </time>
-        <button v-if="latestUpdate" type="button" class="text-action" @click="openHistoryDialog">
-          歷次更新
-          <span class="progress-update-count">{{ summaryPage?.totalCount ?? 0 }}</span>
-        </button>
+        <RecordHistoryTrigger v-if="latestUpdate" label="歷次更新" :count="summaryPage?.totalCount" @click="openHistoryDialog" />
         <el-button type="primary" plain :icon="Plus" @click="openCreateDialog">記錄訊號</el-button>
       </div>
     </header>
@@ -334,7 +332,6 @@ const wasEdited = (update: IssueUpdate) => (
   cursor: pointer;
 }
 .text-action { display: inline-flex; align-items: center; gap: var(--space-xs); }
-.progress-update-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 
 .feedback-grid {
   display: grid;
