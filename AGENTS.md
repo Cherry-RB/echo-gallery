@@ -46,6 +46,8 @@ cd echo-gallery-frontend; npm run preview        # 預覽建置完成的前端
 
 目前未設定獨立的格式化或 lint 工具；請遵循相鄰程式碼風格，並在提交前確認 `npm run build` 通過。
 
+- Spring MVC 的 `@PathVariable`、`@RequestParam` 應明確指定名稱；Spring Data JPA 使用命名參數的 `@Query`，對應方法參數必須加上 `@Param`，包括查詢及批次更新／刪除。不得只依賴 `-parameters` 或 IDE 保留參數名稱；衍生查詢方法不需為此額外加註。修正相關綁定錯誤時，應加入移除編譯參數名稱的回歸測試，驗證實際請求或 Repository 查詢能正常綁定，而非只檢查註解存在。
+
 ## 測試規範
 
 後端透過 Gradle 使用 JUnit Platform。測試類別命名為 `*Tests.java`，並放在 `src/test/java` 下對應的套件中。行為異動應加入聚焦的 service 或 controller 測試。前端目前沒有測試指令；請以 TypeScript 正式環境建置及瀏覽器手動操作驗證變更，特別注意響應式版面與驗證流程。

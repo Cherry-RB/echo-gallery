@@ -2,6 +2,7 @@ package com.echogallery.work;
 
 import java.util.Optional;
 import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
 
 public interface CreativeWorkRepository extends JpaRepository<CreativeWork, Long>, JpaSpecificationExecutor<CreativeWork> {
     @Override @EntityGraph(attributePaths = {"experiment", "treasure"})
@@ -11,5 +12,5 @@ public interface CreativeWorkRepository extends JpaRepository<CreativeWork, Long
     boolean existsByTreasureId(Long treasureId);
     long countByUserId(Long userId);
     @Modifying @Query("delete from CreativeWork w where w.user.id = :owner")
-    void deleteOwner(Long owner);
+    void deleteOwner(@Param("owner") Long owner);
 }

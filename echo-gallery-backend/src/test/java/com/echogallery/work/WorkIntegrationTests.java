@@ -5,6 +5,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import java.time.*;
 import java.util.*;
+import org.springframework.asm.ClassReader;
+import org.springframework.asm.ClassVisitor;
+import org.springframework.asm.ClassWriter;
+import org.springframework.asm.Opcodes;
+import org.springframework.data.jpa.repository.support.JpaRepositoryFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -98,6 +103,63 @@ class WorkIntegrationTests extends IntegrationTestBase {
         send(post(ROOT + "/{id}/sources", work), token, Map.of("sources", List.of(Map.of("recordId", 999L))))
                 .andExpect(status().isBadRequest());
         send(get(ROOT + "/{id}/sources", work), token, null).andExpect(jsonPath("$.length()").value(0));
+    }
+    @Test void namedQueriesBindWithoutCompilerParameterNamesAndKeepOwnerIsolation() throws Exception {
+        String token = register(), otherToken = register();
+        long workId = create(token, "引用綁定測試"), otherWorkId = create(otherToken, "其他帳號作品");
+        var work = works.findById(workId).orElseThrow();
+        var otherWork = works.findById(otherWorkId).orElseThrow();
+        var card = cards.saveAndFlush(Card.builder().user(work.getUser()).title("隔離引用素材").type("note").build());
+        var otherCard = cards.saveAndFlush(Card.builder().user(otherWork.getUser()).title("其他帳號素材").type("note").build());
+        var source = new WorkSource(); source.setWork(work); source.setCard(card); sources.saveAndFlush(source);
+        var otherSource = new WorkSource(); otherSource.setWork(otherWork); otherSource.setCard(otherCard); sources.saveAndFlush(otherSource);
+        Long owner = work.getUser().getId();
+        var sourceType = withoutParameterNames(WorkSourceRepository.class);
+        var workType = withoutParameterNames(CreativeWorkRepository.class);
+        var sourceFactory = new JpaRepositoryFactory(em);
+        sourceFactory.setBeanClassLoader(sourceType.getClassLoader());
+        var workFactory = new JpaRepositoryFactory(em);
+        workFactory.setBeanClassLoader(workType.getClassLoader());
+        var sourceRepository = sourceFactory.getRepository(sourceType);
+        var workRepository = workFactory.getRepository(workType);
+        var selected = (List<?>) sourceType.getMethod("usages", Long.class, List.class)
+                .invoke(sourceRepository, owner, List.of(card.getId(), otherCard.getId()));
+        assertThat(selected).hasSize(1);
+        assertThat(((WorkSource) selected.getFirst()).getWork().getId()).isEqualTo(workId);
+        assertThat((List<?>) sourceType.getMethod("usages", Long.class, List.class)
+                .invoke(sourceRepository, owner, List.of(otherCard.getId()))).isEmpty();
+        send(get(ROOT + "/usages").param("cardIds", card.getId() + "," + otherCard.getId()), token, null)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].cardId").value(card.getId())).andExpect(jsonPath("$[0].workId").value(workId));
+        sourceType.getMethod("deleteOwner", Long.class).invoke(sourceRepository, owner);
+        workType.getMethod("deleteOwner", Long.class).invoke(workRepository, owner);
+        em.flush(); em.clear();
+        assertThat(works.existsById(workId)).isFalse();
+        assertThat(works.existsById(otherWorkId)).isTrue();
+        assertThat(sources.findByWorkIdOrderByIdDesc(workId)).isEmpty();
+        assertThat(sources.findByWorkIdOrderByIdDesc(otherWorkId)).hasSize(1);
+        assertThat(cards.existsById(card.getId())).isTrue();
+    }
+
+    // 重用既有 ASM 測試方式，驗證 IDE 未使用 -parameters 時的真實查詢與清理行為。
+    private Class<?> withoutParameterNames(Class<?> repository) throws Exception {
+        byte[] bytecode;
+        try (var input = repository.getResourceAsStream("/" + repository.getName().replace('.', '/') + ".class")) {
+            if (input == null) throw new java.io.IOException("找不到 Repository bytecode");
+            var reader = new ClassReader(input);
+            var writer = new ClassWriter(0);
+            reader.accept(new ClassVisitor(Opcodes.ASM9, writer) {}, ClassReader.SKIP_DEBUG);
+            bytecode = writer.toByteArray();
+        }
+        class IsolatedLoader extends ClassLoader {
+            IsolatedLoader() { super(repository.getClassLoader()); }
+            Class<?> define() { return defineClass(repository.getName(), bytecode, 0, bytecode.length); }
+        }
+        var isolated = new IsolatedLoader().define();
+        for (var method : isolated.getDeclaredMethods()) {
+            for (var parameter : method.getParameters()) assertThat(parameter.isNamePresent()).isFalse();
+        }
+        return isolated;
     }
     @Test void foreignOwnersCannotReadWriteOrAttach() throws Exception {
         String a = register(), b = register(); long work = create(a, "私人作品"), other = create(b, "他人作品");
