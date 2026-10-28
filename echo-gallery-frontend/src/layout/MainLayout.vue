@@ -50,7 +50,7 @@ watch(() => route.path, () => {
       <LeftSidebar @open-quick-create="openQuickCreate" />
     </el-drawer>
 
-    <main class="content-viewport">
+    <main class="content-viewport" :class="{ 'content-viewport--detail': route.meta.layout === 'detail' }">
        <RouterView v-slot="{ Component }">
         <KeepAlive :include="['BoardFlex', 'TagCenter', 'SearchView']">
           <component :is="Component" />
@@ -89,6 +89,9 @@ watch(() => route.path, () => {
   min-width: 0;
   padding: var(--page-gutter);
 }
+
+/* 詳情頁自行管理閱讀留白，避免與全站外框疊加。 */
+.content-viewport.content-viewport--detail { padding: 0; }
 
 /* 導覽抽屜由 LeftSidebar 自己管理留白，不影響其他內容型 Drawer。 */
 :global(.custom-mobile-drawer .el-drawer__body) {

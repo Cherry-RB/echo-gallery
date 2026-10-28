@@ -1542,6 +1542,7 @@ const {
   }
 
   .card-properties-panel {
+    padding: var(--space-md);
     border-top: 1px solid var(--el-border-color-lighter);
     border-left: 0;
   }
@@ -1567,11 +1568,11 @@ const {
   }
 
   .card-reading-panel {
-    padding: 24px 18px 32px;
+    padding: 24px 16px 32px;
   }
 
   .card-properties-panel {
-    padding: 18px;
+    padding: var(--space-md);
   }
 
   .section-heading {
@@ -1585,6 +1586,7 @@ const {
 }
 
 .card-properties-panel > :deep(.side-panel + .side-panel) { margin-top: var(--space-md); }
+.card-properties-panel :deep(.side-panel) { box-shadow: none; }
 
 .experiment-context-actions {
   display: flex;

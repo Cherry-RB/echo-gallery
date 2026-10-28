@@ -154,6 +154,7 @@ const handleCommand = (command: string) => {
 .lineage-links a { display: inline-flex; max-width: 100%; padding: var(--space-2xs) var(--space-xs); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-sm); color: var(--el-color-primary); font-size: var(--type-meta); line-height: var(--leading-metadata); text-decoration: none; overflow-wrap: anywhere; }
 .lineage-links a:hover { border-color: var(--el-color-primary-light-5); background: var(--surface-subtle); }
 .yield-panel { width: 100%; box-sizing: border-box; }
+.challenge-panel { box-shadow: none; }
 @media (max-width: 900px) {
   .detail-grid { grid-template-columns: minmax(0, 1fr); }
   .challenge-panel { grid-row: 1; }

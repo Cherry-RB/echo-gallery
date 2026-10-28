@@ -92,7 +92,7 @@ const regionId = (stage: TreasureRank) => `challenge-${props.treasureId}-${stage
 .stone-note { margin: var(--space-xs) 0 0; }
 .route-help { margin: 0 0 var(--space-sm); color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); }
 @media (max-width: 760px) {
-  .challenge-name { order: 1; }
-  .stage-actions { order: 2; flex-basis: 100%; justify-content: flex-end; }
+  .stage-heading { flex: 1 1 auto; }
+  .stage-actions { flex: 0 0 auto; justify-content: flex-end; }
 }
 </style>

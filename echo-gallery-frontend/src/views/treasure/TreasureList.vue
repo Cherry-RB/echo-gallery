@@ -175,7 +175,7 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
 @media (max-width: 760px) {
   .treasure-grid { grid-template-columns: 1fr; }
   .treasure-toolbar { align-items: stretch; flex-direction: column; }
-  .treasure-filter-panel { max-width: none; margin-left: 0; width: 100%; }
+  .treasure-filter-panel { flex: 0 0 auto; max-width: none; margin-left: 0; width: 100%; }
   .treasure-search-controls { grid-template-columns: minmax(0, 1fr) auto; }
   .treasure-search-controls > .el-input, .treasure-search-controls > .el-select { grid-column: 1 / -1; }
 }

@@ -24,6 +24,8 @@ const route = useRoute()
 .resume-entry-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-xs); }
 .resume-entry-title { min-width: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); text-decoration: none; overflow-wrap: anywhere; }
 .resume-entry-stage, .resume-entry-meta { color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
+.resume-entry-stage { flex-shrink: 0; white-space: nowrap; }
+.resume-entry-meta { margin: 0; }
 .resume-entry-next { min-width: 0; overflow-wrap: anywhere; font-size: var(--type-body); line-height: var(--leading-body); }
 .resume-entry-label { display: block; color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); margin-bottom: var(--space-2xs); }
 .resume-entry-next p { display: -webkit-box; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: pre-wrap; }

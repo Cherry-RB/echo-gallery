@@ -32,5 +32,8 @@ const query = useQuery({ queryKey: ['works', 'resume', params], queryFn: () => w
 .resume-all:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: var(--space-2xs); }
 .resume-note { margin-top: var(--space-sm); color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); }
 @media (max-width: 1200px) { .resume-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .resume-list { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .resume-list { grid-template-columns: minmax(0, 1fr); gap: 0; margin-inline: calc(var(--panel-padding) * -1); }
+  .resume-list :deep(.resume-entry) { border: 0; border-top: 1px solid var(--el-border-color-light); border-radius: 0; min-height: 0; }
+}
 </style>

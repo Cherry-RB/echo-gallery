@@ -45,7 +45,7 @@ const routes = [
     meta: { requiresAuth: true }, // 直接在父路由加上需要權限，子路由會自動繼承
     children: [
     { path: 'works', name: 'WorkList', component: () => import('../views/work/WorkList.vue') },
-    { path: 'works/:id', name: 'WorkDetail', component: () => import('../views/work/WorkDetail.vue') },
+    { path: 'works/:id', name: 'WorkDetail', component: () => import('../views/work/WorkDetail.vue'), meta: { layout: 'detail' } },
     {
       path: 'card/new', // 新建卡片
       name: 'CardCreate',
@@ -55,6 +55,7 @@ const routes = [
     {
       path: 'card/:id', // 卡片詳情/更新卡片
       name: 'CardDetail',
+      meta: { layout: 'detail' },
       component: () => import('../views/CardDetail.vue'),
       props: true
     },
@@ -102,6 +103,7 @@ const routes = [
     {
       path: 'treasures/:id',
       name: 'TreasureDetail',
+      meta: { layout: 'detail' },
       component: () => import('../views/treasure/TreasureDetail.vue')
     },
     {
@@ -112,6 +114,7 @@ const routes = [
     {
       path: 'issues/:id',
       name: 'IssueDetail',
+      meta: { layout: 'detail' },
       component: () => import('../views/issue/IssueDetail.vue'),
       props: true
     },
@@ -123,6 +126,7 @@ const routes = [
     {
       path: 'experiments/:id',
       name: 'ExperimentDetail',
+      meta: { layout: 'detail' },
       component: () => import('../views/experiment/ExperimentDetail.vue'),
       props: true
     },

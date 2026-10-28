@@ -568,7 +568,7 @@ const submitUpdateIssue = async () => {
 .cockpit {
   display: grid;
   gap: var(--space-lg);
-  padding: var(--workspace-padding);
+  padding: var(--page-gutter);
 }
 
 .cockpit-header {

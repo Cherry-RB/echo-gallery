@@ -385,21 +385,23 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
             @keydown.up.prevent="moveThread(thread.id, -1)" @keydown.down.prevent="moveThread(thread.id, 1)"
             @dragstart="draggingThreadId = thread.id" @dragend="draggingThreadId = null; dropTarget = null">⠿</button>
           <button class="thread-identity" type="button" @click="openThreadDetail(thread)">{{ thread.name }}</button>
-          <div class="thread-heading-actions">
+          <div class="thread-heading-meta">
             <el-tag size="small" effect="plain">{{ statusLabel(thread.status) }}</el-tag>
-            <span class="metadata">最近整理 {{ formatDate(thread.lastActivityAt) }}</span>
+            <span class="metadata">最近整理 <time :datetime="thread.lastActivityAt ?? undefined">{{ formatDate(thread.lastActivityAt) }}</time></span>
+          </div>
+          <div class="thread-heading-actions">
             <el-button text type="primary" @click="openThreadDetail(thread)">查看詳情</el-button>
             <el-button text type="primary" :aria-expanded="isExpanded(thread)" @click="toggleExpanded(thread)">{{ isExpanded(thread) ? '收合' : '展開' }}</el-button>
-            <el-dropdown trigger="click">
-              <el-button text circle :icon="MoreFilled" aria-label="探索線操作" :disabled="busy" />
-              <template #dropdown><el-dropdown-menu>
-                <el-dropdown-item :icon="Edit" @click="openEdit(thread)">編輯探索線</el-dropdown-item>
-                <el-dropdown-item :icon="ArrowUp" :disabled="index === 0 && threadPage === 1" @click="moveThread(thread.id, -1)">往上移動</el-dropdown-item>
-                <el-dropdown-item :icon="ArrowDown" :disabled="index === summaryThreads.length - 1 && threadPage === (summariesQuery.data.value?.totalPages ?? 1)" @click="moveThread(thread.id, 1)">往下移動</el-dropdown-item>
-                <el-dropdown-item divided :icon="Delete" :disabled="!!thread.systemKey" @click="removeThread(thread)">刪除探索線</el-dropdown-item>
-              </el-dropdown-menu></template>
-            </el-dropdown>
           </div>
+          <el-dropdown class="thread-more" trigger="click">
+            <el-button text circle :icon="MoreFilled" aria-label="探索線操作" :disabled="busy" />
+            <template #dropdown><el-dropdown-menu>
+              <el-dropdown-item :icon="Edit" @click="openEdit(thread)">編輯探索線</el-dropdown-item>
+              <el-dropdown-item :icon="ArrowUp" :disabled="index === 0 && threadPage === 1" @click="moveThread(thread.id, -1)">往上移動</el-dropdown-item>
+              <el-dropdown-item :icon="ArrowDown" :disabled="index === summaryThreads.length - 1 && threadPage === (summariesQuery.data.value?.totalPages ?? 1)" @click="moveThread(thread.id, 1)">往下移動</el-dropdown-item>
+              <el-dropdown-item divided :icon="Delete" :disabled="!!thread.systemKey" @click="removeThread(thread)">刪除探索線</el-dropdown-item>
+            </el-dropdown-menu></template>
+          </el-dropdown>
         </header>
         <el-collapse-transition>
         <div v-show="isExpanded(thread)" class="thread-summary-grid">
@@ -452,7 +454,7 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
     <template #header>
       <header class="thread-dialog-heading"><h2>{{ detailThread.name }}</h2><div class="thread-detail-meta">
         <el-tag size="small" effect="plain">{{ statusLabel(detailThread.status) }}</el-tag>
-        <span class="metadata">最近整理 {{ formatDate(detailThread.lastActivityAt) }}</span>
+        <span class="metadata">最近整理 <time :datetime="detailThread.lastActivityAt ?? undefined">{{ formatDate(detailThread.lastActivityAt) }}</time></span>
         <el-button type="primary" link :icon="Edit" @click="openEdit(detailThread)">編輯探索線</el-button>
       </div></header>
     </template>
@@ -531,20 +533,24 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
 
 <style scoped>
 .thread-workspace { min-width: 0; padding: var(--panel-padding); border: 1px solid var(--el-border-color-light); border-radius: var(--panel-radius); background: var(--el-bg-color); }
-.thread-table { display: grid; margin-top: var(--space-md); border: 1px solid var(--el-border-color); border-radius: var(--radius-md); overflow: hidden; }
+.thread-table { display: grid; margin: var(--space-md) calc(var(--panel-padding) * -1) 0; border-block: 1px solid var(--el-border-color); overflow: hidden; }
 .thread-row { min-width: 0; }
 .thread-row + .thread-row { border-top: 1px solid var(--el-border-color); }
 .thread-row.drop-before { box-shadow: 0 -3px 0 var(--el-color-primary); }
 .thread-row.drop-after { box-shadow: 0 3px 0 var(--el-color-primary); }
-.thread-row-heading { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); padding: var(--space-sm) var(--space-md); background: var(--surface-collection); }
+.thread-row-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; grid-template-areas: 'drag name meta actions more'; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--panel-padding); background: var(--surface-collection); }
 .drag-handle, .thread-identity { border: 0; background: transparent; font: inherit; color: var(--el-text-color-primary); }
-.drag-handle { padding: var(--space-xs); color: var(--el-text-color-secondary); cursor: grab; }
-.thread-identity { padding: 0; font-size: var(--type-card-title); font-weight: var(--weight-semibold); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
-.thread-heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-xs); margin-left: auto; }
+.drag-handle { grid-area: drag; padding: var(--space-xs); color: var(--el-text-color-secondary); cursor: grab; }
+.thread-identity { grid-area: name; min-width: 0; padding: 0; font-size: var(--type-card-title); font-weight: var(--weight-semibold); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.thread-heading-meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); min-width: 0; }
+.thread-heading-meta .metadata, .thread-detail-meta .metadata { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2xs); }
+.metadata time { display: inline-block; white-space: nowrap; }
+.thread-heading-actions { grid-area: actions; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-xs); }
+.thread-more { grid-area: more; justify-self: end; }
 .thread-heading-actions :deep(.el-button), .column-heading :deep(.el-button) { margin-left: 0; }
 .metadata { color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-metadata); }
 .thread-summary-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); }
-.summary-cell { min-width: 0; padding: var(--space-md); border-top: 1px solid var(--el-border-color); }
+.summary-cell { min-width: 0; padding: var(--panel-padding); border-top: 1px solid var(--el-border-color); }
 .summary-cell + .summary-cell { border-left: 1px solid var(--el-border-color); }
 .heading-label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); min-width: 0; }
 .column-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs); min-height: 28px; margin-bottom: var(--space-sm); }
@@ -560,7 +566,7 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
 .quiet-empty { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); }
 .workspace-empty { margin-top: var(--space-md); }
 .thread-dialog-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); padding-right: var(--space-lg); }
-.thread-dialog-heading h2 { min-width: 0; font-size: var(--type-section-title); line-height: var(--leading-section-title); overflow-wrap: anywhere; }
+.thread-dialog-heading h2 { min-width: 0; margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section-title); overflow-wrap: anywhere; }
 .thread-detail-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-xs); }
 .thread-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .85fr); height: min(640px, calc(100dvh - 220px)); align-items: stretch; gap: var(--space-sm); }
 .thread-detail-section { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
@@ -597,10 +603,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--el-color-primar
   .thread-summary-grid, .thread-detail-grid { grid-template-columns: minmax(0, 1fr); }
   .summary-cell + .summary-cell { border-left: 0; }
   .thread-detail-grid { gap: var(--space-md); height: auto; }
-  .column-surface { flex: auto; max-height: min(420px, 55dvh); }
+  .column-surface { flex: auto; overflow: visible; max-height: none; }
+  .thread-row-heading { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'drag name more' '. meta meta' '. actions actions'; }
+  .thread-heading-actions { justify-content: flex-end; }
 }
 @media (max-width: 760px) {
-  .thread-heading-actions { width: 100%; justify-content: flex-start; margin-left: var(--space-xl); }
-  .thread-heading-actions .metadata { flex: 1; }
+  .thread-dialog-heading { align-items: flex-start; }
+  .thread-detail-meta { justify-content: flex-start; }
+  .thread-detail-section > .column-heading { align-items: flex-start; }
+  .column-actions { max-width: 100%; justify-content: flex-end; }
 }
 </style>

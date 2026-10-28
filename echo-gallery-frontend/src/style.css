@@ -216,6 +216,10 @@ code {
   line-height: var(--leading-section);
 }
 
+@media (max-width: 1200px) {
+  :root { --panel-padding: var(--space-md); }
+}
+
 @media (max-width: 760px) {
   :root {
     --type-page-title: 24px;

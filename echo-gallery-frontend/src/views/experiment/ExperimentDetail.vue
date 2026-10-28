@@ -351,7 +351,7 @@ const submitEdit = () => {
 .quiet-empty { margin: 0; color: var(--el-text-color-placeholder); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .exploration-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); }
 .exploration-heading h2 { margin: 0; font-size: var(--type-section-title); line-height: var(--leading-section); }
-.exploration-overview { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); margin-top: var(--space-md); padding: var(--space-md); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-summary); }
+.exploration-overview { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); margin: var(--space-md) calc(var(--panel-padding) * -1) 0; padding: var(--panel-padding); border-block: 1px solid var(--el-border-color-lighter); background: var(--surface-summary); }
 .exploration-snapshot { min-width: 0; padding-right: var(--space-lg); }
 .exploration-snapshot + .exploration-snapshot { padding-right: 0; padding-left: var(--space-lg); border-left: 1px solid var(--el-border-color-lighter); }
 .exploration-snapshot-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
