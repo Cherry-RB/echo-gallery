@@ -21,7 +21,7 @@ function render(initial: WorkDetail) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client)
   const wrapper = mount(WorkWorkspace, { props: { initial }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: {
     AppDialog: true, WorkFormDialog: true, WorkSourcePicker: true, WorkSourceReadingDialog: true, TreasureFormDialog: true, ExperimentThreads: true,
-    WorkMarkdownEditor: { props: ['modelValue', 'mode', 'readonly'], emits: ['update:modelValue'], template: '<div><textarea v-if="mode !== \'read\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><div v-else class="markdown-reading"><strong>{{ modelValue.replaceAll(\'**\', \'\') }}</strong></div></div>' },
+    WorkMarkdownEditor: { props: ['modelValue', 'mode', 'readonly', 'saveStatus'], emits: ['update:modelValue'], template: '<div><span>{{ saveStatus }}</span><textarea v-if="mode !== \'read\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><div v-else class="markdown-reading"><strong>{{ modelValue.replaceAll(\'**\', \'\') }}</strong></div></div>' },
     RouterLink: { template: '<a><slot /></a>' },
     'el-button': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
     'el-radio-group': { template: '<div><slot /></div>' }, 'el-radio-button': { template: '<span><slot /></span>' },
@@ -34,6 +34,20 @@ function render(initial: WorkDetail) {
 }
 afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()); route.query = {}; navigation.push.mockClear(); vi.restoreAllMocks() })
 describe('作品工作區模式與封存', () => {
+  it('進出專注編輯保留正文及同一編輯器，離開時恢復頁面捲動', async () => {
+    const previousOverflow = document.body.style.overflow
+    const wrapper = render(structuredClone(base))
+    const input = wrapper.get('textarea').element
+    await wrapper.get('textarea').setValue('專注中的草稿')
+    await wrapper.findAll('button').find(button => button.text() === '專注編輯')!.trigger('click')
+    expect(wrapper.get('.body-panel').attributes('role')).toBe('dialog')
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(wrapper.get('textarea').element).toBe(input)
+    await wrapper.get('.body-panel').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('.is-focus').exists()).toBe(false)
+    expect(document.body.style.overflow).toBe(previousOverflow)
+    expect(wrapper.get('textarea').element.value).toBe('專注中的草稿')
+  })
   it('頁首下拉選單變更階段時保留完成日期，且不顯示舊的快捷按鈕', async () => {
     const d = structuredClone(base); d.firstCompletedOn = '2026-10-01'
     const saved = structuredClone(d); saved.work.stage = 'REVISING'

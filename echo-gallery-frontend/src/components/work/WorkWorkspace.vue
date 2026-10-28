@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -40,6 +40,36 @@ const auto = useWorkAutosave(owner, id, props.initial.body, props.initial.bodyVe
 })
 const body = auto.body, saving = auto.saving, status = auto.status
 const readonly = computed(() => detail.value.work.archived)
+const focusMode = ref(false), viewportHeight = ref(window.innerHeight), viewportTop = ref(0)
+const editorComponent = ref<InstanceType<typeof WorkMarkdownEditor>>()
+const editorPanel = ref<HTMLElement>()
+let previousOverflow = ''
+const editorViewport = computed(() => ({ '--work-editor-height': `${Math.max(180, viewportHeight.value * .65)}px`, '--work-viewport-height': `${viewportHeight.value}px`, '--work-viewport-top': `${viewportTop.value}px` }))
+watch(focusMode, active => {
+  if (active) { previousOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; void nextTick(() => editorComponent.value?.focusEditor?.()) }
+  else document.body.style.overflow = previousOverflow
+})
+function focusKey(event: KeyboardEvent) {
+  if (!focusMode.value || event.defaultPrevented) return
+  if (event.key === 'Escape') {
+    const menus = editorPanel.value?.querySelectorAll('details[open]')
+    if (menus?.length) menus.forEach(menu => menu.removeAttribute('open'))
+    else focusMode.value = false
+    event.preventDefault(); return
+  }
+  if (event.key !== 'Tab' || !editorPanel.value) return
+  const controls = [...editorPanel.value.querySelectorAll<HTMLElement>('button:not([disabled]), input, select, summary, a[href], [contenteditable="true"], [tabindex="0"]')].filter(element => element.getClientRects().length)
+  const first = controls[0], last = controls.at(-1)
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+}
+function updateViewport() {
+  viewportHeight.value = window.visualViewport?.height ?? window.innerHeight
+  viewportTop.value = window.visualViewport?.offsetTop ?? 0
+  if (editorPanel.value?.contains(document.activeElement) && (document.activeElement as HTMLElement)?.isContentEditable) {
+    requestAnimationFrame(() => editorComponent.value?.revealSelection())
+  }
+}
 const preview = ref<'write' | 'split' | 'read'>(route.query.mode === 'read' || readonly.value ? 'read' : 'write')
 watch(() => route.query.mode, mode => { preview.value = mode === 'read' || readonly.value ? 'read' : 'write' })
 const libraryReturn = computed(() => typeof route.query.from === 'string' && /^\/works(?:\?|$)/.test(route.query.from) ? route.query.from : '/works')
@@ -184,20 +214,30 @@ onBeforeRouteUpdate(async (to, from) => to.params.id === from.params.id || await
 function beforeUnload(e: BeforeUnloadEvent) { if (auto.dirty.value || auto.saving.value || auto.conflict.value) { e.preventDefault(); e.returnValue = '' } }
 function visibility() { if (document.visibilityState === 'hidden') void auto.backup() }
 onMounted(async () => {
+  updateViewport()
+  window.addEventListener('resize', updateViewport)
+  window.visualViewport?.addEventListener('resize', updateViewport)
+  window.visualViewport?.addEventListener('scroll', updateViewport)
   window.addEventListener('beforeunload', beforeUnload); document.addEventListener('visibilitychange', visibility)
   try { recovery.value = await workDrafts.list(owner, id) }
   catch { auto.storageError.value = '無法讀取本機復原草稿，請定期複製或下載。' }
 })
-onBeforeUnmount(() => { void auto.dispose(); window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('visibilitychange', visibility) })
+onBeforeUnmount(() => {
+  if (focusMode.value) document.body.style.overflow = previousOverflow
+  window.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('scroll', updateViewport)
+  void auto.dispose(); window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('visibilitychange', visibility)
+})
 </script>
 <template>
-  <DetailShell class="work-workspace">
+  <DetailShell class="work-workspace" :class="{ 'is-focus': focusMode }" :style="editorViewport">
     <template #navigation>
       <nav class="app-detail-navigation">
         <div class="work-return">
           <el-button text :icon="ArrowLeft" @click="returnToLibrary">返回爛紙頭</el-button>
           <router-link v-if="detail.work.experimentId" class="work-experiment-link" :to="`/experiments/${detail.work.experimentId}`">實驗 · {{ detail.work.experimentTitle }}</router-link>
-          <span class="work-status" title="可在編輯資訊中更改主要編輯位置">{{ internal ? '內建 Markdown' : '外部工具' }}</span>
+          <span class="work-status" title="可在編輯資訊中更改主要編輯位置">{{ internal ? '內建編輯器' : '外部工具' }}</span>
         </div>
         <div class="detail-actions work-actions">
           <el-dropdown class="work-stage-menu" trigger="click" :disabled="readonly || busy" @command="changeStage">
@@ -219,14 +259,14 @@ onBeforeUnmount(() => { void auto.dispose(); window.removeEventListener('beforeu
           <el-button v-if="!readonly" plain type="primary" :icon="Edit" :disabled="busy" @click="safeBody().then(ok => { if (ok) editingInfo = true })">編輯資訊</el-button>
           <el-button v-if="!readonly && detail.work.stage === 'SHAREABLE' && !detail.work.treasureId" type="primary" :disabled="busy" @click="openDialog('treasure')">收入奇珍</el-button>
           <el-button v-if="readonly" :disabled="busy" @click="archive">還原作品</el-button>
-          <el-dropdown trigger="click" :disabled="busy" @command="pageCommand">
+          <el-dropdown class="work-more-menu" trigger="click" :disabled="busy" @command="pageCommand">
             <el-button text circle :icon="MoreFilled" aria-label="更多作品操作" />
             <template #dropdown><el-dropdown-menu><el-dropdown-item v-if="!readonly" command="archive">封存作品</el-dropdown-item><el-dropdown-item command="delete" divided>永久刪除</el-dropdown-item></el-dropdown-menu></template>
           </el-dropdown>
         </div>
       </nav>
     </template>
-    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="我的作品" /></header>
+    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="爛紙頭" /></header>
     <ExpandableText v-if="detail.work.description" :content="detail.work.description" :lines="3" />
     <el-alert v-if="readonly" title="此作品已封存，可以閱讀、複製與匯出；還原後才能編輯。" type="info" :closable="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert" />
@@ -234,19 +274,19 @@ onBeforeUnmount(() => { void auto.dispose(); window.removeEventListener('beforeu
     <el-alert v-if="auto.error.value" :title="auto.error.value" type="error" :closable="false" role="alert"><div class="work-actions"><el-button @click="copy(workDocument(detail.work.title, body))">複製目前稿件</el-button><el-button @click="downloadWork(detail.work.title, body)">下載目前稿件</el-button><el-button v-if="auto.conflict.value" :disabled="saving" @click="reload">重新載入</el-button><el-button v-else @click="auto.error.value = ''; auto.flush()">重試儲存</el-button></div></el-alert>
     <details v-if="recovery.length" class="work-panel" open><summary>此瀏覽器有 {{ recovery.length }} 份復原草稿</summary><article v-for="d in recovery" :key="d.key"><p>{{ formatDate(new Date(d.savedAt).toISOString()) }} · {{ d.body.length }} 字元</p><div class="work-actions"><el-button v-if="!readonly && internal" @click="recover(d)">復原草稿</el-button><el-button @click="copy(workDocument(detail.work.title, d.body))">複製</el-button><el-button @click="downloadWork(detail.work.title, d.body)">下載</el-button><el-button @click="discard(d)">捨棄草稿</el-button></div></article></details>
 
-    <div class="work-layout"><section class="work-panel body-panel">
+    <div class="work-layout"><section ref="editorPanel" class="work-panel body-panel" :class="{ 'body-panel--internal': internal }" :role="focusMode ? 'dialog' : undefined" :aria-modal="focusMode ? true : undefined" :aria-labelledby="focusMode ? `work-body-title-${id}` : undefined" @keydown="focusKey">
       <template v-if="internal">
         <div class="work-section-heading work-editor-heading">
-          <h2>作品正文</h2>
+          <div class="work-editor-title"><h2 :id="`work-body-title-${id}`">作品正文</h2><p class="work-status">{{ count.toLocaleString() }} 字元<template v-if="preview === 'read'"> · {{ readonly ? '唯讀' : status }}</template></p></div>
+          <el-button class="work-focus-toggle" text :aria-pressed="focusMode" @click="focusMode = !focusMode">{{ focusMode ? '結束專注' : '專注編輯' }}</el-button>
           <div class="editor-controls">
-            <p class="work-status" role="status">{{ count.toLocaleString() }} 字元 · {{ readonly ? '唯讀' : status }}</p>
             <el-radio-group v-model="preview" aria-label="正文顯示方式"><el-radio-button v-if="!readonly" value="write">撰寫</el-radio-button><el-radio-button v-if="!readonly" value="split">並排預覽</el-radio-button><el-radio-button value="read">閱讀預覽</el-radio-button></el-radio-group>
-            <el-dropdown class="work-export" trigger="click" @command="exportWork"><el-button text :icon="ArrowDown">複製與匯出</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="markdown">複製 Markdown</el-dropdown-item><el-dropdown-item command="plain">複製純文字</el-dropdown-item><el-dropdown-item command="download">匯出 Markdown</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
+            <el-dropdown class="work-export" trigger="click" @command="exportWork"><el-button text :icon="ArrowDown" aria-label="複製與匯出">匯出</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="markdown">複製 Markdown</el-dropdown-item><el-dropdown-item command="plain">複製純文字</el-dropdown-item><el-dropdown-item command="download">匯出 Markdown</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
           </div>
         </div>
         <div v-if="detail.work.nextStep" class="next-step"><div class="next-step-heading"><span>下次接著做</span><el-button v-if="!readonly" link type="primary" @click="openDialog('next')">編輯下一步</el-button></div><ExpandableText :content="detail.work.nextStep" :lines="3" /></div>
         <el-button v-else-if="!readonly" class="next-step-add" text type="primary" @click="openDialog('next')">留下次接著做</el-button>
-        <WorkMarkdownEditor :model-value="body" :mode="preview" :readonly="readonly || reloading" @update:model-value="auto.edit" />
+        <WorkMarkdownEditor ref="editorComponent" :model-value="body" :mode="preview" :save-status="readonly ? '唯讀' : status" :readonly="readonly || reloading" @update:model-value="auto.edit" />
 
       </template>
       <template v-else><div class="work-section-heading"><h2>外部作品文件</h2><el-button v-if="!readonly" link type="primary" @click="openDialog('next')">{{ detail.work.nextStep ? '編輯下一步' : '＋留下次接著做' }}</el-button></div><div v-if="detail.work.nextStep" class="next-step"><span>下次接著做</span><ExpandableText :content="detail.work.nextStep" :lines="3" /></div><p>正文保存在外部工具。此處不會同步、預覽或匯出該文件。</p><a v-if="detail.externalUrl" :href="detail.externalUrl" target="_blank" rel="noopener noreferrer">開啟原始文件</a><p v-else>尚未設定文件網址，可在作品資訊中補上。</p></template>
@@ -317,6 +357,18 @@ a, a:hover, a:focus-visible, .work-actions :deep(.el-button), .work-return :deep
 h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-section-title); }
 .work-panel { padding: var(--panel-padding); border: 1px solid var(--el-border-color-light); border-radius: var(--panel-radius); background: var(--el-bg-color); min-width: 0; }
 .work-panel > * + * { margin-top: var(--space-sm); }
+.body-panel--internal { padding: 0; }
+.body-panel > .work-editor-heading { padding: var(--space-md); }
+.body-panel > .next-step { margin: 0 var(--space-md) var(--space-sm); }
+.body-panel > .next-step-add { margin: 0 var(--space-md) var(--space-sm); }
+.body-panel > .markdown-composer { margin-top: 0; }
+.is-focus .body-panel { position: fixed; z-index: 1200; top: var(--work-viewport-top); left: 0; right: 0; height: var(--work-viewport-height); display: flex; flex-direction: column; border: 0; border-radius: 0; }
+.is-focus .body-panel > .work-editor-heading { flex-shrink: 0; padding-block: var(--space-xs); }
+.is-focus .body-panel > .next-step, .is-focus .body-panel > .next-step-add { display: none; }
+.is-focus .body-panel > .markdown-composer { flex: 1; min-height: 0; }
+.is-focus .body-panel :deep(.markdown-writing) { height: 100%; min-height: 0; }
+.is-focus .body-panel :deep(.markdown-preview) { max-height: 100%; }
+.is-focus .body-panel :deep(.work-editor .ProseMirror), .is-focus .body-panel :deep(.markdown-reading) { max-width: var(--reading-max-width); margin-inline: auto; }
 .work-panel summary { cursor: pointer; font-size: var(--type-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-section-title); color: var(--el-text-color-primary); }
 .work-disclosure summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); list-style: none; }
 .work-disclosure summary h2 { flex: 1 1 auto; min-width: 0; }
@@ -344,8 +396,12 @@ h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-
 .next-step p, .private-note { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--type-body); line-height: var(--leading-body); }
 .work-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 320px); gap: var(--space-lg); align-items: start; margin-top: var(--space-lg); }
 .work-aside { display: grid; gap: var(--space-md); min-width: 0; }
-.editor-controls { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
-.work-editor-heading { align-items: flex-start; }
+.work-aside :deep(.side-panel) { box-shadow: none; }
+.editor-controls { display: flex; flex: 1 0 100%; min-width: 0; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
+.work-editor-heading { align-items: center; }
+.work-editor-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-xs) var(--space-sm); min-width: 0; }
+.work-editor-title .work-status { margin: 0; }
+.work-focus-toggle { flex-shrink: 0; margin: 0; }
 .work-aside p { font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: anywhere; }
 .work-status { color: var(--el-text-color-secondary); font-size: var(--type-metadata); font-weight: var(--weight-medium); line-height: var(--leading-metadata); }
 .work-source { min-width: 0; padding: var(--space-sm); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-md); background: var(--surface-subtle); overflow-wrap: anywhere; cursor: pointer; }
@@ -373,4 +429,16 @@ h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-
 .el-alert { margin-block: var(--space-sm); }
 @media (max-width: 1060px) { .work-layout { grid-template-columns: minmax(0, 1fr); } .work-aside { display: grid; gap: var(--space-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); } }
 @media (max-width: 760px) { .work-aside { display: grid; grid-template-columns: minmax(0, 1fr); } .work-return { width: 100%; } .editor-controls { justify-content: flex-start; width: 100%; } }
+@media (max-width: 760px) { .body-panel--internal { margin-inline: calc(var(--page-gutter) * -1); border-inline: 0; border-radius: 0; } .is-focus .body-panel { margin: 0; } }
+@media (max-width: 760px) {
+  .work-actions > .el-dropdown { min-width: 0; }
+  .work-actions > .work-stage-menu, .work-actions > .work-publication-menu { display: flex; }
+  .work-actions .status-trigger { width: 100%; min-width: 0; }
+  .work-actions > .work-more-menu { justify-self: end; }
+  .editor-controls { justify-content: space-between; flex-wrap: nowrap; }
+  .editor-controls > .el-radio-group { display: flex; flex: 1; min-width: 0; }
+  .editor-controls :deep(.el-radio-button) { flex: 1; min-width: 0; }
+  .editor-controls :deep(.el-radio-button__inner) { width: 100%; padding-inline: var(--space-xs); }
+  .is-focus .work-editor-title .work-status, .is-focus .editor-controls { display: none; }
+}
 </style>
