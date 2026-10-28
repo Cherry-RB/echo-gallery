@@ -80,23 +80,23 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
 
 <template>
   <section class="treasure-list-page app-list-page app-page app-page--workspace">
-    <PageHeader title="奇珍展覽館" description="每一件奇珍都有自己的來歷。有些止步於收藏，有些則等待下一場試煉，換取更珍貴的收穫。">
-      <template #actions><el-button type="primary" :icon="Plus" @click="openCreate">收入奇珍</el-button></template>
+    <PageHeader title="展覽館" description="每件展品都有自己的來歷。有些故事已經告一段落，有些則在入藏後，展開新的可能。">
+      <template #actions><el-button type="primary" :icon="Plus" @click="openCreate">收入展品</el-button></template>
     </PageHeader>
     <div class="treasure-workspace app-workspace app-workspace--edge-to-edge">
     <form class="treasure-toolbar app-toolbar" @submit.prevent="applyFilters">
       <el-radio-group :model-value="scope" class="app-list-scope" aria-label="館藏範圍" @update:model-value="selectScope"><el-radio-button value="false">館藏</el-radio-button><el-radio-button value="true">已封存</el-radio-button><el-radio-button value="all">全部</el-radio-button></el-radio-group>
       <div class="treasure-filter-panel">
       <div class="treasure-search-controls app-toolbar__controls">
-        <el-input v-model="filters.keyword" :prefix-icon="Search" placeholder="搜尋奇珍名稱" maxlength="255" clearable aria-label="奇珍名稱" />
-        <el-select v-model="filters.ranks" multiple clearable collapse-tags collapse-tags-tooltip placeholder="所有等級" aria-label="篩選奇珍等級，可多選"><el-option v-for="(label, value) in ranks" :key="value" :label="label" :value="value" /></el-select>
+        <el-input v-model="filters.keyword" :prefix-icon="Search" placeholder="搜尋展品名稱" maxlength="255" clearable aria-label="展品名稱" />
+        <el-select v-model="filters.ranks" multiple clearable collapse-tags collapse-tags-tooltip placeholder="所有等級" aria-label="篩選展品等級，可多選"><el-option v-for="(label, value) in ranks" :key="value" :label="label" :value="value" /></el-select>
         <el-button native-type="submit" type="primary">套用篩選</el-button>
         <el-button v-if="hasPendingFilters || filtersApplied" native-type="button" @click="resetFilters">清除</el-button>
       </div>
       </div>
     </form>
     <div class="treasure-results-heading" aria-live="polite">
-      <span>{{ scope === 'true' ? '已封存' : scope === 'all' ? '全部奇珍' : '館藏之中' }}<template v-if="query.data.value"> · {{ query.data.value.totalElements }} 件{{ filtersApplied ? '符合條件' : '' }}</template></span>
+      <span>{{ scope === 'true' ? '已封存' : scope === 'all' ? '全部展品' : '館藏之中' }}<template v-if="query.data.value"> · {{ query.data.value.totalElements }} 件{{ filtersApplied ? '符合條件' : '' }}</template></span>
       <div v-if="scope === 'false' && stats.data.value" class="treasure-stats" aria-label="全部未封存館藏統計">
         <span v-if="appliedFilters.keyword || appliedFilters.ranks.length">全部館藏 {{ stats.data.value.total }} 件</span>
         <span v-for="item in rankCounts" :key="item.rank">{{ ranks[item.rank] }} {{ item.count }}</span>
@@ -114,7 +114,7 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
             <button v-if="treasure.yieldCount > 0" type="button" class="output-count" :aria-label="`查看 ${treasure.yieldCount} 筆收益`" @click="openHistory(treasure)">{{ treasure.yieldCount }}</button>
             <el-dropdown trigger="click" @command="handleCardCommand(treasure, $event)">
               <el-button text circle :icon="MoreFilled" :disabled="pendingArchive !== null || pendingEdit !== null" :loading="pendingArchive === treasure.id || pendingEdit === treasure.id" :aria-label="`${treasure.title}的操作`" />
-              <template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">編輯奇珍</el-dropdown-item><el-dropdown-item command="archive" divided>{{ treasure.isArchived ? '還原奇珍' : '封存奇珍' }}</el-dropdown-item></el-dropdown-menu></template>
+              <template #dropdown><el-dropdown-menu><el-dropdown-item command="edit">編輯展品</el-dropdown-item><el-dropdown-item command="archive" divided>{{ treasure.isArchived ? '還原展品' : '封存展品' }}</el-dropdown-item></el-dropdown-menu></template>
             </el-dropdown>
             </div>
           </div>
@@ -129,7 +129,7 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
           </footer>
         </article>
       </div>
-      <AppEmptyState v-else :description="filtersApplied ? '沒有符合條件的奇珍。' : scope === 'true' ? '目前沒有已封存的奇珍。' : '展櫃尚且空著。第一件奇珍，會有什麼來歷？'"><el-button v-if="scope === 'false' && !filtersApplied" type="primary" :icon="Plus" @click="openCreate">收入奇珍</el-button></AppEmptyState>
+      <AppEmptyState v-else :description="filtersApplied ? '沒有符合條件的展品。' : scope === 'true' ? '目前沒有已封存的展品。' : '展櫃仍然空著。當你完成第一件值得珍藏的成果，這裡便會有它的位置。'"><el-button v-if="scope === 'false' && !filtersApplied" type="primary" :icon="Plus" @click="openCreate">收入展品</el-button></AppEmptyState>
       <el-pagination v-if="(query.data.value?.totalElements ?? 0) > 20" class="app-list-pagination" :current-page="page + 1" :page-size="20" :total="query.data.value?.totalElements ?? 0" layout="total, prev, pager, next" @current-change="page = $event - 1" />
     </div>
     </div>

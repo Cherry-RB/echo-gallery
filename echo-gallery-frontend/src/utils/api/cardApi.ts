@@ -135,7 +135,7 @@ export const cardApi = {
             data: { currentBatchOfferedAt }
         })
     },
-    // 標籤查詢卡片
+    // 標籤管理卡片
     getCardsByTags(data: {
         tagIds: (number | string)[],
         operator: 'AND' | 'OR'

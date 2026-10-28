@@ -68,7 +68,7 @@ const currentItems = computed(() => [
   { key: 'paused', label: '暫停中', value: current.value.pausedCardCount, unit: '張卡片' },
   { key: 'processing', label: '待整理', value: current.value.needsProcessingCardCount, unit: '張卡片' },
   { key: 'experiments', label: '活躍實驗場', value: current.value.activeExperimentCount, unit: '個' },
-  { key: 'treasures', label: '館藏奇珍', value: current.value.treasureCount, unit: '件' },
+  { key: 'treasures', label: '館藏展品', value: current.value.treasureCount, unit: '件' },
 ])
 
 const attentionItems = computed(() => (current.value.attentionSignals ?? []).map(signal => ({
@@ -115,7 +115,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
 <template>
   <section class="overview-page app-page app-page--workspace">
-    <PageHeader title="現在行動" description="有些嘗試尚未落幕，有些珍藏仍有餘響。眼前的一切，正等待你的下一個選擇。">
+    <PageHeader title="現在行動" description="有些探索尚未結束，有些作品仍在打磨。看看此刻留下的線索，再決定要接續哪一件事。">
       <template #actions><OverviewNavigation /></template>
     </PageHeader>
 
@@ -161,7 +161,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
       <div class="action-grid" :class="{ 'action-grid--single': !attentionItems.length }">
         <section class="action-panel" aria-labelledby="overview-treasure-title">
-          <SectionHeader id="overview-treasure-title" title="館藏仍有餘響" eyebrow="奇珍展覽館" :description="treasureActions.length ? '沿著已有的來歷，看看哪件奇珍還有待探索的可能。' : undefined">
+          <SectionHeader id="overview-treasure-title" title="入藏之後" eyebrow="展覽館" :description="treasureActions.length ? '看看館藏中正在進行的試煉，也可回看已記錄的收益。' : undefined">
             <template #actions><router-link to="/treasures" class="treasure-gallery-link">查看館藏</router-link></template>
           </SectionHeader>
           <div v-if="treasureActions.length" class="treasure-action-list">
@@ -185,8 +185,8 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
             </article>
           </div>
           <div v-else-if="current.treasureCount === 0" class="treasure-empty-state">
-            <p>展櫃尚且空著。第一件奇珍，會有什麼來歷？</p>
-            <el-button type="primary" @click="treasureCreateVisible = true">收入奇珍</el-button>
+            <p>展櫃仍然空著。當你完成第一件值得珍藏的成果，這裡便會有它的位置。</p>
+            <el-button type="primary" @click="treasureCreateVisible = true">收入展品</el-button>
           </div>
           <div v-else class="treasure-empty-state">
             <p>目前沒有進行中的試煉。可以前往館藏規劃下一步，或記錄已發生的收益。</p>

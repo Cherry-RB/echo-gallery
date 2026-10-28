@@ -8,7 +8,7 @@ vi.mock('../../utils/api/treasureApi', () => ({ treasureApi: api }))
 vi.mock('vue-router', async importOriginal => ({ ...await importOriginal<typeof import('vue-router')>(), useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('element-plus', () => ({ ElMessage: { error: vi.fn() } }))
 
-describe('奇珍列表快速操作', () => {
+describe('展品列表快速操作', () => {
   it('從卡片開啟共用產出與結果彈窗，儲存後重新讀取摘要', async () => {
     const trial = { id: 8, title: '邀請讀者試讀', status: 'PLANNED', targetRank: 'BRONZE' }
     const treasure = { id: 1, title: '小說', rank: 'STONE', description: null, coverImageUrl: null, isArchived: false, yieldCount: 2, activeTrial: trial }

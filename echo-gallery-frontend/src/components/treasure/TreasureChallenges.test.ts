@@ -46,7 +46,7 @@ describe('每階唯一檢定與多次嘗試流程', () => {
     expect(button(wrapper, '＋記錄')).toBeUndefined()
     expect(button(wrapper, '設定')).toBeDefined()
     await wrapper.setProps({ modelValue: 'BRONZE' })
-    expect(wrapper.text()).toContain('這件奇珍尚未接受新的試煉')
+    expect(wrapper.text()).toContain('這件展品尚未接受新的試煉')
     expect(button(wrapper, '設定')).toBeDefined()
     expect(wrapper.text()).not.toContain('踏出私人領域')
   })
@@ -95,7 +95,7 @@ describe('每階唯一檢定與多次嘗試流程', () => {
     await button(wrapper, '儲存嘗試紀錄').trigger('click')
     await vi.waitFor(() => expect(api.recordAttempt).toHaveBeenCalledWith(1, 2, expect.objectContaining({ status: 'PASSED', resultNote: '第二次已完成正式投稿' })))
     expect(api.createTrial).not.toHaveBeenCalled()
-    await vi.waitFor(() => expect(ElMessage.success).toHaveBeenCalledWith('試煉已然通過。這件奇珍的來歷，又添上了新的一筆。'))
+    await vi.waitFor(() => expect(ElMessage.success).toHaveBeenCalledWith('試煉已通過，這件展品的來歷又添了一筆。'))
   })
 
   it.each([
@@ -109,8 +109,8 @@ describe('每階唯一檢定與多次嘗試流程', () => {
 
   it('金級仍可延續價值，不顯示尚未接受試煉的提示', () => {
     const wrapper = render(TreasureChallengeRoute, { treasureId: 1, rank: 'GOLD', modelValue: 'GOLD', trials: [] })
-    expect(wrapper.text()).toContain('金級並非故事的終點。這件奇珍仍可能產生新的價值。')
-    expect(wrapper.text()).not.toContain('這件奇珍尚未接受新的試煉')
+    expect(wrapper.text()).toContain('金級並非故事的終點。這件展品仍可能產生新的價值。')
+    expect(wrapper.text()).not.toContain('這件展品尚未接受新的試煉')
   })
 
   it('檢定歷程顯示當時條件快照，封存後仍可閱讀但不能新增', async () => {

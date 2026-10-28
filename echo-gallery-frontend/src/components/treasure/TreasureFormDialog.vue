@@ -65,29 +65,29 @@ const save = async () => {
     const data = { ...form, title: form.title.trim(), sourceCardId: cardSource.value?.id ?? null, sourceExperimentId: experimentSource.value?.id ?? null, sourceTreasureIds: selectedSources.value.map(s => s.id) }
     const result = props.treasure ? await treasureApi.update(props.treasure.id, data) : await (props.createHandler ?? treasureApi.create)(data)
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['treasures'] }), queryClient.invalidateQueries({ queryKey: ['overview'] }), queryClient.invalidateQueries({ queryKey: ['treasure-source-picker'] })])
-    ElMessage.success(props.treasure ? '奇珍變更已儲存。' : '一件新的奇珍已收入館藏。它的故事，從此有了值得回望的地方。')
+    ElMessage.success(props.treasure ? '展品變更已儲存。' : '展品已收入館藏，這份成果的來歷留在了這裡。')
     emit('saved', result); emit('update:modelValue', false)
   } catch (e) { error.value = errorMessage(e) } finally { saving.value = false }
 }
 </script>
 
 <template>
-  <AppDialog :busy="saving" :draft="sourceVisible ? undefined : [form, cardSource?.id, experimentSource?.id, selectedSources.map(s => s.id)]" :model-value="modelValue" :title="sourceVisible ? '管理成果來源' : treasure ? '編輯奇珍' : '收入奇珍'" :width="sourceVisible ? 'min(980px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" scroll-body :before-close="beforeClose" :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="close">
+  <AppDialog :busy="saving" :draft="sourceVisible ? undefined : [form, cardSource?.id, experimentSource?.id, selectedSources.map(s => s.id)]" :model-value="modelValue" :title="sourceVisible ? '管理成果來源' : treasure ? '編輯展品' : '收入展品'" :width="sourceVisible ? 'min(980px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" scroll-body :before-close="beforeClose" :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="close">
     <div ref="content" class="form-content" tabindex="-1">
     <el-form v-show="!sourceVisible" label-position="top" :disabled="saving" @submit.prevent="save">
       <el-form-item label="成果名稱" required><el-input v-model="form.title" maxlength="255" /></el-form-item>
       <el-form-item label="成果說明（選填）"><el-input v-model="form.description" type="textarea" :rows="6" maxlength="50000" /><FieldCounter :value="form.description" :limit="50000" /></el-form-item>
       <el-form-item label="完成日期" required><el-date-picker v-model="form.acquiredOn" type="date" value-format="YYYY-MM-DD" :disabled-date="disabledDate" /></el-form-item>
       <details class="display-settings">
-        <summary><span><strong>作品與封面（選填）</strong><small>補充作品網址或封面，方便之後查看。</small></span><span class="display-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></summary>
+        <summary><span><strong>成果與封面（選填）</strong><small>補充成果網址或封面，方便之後查看。</small></span><span class="display-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></summary>
         <div class="display-fields">
-        <el-form-item label="作品網址"><el-input v-model="form.artifactUrl" maxlength="2048" placeholder="https://" /></el-form-item>
+        <el-form-item label="成果網址"><el-input v-model="form.artifactUrl" maxlength="2048" placeholder="https://" /></el-form-item>
         <el-form-item label="封面圖片來源連結"><CoverImageField v-model="form.coverImageUrl" :disabled="saving" /></el-form-item>
         </div>
       </details>
       <section class="source-section" aria-label="成果來源">
         <header class="source-heading"><h3>成果來源（選填）</h3><el-button data-source-manager :disabled="saving" @click="sourceVisible = true">{{ hasSources ? '管理來源' : '選擇來源' }}</el-button></header>
-        <p>可關聯卡片、實驗或其他奇珍，原內容會保留。</p>
+        <p>可關聯卡片、實驗或其他展品，原內容會保留。</p>
         <TreasureSourceSummary v-if="hasSources" :card="cardSource" :experiment="experimentSource" :treasures="selectedSources" :disabled="saving" @remove="(kind, id) => { if (kind === 'card') cardSource = null; else if (kind === 'experiment') experimentSource = null; else selectedSources = selectedSources.filter(s => s.id !== id) }" />
       </section>
       <el-alert v-if="error" :title="error" type="error" :closable="false" />

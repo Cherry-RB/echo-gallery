@@ -110,7 +110,7 @@ const save = async () => {
       await treasureApi.recordAttempt(props.treasureId, trial.value!.id, { ...result, status: result.status, attemptedAt: new Date(result.attemptedAt).toISOString() })
     } else return
     await refresh()
-    ElMessage.success(mode.value === 'edit' ? '試煉設定已儲存。' : result.status === 'PASSED' ? '試煉已然通過。這件奇珍的來歷，又添上了新的一筆。' : '嘗試紀錄已儲存。')
+    ElMessage.success(mode.value === 'edit' ? '試煉設定已儲存。' : result.status === 'PASSED' ? '試煉已通過，這件展品的來歷又添了一筆。' : '嘗試紀錄已儲存。')
     emit('update:modelValue', false)
   } catch (e) { error.value = errorMessage(e) } finally { saving.value = false }
 }

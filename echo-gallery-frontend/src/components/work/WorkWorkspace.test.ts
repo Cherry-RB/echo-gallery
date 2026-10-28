@@ -133,7 +133,7 @@ describe('作品工作區模式與封存', () => {
     expect(wrapper.get('a[target="_blank"]').attributes('href')).toBe(d.externalUrl)
     expect(wrapper.text()).not.toContain('複製 Markdown'); expect(wrapper.text()).not.toContain('匯出 Markdown')
   })
-  it('奇珍閱讀入口直接顯示目前正文，不增加獨立快照', () => {
+  it('展品閱讀入口直接顯示目前正文，不增加獨立快照', () => {
     route.query = { mode: 'read' }
     const d = structuredClone(base); d.body = '**已修改的最新版**'
     const wrapper = render(d)

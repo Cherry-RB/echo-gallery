@@ -369,8 +369,8 @@
 | 顯示區塊名稱、數量與相關操作 | 區塊標頭與操作群組 | `src/components/ui/SectionHeader.vue`；詳情補充區參考 `SidePanel.vue` | 同行排列依 4.2；只共用排版職責，不替業務決定操作資格 |
 | 只呈現紀錄數量 | 純計數 | `src/components/ui/RecordCount.vue` | 非互動資訊不應偽裝成可點擊按鈕 |
 | 由數量入口查看完整紀錄 | 歷程觸發器 | `src/components/ui/RecordHistoryTrigger.vue` | 需區分總數與「最近 N 筆」預覽，不把一般計數一律做成按鈕 |
-| 閱讀或管理單一對象 | 詳情頁與補充脈絡 | `DetailShell.vue`、`DetailHeading.vue`、`SidePanel.vue`；參考實驗與奇珍詳情 | 共用導覽與層級，不強求相同欄數、區塊順序或業務操作 |
-| 建立／編輯一般資料或短備註 | 表單／短表單彈窗 | `src/components/AppDialog.vue`、`src/components/ui/FormSection.vue`；參考現有實驗／奇珍編輯流程 | 寬度依 7.2 選擇；草稿保護、提交時機與驗證需按實際流程核對 |
+| 閱讀或管理單一對象 | 詳情頁與補充脈絡 | `DetailShell.vue`、`DetailHeading.vue`、`SidePanel.vue`；參考實驗與展品詳情 | 共用導覽與層級，不強求相同欄數、區塊順序或業務操作 |
+| 建立／編輯一般資料或短備註 | 表單／短表單彈窗 | `src/components/AppDialog.vue`、`src/components/ui/FormSection.vue`；參考現有實驗／展品編輯流程 | 寬度依 7.2 選擇；草稿保護、提交時機與驗證需按實際流程核對 |
 | 記下一次行動、發現、嘗試或收益 | 記錄型表單 | 參考 `src/components/experiment/ExperimentExplorationEditor.vue`、`src/components/treasure/TreasureYieldDialog.vue` | 屬業務流程參照，非保證可直接 import；不複製不同領域的必填欄位 |
 | 搜尋並單選卡片或對象 | 單選候選清單 | `src/components/ui/PickerOption.vue`、`src/components/CardPickerDialog.vue` | 核對是否選取即提交、返回父表單或需確認，不混用提交時機 |
 | 輸入新行動或選取既有行動 | 可輸入的單選欄位 | `src/components/experiment/ExplorationActionSelect.vue`、Element Plus Autocomplete | 共用候選、去重、長文及載入回饋；建立權限、編輯模式及最終交易由父表單決定 |
@@ -389,7 +389,7 @@
 | --- | --- | --- |
 | 頁首與章節 | `src/components/ui/PageHeader.vue`、`src/components/ui/SectionHeader.vue` | 呈現標題、說明與操作；後者已有元件不代表頁面普遍採用 |
 | 表單章節與計數 | `src/components/ui/FormSection.vue`、`src/components/ui/FieldCounter.vue` | 語意分組與字數呈現，不接管資料及驗證；前者尚非普遍用法 |
-| 詳情組合 | `src/components/ui/DetailShell.vue`、`src/components/ui/DetailHeading.vue` | 已用於實驗與奇珍；卡片閱讀模式可保留等效組合 |
+| 詳情組合 | `src/components/ui/DetailShell.vue`、`src/components/ui/DetailHeading.vue` | 已用於實驗與展品；卡片閱讀模式可保留等效組合 |
 | 詳情側欄 | `src/components/ui/SidePanel.vue` | 主題背景、框線、陰影、內距及關聯互動表面；可用原生 section／details，收合狀態與操作由呼叫端管理 |
 | 彈窗外殼 | `src/components/AppDialog.vue` | 寬高、可選 body 捲動、footer 與關閉攔截介面；不自動具備草稿保護 |
 | 選擇器 | `src/components/CardPickerDialog.vue`、`src/components/ui/PickerWorkspace.vue`、`src/components/ui/PickerOption.vue` | 卡片選擇及可重用候選／摘要結構；設定與保存由業務負責 |
@@ -440,13 +440,13 @@
 | 卡片閱讀詳情 | 主要閱讀與屬性側欄可保留不同組合 | 兩者認知角色不同，仍遵守導覽、操作與重排規則 |
 | 作品長文編輯 | 預設可視化排版，正文獨立捲動，格式與儲存狀態持續可見；專注模式保留同一編輯器、選取與草稿，依可見視窗調整高度 | 正文仍儲存 Markdown；載入不自動改寫原文，無法保留等價內容時改用原始碼。支援大小標題、粗斜體、刪除線、清單、基本表格、標題收合、大綱與搜尋；收合及搜尋不寫入正文 |
 
-**功能設定備註：** 價值產出詳情目前採最近 3 筆；成果來源目前為一張卡片、一個實驗及最多 20 件奇珍。這些是已有功能設定，不是其他功能的全域上限；修改須依功能需求與 API 能力確認。後續宜由功能規格承接，本次不新增或修改其他文件。
+**功能設定備註：** 價值產出詳情目前採最近 3 筆；成果來源目前為一張卡片、一個實驗及最多 20 件展品。這些是已有功能設定，不是其他功能的全域上限；修改須依功能需求與 API 能力確認。後續宜由功能規格承接，本次不新增或修改其他文件。
 
 ### 9.3 驗收與維護
 
 1. **選模式：** 說明使用者任務、內容角色與模式；差異須有理由，不為功能名稱另造外殼。
 2. **查實作：** 核對 token、元件是否存在及實際使用範圍，不假設模式名就是元件名。
-3. **查視覺：** 比較相同角色的標題、間距、色彩、操作密度與表面；實驗與奇珍、其他同類入口均依模式查核，而非互相複製整頁。
+3. **查視覺：** 比較相同角色的標題、間距、色彩、操作密度與表面；實驗與展品、其他同類入口均依模式查核，而非互相複製整頁。
 4. **查狀態：** 長名稱、多行內容、空值、無搜尋結果、載入、更新、失敗、封存與無操作資格；有圖片或關聯時另查失效與選取狀態。
 5. **查流程：** 列表到詳情、詳情到歷程、歷程新增、取消及返回；確認操作不順帶導頁、展開其他內容或丟失草稿。
 6. **查彈窗：** 無變更、有草稿、提交中、提交失敗、成功及子流程；×、遮罩、Esc、底部按鈕依 7.3。

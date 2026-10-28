@@ -40,9 +40,9 @@ const menuItems = [
   { name: '今日回流', path: '/board/today', icon: Calendar },
   { name: '全部卡片', path: '/board/all', icon: Postcard },
   { name: '實驗場', path: '/experiments', icon: Aim },
-  { name: '爛紙頭', path: '/works', icon: MessageBox },
-  { name: '奇珍展覽館', path: '/treasures', icon: Trophy },
-  { name: '標籤查詢', path: '/center/tag', icon: CollectionTag },
+  { name: '創作台', path: '/works', icon: MessageBox },
+  { name: '展覽館', path: '/treasures', icon: Trophy },
+  { name: '標籤管理', path: '/center/tag', icon: CollectionTag },
   { name: '卡片查詢', path: '/search', icon: Search },
 ]
 

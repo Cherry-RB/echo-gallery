@@ -123,7 +123,7 @@ const submit = () => {
 
 <template>
   <section class="experiment-list-page app-list-page app-page app-page--workspace">
-    <PageHeader title="實驗場" description="讓彼此呼應的卡片在此相遇。沿著一個問題慢慢探索，看看會萌生什麼。">
+    <PageHeader title="實驗場" description="每個尚未解答的問題，都值得一次嘗試。收集線索、留下發現，看看事情會如何發展。">
       <template #actions>
         <el-button type="primary" :icon="Plus" @click="openCreate">建立實驗主題</el-button>
       </template>
@@ -154,7 +154,7 @@ const submit = () => {
 
       <AppEmptyState
         v-else-if="experiments.length === 0"
-        :description="selectedScope === 'ARCHIVED' ? '目前沒有已封存的實驗主題' : selectedScope === 'ALL' ? '目前沒有實驗主題。' : '探索尚未開始。先為一個想弄懂的問題，留下一處收集材料的地方。'"
+        :description="selectedScope === 'ARCHIVED' ? '目前沒有已封存的實驗主題' : selectedScope === 'ALL' ? '目前沒有實驗主題。' : '目前沒有未封存的實驗主題。可以從一個想弄懂的問題開始，留下一次嘗試。'"
       >
         <el-button v-if="selectedScope === 'ACTIVE'" type="primary" :icon="Plus" @click="openCreate">
           建立第一個實驗主題

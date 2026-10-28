@@ -49,7 +49,7 @@ const save = async () => {
       queryClient.invalidateQueries({ queryKey: ['overview'] }),
     ])
     emit('saved')
-    ElMessage.success(props.yield ? '收益紀錄已更新。' : '昔日的成果並未沉寂。這一次，它又帶回了新的收穫。')
+    ElMessage.success(props.yield ? '收益紀錄已更新。' : '收益已記錄，這份成果又留下了新的痕跡。')
     emit('update:modelValue', false)
   } catch (e) { error.value = errorMessage(e) } finally { saving.value = false }
 }
@@ -58,7 +58,7 @@ const save = async () => {
 <template>
   <AppDialog :busy="saving" :draft="[form, selectedCard?.id]" :model-value="modelValue" :title="yield ? '編輯收益' : '記錄收益'" width="min(620px, calc(100vw - 32px))" scroll-body :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="emit('update:modelValue', $event)">
     <el-form class="app-record-form" label-position="top" @submit.prevent="save">
-      <p class="app-dialog-intro">記下這件奇珍已帶來的新作品、回應或機會，不限於金錢收入。整理、發表與分享的連續過程，可以記成同一筆。</p>
+      <p class="app-dialog-intro">記下這件展品已帶來的新作品、回應或機會，不限於金錢收入。整理、發表與分享的連續過程，可以記成同一筆。</p>
       <el-form-item label="收益名稱" required>
         <el-input v-model="form.title" maxlength="255" placeholder="例如：作品分享後，收到一位讀者的回饋" />
       </el-form-item>

@@ -42,7 +42,7 @@ function global() {
 }
 const page = (content: Array<{ id: number | string; title: string }>, total = content.length) => ({ content, page: 0, size: 10, totalElements: total, totalPages: Math.ceil(total / 10) })
 
-describe('奇珍表單互動', () => {
+describe('展品表單互動', () => {
   beforeEach(() => {
     clients.forEach(client => client.clear()); clients.length = 0
     vi.clearAllMocks()
@@ -56,7 +56,7 @@ describe('奇珍表單互動', () => {
     const wrapper = mount(TreasureFormDialog, { props: { modelValue: true }, global: global() })
     expect(wrapper.get('[data-source-manager]').text()).toBe('選擇來源')
     expect(wrapper.find('.source-summaries').exists()).toBe(false)
-    expect(wrapper.get('.display-settings summary').text()).toContain('作品與封面')
+    expect(wrapper.get('.display-settings summary').text()).toContain('成果與封面')
     await wrapper.get('input').setValue('完成的新成果')
     await wrapper.get('[data-source-manager]').trigger('click')
     expect(wrapper.findComponent({ name: 'PickerWorkspace' }).exists()).toBe(true)
@@ -73,7 +73,7 @@ describe('奇珍表單互動', () => {
     expect(api.create.mock.calls[0]?.[0]).not.toHaveProperty('rank')
     await flushPromises()
     expect(wrapper.emitted('saved')).toHaveLength(1)
-    expect(ElMessage.success).toHaveBeenCalledWith('一件新的奇珍已收入館藏。它的故事，從此有了值得回望的地方。')
+    expect(ElMessage.success).toHaveBeenCalledWith('展品已收入館藏，這份成果的來歷留在了這裡。')
     wrapper.unmount()
   })
 
@@ -121,7 +121,7 @@ describe('奇珍表單互動', () => {
     wrapper.unmount()
   })
 
-  it('同一彈窗跨來源種類選取保留奇珍多選，卡片與實驗仍為單選', async () => {
+  it('同一彈窗跨來源種類選取保留展品多選，卡片與實驗仍為單選', async () => {
     api.experiments.mockResolvedValue(page([{ id: 21, title: '實驗 A' }, { id: 22, title: '實驗 B' }]))
     api.create.mockResolvedValue({ id: 3, title: '完成的新成果' })
     const wrapper = mount(TreasureFormDialog, { props: { modelValue: true }, global: global() })
@@ -185,7 +185,7 @@ describe('奇珍表單互動', () => {
     expect(api.createYield).toHaveBeenCalledWith(1, expect.objectContaining({ title: '整理 MVP 成文章並分享', description: '整理專案、撰寫文章、發布；尚未收到回饋。' }))
     expect(api.cards).not.toHaveBeenCalled()
     await flushPromises()
-    expect(ElMessage.success).toHaveBeenCalledWith('昔日的成果並未沉寂。這一次，它又帶回了新的收穫。')
+    expect(ElMessage.success).toHaveBeenCalledWith('收益已記錄，這份成果又留下了新的痕跡。')
     wrapper.unmount()
   })
 
@@ -233,7 +233,7 @@ describe('奇珍表單互動', () => {
     await vi.waitFor(() => expect(wrapper.find('.source-options .picker-option').exists()).toBe(true))
     await wrapper.get('.source-options .picker-option').trigger('click')
     await wrapper.findAll('button').find(button => button.text() === '確認來源')!.trigger('click')
-    await wrapper.get('[aria-label="移除來源奇珍：來源 A"]').trigger('click')
+    await wrapper.get('[aria-label="移除來源展品：來源 A"]').trigger('click')
     expect(wrapper.find('.treasure-sources').exists()).toBe(false)
     expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('A😀')
     await wrapper.get('footer button:last-child').trigger('click')

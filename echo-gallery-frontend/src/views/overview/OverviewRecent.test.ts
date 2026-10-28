@@ -32,7 +32,7 @@ function render(yields: TreasureEvent[] = [], progress: TreasureEvent[] = []) {
   return wrapper
 }
 
-describe('奇珍近期資訊依用途分區', () => {
+describe('展品近期資訊依用途分區', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); clients.splice(0).forEach(client => client.clear()) })
 

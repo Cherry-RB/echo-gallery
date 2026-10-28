@@ -173,7 +173,7 @@ onUnmounted(() => {
       </div>
 
       <div v-else-if="cardList.length === 0" class="board-state">
-        這裡暫無卡片。可以調整檢視方式，或新建一張卡片。
+        目前檢視中沒有卡片。可以調整檢視方式，或新建一張卡片。
       </div>
 
       <div class="feed-container" v-else>

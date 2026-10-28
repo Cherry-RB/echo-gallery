@@ -29,7 +29,7 @@ const query = useInfiniteQuery({
       return { ...result, content: result.content.map(item => ({ id: Number(item.id), title: item.title, metadata: [item.type === 'link' ? '連結' : item.type === 'note' ? '筆記' : '卡片', ...(item.isArchived ? ['已封存'] : []), ...(item.intervalDays === null ? ['暫停回流'] : []), ...(item.needsProcessing ? ['待整理'] : [])] })) }
     }
     const result = kind === 'treasure' ? await treasureApi.list({ keyword: search, page: pageParam, size: 10 }) : await experimentApi.getExperiments(false, pageParam, 10)
-    return { ...result, content: result.content.map(item => ({ id: Number(item.id), title: item.title, metadata: [kind === 'treasure' ? '奇珍' : '實驗'] })) }
+    return { ...result, content: result.content.map(item => ({ id: Number(item.id), title: item.title, metadata: [kind === 'treasure' ? '展品' : '實驗'] })) }
   },
   getNextPageParam: (lastPage, _pages, lastPageParam) => lastPageParam + 1 < lastPage.totalPages ? lastPageParam + 1 : undefined,
 })
@@ -37,7 +37,7 @@ const candidates = computed(() => (query.data.value?.pages.flatMap(page => page.
 const toggleTreasure = (item: TreasureReference) => {
   if (treasures.value.some(source => source.id === item.id)) treasures.value = treasures.value.filter(source => source.id !== item.id)
   else if (treasures.value.length < 20) treasures.value.push(item)
-  else ElMessage.warning('來源奇珍最多 20 件')
+  else ElMessage.warning('來源展品最多 20 件')
 }
 const isSelected = (item: TreasureReference) => sourceKind.value === 'treasure'
   ? treasures.value.some(source => source.id === item.id)
@@ -57,10 +57,10 @@ defineExpose({ confirm })
 </script>
 <template>
   <section class="source-picker" aria-label="管理成果來源">
-    <header class="source-intro"><el-button text @click="emit('cancel')">返回編輯奇珍</el-button><p class="app-dialog-intro">選擇來源後確認，最後儲存成果才會生效。</p></header>
+    <header class="source-intro"><el-button text @click="emit('cancel')">返回編輯展品</el-button><p class="app-dialog-intro">選擇來源後確認，最後儲存成果才會生效。</p></header>
     <PickerWorkspace>
-        <el-tabs v-model="sourceKind" aria-label="來源種類"><el-tab-pane label="奇珍" name="treasure" /><el-tab-pane label="卡片" name="card" /><el-tab-pane label="實驗" name="experiment" /></el-tabs>
-        <p class="source-rule">{{ sourceKind === 'treasure' ? '奇珍：最多選 20 件。' : sourceKind === 'card' ? '卡片：選 1 張；選擇另一張會替換原選項。' : '實驗：選 1 個；選擇另一個會替換原選項。' }}</p>
+        <el-tabs v-model="sourceKind" aria-label="來源種類"><el-tab-pane label="展品" name="treasure" /><el-tab-pane label="卡片" name="card" /><el-tab-pane label="實驗" name="experiment" /></el-tabs>
+        <p class="source-rule">{{ sourceKind === 'treasure' ? '展品：最多選 20 件。' : sourceKind === 'card' ? '卡片：選 1 張；選擇另一張會替換原選項。' : '實驗：選 1 個；選擇另一個會替換原選項。' }}</p>
         <el-input v-if="sourceKind !== 'experiment'" v-model="keyword" :placeholder="sourceKind === 'card' ? '輸入 卡片 ID（例如 #7）或標題' : '依名稱搜尋來源'" clearable aria-label="搜尋來源" />
         <el-skeleton v-if="query.isLoading.value" :rows="3" animated />
         <el-button v-else-if="query.isError.value && !query.data.value" @click="query.refetch()">來源讀取失敗，重試</el-button>

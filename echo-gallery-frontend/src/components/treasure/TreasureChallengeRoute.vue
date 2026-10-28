@@ -28,7 +28,7 @@ const regionId = (stage: TreasureRank) => `challenge-${props.treasureId}-${stage
 <template>
   <section class="challenge-route" aria-label="成長挑戰">
     <header class="route-heading"><h2>成長挑戰</h2><el-button text @click="emit('help')">了解四階成長</el-button></header>
-    <p v-if="rank === 'GOLD'" class="route-help">金級並非故事的終點。這件奇珍仍可能產生新的價值。</p>
+    <p v-if="rank === 'GOLD'" class="route-help">金級並非故事的終點。這件展品仍可能產生新的價值。</p>
     <div class="stages">
       <div class="stage stone-stage" data-rank="STONE" :class="{ 'is-current': rank === 'STONE' }">
         <div class="stage-heading"><TreasureRankBadge rank="STONE" /><span class="stage-state">已取得</span><strong v-if="rank === 'STONE'" class="current-label">目前等級</strong></div>
@@ -55,7 +55,7 @@ const regionId = (stage: TreasureRank) => `challenge-${props.treasureId}-${stage
             <TreasureAttemptHistory :treasure-id="treasureId" :trial-id="trialFor(stage)!.id" compact :recordable="!archived && canAttempt(stage)" @record="emit('attempt', trialFor(stage)!)" />
           </template>
           <template v-else>
-            <p class="route-help">{{ acquired(stage) ? '此階沒有可顯示的試煉紀錄。' : stage === nextRankOf(rank) && !archived ? '這件奇珍尚未接受新的試煉。是否繼續前行，由你決定。' : '尚未設定這一階的試煉。' }}</p>
+            <p class="route-help">{{ acquired(stage) ? '此階沒有可顯示的試煉紀錄。' : stage === nextRankOf(rank) && !archived ? '這件展品尚未接受新的試煉。是否繼續前行，由你決定。' : '尚未設定這一階的試煉。' }}</p>
             <p v-if="!acquired(stage) && !archived" class="route-help">{{ stage === nextRankOf(rank) ? '使用上方「設定」訂下行動與通過條件，再透過「＋記錄」留下每次嘗試。' : '使用上方「設定」先保存規劃，通過前一階後再記錄嘗試。' }}</p>
           </template>
           <p v-if="archived" class="route-help">已封存；還原後可編輯與記錄嘗試。</p>

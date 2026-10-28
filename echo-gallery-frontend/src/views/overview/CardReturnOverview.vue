@@ -52,7 +52,7 @@ const snoozeBands = computed(() => (snapshot.value?.snoozeBands ?? []).map(item 
 
 <template>
   <section class="card-return-page app-page app-page--workspace">
-    <PageHeader class="page-header" title="回流狀態" description="曾經收藏的事物，總會在某個時候重新出現。看看它們如今身在何處，又將何時歸來。">
+    <PageHeader class="page-header" title="回流狀態" description="有些收藏正等待回流，有些暫時歇下。看看卡片如今的狀態與回流安排。">
       <template #actions><OverviewNavigation /></template>
     </PageHeader>
 

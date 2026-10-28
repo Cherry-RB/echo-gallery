@@ -7,7 +7,7 @@ const emit = defineEmits<{ remove: [kind: 'card' | 'experiment' | 'treasure', id
 const groups = computed(() => [
   { kind: 'card' as const, title: '來源卡片', limit: 1, entries: props.card ? [props.card] : [] },
   { kind: 'experiment' as const, title: '來源實驗', limit: 1, entries: props.experiment ? [props.experiment] : [] },
-  { kind: 'treasure' as const, title: '來源奇珍', limit: 20, entries: props.treasures },
+  { kind: 'treasure' as const, title: '來源展品', limit: 20, entries: props.treasures },
 ].filter(group => group.entries.length))
 </script>
 <template>

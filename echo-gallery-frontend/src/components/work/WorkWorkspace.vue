@@ -148,7 +148,7 @@ async function archive() {
 async function remove() {
   if (busy.value) return
   if (auto.saving.value) { error.value = '正文仍在儲存，請稍候再刪除。'; return }
-  try { await ElMessageBox.confirm('永久刪除此作品、正文與素材關聯？此操作無法復原，卡片、探索紀錄與奇珍仍會保留。', '永久刪除作品', { type: 'warning', confirmButtonText: '永久刪除', cancelButtonText: '取消' }) } catch { return }
+  try { await ElMessageBox.confirm('永久刪除此作品、正文與素材關聯？此操作無法復原，卡片、探索紀錄與展品仍會保留。', '永久刪除作品', { type: 'warning', confirmButtonText: '永久刪除', cancelButtonText: '取消' }) } catch { return }
   busy.value = true
   try {
     await auto.backup(); await workApi.delete(id); deleted = true; auto.reset('', 0)
@@ -158,7 +158,7 @@ async function remove() {
   catch { error.value = '無法刪除作品，請重試。' } finally { busy.value = false }
 }
 async function unlink() {
-  try { await ElMessageBox.confirm('解除後作品與奇珍各自保留。重新連結時，作品須為可分享。', '解除奇珍關聯', { confirmButtonText: '解除關聯', cancelButtonText: '取消' }) } catch { return }
+  try { await ElMessageBox.confirm('解除後作品與展品各自保留。重新連結時，作品須為可分享。', '解除展品關聯', { confirmButtonText: '解除關聯', cancelButtonText: '取消' }) } catch { return }
   try { detail.value = await workApi.unlink(id); await invalidate() } catch { error.value = '無法解除關聯，請重試。' }
 }
 async function removeSource(source: WorkSource) {
@@ -202,7 +202,7 @@ async function createTreasure(data: TreasureContent): Promise<TreasureDetail> {
 async function leave() {
   if (deleted) return true
   if (treasureForm.value) {
-    try { await ElMessageBox.confirm('入藏表單尚未提交。離開會放棄這次填寫的資訊，作品與既有奇珍仍會保留。', '離開入藏表單', { confirmButtonText: '放棄並離開', cancelButtonText: '繼續填寫' }); treasureForm.value = false }
+    try { await ElMessageBox.confirm('入藏表單尚未提交。離開會放棄這次填寫的資訊，作品與既有展品仍會保留。', '離開入藏表單', { confirmButtonText: '放棄並離開', cancelButtonText: '繼續填寫' }); treasureForm.value = false }
     catch { return false }
   }
   await auto.backup()
@@ -235,7 +235,7 @@ onBeforeUnmount(() => {
     <template #navigation>
       <nav class="app-detail-navigation">
         <div class="work-return">
-          <el-button text :icon="ArrowLeft" @click="returnToLibrary">返回爛紙頭</el-button>
+          <el-button text :icon="ArrowLeft" @click="returnToLibrary">返回創作台</el-button>
           <router-link v-if="detail.work.experimentId" class="work-experiment-link" :to="`/experiments/${detail.work.experimentId}`">實驗 · {{ detail.work.experimentTitle }}</router-link>
           <span class="work-status" title="可在編輯資訊中更改主要編輯位置">{{ internal ? '內建編輯器' : '外部工具' }}</span>
         </div>
@@ -257,7 +257,7 @@ onBeforeUnmount(() => {
             <template #dropdown><el-dropdown-menu><el-dropdown-item command="UNPUBLISHED" :disabled="!detail.work.published">未發表</el-dropdown-item><el-dropdown-item command="PUBLISHED" :disabled="detail.work.published">已發表</el-dropdown-item><el-dropdown-item divided command="EDIT">編輯分享資訊</el-dropdown-item></el-dropdown-menu></template>
           </el-dropdown>
           <el-button v-if="!readonly" plain type="primary" :icon="Edit" :disabled="busy" @click="safeBody().then(ok => { if (ok) editingInfo = true })">編輯資訊</el-button>
-          <el-button v-if="!readonly && detail.work.stage === 'SHAREABLE' && !detail.work.treasureId" type="primary" :disabled="busy" @click="openDialog('treasure')">收入奇珍</el-button>
+          <el-button v-if="!readonly && detail.work.stage === 'SHAREABLE' && !detail.work.treasureId" type="primary" :disabled="busy" @click="openDialog('treasure')">收入展品</el-button>
           <el-button v-if="readonly" :disabled="busy" @click="archive">還原作品</el-button>
           <el-dropdown class="work-more-menu" trigger="click" :disabled="busy" @command="pageCommand">
             <el-button text circle :icon="MoreFilled" aria-label="更多作品操作" />
@@ -266,7 +266,7 @@ onBeforeUnmount(() => {
         </div>
       </nav>
     </template>
-    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="爛紙頭" /></header>
+    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="創作台" /></header>
     <ExpandableText v-if="detail.work.description" :content="detail.work.description" :lines="3" />
     <el-alert v-if="readonly" title="此作品已封存，可以閱讀、複製與匯出；還原後才能編輯。" type="info" :closable="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert" />
@@ -324,7 +324,7 @@ onBeforeUnmount(() => {
           <dl class="work-properties"><div><dt>發表狀態</dt><dd>{{ detail.work.published ? '已發表' : '未發表' }}</dd></div><div v-if="detail.sharedOn"><dt>分享日期</dt><dd>{{ detail.sharedOn }}</dd></div></dl>
           <a v-if="detail.shareUrl" :href="detail.shareUrl" target="_blank" rel="noopener noreferrer">查看分享連結</a>
           <p v-if="detail.shareNote" class="private-note">{{ detail.shareNote }}</p>
-          <div class="work-treasure-context"><template v-if="detail.work.treasureId"><router-link :to="`/treasures/${detail.work.treasureId}`">前往奇珍</router-link><el-button v-if="!readonly" link @click="unlink">解除關聯</el-button></template><el-button v-else-if="!readonly && detail.work.stage === 'SHAREABLE'" text type="primary" @click="openDialog('treasure')">收入奇珍</el-button><p v-else-if="!readonly" class="work-hint">作品標記可分享後，可以選擇收入奇珍。</p></div>
+          <div class="work-treasure-context"><template v-if="detail.work.treasureId"><router-link :to="`/treasures/${detail.work.treasureId}`">前往展品</router-link><el-button v-if="!readonly" link @click="unlink">解除關聯</el-button></template><el-button v-else-if="!readonly && detail.work.stage === 'SHAREABLE'" text type="primary" @click="openDialog('treasure')">收入展品</el-button><p v-else-if="!readonly" class="work-hint">作品標記可分享後，可以選擇收入展品。</p></div>
         </div>
       </SidePanel>
     </aside></div>
@@ -332,12 +332,12 @@ onBeforeUnmount(() => {
     <WorkFormDialog v-if="editingInfo" v-model="editingInfo" :work="detail" @saved="detail = $event; auto.reset($event.body, $event.bodyVersion)" />
     <WorkSourcePicker v-if="picker" v-model="picker" :work-id="id" @saved="sources.refetch(); invalidate()" />
     <WorkSourceReadingDialog v-if="reading" :model-value="true" :source="reading" @update:model-value="reading = undefined" />
-    <AppDialog pattern="compact-form" :width="dialog === 'treasure' ? 'min(560px, calc(100vw - 32px))' : 'min(620px, calc(100vw - 32px))'" ref="manualShell" :model-value="!!dialog" :title="dialog === 'next' ? '下次接著做' : dialog === 'stage' ? '編輯首次完成日期' : dialog === 'share' ? '分享資訊' : '收入奇珍'" :draft="[form, treasureMode, selectedTreasure]" :busy="busy" scroll-body @update:model-value="dialog = ''">
+    <AppDialog pattern="compact-form" :width="dialog === 'treasure' ? 'min(560px, calc(100vw - 32px))' : 'min(620px, calc(100vw - 32px))'" ref="manualShell" :model-value="!!dialog" :title="dialog === 'next' ? '下次接著做' : dialog === 'stage' ? '編輯首次完成日期' : dialog === 'share' ? '分享資訊' : '收入展品'" :draft="[form, treasureMode, selectedTreasure]" :busy="busy" scroll-body @update:model-value="dialog = ''">
       <el-form class="app-record-form" label-position="top" :disabled="busy" @submit.prevent="saveDialog">
         <el-form-item v-if="dialog === 'next'" label="下次接著做（選填）"><el-input v-model="form.nextStep" type="textarea" :rows="5" maxlength="50000" /><p class="app-field-counter">總字數：{{ form.nextStep.length }} / 50,000</p><p class="app-field-help">留下一個容易接續的切入點即可，不必填寫完整計畫。</p></el-form-item>
         <template v-if="dialog === 'stage'"><el-form-item label="首次初版完成日期（選填）"><el-date-picker v-model="form.firstCompletedOn" type="date" value-format="YYYY-MM-DD" /></el-form-item><p class="app-field-help">作品階段請在頁首選單變更；這裡只調整首次初版完成日期。</p></template>
         <template v-if="dialog === 'share'"><p class="app-dialog-intro">只保存最近一筆分享資訊；儲存會取代原有網址、日期與備註。複製、匯出或分享連結不會自動標記已發表。</p><el-form-item label="發表狀態"><el-switch v-model="form.published" active-text="已發表" inactive-text="未發表" /></el-form-item><el-form-item label="分享網址（選填）"><el-input v-model="form.shareUrl" maxlength="2048" /></el-form-item><el-form-item label="實際分享日期（選填）"><el-date-picker v-model="form.sharedOn" type="date" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="分享或回饋備註（選填）"><el-input v-model="form.shareNote" type="textarea" :rows="4" maxlength="50000" /><p class="app-field-counter">總字數：{{ form.shareNote.length }} / 50,000</p></el-form-item></template>
-        <template v-if="dialog === 'treasure'"><el-radio-group v-model="treasureMode"><el-radio value="new">新增奇珍</el-radio><el-radio value="existing">連到已有奇珍</el-radio></el-radio-group><template v-if="treasureMode === 'existing'"><p class="app-dialog-intro">保留奇珍原有說明、等級與收益；一件奇珍最多連到一件作品。</p><el-input v-model="treasureKeyword" placeholder="搜尋奇珍名稱" @input="treasurePage = 1" /><p v-if="treasures.isPending.value" role="status">正在載入奇珍…</p><el-alert v-else-if="treasures.isError.value" title="無法載入奇珍" type="error" :closable="false"><el-button @click="treasures.refetch()">重新載入</el-button></el-alert><p v-else-if="!treasures.data.value?.content.length" class="app-field-help">找不到符合條件的奇珍，可調整搜尋或改為新增奇珍。</p><div class="treasure-options"><PickerOption v-for="t in treasures.data.value?.content" :key="t.id" :title="t.title" :selected="selectedTreasure === t.id" :disabled="busy" @select="selectedTreasure = t.id" /></div><el-pagination v-if="(treasures.data.value?.totalElements ?? 0) > 20" v-model:current-page="treasurePage" :page-size="20" :total="treasures.data.value?.totalElements ?? 0" layout="prev, pager, next" /></template></template>
+        <template v-if="dialog === 'treasure'"><el-radio-group v-model="treasureMode"><el-radio value="new">新增展品</el-radio><el-radio value="existing">連到已有展品</el-radio></el-radio-group><template v-if="treasureMode === 'existing'"><p class="app-dialog-intro">保留展品原有說明、等級與收益；一件展品最多連到一件作品。</p><el-input v-model="treasureKeyword" placeholder="搜尋展品名稱" @input="treasurePage = 1" /><p v-if="treasures.isPending.value" role="status">正在載入展品…</p><el-alert v-else-if="treasures.isError.value" title="無法載入展品" type="error" :closable="false"><el-button @click="treasures.refetch()">重新載入</el-button></el-alert><p v-else-if="!treasures.data.value?.content.length" class="app-field-help">找不到符合條件的展品，可調整搜尋或改為新增展品。</p><div class="treasure-options"><PickerOption v-for="t in treasures.data.value?.content" :key="t.id" :title="t.title" :selected="selectedTreasure === t.id" :disabled="busy" @select="selectedTreasure = t.id" /></div><el-pagination v-if="(treasures.data.value?.totalElements ?? 0) > 20" v-model:current-page="treasurePage" :page-size="20" :total="treasures.data.value?.totalElements ?? 0" layout="prev, pager, next" /></template></template>
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
       </el-form>
       <template #footer="{ requestClose }"><el-button :disabled="busy" @click="requestClose">取消</el-button><el-button type="primary" :loading="busy" :disabled="dialog === 'treasure' && treasureMode === 'existing' && !selectedTreasure" @click="saveDialog">{{ dialog === 'treasure' && treasureMode === 'new' ? '填寫入藏資訊' : '儲存變更' }}</el-button></template>

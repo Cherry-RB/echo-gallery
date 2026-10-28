@@ -54,7 +54,7 @@ const archive = async () => {
 }
 const remove = async () => {
   if (busy.value) return
-  try { await ElMessageBox.confirm('永久刪除此奇珍及其試煉、收益紀錄和來源關聯？刪除後無法復原；其他成果與原始卡片不會刪除。', '刪除奇珍', { confirmButtonText: '永久刪除', cancelButtonText: '取消', type: 'warning' }) } catch { return }
+  try { await ElMessageBox.confirm('永久刪除此展品及其試煉、收益紀錄和來源關聯？刪除後無法復原；其他成果與原始卡片不會刪除。', '刪除展品', { confirmButtonText: '永久刪除', cancelButtonText: '取消', type: 'warning' }) } catch { return }
   busy.value = true
   try { await treasureApi.delete(id.value); await router.push('/treasures'); await refresh() } catch (e) { ElMessage.error(errorMessage(e)) } finally { busy.value = false }
 }
@@ -68,18 +68,18 @@ const handleCommand = (command: string) => {
   <DetailShell class="treasure-detail">
     <template #navigation>
     <header class="detail-navigation app-detail-navigation">
-      <el-button text :icon="ArrowLeft" @click="router.push('/treasures')">返回奇珍展覽館</el-button>
+      <el-button text :icon="ArrowLeft" @click="router.push('/treasures')">返回展覽館</el-button>
       <div v-if="treasure" class="detail-actions">
-        <el-button type="primary" plain :icon="Edit" :disabled="busy" @click="editVisible = true">編輯奇珍</el-button>
+        <el-button type="primary" plain :icon="Edit" :disabled="busy" @click="editVisible = true">編輯展品</el-button>
         <el-dropdown trigger="click" @command="handleCommand">
           <el-button :icon="MoreFilled" :disabled="busy">更多操作</el-button>
-          <template #dropdown><el-dropdown-menu><el-dropdown-item command="archive">{{ treasure.isArchived ? '還原奇珍' : '封存奇珍' }}</el-dropdown-item><el-dropdown-item command="delete" divided>永久刪除</el-dropdown-item></el-dropdown-menu></template>
+          <template #dropdown><el-dropdown-menu><el-dropdown-item command="archive">{{ treasure.isArchived ? '還原展品' : '封存展品' }}</el-dropdown-item><el-dropdown-item command="delete" divided>永久刪除</el-dropdown-item></el-dropdown-menu></template>
         </el-dropdown>
       </div>
     </header>
     </template>
-    <p v-if="detail.isLoading.value">正在讀取奇珍…</p>
-    <el-result v-else-if="detail.isError.value || !validId" icon="error" title="無法讀取這件奇珍"><template #extra><el-button @click="detail.refetch()">重試</el-button></template></el-result>
+    <p v-if="detail.isLoading.value">正在讀取展品…</p>
+    <el-result v-else-if="detail.isError.value || !validId" icon="error" title="無法讀取這件展品"><template #extra><el-button @click="detail.refetch()">重試</el-button></template></el-result>
     <template v-else-if="treasure">
       <main class="treasure-workspace">
       <DetailHeading eyebrow="已完成的成果" :title="treasure.title">
@@ -95,8 +95,8 @@ const handleCommand = (command: string) => {
           <TreasureWorkLink :treasure-id="id" />
           <CoverImage :src="treasure.coverImageUrl" alt="成果封面" class="artifact-cover" />
           <div v-if="treasure.description" class="reading-copy"><ExpandableText :content="treasure.description" :lines="7" /></div>
-          <p v-else class="empty-copy">這件奇珍的來歷尚未寫下。可透過「編輯奇珍」補充內容與經驗。</p>
-          <a v-if="treasure.artifactUrl" class="artifact-link" :href="treasure.artifactUrl" target="_blank" rel="noopener noreferrer"><el-icon><View /></el-icon>開啟作品</a>
+          <p v-else class="empty-copy">這件展品的來歷尚未寫下。可透過「編輯展品」補充內容與經驗。</p>
+          <a v-if="treasure.artifactUrl" class="artifact-link" :href="treasure.artifactUrl" target="_blank" rel="noopener noreferrer"><el-icon><View /></el-icon>開啟成果</a>
           <p class="metadata">入藏於 {{ formatDate(treasure.createdAt) }} · 最近更新 {{ formatDate(treasure.updatedAt) }}</p>
           <section v-if="hasLineage" class="lineage-context" aria-labelledby="lineage-title">
             <div class="lineage-heading"><h3 id="lineage-title">成果脈絡</h3><span class="metadata">{{ treasure.sourceTreasures.length + (treasure.sourceCard ? 1 : 0) + (treasure.sourceExperiment ? 1 : 0) }} 個來源<span v-if="derived.data.value"> · {{ derived.data.value.totalElements }} 件衍生成果</span></span></div>
@@ -105,7 +105,7 @@ const handleCommand = (command: string) => {
               <div class="lineage-links">
                 <router-link v-if="treasure.sourceCard" :to="`/card/${treasure.sourceCard.id}`">卡片 · {{ treasure.sourceCard.title }}</router-link>
                 <router-link v-if="treasure.sourceExperiment" :to="`/experiments/${treasure.sourceExperiment.id}`">實驗 · {{ treasure.sourceExperiment.title }}</router-link>
-                <router-link v-for="source in treasure.sourceTreasures" :key="source.id" :to="`/treasures/${source.id}`">奇珍 · {{ source.title }}</router-link>
+                <router-link v-for="source in treasure.sourceTreasures" :key="source.id" :to="`/treasures/${source.id}`">展品 · {{ source.title }}</router-link>
               </div>
             </div>
             <div v-if="derived.isLoading.value" class="lineage-branch"><span class="lineage-label">延伸為</span><span class="metadata">正在讀取關聯…</span></div>

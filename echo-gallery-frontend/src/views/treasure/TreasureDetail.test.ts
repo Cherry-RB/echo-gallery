@@ -36,7 +36,7 @@ function render(realRoute = false) {
   return wrapper
 }
 
-describe('奇珍詳情的操作脈絡', () => {
+describe('展品詳情的操作脈絡', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     api.detail.mockResolvedValue(detail)

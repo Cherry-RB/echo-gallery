@@ -35,11 +35,11 @@ const treasureSections = computed(() => [
 
 const periodFigures = computed(() => [
   { key: 'reengaged', value: period.value.flow.reengagedCardCount, unit: '張', label: '故物重逢', description: `其中 ${period.value.flow.reviewedCardCount} 張完成回顧`, explanation: '建立於這段時間之前，且在這段時間重新被閱讀或加入探索線的卡片。不是越高越好。' },
-  { key: 'treasure-yield', value: period.value.treasureGrowth.yieldTreasureCount, unit: '件', label: '奇珍再現價值', description: `留下 ${period.value.treasureGrowth.yieldRecordCount} 筆收益`, explanation: '以實際發生日期計算。相同成果的多筆收益仍為一件奇珍；設定挑戰不算產出，也不代表已取得收入。' },
+  { key: 'treasure-yield', value: period.value.treasureGrowth.yieldTreasureCount, unit: '件', label: '展品再現價值', description: `留下 ${period.value.treasureGrowth.yieldRecordCount} 筆收益`, explanation: '以實際發生日期計算。相同成果的多筆收益仍為一件展品；設定挑戰不算產出，也不代表已取得收入。' },
 ])
 
 const activityDefinitions = {
-  created: '新增卡片', offered: '今日回流再次出現', reviewed: '完成回顧', 'experiment-material': '加入探索材料', 'exploration-record': '留下探索發現', 'treasure-collected': '奇珍入藏', 'treasure-promoted': '曾晉級的奇珍', 'treasure-yield': '奇珍收益',
+  created: '新增卡片', offered: '今日回流再次出現', reviewed: '完成回顧', 'experiment-material': '加入探索材料', 'exploration-record': '留下探索發現', 'treasure-collected': '展品入藏', 'treasure-promoted': '曾晉級的展品', 'treasure-yield': '展品收益',
 } as const
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-TW', { month: 'numeric', day: 'numeric' }).format(new Date(value))

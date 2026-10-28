@@ -58,7 +58,7 @@ watch(() => route.fullPath, () => Object.assign(filters, filtersFromRoute()))
 </script>
 <template>
   <main class="work-library app-list-page app-page app-page--workspace">
-    <PageHeader title="爛紙頭" description="不同階段的創作，都能在這裡繼續。"><template #actions><el-button type="primary" :icon="Plus" @click="creating = true">建立作品</el-button></template></PageHeader>
+    <PageHeader title="創作台" description="草稿可以重寫，構想可以推翻。從初稿到完成，作品都能留在這裡繼續打磨。"><template #actions><el-button type="primary" :icon="Plus" @click="creating = true">建立作品</el-button></template></PageHeader>
     <div class="app-workspace app-workspace--edge-to-edge app-stack">
     <form class="work-toolbar app-toolbar" role="search" aria-label="搜尋與篩選作品" @submit.prevent="applyFilters">
       <el-radio-group :model-value="scope" class="app-list-scope" aria-label="作品範圍" @update:model-value="selectScope"><el-radio-button value="false">未封存</el-radio-button><el-radio-button value="true">已封存</el-radio-button><el-radio-button value="all">全部</el-radio-button></el-radio-group>
@@ -77,7 +77,7 @@ watch(() => route.fullPath, () => Object.assign(filters, filtersFromRoute()))
     <el-result v-else-if="query.isError.value" icon="error" title="無法載入作品"><template #extra><el-button @click="query.refetch()">重新載入</el-button></template></el-result>
     <template v-else>
       <div class="work-results-heading" aria-live="polite"><p>{{ route.query.archived === 'true' ? '已封存' : route.query.archived === 'all' ? '全部作品' : '未封存' }} · {{ query.data.value?.totalElements ?? 0 }} 件作品{{ filtered ? '符合條件' : '' }}</p><span>最近編輯優先</span></div>
-      <AppEmptyState v-if="!query.data.value?.content.length" :description="filtered ? '找不到符合條件的作品，可以調整搜尋或篩選。' : route.query.archived === 'true' ? '目前沒有已封存的作品。' : '從一個想完成的念頭開始，也可以先自由探索。'" />
+      <AppEmptyState v-if="!query.data.value?.content.length" :description="filtered ? '找不到符合條件的作品，可以調整搜尋或篩選。' : route.query.archived === 'true' ? '目前沒有已封存的作品。' : '桌面還空著。不必等到構想完整，第一份粗糙的草稿，也足以成為開始。'" />
       <div v-else class="work-grid"><WorkPreview v-for="w in query.data.value?.content" :key="w.id" :work="w" /></div>
     </template>
     <div v-if="(query.data.value?.totalElements ?? 0) > 20" class="app-list-pagination"><el-pagination :current-page="Number(route.query.page || 1)" :page-size="20" :total="query.data.value?.totalElements ?? 0" layout="total, prev, pager, next" @current-change="router.replace({ query: { ...route.query, page: $event } })" /></div>
