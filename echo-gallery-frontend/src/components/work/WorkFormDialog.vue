@@ -29,7 +29,7 @@ async function save() {
   saving.value = true; error.value = ''
   try {
     const result = props.work ? await workApi.info(props.work.work.id, form) : await workApi.create({ ...form, ...(props.source ? { sources: [props.source] } : {}) })
-    await client.invalidateQueries({ queryKey: ['works'] })
+    await client.invalidateQueries({ queryKey: ['works'] }); await client.invalidateQueries({ queryKey: ['overview', 'current'] })
     emit('saved', result); emit('update:modelValue', false)
   } catch { error.value = '無法儲存作品，請重試。表單內容已保留。' } finally { saving.value = false }
 }

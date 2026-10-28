@@ -61,6 +61,30 @@ class WorkIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.content[0].id").value(unassigned)).andExpect(jsonPath("$.totalElements").value(1));
     }
 
+    @Test void summariesCountUnicodeCharactersAndCurrentOverviewCountsOnlyOwnedActiveWorks() throws Exception {
+        String token = register();
+        long internal = create(token, "內建稿件"), external = create(token, "外部稿件");
+        create(register(), "其他人的作品");
+        send(get(ROOT + "/{id}", internal), token, null).andExpect(jsonPath("$.work.characterCount").value(0));
+        send(put(ROOT + "/{id}/body", internal), token, Map.of("body", "# 文😀\n", "expectedVersion", 0))
+                .andExpect(status().isOk());
+        send(get(ROOT), token, null).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(internal))
+                .andExpect(jsonPath("$.content[0].characterCount").value(5))
+                .andExpect(jsonPath("$.content[0].body").doesNotExist());
+        send(put(ROOT + "/{id}", external), token, Map.of("title", "外部稿件", "editorMode", "EXTERNAL"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.work.characterCount").isEmpty());
+        send(get("/api/overview/current"), token, null).andExpect(status().isOk())
+                .andExpect(jsonPath("$.workCount").value(2));
+        send(put(ROOT + "/{id}/archive", internal), token, null).andExpect(status().isOk());
+        send(get("/api/overview/current"), token, null).andExpect(jsonPath("$.workCount").value(1));
+        send(put(ROOT + "/{id}/restore", internal), token, null).andExpect(status().isOk());
+        send(delete(ROOT + "/{id}", external), token, null).andExpect(status().isNoContent());
+        send(get("/api/overview/current"), token, null).andExpect(jsonPath("$.workCount").value(1));
+        send(delete(ROOT + "/{id}", internal), token, null).andExpect(status().isNoContent());
+        send(get("/api/overview/current"), token, null).andExpect(jsonPath("$.workCount").value(0));
+    }
+
     @Test void savesExactlyAndRejectsStalePagesWithoutPolling() throws Exception {
         String token = register(); long id = create(token, "正文測試");
         send(put(ROOT + "/{id}/body", id), token, Map.of("body", "原文  \n", "expectedVersion", 0))

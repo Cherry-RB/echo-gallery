@@ -34,8 +34,10 @@ const route = useRoute(), router = useRouter(), client = useQueryClient()
 const auto = useWorkAutosave(owner, id, props.initial.body, props.initial.bodyVersion, async (body, v) => {
   const saved = await workApi.body(id, body, v)
   client.setQueryData<WorkDetail>(['works', 'detail', id], cached => cached ? {
-    ...cached, body: saved.body, bodyVersion: saved.bodyVersion, work: { ...cached.work, editedAt: saved.editedAt },
+    ...cached, body: saved.body, bodyVersion: saved.bodyVersion, work: { ...cached.work, editedAt: saved.editedAt, characterCount: Array.from(saved.body).length },
   } : undefined)
+  void client.invalidateQueries({ queryKey: ['works', 'list'] })
+  void client.invalidateQueries({ queryKey: ['works', 'resume'] })
   return saved
 })
 const body = auto.body, saving = auto.saving, status = auto.status
@@ -92,7 +94,7 @@ const openedThread = ref<{ experimentId: number; threadId: number }>()
 const treasureMode = ref('new'), treasureKeyword = ref(''), selectedTreasure = ref<number>(), treasurePage = ref(1), treasureForm = ref(false)
 const treasures = useQuery({ queryKey: computed(() => ['treasures', 'work-link', treasureKeyword.value, treasurePage.value]), queryFn: () => treasureApi.list({ keyword: treasureKeyword.value, page: treasurePage.value - 1 }), enabled: computed(() => dialog.value === 'treasure') })
 const count = computed(() => Array.from(body.value).length)
-async function invalidate() { await client.invalidateQueries({ queryKey: ['works'] }); await client.invalidateQueries({ queryKey: ['treasures'] }) }
+async function invalidate() { await client.invalidateQueries({ queryKey: ['works'] }); await client.invalidateQueries({ queryKey: ['overview', 'current'] }); await client.invalidateQueries({ queryKey: ['treasures'] }) }
 function pageCommand(value: string) { return value === 'archive' ? archive() : remove() }
 async function safeBody() {
   if (auto.saving.value) { error.value = '正文仍在儲存，請稍候再操作。'; return false }

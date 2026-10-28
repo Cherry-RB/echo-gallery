@@ -5,6 +5,7 @@ export interface WorkSummary {
   id: number; title: string; description: string | null; experimentId: number | null; experimentTitle: string | null
   editorMode: WorkMode; stage: WorkStage; nextStep: string | null; published: boolean; archived: boolean
   treasureId: number | null; editedAt: string
+  characterCount: number | null
 }
 export interface WorkDetail {
   work: WorkSummary; body: string; bodyVersion: number; externalUrl: string | null

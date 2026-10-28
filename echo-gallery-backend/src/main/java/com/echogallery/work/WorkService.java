@@ -28,7 +28,7 @@ public class WorkService {
 
     public record Summary(Long id, String title, String description, Long experimentId, String experimentTitle,
             CreativeWork.Mode editorMode, CreativeWork.Stage stage, String nextStep, boolean published,
-            boolean archived, Long treasureId, ZonedDateTime editedAt) {}
+            boolean archived, Long treasureId, ZonedDateTime editedAt, Integer characterCount) {}
     public record Detail(Summary work, String body, long bodyVersion, String externalUrl, LocalDate firstCompletedOn,
             ZonedDateTime stageChangedAt, String shareUrl, LocalDate sharedOn, String shareNote) {}
     public record SourceView(Long id, Long cardId, Long recordId, String title, String text,
@@ -179,7 +179,7 @@ public class WorkService {
         String text = java.util.stream.Stream.of(c.getUrl(), c.getCardNote(), c.getContent()).filter(s -> s != null && !s.isBlank()).distinct().collect(java.util.stream.Collectors.joining("\n\n"));
         return new SourceView(id, c.getId(), null, c.getTitle(), text, null, null, c.isArchived(), null, null);
     }
-    private Summary summary(CreativeWork w) { return new Summary(w.getId(), w.getTitle(), w.getDescription(), w.getExperiment() == null ? null : w.getExperiment().getId(), w.getExperiment() == null ? null : w.getExperiment().getTitle(), w.getEditorMode(), w.getStage(), w.getNextStep(), w.isPublished(), w.isArchived(), w.getTreasure() == null ? null : w.getTreasure().getId(), w.getEditedAt()); }
+    private Summary summary(CreativeWork w) { return new Summary(w.getId(), w.getTitle(), w.getDescription(), w.getExperiment() == null ? null : w.getExperiment().getId(), w.getExperiment() == null ? null : w.getExperiment().getTitle(), w.getEditorMode(), w.getStage(), w.getNextStep(), w.isPublished(), w.isArchived(), w.getTreasure() == null ? null : w.getTreasure().getId(), w.getEditedAt(), w.getEditorMode() == CreativeWork.Mode.INTERNAL ? w.getBody().codePointCount(0, w.getBody().length()) : null); }
     private Detail detail(CreativeWork w) { return new Detail(summary(w), w.getBody(), w.getBodyVersion(), w.getExternalUrl(), w.getFirstCompletedOn(), w.getStageChangedAt(), w.getShareUrl(), w.getSharedOn(), w.getShareNote()); }
     private CreativeWork owned(Long id) { return works.findByIdAndUserId(id, owner()).orElseThrow(this::missing); }
     private CreativeWork active(Long id) { var w = owned(id); if (w.isArchived()) fail(HttpStatus.CONFLICT, "作品已封存，請先還原"); return w; }

@@ -13,6 +13,7 @@ export interface OverviewResponse {
     needsProcessingCardCount: number
     activeExperimentCount: number
     treasureCount: number
+    workCount: number
     experimentTries: OverviewExperimentTry[]
     treasureActions: TreasureSummary[]
     attentionSignals: OverviewAttentionSignal[]

@@ -2,19 +2,19 @@
 import { useRoute } from 'vue-router'
 import { workStages, type WorkSummary } from '../../types/work'
 import { formatDate } from '../../utils/formatDate'
-defineProps<{ work: WorkSummary }>()
+defineProps<{ work: WorkSummary; compact?: boolean }>()
 const route = useRoute()
 </script>
 <template>
-  <article class="resume-entry">
+  <article class="resume-entry" :class="{ 'resume-entry--compact': compact }">
     <div class="resume-entry-main">
       <div class="resume-entry-heading">
-        <router-link class="resume-entry-title" :to="{ path: `/works/${work.id}`, query: { from: route.fullPath } }">{{ work.title }}</router-link>
+        <router-link class="resume-entry-title" :title="compact ? work.title : undefined" :to="{ path: `/works/${work.id}`, query: { from: route.fullPath } }">{{ work.title }}</router-link>
         <span class="resume-entry-stage">{{ workStages[work.stage] }}</span>
       </div>
-      <div v-if="work.nextStep" class="resume-entry-next"><span class="resume-entry-label">下次接著做</span><p>{{ work.nextStep }}</p></div>
+      <div v-if="work.nextStep" class="resume-entry-next"><span v-if="!compact" class="resume-entry-label">下次接著做</span><p>{{ work.nextStep }}</p></div>
       <p v-else class="resume-entry-empty">尚未留下下一步</p>
-      <p class="resume-entry-meta">最近編輯 {{ formatDate(work.editedAt) }}</p>
+      <p class="resume-entry-meta"><template v-if="compact"><span :title="work.editorMode === 'INTERNAL' ? '已儲存 Markdown 正文的字元數，含符號、空白與換行。' : undefined">{{ work.editorMode === 'EXTERNAL' ? '外部文件' : work.characterCount != null ? `${work.characterCount.toLocaleString()} 字元` : '字元數尚未取得' }}</span> · </template>最近編輯 {{ formatDate(work.editedAt) }}</p>
     </div>
   </article>
 </template>
@@ -34,6 +34,12 @@ const route = useRoute()
 .resume-entry:hover { border-color: var(--el-color-primary-light-5); }
 .resume-entry:hover .resume-entry-title { color: var(--el-color-primary); }
 .resume-entry:focus-within { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.resume-entry--compact { min-height: 0; padding: 13px 14px; border-color: var(--el-border-color-lighter); background: var(--surface-summary); }
+.resume-entry--compact .resume-entry-heading { flex-wrap: nowrap; }
+.resume-entry--compact .resume-entry-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-regular); line-height: var(--leading-ui); }
+.resume-entry--compact .resume-entry-meta { overflow-wrap: anywhere; }
+.resume-entry--compact .resume-entry-next { color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); }
+.resume-entry--compact .resume-entry-main { gap: 6px; }
 a:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: var(--space-2xs); }
 @media (max-width: 760px) { .resume-entry { flex-wrap: wrap; gap: var(--space-sm); } }
 </style>

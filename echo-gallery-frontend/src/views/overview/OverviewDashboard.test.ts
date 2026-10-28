@@ -21,9 +21,9 @@ const challenge = (overrides: Partial<TreasureTrial> = {}): TreasureTrial => ({
   status: 'PLANNED', resultNote: null, evidenceUrl: null, attemptedAt: null, passedAt: null,
   createdAt: '', updatedAt: '', ...overrides,
 })
-function render(items: TreasureSummary[], count = items.length) {
+function render(items: TreasureSummary[], count = items.length, workCount = 0) {
   state.current.mockResolvedValue({ todayReturnPoolCount: 0, recurringCardCount: 0, pausedCardCount: 0,
-    needsProcessingCardCount: 0, activeExperimentCount: 0, treasureCount: count,
+    needsProcessingCardCount: 0, activeExperimentCount: 0, treasureCount: count, workCount,
     experimentTries: [], treasureActions: items, attentionSignals: [],
   })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
@@ -32,7 +32,7 @@ function render(items: TreasureSummary[], count = items.length) {
     plugins: [[VueQueryPlugin, { queryClient: client }]],
     stubs: {
       RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
-      OverviewNavigation: true, ExperimentExplorationEditor: true, ExperimentExplorationHistoryDialog: true,
+      OverviewNavigation: true, WorkResume: true, ExperimentExplorationEditor: true, ExperimentExplorationHistoryDialog: true,
       TreasureTrialDialog: true, TreasureYieldDialog: true, TreasureYieldHistory: true, TreasureFormDialog: true,
       HistoryDialog: { name: 'HistoryDialog', props: ['modelValue', 'title'], template: '<section><slot name="actions" /><slot /></section>' },
       'el-button': { props: ['disabled'], emits: ['click'], template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>' },
@@ -50,22 +50,28 @@ describe('總覽成果行動入口', () => {
   it('空館藏使用明確收錄入口，直接開啟既有表單', async () => {
     const wrapper = render([])
     await flushPromises()
-    expect(wrapper.text()).toContain('入藏之後')
+    expect(wrapper.get('#overview-treasure-title').text()).toBe('入藏之後')
+    expect(wrapper.get('[aria-label="入藏之後數量：0"]').text()).toBe('0')
     expect(wrapper.text()).toContain('展櫃仍然空著')
     await wrapper.get('.treasure-empty-state button').trigger('click')
     expect(wrapper.findComponent({ name: 'TreasureFormDialog' }).props('modelValue')).toBe(true)
     expect(state.push).not.toHaveBeenCalled()
   })
 
-  it('已有館藏但沒有可繼續檢定，不以普通成果或未來規劃補滿，也不誤報沒有館藏', async () => {
-    const wrapper = render([treasure(), treasure({ id: 2, activeTrial: challenge({ targetRank: 'GOLD' }) })], 8)
+  it('沒有試煉與只有未來規劃的展品仍顯示成果摘要，不誤列為目前試煉', async () => {
+    const wrapper = render([treasure({ description: '已完成的閱讀成果' }), treasure({ id: 2, activeTrial: challenge({ targetRank: 'GOLD' }) })], 8)
     await flushPromises()
-    expect(wrapper.text()).toContain('目前沒有進行中的試煉')
+    expect(wrapper.text()).toContain('已完成的閱讀成果')
+    expect(wrapper.get('#overview-treasure-title').text()).toBe('入藏之後')
+    expect(wrapper.get('[aria-label="入藏之後數量：8"]').text()).toBe('8')
+    expect(wrapper.text()).toContain('完成於 2026-10-16')
     expect(wrapper.text()).not.toContain('展櫃仍然空著')
-    expect(wrapper.find('.treasure-action-item').exists()).toBe(false)
+    expect(wrapper.findAll('.treasure-action-item')).toHaveLength(2)
+    expect(wrapper.find('.treasure-challenge-main').exists()).toBe(false)
     expect(wrapper.find('.record-history-trigger').exists()).toBe(false)
-    await wrapper.get('.treasure-empty-state button').trigger('click')
-    expect(state.push).toHaveBeenCalledWith('/treasures')
+    await wrapper.get('.treasure-output-controls button').trigger('click')
+    expect(wrapper.findComponent({ name: 'TreasureYieldDialog' }).props('treasureId')).toBe(1)
+    expect(state.push).not.toHaveBeenCalled()
     expect(wrapper.findComponent({ name: 'TreasureFormDialog' }).exists()).toBe(false)
   })
 
@@ -112,12 +118,22 @@ describe('總覽成果行動入口', () => {
     expect(state.push).not.toHaveBeenCalled()
   })
 
-  it('金級不當作下一階行動，保留到館藏使用與記錄的入口', async () => {
-    const wrapper = render([treasure({ rank: 'GOLD' })])
+  it('金級與已通過試煉仍顯示展品並可記錄收益，不虛構下一階試煉', async () => {
+    const wrapper = render([treasure({ rank: 'GOLD' }), treasure({ id: 2, rank: 'BRONZE', activeTrial: challenge({ status: 'PASSED' }) })])
     await flushPromises()
     expect(wrapper.find('.treasure-challenge-main').exists()).toBe(false)
-    expect(wrapper.text()).toContain('記錄已發生的收益')
-    await wrapper.get('.treasure-empty-state button').trigger('click')
-    expect(state.push).toHaveBeenCalledWith('/treasures')
+    expect(wrapper.findAll('.treasure-action-item')).toHaveLength(2)
+    expect(wrapper.find('.treasure-empty-state').exists()).toBe(false)
+    await wrapper.get('.treasure-output-controls button').trigger('click')
+    expect(wrapper.findComponent({ name: 'TreasureYieldDialog' }).props('treasureId')).toBe(1)
+  })
+
+  it('作品總數獨立於最近作品清單，點擊導向未封存作品列表', async () => {
+    const wrapper = render([], 0, 12)
+    await flushPromises()
+    const stat = wrapper.findAll('.current-stat').find(item => item.get('small').text() === '未封存作品')!
+    expect(stat.get('strong').text()).toBe('12')
+    await stat.trigger('click')
+    expect(state.push).toHaveBeenCalledWith('/works')
   })
 })

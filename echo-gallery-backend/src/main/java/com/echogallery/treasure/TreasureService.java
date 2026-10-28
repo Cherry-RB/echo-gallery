@@ -236,17 +236,17 @@ public class TreasureService {
     }
 
     public List<TreasureResponses.Summary> actions() {
-        var candidates = treasures.findActionCandidates(owner(), PageRequest.of(0, 3));
+        var candidates = treasures.findByUserIdAndArchivedFalseOrderByUpdatedAtDescIdDesc(owner(), PageRequest.of(0, 3));
         if (candidates.isEmpty()) return List.of();
         var ids = candidates.stream().map(Treasure::getId).toList();
         var definitions = trials.findByTreasureIdInOrderByTargetRank(ids);
         Map<Long, Long> counts = new HashMap<>();
         yields.countForTreasures(ids).forEach(count -> counts.put(count.getTreasureId(), count.getTotal()));
-        // 行動摘要只呈現目前下一階，未來規劃與已發生事件不補作進行中挑戰。
-        return candidates.stream().flatMap(t -> definitions.stream()
+        // 館藏摘要保留沒有試煉的展品，只有目前下一階的有效試煉可顯示為進行中。
+        return candidates.stream().map(t -> summary(t, definitions.stream()
                 .filter(d -> d.getTreasure().getId().equals(t.getId()) && d.getTargetRank() == t.getRank().next())
                 .filter(d -> List.of(TrialStatus.PLANNED, TrialStatus.ATTEMPTED, TrialStatus.NOT_PASSED).contains(d.getStatus()))
-                .findFirst().map(d -> summary(t, d, counts.getOrDefault(t.getId(), 0L))).stream()).toList();
+                .findFirst().orElse(null), counts.getOrDefault(t.getId(), 0L))).toList();
     }
 
     public TreasureResponses.Growth growth(ZonedDateTime start, ZonedDateTime end) {

@@ -16,7 +16,7 @@ vi.mock('../../utils/api/workApi', () => ({ workApi: { sources: vi.fn().mockReso
 vi.mock('../../utils/api/request', () => ({ default: vi.fn() }))
 vi.mock('../../utils/api/treasureApi', () => ({ treasureApi: { list: vi.fn().mockResolvedValue({ content: [] }) } }))
 const clients: QueryClient[] = [], wrappers: ReturnType<typeof mount>[] = []
-const base: WorkDetail = { work: { id: 987, title: '工作區測試', description: '', experimentId: null, experimentTitle: null, editorMode: 'INTERNAL', stage: 'WORKING', nextStep: '', published: false, archived: false, treasureId: null, editedAt: '2026-10-20T10:00:00Z' }, body: '**正文**', bodyVersion: 0, externalUrl: null, firstCompletedOn: null, stageChangedAt: '2026-10-20T10:00:00Z', shareUrl: null, sharedOn: null, shareNote: null }
+const base: WorkDetail = { work: { id: 987, title: '工作區測試', description: '', experimentId: null, experimentTitle: null, editorMode: 'INTERNAL', stage: 'WORKING', nextStep: '', published: false, archived: false, treasureId: null, characterCount: 0, editedAt: '2026-10-20T10:00:00Z' }, body: '**正文**', bodyVersion: 0, externalUrl: null, firstCompletedOn: null, stageChangedAt: '2026-10-20T10:00:00Z', shareUrl: null, sharedOn: null, shareNote: null }
 function render(initial: WorkDetail) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client)
   const wrapper = mount(WorkWorkspace, { props: { initial }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: {
@@ -95,18 +95,24 @@ describe('作品工作區模式與封存', () => {
     expect(wrapper.findComponent(ExperimentThreads).exists()).toBe(false)
     expect(wrapper.get('textarea').element.value).toBe(base.body)
   })
-  it('正文儲存成功後同步詳情快取的正文與版本', async () => {
-    const saved = { body: '已儲存的新稿', bodyVersion: 1, editedAt: '2026-10-22T10:00:00Z' }
+  it('正文儲存成功後同步詳情字元數，並讓總覽與列表重新取得摘要', async () => {
+    const saved = { body: '新稿😀', bodyVersion: 1, editedAt: '2026-10-22T10:00:00Z' }
     vi.mocked(workApi.body).mockResolvedValueOnce(saved)
     const wrapper = render(structuredClone(base))
     const client = clients.at(-1)!
     client.setQueryDefaults(['works', 'detail'], { gcTime: Infinity })
     client.setQueryData(['works', 'detail', base.work.id], structuredClone(base))
+    client.setQueryDefaults(['works', 'resume'], { gcTime: Infinity })
+    client.setQueryDefaults(['works', 'list'], { gcTime: Infinity })
+    client.setQueryData(['works', 'resume'], { content: [base.work] })
+    client.setQueryData(['works', 'list'], { content: [base.work] })
     await wrapper.get('textarea').setValue(saved.body)
     await vi.waitFor(() => expect(client.getQueryData<WorkDetail>(['works', 'detail', base.work.id])).toMatchObject({
-      body: saved.body, bodyVersion: 1, work: { editedAt: saved.editedAt },
+      body: saved.body, bodyVersion: 1, work: { editedAt: saved.editedAt, characterCount: 3 },
     }), { timeout: 3000 })
     expect(wrapper.text()).toContain('已儲存')
+    expect(client.getQueryState(['works', 'resume'])?.isInvalidated).toBe(true)
+    expect(client.getQueryState(['works', 'list'])?.isInvalidated).toBe(true)
   })
   it('內建模式直接進入正文，編輯器變更沿用自動保存，改回原文即取消待存', async () => {
     const wrapper = render(structuredClone(base))

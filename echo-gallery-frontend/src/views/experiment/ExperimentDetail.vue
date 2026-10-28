@@ -247,7 +247,7 @@ const submitEdit = () => {
         </template>
       </section>
 
-      <WorkResume :experiment-id="experimentId" />
+      <WorkResume :experiment-id="experimentId" compact />
       <ExperimentThreads :experiment-id="experimentId" />
 
       <section class="experiment-supporting" aria-label="實驗主題補充資訊">

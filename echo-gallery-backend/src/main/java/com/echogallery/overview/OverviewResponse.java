@@ -17,6 +17,7 @@ public record OverviewResponse(
             int needsProcessingCardCount,
             int activeExperimentCount,
             long treasureCount,
+            long workCount,
             List<ExperimentTryResponse> experimentTries,
             List<com.echogallery.treasure.TreasureResponses.Summary> treasureActions,
             List<AttentionSignalResponse> attentionSignals) {

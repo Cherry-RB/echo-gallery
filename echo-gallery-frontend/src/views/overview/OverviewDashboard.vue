@@ -18,7 +18,8 @@ import ExperimentExplorationHistoryDialog from '../../components/experiment/Expe
 import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
 import { experimentApi } from '../../utils/api/experimentApi'
 import { ranks, challengeState, nextRankOf, yieldHistoryDescription } from '../../utils/treasure'
-import type { TreasureSummary, TreasureTrial } from '../../types/treasure'
+import type { TreasureSummary } from '../../types/treasure'
+import { formatDate } from '../../utils/formatDate'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewAttentionSignal } from '../../types/overview'
 import type { ExperimentExplorationRecordDto } from '../../types/experiment'
@@ -47,15 +48,15 @@ const current = computed(() => overview.value ?? {
   needsProcessingCardCount: 0,
   activeExperimentCount: 0,
   treasureCount: 0,
+  workCount: 0,
   experimentTries: [],
   treasureActions: [],
   attentionSignals: [],
 })
-const treasureActions = computed(() => current.value.treasureActions.filter(
-  (item): item is TreasureSummary & { activeTrial: TreasureTrial } => !!item.activeTrial
+const treasureActions = computed(() => current.value.treasureActions)
+const isCurrentTrial = (item: TreasureSummary) => !!item.activeTrial
     && item.activeTrial.targetRank === nextRankOf(item.rank)
-    && ['PLANNED', 'ATTEMPTED', 'NOT_PASSED'].includes(item.activeTrial.status),
-))
+    && ['PLANNED', 'ATTEMPTED', 'NOT_PASSED'].includes(item.activeTrial.status)
 const historyQuery = useQuery({
   queryKey: computed(() => ['experiment-exploration', historyExperimentId.value]),
   queryFn: () => experimentApi.getExploration(historyExperimentId.value!),
@@ -68,6 +69,7 @@ const currentItems = computed(() => [
   { key: 'paused', label: '暫停中', value: current.value.pausedCardCount, unit: '張卡片' },
   { key: 'processing', label: '待整理', value: current.value.needsProcessingCardCount, unit: '張卡片' },
   { key: 'experiments', label: '活躍實驗場', value: current.value.activeExperimentCount, unit: '個' },
+  { key: 'works', label: '未封存作品', value: current.value.workCount, unit: '件' },
   { key: 'treasures', label: '館藏展品', value: current.value.treasureCount, unit: '件' },
 ])
 
@@ -107,6 +109,7 @@ const openCardReturn = () => router.push('/overview/cards')
 const openCurrentItem = (key: string) => {
   if (key === 'today-return') router.push('/board/today')
   else if (key === 'experiments') router.push('/experiments')
+  else if (key === 'works') router.push('/works')
   else if (key === 'treasures') router.push('/treasures')
   else openCardReturn()
 }
@@ -121,7 +124,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
     <div class="overview-workspace app-workspace app-workspace--edge-to-edge">
       <div class="overview-stack app-stack">
-        <WorkResume />
+        <WorkResume compact />
     <div v-if="isLoading" class="overview-state">正在整理觀測資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得觀測資料" sub-title="請稍後再試。">
       <template #extra><el-button type="primary" @click="refetch()">重新載入</el-button></template>
@@ -129,13 +132,9 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
     <template v-else-if="overview">
       <section v-if="current.experimentTries.length" class="experiment-tries-panel" aria-labelledby="overview-experiment-tries-title">
-        <div class="section-title-row">
-          <div>
-            <span class="section-eyebrow">實驗場</span>
-            <h2 id="overview-experiment-tries-title">尚未落幕的探索（{{ current.activeExperimentCount }}）</h2>
-          </div>
-          <router-link to="/experiments">查看全部</router-link>
-        </div>
+        <SectionHeader id="overview-experiment-tries-title" eyebrow="實驗場" title="尚未落幕的探索" :count="current.activeExperimentCount">
+          <template #actions><router-link class="overview-all-link" to="/experiments">查看全部</router-link></template>
+        </SectionHeader>
         <div class="experiment-try-list">
           <article
             v-for="experimentTry in current.experimentTries"
@@ -153,7 +152,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
             </button>
             <div class="experiment-try-record-action">
               <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
-              <button v-if="experimentTry.explorationRecordCount > 0" type="button" class="exploration-record-count" :aria-label="`查看 ${experimentTry.explorationRecordCount} 筆探索紀錄`" @click.stop="openHistory(experimentTry.experimentId)">{{ experimentTry.explorationRecordCount }}</button>
+              <RecordHistoryTrigger v-if="experimentTry.explorationRecordCount > 0" label="探索紀錄" :count="experimentTry.explorationRecordCount" count-only @click.stop="openHistory(experimentTry.experimentId)" />
             </div>
           </article>
         </div>
@@ -161,7 +160,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
       <div class="action-grid" :class="{ 'action-grid--single': !attentionItems.length }">
         <section class="action-panel" aria-labelledby="overview-treasure-title">
-          <SectionHeader id="overview-treasure-title" title="入藏之後" eyebrow="展覽館" :description="treasureActions.length ? '看看館藏中正在進行的試煉，也可回看已記錄的收益。' : undefined">
+          <SectionHeader id="overview-treasure-title" title="入藏之後" :count="current.treasureCount" eyebrow="展覽館" :description="treasureActions.length ? '最近更新的未封存展品，可回看成果或記錄已發生的收益。' : undefined">
             <template #actions><router-link to="/treasures" class="treasure-gallery-link">查看館藏</router-link></template>
           </SectionHeader>
           <div v-if="treasureActions.length" class="treasure-action-list">
@@ -176,12 +175,14 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
                   <RecordHistoryTrigger v-if="item.yieldCount > 0" label="收益" :count="item.yieldCount" count-only @click="openTreasureHistory(item)" />
                 </div>
               </header>
-              <button type="button" class="treasure-challenge-main" :data-rank="item.activeTrial.targetRank" :aria-label="`查看${item.title}的試煉：${item.activeTrial.title}`" @click="openTreasureTrial(item)">
+              <button v-if="item.activeTrial && isCurrentTrial(item)" type="button" class="treasure-challenge-main" :data-rank="item.activeTrial.targetRank" :aria-label="`查看${item.title}的試煉：${item.activeTrial.title}`" @click="openTreasureTrial(item)">
                 <span class="treasure-challenge-title">{{ ranks[item.activeTrial.targetRank!] }}試煉進行中：{{ item.activeTrial.title }}</span>
                 <span class="treasure-challenge-entry">查看試煉</span>
                 <span class="treasure-challenge-criteria">{{ item.activeTrial.criteria }}</span>
                 <span class="treasure-action-status">{{ challengeState(item.activeTrial, item.rank) }}</span>
               </button>
+              <p v-else-if="item.description" class="treasure-summary">{{ item.description }}</p>
+              <p v-else class="treasure-summary treasure-summary--metadata">完成於 {{ formatDate(item.acquiredOn, 'YYYY-MM-DD') }}</p>
             </article>
           </div>
           <div v-else-if="current.treasureCount === 0" class="treasure-empty-state">
@@ -189,7 +190,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
             <el-button type="primary" @click="treasureCreateVisible = true">收入展品</el-button>
           </div>
           <div v-else class="treasure-empty-state">
-            <p>目前沒有進行中的試煉。可以前往館藏規劃下一步，或記錄已發生的收益。</p>
+            <p>暫無可顯示的展品摘要，可以前往展覽館查看。</p>
             <el-button @click="router.push('/treasures')">查看館藏</el-button>
           </div>
         </section>
@@ -278,7 +279,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .section-title-row > a { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
 .section-title-row > a:hover { text-decoration: underline; }
 .info-icon { margin-top: 4px; color: var(--el-text-color-placeholder); cursor: help; }
-.current-stat-list { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 16px; }
+.current-stat-list { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-top: 16px; }
 .current-stat { min-width: 0; padding: 3px 14px; border: 0; border-left: 1px solid var(--el-border-color-lighter); background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
 .current-stat:first-child { padding-left: 0; border-left: 0; }
 .current-stat:last-child { padding-right: 0; }
@@ -295,14 +296,17 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .experiment-try-item:hover, .experiment-try-item:focus-within { border-color: var(--el-color-primary-light-5); }
 .experiment-try-main:hover strong, .experiment-try-main:focus-visible strong { color: var(--el-color-primary); }
 .experiment-try-record-action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-xs); margin-left: var(--space-sm); }
-.exploration-record-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
-.exploration-record-count:hover, .exploration-record-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .action-grid, .content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .action-grid--single { grid-template-columns: minmax(0, 1fr); }
 .action-grid { align-items: start; }
 .action-panel { min-width: 0; border-radius: var(--panel-radius); }
 .treasure-gallery-link { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
 .treasure-gallery-link:hover { text-decoration: underline; }
+.overview-all-link { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
+.overview-all-link:hover { text-decoration: underline; }
+.overview-all-link:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: var(--space-2xs); }
+.treasure-summary { display: -webkit-box; margin: var(--space-sm) 0 0; overflow: hidden; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--el-text-color-primary); font-size: var(--type-ui); line-height: var(--leading-ui); white-space: pre-wrap; }
+.treasure-summary--metadata { color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .treasure-action-list { margin-top: var(--space-md); }
 .treasure-action-item { min-width: 0; padding: var(--space-md) 0; border-top: 1px solid var(--el-border-color-lighter); }
 .treasure-action-item:first-child { padding-top: 0; border-top: 0; }
@@ -339,8 +343,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .quick-update-button { flex: 0 0 auto; padding: 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: nowrap; }
 .quick-update-button:hover, .quick-update-button:focus-visible { color: var(--el-color-primary-light-3); text-decoration: underline; }
 .next-step-update-action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-xs); white-space: nowrap; }
-.progress-update-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; padding: 0 var(--space-xs); border: 1px solid var(--el-color-primary-light-7); border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-meta); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
-.progress-update-count:hover, .progress-update-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
 .attention-panel { background: var(--el-bg-color); }
 .attention-item { display: flex; gap: 10px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--el-border-color-lighter); }
 .attention-item:first-child { padding-top: 0; border-top: 0; }
@@ -371,6 +373,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .activity-item { display: flex; align-items: baseline; gap: 4px; min-width: 0; padding: 10px; border-radius: 8px; background: var(--surface-summary); }
 .activity-item strong { font-size: 18px; }
 .activity-item span { overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 900px) { .current-stat-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .current-stat:nth-child(4) { padding-left: 0; border-left: 0; } .experiment-try-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .action-grid, .content-grid { grid-template-columns: minmax(0, 1fr); } .activity-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .current-stat-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 0; } .current-stat:nth-child(3n + 1) { padding-left: 0; border-left: 0; } .experiment-try-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .action-grid, .content-grid { grid-template-columns: minmax(0, 1fr); } .activity-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .current-strip, .experiment-tries-panel, .period-section, .content-panel, .action-panel { padding: var(--panel-padding); border-radius: var(--panel-radius); } .section-title-row, .period-heading { gap: 12px; } .current-stat-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .current-stat, .current-stat:nth-child(4) { padding: 12px 18px 12px 0; border: 0; border-top: 1px solid var(--el-border-color-lighter); } .current-stat:first-child, .current-stat:nth-child(2) { border-top: 0; } .current-stat:nth-child(even) { padding: 12px 0 12px 18px; border-left: 1px solid var(--el-border-color-lighter); } .experiment-try-list { grid-template-columns: minmax(0, 1fr); gap: 8px; } .period-heading { flex-direction: column; } .period-switcher, .period-switcher :deep(.el-radio-button), .period-switcher :deep(.el-radio-button__inner) { width: 100%; } .period-switcher { display: flex; } .period-switcher :deep(.el-radio-button) { flex: 1 1 0; } .period-figures { grid-template-columns: minmax(0, 1fr); gap: 12px; } .period-figure, .period-figure:first-child { padding: 12px 0 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; } .period-figure:first-child { padding-top: 0; border-top: 0; } .period-figure .info-icon, .period-figure:last-child .info-icon { right: 0; } .activity-disclosure { padding: 0 var(--panel-padding); border-radius: var(--panel-radius); } .activity-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

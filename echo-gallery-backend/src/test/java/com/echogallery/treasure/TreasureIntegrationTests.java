@@ -328,7 +328,7 @@ class TreasureIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
-    void currentActionsOnlyIncludeNextChallengesAndNeverCountPlannedTrialsAsEvents() throws Exception {
+    void currentCollectionIncludesTreasuresWithoutTrialsAndNeverCountsPlannedTrialsAsEvents() throws Exception {
         String token = register();
         long first = create(token, "進行中的試煉", List.of());
         long second = create(token, "多次收益的成果", List.of());
@@ -336,10 +336,10 @@ class TreasureIntegrationTests extends IntegrationTestBase {
         send(post("/api/treasures/{id}/trials", first), token, trial("PLANNED", null)).andExpect(status().isOk());
         for (int index = 0; index < 7; index++) send(post("/api/treasures/{id}/yields", second), token, yieldPayload(LocalDate.now(clock).minusDays(1))).andExpect(status().isOk());
         send(post("/api/treasures/{id}/yields", third), token, yieldPayload(LocalDate.now(clock).minusDays(2))).andExpect(status().isOk());
-        send(get("/api/overview/current"), token, null).andExpect(jsonPath("$.treasureActions.length()").value(1))
-                .andExpect(jsonPath("$.treasureActions[0].id").value(first))
-                .andExpect(jsonPath("$.treasureActions[0].activeTrial.targetRank").value("BRONZE"))
-                .andExpect(jsonPath("$.treasureActions[0].yieldCount").value(0));
+        send(get("/api/overview/current"), token, null).andExpect(jsonPath("$.treasureActions.length()").value(3))
+                .andExpect(jsonPath("$.treasureActions[?(@.id == %d)].activeTrial.targetRank", first).value(org.hamcrest.Matchers.contains("BRONZE")))
+                .andExpect(jsonPath("$.treasureActions[?(@.id == %d)].yieldCount", second).value(org.hamcrest.Matchers.contains(7)))
+                .andExpect(jsonPath("$.treasureActions[?(@.id == %d)].yieldCount", third).value(org.hamcrest.Matchers.contains(1)));
         JsonNode recent = json(send(get("/api/overview/recent"), token, null).andExpect(status().isOk()));
         for (JsonNode event : recent.get("period").get("recentTreasureProgress")) assertThat(event.get("kind").asText()).isNotEqualTo("TRIAL_ATTEMPTED");
         assertThat(recent.get("period").get("treasureGrowth").get("yieldTreasureCount").asLong()).isEqualTo(2);
@@ -390,7 +390,7 @@ class TreasureIntegrationTests extends IntegrationTestBase {
         send(post("/api/treasures/{id}/trials/{trialId}/attempts", retry, trialId), token,
                 Map.of("status", "NOT_PASSED", "resultNote", "再試一次", "attemptedAt", time())).andExpect(status().isOk());
         send(post("/api/treasures/{id}/yields", retry), token, yieldPayload(LocalDate.now(clock))).andExpect(status().isOk());
-        create(token, "最近入藏", List.of());
+        long latest = create(token, "最近入藏", List.of());
         long future = create(token, "只規劃金級", List.of());
         send(post("/api/treasures/{id}/trials", future), token,
                 Map.of("targetRank", "GOLD", "title", "未來才做", "criteria", "未來條件")).andExpect(status().isOk());
@@ -402,14 +402,18 @@ class TreasureIntegrationTests extends IntegrationTestBase {
 
         send(get("/api/overview/current"), token, null).andExpect(status().isOk())
                 .andExpect(jsonPath("$.treasureCount").value(4))
-                .andExpect(jsonPath("$.treasureActions.length()").value(1))
-                .andExpect(jsonPath("$.treasureActions[0].id").value(retry))
-                .andExpect(jsonPath("$.treasureActions[0].activeTrial.status").value("NOT_PASSED"))
-                .andExpect(jsonPath("$.treasureActions[0].yieldCount").value(1));
+                .andExpect(jsonPath("$.treasureActions.length()").value(3))
+                .andExpect(jsonPath("$.treasureActions[0].id").value(future))
+                .andExpect(jsonPath("$.treasureActions[0].activeTrial").isEmpty())
+                .andExpect(jsonPath("$.treasureActions[1].id").value(latest))
+                .andExpect(jsonPath("$.treasureActions[1].activeTrial").isEmpty())
+                .andExpect(jsonPath("$.treasureActions[2].id").value(retry))
+                .andExpect(jsonPath("$.treasureActions[2].activeTrial.status").value("NOT_PASSED"))
+                .andExpect(jsonPath("$.treasureActions[2].yieldCount").value(1));
     }
 
     @Test
-    void currentActionsUseLastChallengeUpdateAndLimitToThreeRatherThanFillingFromCollections() throws Exception {
+    void currentCollectionUsesTreasureUpdatesAndLimitsToThreeIncludingTreasuresWithoutTrials() throws Exception {
         String token = register();
         List<Long> ids = new ArrayList<>();
         List<Long> trialIds = new ArrayList<>();
@@ -420,9 +424,12 @@ class TreasureIntegrationTests extends IntegrationTestBase {
                     .andExpect(status().isOk())).get("id").asLong();
             trialIds.add(trialId);
             ZonedDateTime updatedAt = ZonedDateTime.now(clock).minusHours(10 - index);
-            transactions.executeWithoutResult(status -> trials.findById(trialId).orElseThrow().setUpdatedAt(updatedAt));
+            transactions.executeWithoutResult(status -> {
+                trials.findById(trialId).orElseThrow().setUpdatedAt(updatedAt);
+                treasures.findById(id).orElseThrow().setUpdatedAt(updatedAt);
+            });
         }
-        create(token, "最近入藏但沒有方向", List.of());
+        long collected = create(token, "最近入藏但沒有方向", List.of());
         send(put("/api/treasures/{id}/trials/{trialId}", ids.get(0), trialIds.get(0)), token,
                 Map.of("title", "重新留下的方向", "criteria", "邀請真實使用者試用並留下回饋")).andExpect(status().isOk());
 
@@ -431,12 +438,13 @@ class TreasureIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.treasureActions.length()").value(3))
                 .andExpect(jsonPath("$.treasureActions[0].id").value(ids.get(0)))
                 .andExpect(jsonPath("$.treasureActions[0].activeTrial.criteria").value("邀請真實使用者試用並留下回饋"))
-                .andExpect(jsonPath("$.treasureActions[1].id").value(ids.get(3)))
-                .andExpect(jsonPath("$.treasureActions[2].id").value(ids.get(2)));
+                .andExpect(jsonPath("$.treasureActions[1].id").value(collected))
+                .andExpect(jsonPath("$.treasureActions[1].activeTrial").isEmpty())
+                .andExpect(jsonPath("$.treasureActions[2].id").value(ids.get(3)));
     }
 
     @Test
-    void goldTreasureRemainsInCollectionButDoesNotBecomeAnActionWithoutAnotherChallenge() throws Exception {
+    void goldTreasureAppearsInOverviewWithoutInventingAnotherChallenge() throws Exception {
         String token = register();
         long id = create(token, "金級珍藏", List.of());
         for (String rank : List.of("BRONZE", "SILVER", "GOLD")) {
@@ -446,7 +454,10 @@ class TreasureIntegrationTests extends IntegrationTestBase {
             send(post("/api/treasures/{id}/trials/{trialId}/pass", id, trialId), token, result()).andExpect(status().isOk());
         }
         send(get("/api/overview/current"), token, null).andExpect(status().isOk())
-                .andExpect(jsonPath("$.treasureCount").value(1)).andExpect(jsonPath("$.treasureActions.length()").value(0));
+                .andExpect(jsonPath("$.treasureCount").value(1)).andExpect(jsonPath("$.treasureActions.length()").value(1))
+                .andExpect(jsonPath("$.treasureActions[0].id").value(id))
+                .andExpect(jsonPath("$.treasureActions[0].rank").value("GOLD"))
+                .andExpect(jsonPath("$.treasureActions[0].activeTrial").isEmpty());
         send(post("/api/treasures/{id}/yields", id), token, yieldPayload(LocalDate.now(clock))).andExpect(status().isOk());
     }
 

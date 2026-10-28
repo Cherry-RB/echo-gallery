@@ -44,6 +44,7 @@ public class OverviewService {
     private final ExperimentExplorationRecordRepository experimentExplorationRecordRepository;
     private final ExplorationThreadCardRepository explorationThreadCardRepository;
     private final com.echogallery.treasure.TreasureService treasureService;
+    private final com.echogallery.work.CreativeWorkRepository workRepository;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -102,6 +103,7 @@ public class OverviewService {
                 needsProcessingCardCount,
                 safeInt(experimentRepository.countByUserIdAndIsArchivedFalse(userId)),
                 treasureService.activeCount(),
+                workRepository.countByUserIdAndArchivedFalse(userId),
                 experimentTries,
                 treasureService.actions(),
                 attentionSignals(needsProcessingCardCount, highSnoozeCardCount));

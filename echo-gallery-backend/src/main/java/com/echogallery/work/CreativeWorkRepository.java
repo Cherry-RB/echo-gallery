@@ -11,6 +11,7 @@ public interface CreativeWorkRepository extends JpaRepository<CreativeWork, Long
     Optional<CreativeWork> findByTreasureIdAndUserId(Long treasureId, Long userId);
     boolean existsByTreasureId(Long treasureId);
     long countByUserId(Long userId);
+    long countByUserIdAndArchivedFalse(Long userId);
     @Modifying @Query("delete from CreativeWork w where w.user.id = :owner")
     void deleteOwner(@Param("owner") Long owner);
 }

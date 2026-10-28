@@ -19,7 +19,7 @@ async function command(value: string) {
   try {
     if (value === 'edit') { current.value = await workApi.detail(props.work.id); editing.value = true; return }
     try { await ElMessageBox.confirm(props.work.archived ? '還原後即可繼續編輯。' : '封存後仍可閱讀，還原後才能編輯。', props.work.archived ? '還原作品' : '封存作品', { confirmButtonText: props.work.archived ? '還原' : '封存', cancelButtonText: '取消' }) } catch { return }
-    await workApi.update(props.work.id, props.work.archived ? 'restore' : 'archive'); await client.invalidateQueries({ queryKey: ['works'] })
+    await workApi.update(props.work.id, props.work.archived ? 'restore' : 'archive'); await client.invalidateQueries({ queryKey: ['works'] }); await client.invalidateQueries({ queryKey: ['overview', 'current'] })
   } catch { error.value = '無法處理作品，請重試。' } finally { busy.value = false }
 }
 </script>
