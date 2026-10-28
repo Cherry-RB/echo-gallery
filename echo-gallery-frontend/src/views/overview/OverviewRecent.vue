@@ -75,7 +75,7 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
           </div>
         </section>
 
-        <div class="content-grid">
+        <div class="content-grid content-grid--single">
           <section class="content-panel" aria-labelledby="overview-materials-title">
             <div class="section-title-row"><div><span class="section-eyebrow">材料聚集</span><h2 id="overview-materials-title">新到手的探索材料</h2></div><el-tooltip content="這些是近期加入探索線的材料。" placement="top"><el-icon class="info-icon"><InfoFilled /></el-icon></el-tooltip></div>
             <div v-if="period.recentExperimentMaterials.length" class="content-list">
@@ -130,6 +130,7 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
 .period-figure .info-icon { position: absolute; top: 0; right: 10px; }
 .period-figure:last-child .info-icon { right: 0; }
 .content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.content-grid--single { grid-template-columns: minmax(0, 1fr); }
 .content-list { display: flex; flex-direction: column; margin-top: 16px; }
 .content-card { min-width: 0; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); overflow-wrap: anywhere; }
 .content-card:first-child { padding-top: 0; border-top: 0; }
