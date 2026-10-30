@@ -7,13 +7,14 @@ import WorkFormDialog from './WorkFormDialog.vue'
 import WorkResumeEntry from './WorkResumeEntry.vue'
 import { Plus } from '@element-plus/icons-vue'
 import SectionHeader from '../ui/SectionHeader.vue'
-const props = defineProps<{ experimentId?: number; compact?: boolean }>()
+const props = defineProps<{ experimentId?: number; compact?: boolean; hideEmpty?: boolean }>()
 const router = useRouter(), creating = ref(false)
 const params = computed(() => ({ experimentId: props.experimentId, size: 3 }))
 const query = useQuery({ queryKey: ['works', 'resume', params], queryFn: () => workApi.list(params.value) })
+const hidden = computed(() => props.hideEmpty && query.isSuccess.value && query.data.value?.totalElements === 0)
 </script>
 <template>
-  <section class="resume-work" :class="{ 'resume-work--compact': compact }">
+  <section v-if="!hidden" class="resume-work" :class="{ 'resume-work--compact': compact }">
     <SectionHeader eyebrow="創作台" :title="experimentId ? '正在製作' : '接著創作'" :count="compact ? query.data.value?.totalElements : undefined"><template #actions><el-button :icon="Plus" :text="compact" :type="compact ? 'primary' : undefined" @click="creating = true">建立作品</el-button><router-link class="resume-all" :to="{ path: '/works', query: experimentId ? { experimentId } : {} }">{{ compact ? '查看全部' : '查看全部作品' }}</router-link></template></SectionHeader>
     <p v-if="query.isPending.value">正在載入作品…</p>
     <el-alert v-else-if="query.isError.value" title="無法載入作品" type="error" :closable="false"><el-button @click="query.refetch()">重新載入</el-button></el-alert>

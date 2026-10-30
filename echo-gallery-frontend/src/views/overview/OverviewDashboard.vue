@@ -11,7 +11,6 @@ import TreasureRankBadge from '../../components/treasure/TreasureRankBadge.vue'
 import TreasureTrialDialog from '../../components/treasure/TreasureTrialDialog.vue'
 import TreasureYieldDialog from '../../components/treasure/TreasureYieldDialog.vue'
 import TreasureYieldHistory from '../../components/treasure/TreasureYieldHistory.vue'
-import TreasureFormDialog from '../../components/treasure/TreasureFormDialog.vue'
 import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
 import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
 import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
@@ -35,7 +34,6 @@ const selectedTreasure = ref<TreasureSummary | null>(null)
 const treasureTrialVisible = ref(false)
 const treasureYieldVisible = ref(false)
 const treasureHistoryVisible = ref(false)
-const treasureCreateVisible = ref(false)
 const { data: overview, isLoading, isError, refetch } = useQuery({
   queryKey: ['overview', 'current'],
   queryFn: overviewApi.getCurrentOverview,
@@ -124,14 +122,12 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
     <div class="overview-workspace app-workspace app-workspace--edge-to-edge">
       <div class="overview-stack app-stack">
-        <WorkResume compact />
     <div v-if="isLoading" class="overview-state">正在整理觀測資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得觀測資料" sub-title="請稍後再試。">
       <template #extra><el-button type="primary" @click="refetch()">重新載入</el-button></template>
     </el-result>
 
-    <template v-else-if="overview">
-      <section v-if="current.experimentTries.length" class="experiment-tries-panel" aria-labelledby="overview-experiment-tries-title">
+      <section v-else-if="overview && current.experimentTries.length" class="experiment-tries-panel" aria-labelledby="overview-experiment-tries-title">
         <SectionHeader id="overview-experiment-tries-title" eyebrow="實驗場" title="尚未落幕的探索" :count="current.activeExperimentCount">
           <template #actions><router-link class="overview-all-link" to="/experiments">查看全部</router-link></template>
         </SectionHeader>
@@ -158,8 +154,11 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
         </div>
       </section>
 
-      <div class="action-grid" :class="{ 'action-grid--single': !attentionItems.length }">
-        <section class="action-panel" aria-labelledby="overview-treasure-title">
+    <WorkResume compact hide-empty />
+
+    <template v-if="overview && !isLoading && !isError">
+      <div v-if="current.treasureCount > 0 || attentionItems.length" class="action-grid" :class="{ 'action-grid--single': !attentionItems.length || current.treasureCount === 0 }">
+        <section v-if="current.treasureCount > 0" class="action-panel" aria-labelledby="overview-treasure-title">
           <SectionHeader id="overview-treasure-title" title="入藏之後" :count="current.treasureCount" eyebrow="展覽館" :description="treasureActions.length ? '最近更新的未封存展品，可回看成果或記錄已發生的收益。' : undefined">
             <template #actions><router-link to="/treasures" class="treasure-gallery-link">查看館藏</router-link></template>
           </SectionHeader>
@@ -184,10 +183,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
               <p v-else-if="item.description" class="treasure-summary">{{ item.description }}</p>
               <p v-else class="treasure-summary treasure-summary--metadata">完成於 {{ formatDate(item.acquiredOn, 'YYYY-MM-DD') }}</p>
             </article>
-          </div>
-          <div v-else-if="current.treasureCount === 0" class="treasure-empty-state">
-            <p>展櫃仍然空著。當你完成第一件值得珍藏的成果，這裡便會有它的位置。</p>
-            <el-button type="primary" @click="treasureCreateVisible = true">收入展品</el-button>
           </div>
           <div v-else class="treasure-empty-state">
             <p>暫無可顯示的展品摘要，可以前往展覽館查看。</p>
@@ -240,7 +235,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       </div>
     </div>
 
-    <TreasureFormDialog v-if="treasureCreateVisible" v-model="treasureCreateVisible" />
     <TreasureTrialDialog v-if="treasureTrialVisible && selectedTreasure" v-model="treasureTrialVisible" :treasure-id="selectedTreasure.id" :current-rank="selectedTreasure.rank" :next-rank="nextRankOf(selectedTreasure.rank)" :initial-rank="nextRankOf(selectedTreasure.rank) ?? undefined" initial-mode="route" @saved="treasureTrialVisible = false" />
     <TreasureYieldDialog v-if="treasureYieldVisible && selectedTreasure" v-model="treasureYieldVisible" :treasure-id="selectedTreasure.id" />
     <HistoryDialog v-if="treasureHistoryVisible && selectedTreasure" v-model="treasureHistoryVisible" :title="selectedTreasure.title + '・收益歷程'" :description="yieldHistoryDescription">

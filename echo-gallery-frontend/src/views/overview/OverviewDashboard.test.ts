@@ -3,6 +3,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import OverviewDashboard from './OverviewDashboard.vue'
 import type { TreasureSummary, TreasureTrial } from '../../types/treasure'
+import type { OverviewResponse } from '../../types/overview'
 
 const state = vi.hoisted(() => ({ current: vi.fn(), push: vi.fn() }))
 vi.mock('../../utils/api/overviewApi', () => ({ overviewApi: { getCurrentOverview: state.current } }))
@@ -21,10 +22,10 @@ const challenge = (overrides: Partial<TreasureTrial> = {}): TreasureTrial => ({
   status: 'PLANNED', resultNote: null, evidenceUrl: null, attemptedAt: null, passedAt: null,
   createdAt: '', updatedAt: '', ...overrides,
 })
-function render(items: TreasureSummary[], count = items.length, workCount = 0) {
+function render(items: TreasureSummary[], count = items.length, workCount = 0, overrides: Partial<OverviewResponse['current']> = {}) {
   state.current.mockResolvedValue({ todayReturnPoolCount: 0, recurringCardCount: 0, pausedCardCount: 0,
     needsProcessingCardCount: 0, activeExperimentCount: 0, treasureCount: count, workCount,
-    experimentTries: [], treasureActions: items, attentionSignals: [],
+    experimentTries: [], treasureActions: items, attentionSignals: [], ...overrides,
   })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   clients.push(client)
@@ -47,15 +48,44 @@ describe('總覽成果行動入口', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); clients.splice(0).forEach(client => client.clear()) })
 
-  it('空館藏使用明確收錄入口，直接開啟既有表單', async () => {
+  it('空館藏隱藏成果區塊，保留統計與展覽館入口', async () => {
     const wrapper = render([])
     await flushPromises()
-    expect(wrapper.get('#overview-treasure-title').text()).toBe('入藏之後')
-    expect(wrapper.get('[aria-label="入藏之後數量：0"]').text()).toBe('0')
-    expect(wrapper.text()).toContain('展櫃仍然空著')
-    await wrapper.get('.treasure-empty-state button').trigger('click')
-    expect(wrapper.findComponent({ name: 'TreasureFormDialog' }).props('modelValue')).toBe(true)
-    expect(state.push).not.toHaveBeenCalled()
+    expect(wrapper.find('#overview-treasure-title').exists()).toBe(false)
+    expect(wrapper.find('.action-grid').exists()).toBe(false)
+    const stat = wrapper.findAll('.current-stat').find(item => item.get('small').text() === '館藏展品')!
+    expect(stat.get('strong').text()).toBe('0')
+    await stat.trigger('click')
+    expect(state.push).toHaveBeenCalledWith('/treasures')
+  })
+
+  it('作品排在全部實驗摘要後方，保留實驗導頁與探索操作', async () => {
+    const experimentTries = Array.from({ length: 9 }, (_, index) => ({
+      experimentId: index + 1, experimentTitle: `探索 ${index + 1}`, currentTry: '繼續觀察', explorationRecordCount: 2,
+    }))
+    const wrapper = render([], 0, 1, { activeExperimentCount: 12, experimentTries })
+    await flushPromises()
+    const panel = wrapper.get('.experiment-tries-panel')
+    const works = wrapper.get('work-resume-stub')
+    expect(panel.element.compareDocumentPosition(works.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(works.attributes('hideempty')).toBeDefined()
+    expect(wrapper.findAll('.experiment-try-item')).toHaveLength(9)
+    expect(panel.get('[aria-label="尚未落幕的探索數量：12"]').text()).toBe('12')
+    expect(panel.findAll('.record-history-trigger')).toHaveLength(9)
+    await wrapper.get('.experiment-try-main').trigger('click')
+    expect(state.push).toHaveBeenCalledWith({ name: 'ExperimentDetail', params: { id: 1 } })
+    wrapper.findComponent({ name: 'ExperimentQuickRecordAction' }).vm.$emit('select', 'DISCOVERY')
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'ExperimentExplorationEditor' }).props('experimentId')).toBe(1)
+  })
+
+  it('沒有展品時仍顯示提醒，並使用單欄版面', async () => {
+    const wrapper = render([], 0, 0, { attentionSignals: [{ key: 'processing', cardCount: 2 }] })
+    await flushPromises()
+    expect(wrapper.find('#overview-treasure-title').exists()).toBe(false)
+    expect(wrapper.get('.action-grid').classes()).toContain('action-grid--single')
+    await wrapper.get('.attention-item button').trigger('click')
+    expect(state.push).toHaveBeenCalledWith('/overview/cards')
   })
 
   it('沒有試煉與只有未來規劃的展品仍顯示成果摘要，不誤列為目前試煉', async () => {
