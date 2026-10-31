@@ -13,6 +13,7 @@ import ExplorationRecordItem from './ExplorationRecordItem.vue'
 import ExperimentExplorationEditor from './ExperimentExplorationEditor.vue'
 import ExplorationOrganizationDialog from './ExplorationOrganizationDialog.vue'
 const props = defineProps<{ experimentId: number; threadId: number; method: MethodOption | null; count: number; hasHistory: boolean; initialRecords: ActivityRecord[] }>()
+const emit = defineEmits<{ 'edit-history': [method: MethodOption | null]; 'assign-method': [method: MethodOption] }>()
 const invalidate = useExplorationInvalidation()
 const showAll = ref(false), page = ref(1), historyOpen = ref(false), error = ref('')
 const editorOpen = ref(false), editingRecord = ref<ActivityRecord | null>(null)
@@ -52,6 +53,8 @@ async function removeMethod(deleteRecords = false) {
     <header class="method-heading"><div class="method-content"><div class="heading-label"><span class="metadata">{{ method ? '行動' : '未指定行動' }}</span><RecordCount :count="count" aria-label="發現數量" /></div><p v-if="method">{{ method.content }}</p></div>
       <el-dropdown trigger="click"><el-button text circle size="small" :icon="MoreFilled" :aria-label="method ? '行動操作' : '未指定行動操作'" /><template #dropdown><el-dropdown-menu>
         <template v-if="method"><el-dropdown-item @click="methodAction('SELECT')">設為下一步</el-dropdown-item><el-dropdown-item @click="methodAction('EDIT')">更新行動</el-dropdown-item><el-dropdown-item @click="methodAction('COPY')">複製行動</el-dropdown-item></template>
+        <el-dropdown-item v-if="method" @click="emit('assign-method', method)">調整所屬探索線</el-dropdown-item>
+        <el-dropdown-item @click="emit('edit-history', method)">編輯歷次整理</el-dropdown-item>
         <el-dropdown-item @click="newFinding">記下發現</el-dropdown-item><el-dropdown-item @click="organize()">整理紀錄</el-dropdown-item>
         <template v-if="method"><el-dropdown-item divided @click="removeMethod()">移除行動並保留發現</el-dropdown-item><el-dropdown-item @click="removeMethod(true)">刪除行動與活動發現</el-dropdown-item></template>
       </el-dropdown-menu></template></el-dropdown>
@@ -62,7 +65,7 @@ async function removeMethod(deleteRecords = false) {
     <p v-if="!count" class="metadata">尚無活動發現。</p>
     <el-button v-if="!showAll && count > shown.length" type="primary" link size="small" @click="showAll = true">查看全部 {{ count }} 筆發現</el-button>
     <el-pagination v-if="showAll && (query.data.value?.totalPages ?? 0) > 1" v-model:current-page="page" :page-size="20" :total="query.data.value?.totalElements ?? 0" layout="prev, pager, next" />
-    <div v-if="hasHistory" class="history"><el-button type="primary" link size="small" :aria-expanded="historyOpen" @click="historyOpen = !historyOpen">{{ historyOpen ? '收合歷次整理' : '展開歷次整理' }}</el-button>
+    <div v-if="hasHistory" class="history"><el-button type="primary" link size="small" :aria-expanded="historyOpen" @click="historyOpen = !historyOpen">{{ historyOpen ? '收合歷次整理' : '展開歷次整理' }}</el-button><el-button type="primary" link size="small" @click="emit('edit-history', method)">編輯</el-button>
       <template v-if="historyOpen"><el-skeleton v-if="history.isPending.value" :rows="2" /><p v-else-if="history.isError.value">歷史載入失敗。<el-button type="primary" link @click="history.refetch()">重試</el-button></p><ExpandableText v-else :content="history.data.value?.text ?? ''" :lines="8" /></template>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />

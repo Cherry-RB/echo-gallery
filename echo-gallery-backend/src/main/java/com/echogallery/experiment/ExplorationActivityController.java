@@ -30,4 +30,8 @@ public class ExplorationActivityController {
     @PutMapping("/records/{recordId}/assignment") public ExperimentExplorationResponse.RecordResponse assignment(@PathVariable("experimentId") Long experimentId, @PathVariable("recordId") Long recordId, @Valid @RequestBody ExplorationActivityRequests.Assignment request) { return service.assign(experimentId, recordId, request); }
     @DeleteMapping("/records/{recordId}") public void deleteRecord(@PathVariable("experimentId") Long experimentId, @PathVariable("recordId") Long recordId, @RequestParam(name = "expectedVersion") long expectedVersion) { service.deleteRecord(experimentId, recordId, expectedVersion); }
     @GetMapping("/history") public ExperimentExplorationResponse.History history(@PathVariable("experimentId") Long experimentId, @RequestParam(name = "threadId") Long threadId, @RequestParam(name = "methodId", required = false) Long methodId) { return service.history(experimentId, threadId, methodId); }
+    @PutMapping("/history") public ExperimentExplorationResponse.History updateHistory(@PathVariable("experimentId") Long experimentId,
+        @Valid @RequestBody ExplorationActivityRequests.HistoryUpdate request) { return service.updateHistory(experimentId, request); }
+    @PutMapping("/methods/{methodId}/assignment") public ExperimentExplorationResponse.MethodOption assignMethod(@PathVariable("experimentId") Long experimentId,
+        @PathVariable("methodId") Long methodId, @Valid @RequestBody ExplorationActivityRequests.MethodAssignment request) { return service.assignMethod(experimentId, methodId, request); }
 }

@@ -65,3 +65,4 @@ export interface OrganizationCommit {
 }
 export interface OrganizationResult { cardId: number | null; clearedCount: number; threadIds: number[] }
 export interface ThreadOption { id: number; name: string; available: boolean; systemKey: string | null }
+export interface ExplorationHistory { text: string; version: number; lastOrganizedAt: string | null }

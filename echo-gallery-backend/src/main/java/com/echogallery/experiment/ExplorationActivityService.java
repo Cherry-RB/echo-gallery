@@ -246,6 +246,56 @@ public class ExplorationActivityService {
         return new ExperimentExplorationResponse.History(method.getHistoryText(), method.getVersion(), method.getLastOrganizedAt());
     }
 
+    @Transactional
+    public ExperimentExplorationResponse.History updateHistory(Long experimentId, ExplorationActivityRequests.HistoryUpdate request) {
+        lock(experimentId);
+        var target = thread(experimentId, request.threadId());
+        var method = request.methodId() == null ? null : method(experimentId, request.methodId());
+        sameThread(target, method);
+        version(method == null ? target.getUnassignedVersion() : method.getVersion(), request.expectedVersion());
+        // 歷史是完整長文，保留換行與前後空白；全空白內容統一視為清空。
+        String text = request.text().isBlank() ? "" : request.text();
+        String original = method == null ? target.getUnassignedHistoryText() : method.getHistoryText();
+        if (!original.equals(text)) {
+            if (method == null) target.setUnassignedHistoryText(text);
+            else method.setHistoryText(text);
+            // 編輯不改寫最後整理時間，也不清除發現或修改行動文字。
+            bump(target, method);
+        }
+        return history(experimentId, target.getId(), request.methodId());
+    }
+
+    @Transactional
+    public ExperimentExplorationResponse.MethodOption assignMethod(Long experimentId, Long methodId, ExplorationActivityRequests.MethodAssignment request) {
+        lock(experimentId);
+        var method = method(experimentId, methodId);
+        version(method.getVersion(), request.expectedVersion());
+        var source = method.getThread();
+        var target = thread(experimentId, request.targetThreadId());
+        if (source.getId().equals(target.getId())) return option(methodId);
+        checkName(target.getId(), method.getContent(), methodId);
+        var children = records.findByMethodIdOrderByOccurredAtAscIdAsc(methodId);
+        int nextPosition = methods.nextPosition(target.getId());
+        method.setThread(target);
+        method.setSortOrder(nextPosition);
+        method.setVersion(method.getVersion() + 1);
+        // 發現各自保存探索線，必須與行動在同一交易內一起更新。
+        for (var record : children) {
+            record.setThread(target);
+            record.setVersion(record.getVersion() + 1);
+        }
+        var state = states.findByExperimentId(experimentId).orElse(null);
+        if (state != null && state.getCurrentMethod() != null && state.getCurrentMethod().getId().equals(methodId)) {
+            state.setCurrentThread(target);
+            state.setVersion(state.getVersion() + 1);
+        }
+        touch(source);
+        touch(target);
+        methods.flush();
+        records.flush();
+        return option(methodId);
+    }
+
     public Experiment lock(Long experimentId) {
         return experiments.lockOwned(experimentId, SecurityUtil.getCurrentUserId()).orElseThrow(this::missing);
     }

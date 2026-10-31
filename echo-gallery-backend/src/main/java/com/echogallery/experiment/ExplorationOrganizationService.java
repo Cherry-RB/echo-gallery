@@ -129,7 +129,7 @@ public class ExplorationOrganizationService {
         for (var group : snapshot.groups()) {
             var thread = activity.thread(experimentId, group.threadId());
             var method = group.methodId() == null ? null : activity.method(experimentId, group.methodId());
-            sameThread(thread, method);
+            if (method != null && !method.getThread().getId().equals(thread.getId())) conflict("行動歸屬已變更，請重新預覽");
             version(method == null ? thread.getUnassignedVersion() : method.getVersion(), group.version());
             var ids = group.records().stream().map(RecordVersion::id).toList();
             var selected = records.findByExperimentIdAndIdIn(experimentId, ids);

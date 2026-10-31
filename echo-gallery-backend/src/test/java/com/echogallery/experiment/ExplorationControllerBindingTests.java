@@ -50,6 +50,20 @@ class ExplorationControllerBindingTests {
     }
 
     @Test
+    void historyEditingAndMethodAssignmentBindWithoutCompilerParameterNames() throws Exception {
+        var service = mock(ExplorationActivityService.class);
+        var mvc = mvc(ExplorationActivityController.class, service);
+        mvc.perform(put("/api/experiments/41/activity/history").contentType(MediaType.APPLICATION_JSON)
+            .content("{\"threadId\":3,\"methodId\":12,\"text\":\"修正歷史\",\"expectedVersion\":4}"))
+            .andExpect(status().isOk());
+        verify(service).updateHistory(41L, new ExplorationActivityRequests.HistoryUpdate(3L, 12L, "修正歷史", 4L));
+        mvc.perform(put("/api/experiments/41/activity/methods/12/assignment").contentType(MediaType.APPLICATION_JSON)
+            .content("{\"targetThreadId\":7,\"expectedVersion\":4}"))
+            .andExpect(status().isOk());
+        verify(service).assignMethod(41L, 12L, new ExplorationActivityRequests.MethodAssignment(7L, 4L));
+    }
+
+    @Test
     void activityStateBindsExperimentIdWithoutCompilerParameterNames() throws Exception {
         var service = mock(ExplorationActivityService.class);
         mvc(ExplorationActivityController.class, service).perform(get("/api/experiments/41/activity"))

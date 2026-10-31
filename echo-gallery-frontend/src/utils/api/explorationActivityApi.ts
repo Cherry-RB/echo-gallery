@@ -1,6 +1,6 @@
 import request from './request'
 import type { PageResponse } from '../../types/card'
-import type { ActivityState, ActivityRecord, MethodOption, FocusRequest, OrganizationMode, OrganizationSelection, OrganizationPreview, OrganizationCommit, OrganizationResult, ThreadOption } from '../../types/explorationActivity'
+import type { ActivityState, ActivityRecord, MethodOption, FocusRequest, OrganizationMode, OrganizationSelection, OrganizationPreview, OrganizationCommit, OrganizationResult, ThreadOption, ExplorationHistory } from '../../types/explorationActivity'
 const root = (id: number) => `/experiments/${id}/activity`
 export const explorationActivityApi = {
   method: (id: number, methodId: number): Promise<MethodOption> => request({ url: root(id) + `/methods/${methodId}`, method: 'GET' }),
@@ -16,7 +16,9 @@ export const explorationActivityApi = {
   updateRecord: (id: number, record: ActivityRecord, discovery: string, methodId: number | null, expectedMethodVersion?: number, threadId = record.threadId): Promise<ActivityRecord> => request({ url: root(id) + `/records/${record.id}`, method: 'PUT', data: { threadId, methodId, discovery, expectedVersion: record.version, expectedMethodVersion } }),
   assign: (id: number, record: ActivityRecord, threadId: number, methodId: number | null, expectedMethodVersion?: number): Promise<ActivityRecord> => request({ url: root(id) + `/records/${record.id}/assignment`, method: 'PUT', data: { threadId, methodId, expectedVersion: record.version, expectedMethodVersion } }),
   deleteRecord: (id: number, recordId: number, expectedVersion: number): Promise<void> => request({ url: root(id) + `/records/${recordId}`, method: 'DELETE', params: { expectedVersion } }),
-  history: (id: number, threadId: number, methodId: number | null): Promise<{ text: string; version: number; lastOrganizedAt: string | null }> => request({ url: root(id) + '/history', method: 'GET', params: { threadId, methodId } }),
+  history: (id: number, threadId: number, methodId: number | null): Promise<ExplorationHistory> => request({ url: root(id) + '/history', method: 'GET', params: { threadId, methodId } }),
+  updateHistory: (id: number, data: { threadId: number; methodId: number | null; text: string; expectedVersion: number }): Promise<ExplorationHistory> => request({ url: root(id) + '/history', method: 'PUT', data }),
+  assignMethod: (id: number, methodId: number, targetThreadId: number, expectedVersion: number): Promise<MethodOption> => request({ url: root(id) + `/methods/${methodId}/assignment`, method: 'PUT', data: { targetThreadId, expectedVersion } }),
   preview: (id: number, mode: OrganizationMode, groups: OrganizationSelection[], targetCardId?: number): Promise<OrganizationPreview> => request({ url: root(id) + '/organizations/preview', method: 'POST', data: { mode, groups, targetCardId } }),
   commit: (id: number, data: OrganizationCommit): Promise<OrganizationResult> => request({ url: root(id) + '/organizations', method: 'POST', data }),
   threadOptions: (id: number, params: { page?: number; keyword?: string; cardId?: number } = {}): Promise<PageResponse<ThreadOption>> => request({ url: `/experiments/${id}/threads/options`, method: 'GET', params }),

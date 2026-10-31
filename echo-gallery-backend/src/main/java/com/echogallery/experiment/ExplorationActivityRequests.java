@@ -18,4 +18,7 @@ public final class ExplorationActivityRequests {
     public record Method(Long threadId, @NotBlank @Size(max = 2000) String content, Long sourceMethodId, @Min(0) Long expectedVersion) {}
     public record Discovery(Long threadId, Long methodId, @NotBlank @Size(max = 10000) String discovery, ZonedDateTime occurredAt, @Min(0) Long expectedVersion, @Min(0) Long expectedMethodVersion) {}
     public record Assignment(@NotNull Long threadId, Long methodId, @NotNull @Min(0) Long expectedVersion, @Min(0) Long expectedMethodVersion) {}
+    public record HistoryUpdate(@NotNull Long threadId, Long methodId, @NotNull String text,
+        @NotNull @Min(0) Long expectedVersion) {}
+    public record MethodAssignment(@NotNull Long targetThreadId, @NotNull @Min(0) Long expectedVersion) {}
 }
