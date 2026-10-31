@@ -14,6 +14,10 @@ interface CardDTO {
     [key: string]: any; // 保留其他後端自訂欄位
 }
 
+interface CardCachePage {
+    content: CardDTO[];
+}
+
 // =====================================================
 // TanStack Query 樂觀更新核心邏輯
 // 核心組合式函式 (Composable)：管理所有卡片狀態的互動
@@ -54,39 +58,33 @@ export const useCardStatus = () => {
         queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old =>
             updateTodayCard(old, id, patchFields as Partial<CardDto>));
         // A. 使用 setQueriesData 模糊更新所有開頭為 ['cards'] 的列表快取（不論是否帶篩選參數）
-        queryClient.setQueriesData<InfiniteData<CardDTO[]> | CardDTO[]>({ queryKey: ['cards'] }, (old: any) => {
+        queryClient.setQueriesData<InfiniteData<CardDTO[] | CardCachePage> | CardCachePage | CardDTO[]>({ queryKey: ['cards'] }, (old: any) => {
             // 如果目前根本還沒有快取資料（例如還沒開過首頁），就什麼都不做直接返回
             if (!old) return old;
-            // 處理使用 useInfiniteQuery 的二維陣列結構 { pages: [ [card, card], [...] ] }
-            // 結構是二維陣列：{ pages: [ [card1, card2], [card3, card4] ] }
+            const updateCards = (cards: CardDTO[]) => cards.map(card =>
+                String(card.id) === String(id) ? { ...card, ...patchFields } : card);
+            // 看板與選擇器每頁使用 content，同時相容陣列分頁並保留游標等資訊。
             if (old.pages && Array.isArray(old.pages)) {
                 return {
                     ...old, // 保留原本分頁的其他資訊（例如 pageParams）
-                    // 迴圈遍歷每一個分頁（第一層陣列）
-                    pages: old.pages.map((page: CardDTO[]) =>
-                        // 迴圈遍歷該分頁裡的每一張卡片（第二層陣列）
-                        page.map((card: CardDTO) =>
-                            // 檢查這張卡片的 ID 是否就是我們要操作的那張卡片？
-                            String(card.id) === String(id)
-                            ? { ...card, ...patchFields } // 用解構語法，把舊卡片的所有欄位，疊加覆蓋上我們新傳進來的修改欄位
-                            : card // 沒找到的卡片，原封不動傳回去
-                        )
-                    )
+                    pages: old.pages.map((page: CardDTO[] | CardCachePage) => {
+                        if (Array.isArray(page)) return updateCards(page);
+                        if (page && Array.isArray(page.content)) {
+                            return { ...page, content: updateCards(page.content) };
+                        }
+                        return page;
+                    })
                 };
             }
             // 備用：處理一般非無限捲動的一維陣列清單快取 [card, card]
             if (Array.isArray(old)) {
-                return old.map((card: CardDTO) =>
-                    String(card.id) === String(id) ? { ...card, ...patchFields } : card
-                );
+                return updateCards(old);
             }
             // 綜合查詢使用一般分頁 response，卡片位於 content。
             if (Array.isArray(old.content)) {
                 return {
                     ...old,
-                    content: old.content.map((card: CardDTO) =>
-                        String(card.id) === String(id) ? { ...card, ...patchFields } : card
-                    )
+                    content: updateCards(old.content)
                 };
             }
             return old;
