@@ -23,7 +23,6 @@ const submitted = ref(false)
 const wasClosed = ref(false)
 const reasonRequired = computed(() => wasClosed.value && ['ACTIVE', 'PLANNED'].includes(form.value.status))
 const includedSources = computed(() => form.value.sources.filter(source => !source.excluded))
-const sourceName = (source: GoalSource) => metadata.value[`${source.kind}:${source.id}`]?.title || `${goalKinds[source.kind]} #${source.id}`
 let requestId = crypto.randomUUID(), generation = 0, scrollTop = 0
 function empty(): GoalDefinition {
   return { name: '', ...goalDates(), expectation: '', motivation: '', imageUrl: '', status: 'ACTIVE', archived: false, pinned: true, pinOrder: 0, reviewDays: 7, remindersEnabled: true, allTags: false, sources: [], metrics: [] }
@@ -46,7 +45,10 @@ watch(() => props.modelValue, async value => {
 const sourceSummary = computed(() => Object.entries(goalKinds).map(([kind, label]) => {
   const count = form.value.sources.filter(s => s.kind === kind && !s.excluded).length
   return count ? `${label} ${count} 項` : ''
-}).filter(Boolean).join(' · '))
+}).filter(Boolean).join('、'))
+const sourceSummaryText = computed(() => includedSources.value.length
+  ? `已選 ${includedSources.value.length} 項：${sourceSummary.value}`
+  : '尚未設定追蹤內容，也可以只記下目標。')
 async function openSources() {
   scrollTop = content.value?.closest('.el-dialog__body')?.scrollTop ?? 0
   sourceVisible.value = true; await nextTick()
@@ -100,11 +102,10 @@ async function save() {
         <el-form-item label="期望結果（選填）"><el-input v-model="form.expectation" type="textarea" :rows="3" maxlength="5000" placeholder="希望完成什麼，或發生什麼改變？" /><FieldCounter :value="form.expectation" :limit="5000" /></el-form-item>
         <div class="goal-date-fields"><el-form-item label="開始日期" required :error="submitted && !form.startsOn ? '請選擇開始日期' : ''"><el-date-picker v-model="form.startsOn" type="date" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="結束日期" required :error="!form.endsOn && submitted ? '請選擇結束日期' : form.endsOn && form.startsOn && form.endsOn < form.startsOn ? '結束日期不可早於開始日期' : ''"><el-date-picker v-model="form.endsOn" type="date" value-format="YYYY-MM-DD" /></el-form-item></div>
         <div class="goal-status-fields"><el-form-item label="目標狀態"><el-select v-model="form.status"><el-option v-for="(label, value) in goalStatuses" :key="value" :value="value" :label="label" /></el-select></el-form-item><el-checkbox v-model="form.pinned">固定於總覽</el-checkbox></div>
-        <section class="goal-section" aria-label="相關資料">
-          <div class="goal-section-heading"><h3>相關資料（選填）</h3><button ref="sourceButton" type="button" class="goal-source-button" :disabled="saving || metadataBusy" @click="openSources">{{ metadataBusy ? '載入來源中…' : sourceSummary ? '管理來源' : '選擇來源' }}</button></div>
-          <p class="goal-help">{{ sourceSummary || '未設定站內追蹤，也可以先建立目標。' }}</p>
-          <ul v-if="includedSources.length" class="goal-selected-sources"><li v-for="source in includedSources" :key="`${source.kind}:${source.id}`"><span>{{ goalKinds[source.kind] }}</span><strong>{{ sourceName(source) }}</strong><small v-if="metadata[`${source.kind}:${source.id}`]?.parentTitle">{{ metadata[`${source.kind}:${source.id}`]?.parentTitle }}</small></li></ul>
-          <p v-if="form.sources.some(s => s.excluded)" class="goal-help">已設定 {{ form.sources.filter(s => s.excluded).length }} 項排除範圍，可在管理來源中調整。</p>
+        <section class="goal-section source-settings" aria-label="追蹤內容">
+          <div class="goal-section-heading"><h3>追蹤內容（選填）</h3><button ref="sourceButton" type="button" class="goal-source-button" :disabled="saving || metadataBusy" @click="openSources">{{ metadataBusy ? '載入中…' : includedSources.length ? '管理' : '選擇資料' }}</button></div>
+          <p class="goal-help">{{ sourceSummaryText }}</p>
+          <p v-if="form.sources.some(s => s.excluded)" class="goal-help">另有 {{ form.sources.filter(s => s.excluded).length }} 項排除範圍，可在管理中調整。</p>
         </section>
         <GoalMetricSettings class="goal-section" v-model="form.metrics" :sources="form.sources" />
         <details class="goal-section background-settings">
@@ -134,14 +135,10 @@ h3 { font-size: var(--type-secondary); font-weight: var(--weight-medium); line-h
 .goal-source-button:disabled { cursor: wait; color: var(--el-text-color-secondary); }
 .goal-source-button:focus-visible { outline: 2px solid var(--el-color-primary); }
 .goal-help { color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-ui); margin-top: var(--space-xs); }
-.goal-selected-sources { display: grid; gap: var(--space-xs); list-style: none; margin: var(--space-sm) 0 0; padding: 0; max-height: 180px; overflow: auto; }
-.goal-selected-sources li { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-xs); min-width: 0; }
-.goal-selected-sources span, .goal-selected-sources small { font-size: var(--type-metadata); color: var(--el-text-color-secondary); }
-.goal-selected-sources strong { font-size: var(--type-secondary); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
-.background-settings { padding-top: 0; margin-bottom: var(--space-md); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-summary); }
-.background-settings .goal-section-content { margin-top: 0; padding: 0 var(--space-sm) var(--space-sm); }
+.background-settings { margin-bottom: var(--space-md); }
+.background-settings .goal-section-content { margin-top: var(--space-md); }
 .background-settings .goal-section-content :deep(.el-form-item:last-child) { margin-bottom: 0; }
-.background-settings summary { display: flex; justify-content: space-between; align-items: start; gap: var(--space-sm); padding: var(--space-sm); list-style: none; font-size: var(--type-secondary); line-height: var(--leading-ui); cursor: pointer; }
+.background-settings summary { display: flex; justify-content: space-between; align-items: start; gap: var(--space-sm); padding: 0; list-style: none; font-size: var(--type-secondary); line-height: var(--leading-ui); cursor: pointer; }
 .background-settings summary::-webkit-details-marker { display: none; }
 .background-settings summary:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: var(--space-2xs); }
 .background-settings small { color: var(--el-text-color-secondary); font-size: var(--type-metadata); margin-left: var(--space-xs); }

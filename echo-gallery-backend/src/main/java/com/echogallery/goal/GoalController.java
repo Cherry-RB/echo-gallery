@@ -29,6 +29,10 @@ public class GoalController {
     @DeleteMapping("/api/goals/{id}") public void delete(@PathVariable("id") Long id,@RequestParam("version") long version){goals.delete(id,version);}
     @GetMapping("/api/goals/{id}/revisions") public Object revisions(@PathVariable("id") Long id){return goals.revisions(id);}
     @GetMapping("/api/goals/{id}/sources") public Object sources(@PathVariable("id") Long id){return goals.sources(id);}
+    @GetMapping("/api/goals/{id}/metrics") public Object metrics(@PathVariable("id") Long id){return goals.metrics(id);}
+    @GetMapping("/api/goals/{id}/evidence") public Object evidence(@PathVariable("id") Long id,@RequestParam(name="metric",required=false) String metric,
+            @RequestParam(name="page",defaultValue="0") int page,@RequestParam(name="size",defaultValue="20") int size){return goals.evidence(id,metric,page,size);}
+    @PutMapping("/api/goals/{id}/evidence/{linkId}") public Object evidence(@PathVariable("id") Long id,@PathVariable("linkId") String linkId,@Valid @RequestBody EvidenceChange request){return goals.evidence(id,linkId,request);}
     @GetMapping("/api/goal-board/preferences") public Object preference(){return goals.preference();}
     @PutMapping("/api/goal-board/preferences") public Object preference(@Valid @RequestBody Preference request){return goals.preference(request);}
     @PostMapping("/api/goal-board/cards") public Object board(@Valid @RequestBody Board request){return goals.board(request);}

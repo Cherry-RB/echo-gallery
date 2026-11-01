@@ -73,6 +73,17 @@ class GoalFactLinkRow extends GoalOwnedRow {
     @Column(nullable=false,columnDefinition="TEXT") String details;
 }
 
+@Entity(name="GoalEvidenceOverrideRow") @Table(name="goal_evidence_overrides",uniqueConstraints=@UniqueConstraint(columnNames={"goal_id","link_type","link_id"}))
+class GoalEvidenceOverrideRow extends GoalOwnedRow {
+    @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="goal_id",nullable=false) @OnDelete(action=OnDeleteAction.CASCADE) GoalRow goal;
+    @Column(name="link_type",nullable=false,length=20) String linkType;
+    @Column(name="link_id",nullable=false) Long linkId;
+    @Column(nullable=false) boolean excluded;
+    @Column(columnDefinition="TEXT") String reason;
+    @Column(nullable=false) long version;
+    @Column(name="updated_at",nullable=false) ZonedDateTime updatedAt;
+}
+
 @Entity(name="CardContentDayRow") @Table(name="card_content_days",uniqueConstraints=@UniqueConstraint(columnNames={"user_id","card_id","modified_on"}))
 class CardContentDayRow extends GoalOwnedRow {
     @Column(name="card_id",nullable=false) Long cardId;

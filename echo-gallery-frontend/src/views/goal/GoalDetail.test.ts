@@ -8,7 +8,7 @@ import GoalDetail from './GoalDetail.vue'
 import { goalApi } from '../../utils/api/goalApi'
 import type { GoalView } from '../../types/goal'
 
-vi.mock('../../utils/api/goalApi', () => ({ goalApi: { detail: vi.fn(), sources: vi.fn(), revisions: vi.fn(), delete: vi.fn() } }))
+vi.mock('../../utils/api/goalApi', () => ({ goalApi: { detail: vi.fn(), sources: vi.fn(), revisions: vi.fn(), metrics: vi.fn(), delete: vi.fn() } }))
 const goal: GoalView = { id: 1, version: 3, effectiveStatus: 'ACTIVE', cardCount: 0, trackingStartedAt: '', closedAt: null, definition: {
   name: '寫作練習', startsOn: '2026-11-01', endsOn: '2026-11-08', expectation: '', motivation: '', imageUrl: '', status: 'ACTIVE', archived: false, pinned: true, pinOrder: 0, reviewDays: 7, remindersEnabled: true, allTags: false, sources: [], metrics: [],
 } }
@@ -32,6 +32,7 @@ describe('目標刪除後的導航與查詢', () => {
     vi.mocked(goalApi.detail).mockResolvedValue(goal)
     vi.mocked(goalApi.sources).mockResolvedValue([])
     vi.mocked(goalApi.revisions).mockResolvedValue([])
+    vi.mocked(goalApi.metrics).mockResolvedValue([])
     vi.mocked(goalApi.delete).mockResolvedValue(undefined)
     vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue(undefined as never)
   })

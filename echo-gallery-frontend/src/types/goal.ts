@@ -13,7 +13,11 @@ export interface GoalSourceView extends GoalSource { title: string; available: b
 export interface GoalQuery { keyword?: string; statuses?: GoalStatus[]; archiveScope?: 'UNARCHIVED' | 'ARCHIVED' | 'ALL'; pinned?: boolean; sort?: 'created' | 'pinOrder'; page?: number; size?: number; status?: string; archived?: boolean }
 export interface GoalPreference { allActive: boolean; goalIds: number[]; includePaused: boolean; includeArchived: boolean; version: number }
 export interface GoalBoardPage { content: CardDto[]; total: number; selectedGoalCount?: number; hasMore: boolean; nextCursor: string; fingerprint: string; emptyReason?: string }
-export interface GoalAssociation { goalId: number; name: string; status: GoalStatus; reasons: string[] }
+export interface GoalAssociationReason { kind: GoalKind; sourceId: number; label: string | null; direct: boolean }
+export interface GoalAssociation { goalId: number; name: string; status: GoalStatus; reasons: GoalAssociationReason[] }
+export interface GoalMetric { metricKey: string; value: number | null; unit: string; mode: 'CURRENT' | 'PERIOD'; startsOn: string; endsOn: string; coverageStart: string; coverageStatus: 'CURRENT' | 'RECORDED' | 'NOT_AVAILABLE'; definitionVersion: number }
+export interface GoalEvidence { id: string; type: string; occurredAt: string; recordedAt: string; sourceKind: GoalKind | null; sourceId: number | null; excluded: boolean; version: number; reason: string | null }
+export interface GoalEvidencePage { content: GoalEvidence[]; totalElements: number; page: number; size: number; totalPages: number }
 export const goalStatuses: Record<GoalStatus, string> = { PLANNED: '未開始', ACTIVE: '進行中', PAUSED: '暫停', COMPLETED: '已完成', ENDED: '已結束' }
 export const goalKinds: Record<GoalKind, string> = { TAG: '標籤', EXPERIMENT: '實驗', THREAD: '探索線', WORK: '作品', TREASURE: '展品', CARD: '個別卡片' }
 export function isGoalPeriodDue(goal: GoalView) {

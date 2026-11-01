@@ -34,5 +34,12 @@ public final class GoalData {
     public record Board(@Valid @NotNull Preference selection, @NotNull UUID seed,
             @Size(max=20000) String cursor, @Size(max=5) List<@NotNull @Positive Long> pageIds) {}
     public record Associations(@NotNull @Size(max=100) List<@NotNull @Valid Source> objects) {}
-    public record Association(Long goalId, String name, Status status, List<String> reasons) {}
+    public record AssociationReason(Kind kind, Long sourceId, String label, boolean direct) {}
+    public record Association(Long goalId, String name, Status status, List<AssociationReason> reasons) {}
+    public record Metric(String metricKey, Long value, String unit, String mode, LocalDate startsOn,
+            LocalDate endsOn, ZonedDateTime coverageStart, String coverageStatus, long definitionVersion) {}
+    public record Evidence(String id, String type, ZonedDateTime occurredAt, ZonedDateTime recordedAt,
+            String sourceKind, Long sourceId, boolean excluded, long version, String reason) {}
+    public record EvidencePage(List<Evidence> content, long totalElements, int page, int size, int totalPages) {}
+    public record EvidenceChange(boolean excluded, @NotBlank @Size(max=2000) String reason, @NotNull @Min(0) Long version) {}
 }

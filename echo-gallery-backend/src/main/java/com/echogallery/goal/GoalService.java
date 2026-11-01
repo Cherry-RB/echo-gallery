@@ -207,9 +207,60 @@ public class GoalService {
                 .setParameter("goal",id).setParameter("owner",owner()).setMaxResults(100).getResultStream()
                 .map(r -> {Map<String,Object> m=new LinkedHashMap<>();m.put("revision",r.revision);m.put("definition",mapper.readValue(r.definition,Definition.class));m.put("reason",r.reason);m.put("effectiveAt",r.effectiveAt);return m;}).toList();
     }
+    public List<Metric> metrics(Long id) {
+        var goal=owned(id);var definition=definition(goal);return definition.metrics().stream().map(key->metric(goal,key)).toList();
+    }
+    Metric metric(GoalRow goal,String key) {
+        var definition=definition(goal);Long value=null;String mode="PERIOD",coverage="RECORDED";
+        if("M01".equals(key)){value=countDefinition(definition);mode="CURRENT";coverage="CURRENT";}
+        else if(Set.of("M03","M04").contains(key)) {
+            var links=dayLinks(goal);value="M03".equals(key)?links.stream().map(l->l.day.cardId).distinct().count():(long)links.size();
+        } else {
+            var types=metricTypes(key);if(types!=null)value=factLinks(goal).stream().filter(l->types.contains(l.fact.type)).map(l->factKey(l)).distinct().count();
+            else coverage="NOT_AVAILABLE";
+        }
+        return new Metric(key,value,"張",mode,goal.startsOn,goal.endsOn,goal.trackingStartedAt,coverage,goal.version);
+    }
+    Set<String> metricTypes(String key) { return switch(key) {
+        case "M02" -> Set.of("CARD_CREATED"); case "M05" -> Set.of("TODAY_REVIEWED"); case "M06" -> Set.of("CARD_REUSED");
+        case "M10" -> Set.of("DISCOVERY_CREATED"); case "M11" -> Set.of("METHOD_CREATED"); case "M12" -> Set.of("EXPLORATION_ORGANIZED");
+        case "M14" -> Set.of("WORK_STAGE_CHANGED"); case "M16" -> Set.of("TREASURE_ACQUIRED"); case "M17" -> Set.of("TRIAL_ATTEMPT"); case "M18" -> Set.of("TREASURE_YIELD"); default -> null;
+    }; }
+    List<GoalFactLinkRow> allFactLinks(GoalRow goal) { return em.createQuery("select l from GoalFactLinkRow l join fetch l.fact where l.goal=:goal and l.fact.valid=true and l.fact.occurredAt>=:from and l.fact.occurredAt<:to",GoalFactLinkRow.class)
+            .setParameter("goal",goal).setParameter("from",goal.startsOn.atStartOfDay(ZoneId.of("Asia/Taipei"))).setParameter("to",goal.endsOn.plusDays(1).atStartOfDay(ZoneId.of("Asia/Taipei"))).getResultList(); }
+    List<GoalFactLinkRow> factLinks(GoalRow goal) { return allFactLinks(goal).stream().filter(l->!override(goal,"FACT",l.id).excluded).toList(); }
+    List<GoalCardDayRow> allDayLinks(GoalRow goal) { return em.createQuery("select l from GoalCardDayRow l join fetch l.day where l.goal=:goal and l.day.modifiedOn between :from and :to",GoalCardDayRow.class)
+            .setParameter("goal",goal).setParameter("from",goal.startsOn).setParameter("to",goal.endsOn).getResultList(); }
+    List<GoalCardDayRow> dayLinks(GoalRow goal) { return allDayLinks(goal).stream().filter(l->!override(goal,"DAY",l.id).excluded).toList(); }
+    GoalEvidenceOverrideRow override(GoalRow goal,String type,Long link) { return em.createQuery("select o from GoalEvidenceOverrideRow o where o.goal=:goal and o.linkType=:type and o.linkId=:link",GoalEvidenceOverrideRow.class)
+            .setParameter("goal",goal).setParameter("type",type).setParameter("link",link).getResultList().stream().findFirst().orElseGet(()->{var o=new GoalEvidenceOverrideRow();o.excluded=false;o.version=0;return o;}); }
+    String factKey(GoalFactLinkRow link) { return link.fact.factKey; }
+    public EvidencePage evidence(Long id,String metric,int page,int size) {
+        var goal=owned(id);int boundedPage=Math.max(0,page),boundedSize=Math.max(1,Math.min(100,size));var entries=new ArrayList<Evidence>();
+        var types=metric==null||metric.isBlank()?null:metricTypes(metric);
+        if(types==null&&metric!=null&&!Set.of("M03","M04").contains(metric)) fail(HttpStatus.BAD_REQUEST,"此指標尚無可追查活動");
+        if(metric==null||metric.isBlank()||!Set.of("M03","M04").contains(metric)) for(var link:allFactLinks(goal)) if(types==null||types.contains(link.fact.type)) entries.add(evidence(goal,link));
+        if(metric==null||metric.isBlank()||Set.of("M03","M04").contains(metric)) for(var link:allDayLinks(goal)) entries.add(evidence(goal,link));
+        entries.sort(Comparator.comparing(Evidence::occurredAt).reversed());long total=entries.size();int from=Math.min(entries.size(),boundedPage*boundedSize),to=Math.min(entries.size(),from+boundedSize);
+        return new EvidencePage(entries.subList(from,to),total,boundedPage,boundedSize,(int)((total+boundedSize-1)/boundedSize));
+    }
+    Evidence evidence(GoalRow goal,GoalFactLinkRow link) {var o=override(goal,"FACT",link.id);return new Evidence("fact-"+link.id,link.fact.type,link.fact.occurredAt,link.fact.recordedAt,null,link.fact.sourceId,o.excluded,o.version,o.reason);}
+    Evidence evidence(GoalRow goal,GoalCardDayRow link) {var o=override(goal,"DAY",link.id);var at=link.day.modifiedOn.atStartOfDay(ZoneId.of("Asia/Taipei"));return new Evidence("day-"+link.id,"CONTENT_UPDATED",at,at,"CARD",link.day.cardId,o.excluded,o.version,o.reason);}
+    @Transactional public Evidence evidence(Long id,String linkId,EvidenceChange change) {
+        lock();var goal=owned(id);var parts=linkId.split("-",2);if(parts.length!=2||!Set.of("fact","day").contains(parts[0]))fail(HttpStatus.BAD_REQUEST,"證據識別不正確");Long row;try{row=Long.valueOf(parts[1]);}catch(NumberFormatException ex){fail(HttpStatus.BAD_REQUEST,"證據識別不正確");return null;}
+        String type="fact".equals(parts[0])?"FACT":"DAY";boolean exists="FACT".equals(type)?em.createQuery("select count(l) from GoalFactLinkRow l where l.goal=:goal and l.id=:id",Long.class).setParameter("goal",goal).setParameter("id",row).getSingleResult()>0:em.createQuery("select count(l) from GoalCardDayRow l where l.goal=:goal and l.id=:id",Long.class).setParameter("goal",goal).setParameter("id",row).getSingleResult()>0;if(!exists)fail(HttpStatus.NOT_FOUND,"找不到證據");
+        var o=override(goal,type,row);if(o.id==null){
+            if(change.version()!=0)fail(HttpStatus.CONFLICT,"證據已有更新，請重新讀取");
+            o.user=goal.user;o.goal=goal;o.linkType=type;o.linkId=row;o.excluded=change.excluded();o.reason=change.reason().trim();o.updatedAt=now();o.version=1;em.persist(o);
+        } else {
+            if(o.version!=change.version())fail(HttpStatus.CONFLICT,"證據已有更新，請重新讀取");
+            o.excluded=change.excluded();o.reason=change.reason().trim();o.updatedAt=now();o.version++;
+        }
+        return "FACT".equals(type)?evidence(goal,em.find(GoalFactLinkRow.class,row)):evidence(goal,em.find(GoalCardDayRow.class,row));
+    }
     @Transactional public void delete(Long id,long version) {
         lock();var g=owned(id);if(g.version!=version)fail(HttpStatus.CONFLICT,"目標已有更新，請重新載入");
-        for(String entity:List.of("GoalCardDayRow","GoalFactLinkRow"))em.createQuery("delete from "+entity+" l where l.goal.id=:id").setParameter("id",id).executeUpdate();
+        for(String entity:List.of("GoalEvidenceOverrideRow","GoalCardDayRow","GoalFactLinkRow"))em.createQuery("delete from "+entity+" l where l.goal.id=:id").setParameter("id",id).executeUpdate();
         em.createQuery("delete from GoalSourceRow s where s.rule.goal.id=:id").setParameter("id",id).executeUpdate();
         em.createQuery("delete from GoalRuleRow r where r.goal.id=:id").setParameter("id",id).executeUpdate();
         em.remove(g);em.flush();
@@ -308,7 +359,8 @@ public class GoalService {
     }
     Map<String,List<Association>> associationResults(List<Source> objects) {
         Map<String,List<Association>> result=new LinkedHashMap<>();objects.forEach(s->result.put(s.kind()+":"+s.id(),new ArrayList<>()));
-        var goals=rows().stream().filter(g->!g.archived).toList();
+        // 旗幟是目前可行動的追蹤提示；非進行中目標仍保留於目標詳情與歷程，但不佔用來源畫面的提示。
+        var goals=rows().stream().filter(g->!g.archived&&status(g)==Status.ACTIVE).toList();
         if(goals.isEmpty()||objects.isEmpty())return result;
         Map<Long,GoalRow> byId=goals.stream().collect(Collectors.toMap(g->g.id,g->g));
         Map<Long,Definition> definitions=goals.stream().collect(Collectors.toMap(g->g.id,this::definition));
@@ -317,7 +369,7 @@ public class GoalService {
             Map<String,Object> params=new HashMap<>();List<String> parts=new ArrayList<>();
             for(var g:goals)parts.add("select c.id,"+g.id+" as goal_id from cards c where c.user_id=:owner and c.id in (:cards) and "+predicate(definition(g),"g"+g.id+"p",params));
             var q=em.createNativeQuery("select distinct id,goal_id from ("+String.join(" union all ",parts)+") matches").setParameter("owner",owner()).setParameter("cards",requestedCards);params.forEach(q::setParameter);
-            @SuppressWarnings("unchecked") List<Object[]> values=q.getResultList();for(var v:values){var g=byId.get(((Number)v[1]).longValue());result.get("CARD:"+v[0]).add(new Association(g.id,definitions.get(g.id).name(),status(g),List.of("符合目標的標籤、探索材料或作品來源規則")));}
+            @SuppressWarnings("unchecked") List<Object[]> values=q.getResultList();for(var v:values){var g=byId.get(((Number)v[1]).longValue());var definition=definitions.get(g.id);result.get("CARD:"+v[0]).add(new Association(g.id,definition.name(),status(g),cardReasons(definition,((Number)v[0]).longValue())));}
         }
         Set<Long> threadIds=new HashSet<>(),workIds=new HashSet<>();
         definitions.values().forEach(d->d.sources().forEach(s->{if(s.kind()==Kind.THREAD)threadIds.add(s.id());if(s.kind()==Kind.WORK)workIds.add(s.id());}));
@@ -339,17 +391,47 @@ public class GoalService {
             for(Long id:requested) {
                 if(!valid.contains(id))continue;
                 for(var g:goals) {
-                    var d=definitions.get(g.id);List<String> reasons=new ArrayList<>();
-                    if(d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==kind&&s.id().equals(id)))reasons.add("直接追蹤此來源");
+                    var d=definitions.get(g.id);List<AssociationReason> reasons=new ArrayList<>();
+                    if(d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==kind&&s.id().equals(id)))reasons.add(new AssociationReason(kind,id,null,true));
                     if(kind==Kind.THREAD&&d.sources().stream().noneMatch(s->s.excluded()&&s.kind()==Kind.THREAD&&s.id().equals(id))
-                            &&d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==Kind.EXPERIMENT&&s.id().equals(threadExperiments.get(id))))reasons.add("追蹤所屬實驗");
-                    if(kind==Kind.EXPERIMENT&&d.sources().stream().noneMatch(s->!s.excluded()&&s.kind()==Kind.EXPERIMENT&&id.equals(s.id()))&&d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==Kind.THREAD&&id.equals(threadExperiments.get(s.id()))))reasons.add("僅追蹤部分探索線");
-                    if(kind==Kind.TREASURE&&d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==Kind.WORK&&id.equals(workTreasures.get(s.id()))))reasons.add("關聯已追蹤作品的展品");
+                            &&d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==Kind.EXPERIMENT&&s.id().equals(threadExperiments.get(id)))) {
+                        Long experiment=threadExperiments.get(id);reasons.add(new AssociationReason(Kind.EXPERIMENT,experiment,"因「"+sourceTitle(Kind.EXPERIMENT,experiment)+"」實驗",false));
+                    }
+                    if(kind==Kind.EXPERIMENT&&d.sources().stream().noneMatch(s->!s.excluded()&&s.kind()==Kind.EXPERIMENT&&id.equals(s.id()))) {
+                        d.sources().stream().filter(s->!s.excluded()&&s.kind()==Kind.THREAD&&id.equals(threadExperiments.get(s.id())))
+                                .forEach(s->reasons.add(new AssociationReason(Kind.THREAD,s.id(),"因「"+sourceTitle(Kind.THREAD,s.id())+"」探索線",false)));
+                    }
+                    if(kind==Kind.TREASURE&&d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==Kind.WORK&&id.equals(workTreasures.get(s.id())))) {
+                        d.sources().stream().filter(s->!s.excluded()&&s.kind()==Kind.WORK&&id.equals(workTreasures.get(s.id())))
+                                .forEach(s->reasons.add(new AssociationReason(Kind.WORK,s.id(),"因「"+sourceTitle(Kind.WORK,s.id())+"」作品關聯",false)));
+                    }
                     if(!reasons.isEmpty())result.get(kind+":"+id).add(new Association(g.id,d.name(),status(g),reasons));
                 }
             }
         }
         return result;
+    }
+    List<AssociationReason> cardReasons(Definition definition,Long cardId) {
+        var included=definition.sources().stream().filter(s->!s.excluded()).toList();var reasons=new ArrayList<AssociationReason>();
+        if(included.stream().anyMatch(s->s.kind()==Kind.CARD&&s.id().equals(cardId)))reasons.add(new AssociationReason(Kind.CARD,cardId,"直接選入此卡片",false));
+        var tags=ids(included,Kind.TAG);var matchedTags=cardRelatedIds("select tag_id from card_tags where card_id=:card and tag_id in (:ids)",cardId,tags,List.of());
+        if(!tags.isEmpty()&&(!definition.allTags()||matchedTags.containsAll(tags)))for(Long id:matchedTags)reasons.add(new AssociationReason(Kind.TAG,id,"因 #"+sourceTitle(Kind.TAG,id)+" 標籤",false));
+        var threads=ids(included,Kind.THREAD);for(Long id:cardRelatedIds("select thread_id from exploration_thread_cards where card_id=:card and thread_id in (:ids)",cardId,threads,List.of()))reasons.add(new AssociationReason(Kind.THREAD,id,"因「"+sourceTitle(Kind.THREAD,id)+"」探索線收錄",false));
+        var experiments=ids(included,Kind.EXPERIMENT);var excludedThreads=definition.sources().stream().filter(s->s.excluded()&&s.kind()==Kind.THREAD).map(Source::id).toList();
+        String experimentSql="select t.experiment_id from exploration_thread_cards tc join exploration_threads t on t.id=tc.thread_id where tc.card_id=:card and t.experiment_id in (:ids)"+(excludedThreads.isEmpty()?"":" and tc.thread_id not in (:excluded)");
+        for(Long id:cardRelatedIds(experimentSql,cardId,experiments,excludedThreads))reasons.add(new AssociationReason(Kind.EXPERIMENT,id,"因「"+sourceTitle(Kind.EXPERIMENT,id)+"」實驗收錄",false));
+        var works=ids(included,Kind.WORK);for(Long id:cardRelatedIds("select work_id from creative_work_sources where card_id=:card and work_id in (:ids)",cardId,works,List.of()))reasons.add(new AssociationReason(Kind.WORK,id,"因「"+sourceTitle(Kind.WORK,id)+"」作品引用",false));
+        return reasons;
+    }
+    List<Long> ids(List<Source> sources,Kind kind) { return sources.stream().filter(s->s.kind()==kind).map(Source::id).toList(); }
+    Set<Long> cardRelatedIds(String sql,Long cardId,List<Long> ids,List<Long> excluded) {
+        if(ids.isEmpty())return Set.of();var query=em.createNativeQuery(sql).setParameter("card",cardId).setParameter("ids",ids);if(!excluded.isEmpty())query.setParameter("excluded",excluded);
+        @SuppressWarnings("unchecked") List<Number> values=query.getResultList();return values.stream().map(Number::longValue).collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+    String sourceTitle(Kind kind,Long id) {
+        String title=kind==Kind.TAG||kind==Kind.THREAD?"s.name":"s.title";String from=kind==Kind.THREAD?"exploration_threads s join experiments e on e.id=s.experiment_id":sourceTable(kind)+" s";String user=kind==Kind.THREAD?"e.user_id":"s.user_id";
+        @SuppressWarnings("unchecked") List<Object> values=em.createNativeQuery("select "+title+" from "+from+" where s.id=:id and "+user+"=:owner").setParameter("id",id).setParameter("owner",owner()).getResultList();
+        return values.isEmpty()?"已刪除來源":String.valueOf(values.getFirst());
     }
     @Transactional public void clearOwner(Long owner) {
         if(users.findByIdForUpdate(owner).isEmpty())return;

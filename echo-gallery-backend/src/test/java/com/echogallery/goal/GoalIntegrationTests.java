@@ -111,6 +111,20 @@ class GoalIntegrationTests extends IntegrationTestBase {
         var none=board(token,true,List.of(),null,UUID.randomUUID());assertThat(none.get("total").asLong()).isZero();assertThat(none.get("emptyReason").asText()).isEqualTo("NO_CARD_SOURCES");
         send(get("/api/goals/{id}",goal.get("id").asLong()),session().get("token").asText(),null).andExpect(status().isNotFound());
     }
+    @Test void cardAssociationExplainsTheMatchingTrackingSource() throws Exception {
+        var session=session();String token=session.get("token").asText();var user=users.findById(session.get("id").asLong()).orElseThrow();
+        var card=cards.saveAndFlush(Card.builder().user(user).type("note").title("直接追蹤的卡片").build());create(token,List.of(source("CARD",card.getId())));
+        send(get("/api/goal-associations").param("kind","CARD").param("id",String.valueOf(card.getId())),token,null).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].reasons[0].label").value("直接選入此卡片")).andExpect(jsonPath("$[0].reasons[0].direct").value(false));
+    }
+    @Test void inactiveGoalDoesNotShowSourceAssociationBadge() throws Exception {
+        var session=session();String token=session.get("token").asText();var user=users.findById(session.get("id").asLong()).orElseThrow();
+        var card=cards.saveAndFlush(Card.builder().user(user).type("note").title("暫停目標的卡片").build());var goal=create(token,List.of(source("CARD",card.getId())));
+        var paused=mapper.convertValue(goal.get("definition"),new tools.jackson.core.type.TypeReference<Map<String,Object>>(){});paused.put("status","PAUSED");
+        send(put("/api/goals/{id}",goal.get("id").asLong()),token,Map.of("definition",paused,"version",1,"reason","暫停測試","requestId",UUID.randomUUID())).andExpect(status().isOk());
+        send(get("/api/goal-associations").param("kind","CARD").param("id",String.valueOf(card.getId())),token,null).andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+        send(post("/api/goal-associations/summary"),token,Map.of("objects",List.of(source("CARD",card.getId())))).andExpect(status().isOk()).andExpect(jsonPath("$['CARD:"+card.getId()+"']").value(0));
+    }
     @Test void fiveCardBatchesDeduplicateAndNeverChangeCardScheduleOrUpdatedTime() throws Exception {
         var session=session();String token=session.get("token").asText();var user=users.findById(session.get("id").asLong()).orElseThrow();
         List<Map<String,Object>> sources=new ArrayList<>();List<Long> ids=new ArrayList<>();
@@ -144,6 +158,16 @@ class GoalIntegrationTests extends IntegrationTestBase {
         send(put("/api/cards/{id}",card.getId()),token,Map.of("type","note","title","草稿","cardNote","隔日加工","content","原文","expectedContentVersion",0,"isArchived",false,"tags",List.of())).andExpect(status().isOk());
         assertThat(em.createQuery("select count(d) from CardContentDayRow d where d.user.id=:owner",Long.class).setParameter("owner",user.getId()).getSingleResult()).isEqualTo(2);
         assertThat(em.createQuery("select count(distinct d.cardId) from CardContentDayRow d where d.user.id=:owner",Long.class).setParameter("owner",user.getId()).getSingleResult()).isEqualTo(1);
+    }
+    @Test void periodMetricCanExcludeAndRestoreItsContentEvidence() throws Exception {
+        var session=session();String token=session.get("token").asText();var user=users.findById(session.get("id").asLong()).orElseThrow();
+        var card=cards.saveAndFlush(Card.builder().user(user).type("note").title("指標材料").content("原文").build());var goal=create(token,List.of(source("CARD",card.getId())));
+        send(put("/api/cards/{id}",card.getId()),token,Map.of("type","note","title","指標材料","cardNote","有意義修改","content","原文","expectedContentVersion",0,"isArchived",false,"tags",List.of())).andExpect(status().isOk());
+        var metrics=json(send(get("/api/goals/{id}/metrics",goal.get("id").asLong()),token,null).andExpect(status().isOk()));assertThat(metrics.get(1).get("metricKey").asText()).isEqualTo("M03");assertThat(metrics.get(1).get("value").asInt()).isEqualTo(1);
+        var evidence=json(send(get("/api/goals/{id}/evidence",goal.get("id").asLong()).param("metric","M03"),token,null).andExpect(status().isOk()));String id=evidence.get("content").get(0).get("id").asText();
+        send(put("/api/goals/{id}/evidence/{linkId}",goal.get("id").asLong(),id),token,Map.of("excluded",true,"reason","與本期無關","version",0)).andExpect(status().isOk()).andExpect(jsonPath("$.excluded").value(true));
+        metrics=json(send(get("/api/goals/{id}/metrics",goal.get("id").asLong()),token,null).andExpect(status().isOk()));assertThat(metrics.get(1).get("value").asInt()).isZero();
+        evidence=json(send(get("/api/goals/{id}/evidence",goal.get("id").asLong()).param("metric","M03"),token,null).andExpect(status().isOk()));assertThat(evidence.get("content").get(0).get("excluded").asBoolean()).isTrue();
     }
     @Test void ownerValidationPreferenceConflictsAndGoalDeletionPreserveSources() throws Exception {
         var a=session();String token=a.get("token").asText();var user=users.findById(a.get("id").asLong()).orElseThrow();

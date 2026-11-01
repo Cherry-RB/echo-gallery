@@ -56,7 +56,7 @@ describe('目標編輯衝突保護', () => {
     expect(wrapper.findComponent(GoalSourcePicker).exists()).toBe(true)
     await wrapper.get('.picker-option').trigger('click')
     await wrapper.findAll('button').find(button => button.text() === '放棄並返回')!.trigger('click')
-    expect(wrapper.get('.goal-help').text()).toContain('未設定站內追蹤')
+    expect(wrapper.get('.goal-help').text()).toContain('尚未設定追蹤內容')
     await wrapper.get('.goal-source-button').trigger('click'); await flushPromises()
     expect(wrapper.get('.picker-option').attributes('aria-pressed')).toBe('false')
     await wrapper.get('.picker-option').trigger('click')

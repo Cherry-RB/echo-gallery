@@ -15,9 +15,9 @@ import { goalApi } from '../../utils/api/goalApi'
 import { goalKinds, goalMetrics, goalStatuses, isGoalPeriodDue } from '../../types/goal'
 import { hasGoalCards } from '../../utils/goalPresentation'
 import { formatDate } from '../../utils/formatDate'
-import type { GoalDefinition } from '../../types/goal'
+import type { GoalDefinition, GoalMetric, GoalSourceView } from '../../types/goal'
 type GoalRevision = { revision: number; definition: GoalDefinition; reason: string; effectiveAt: string }
-const route = useRoute(), router = useRouter(), client = useQueryClient(), visible = ref(false), busy = ref(false), error = ref('')
+const route = useRoute(), router = useRouter(), client = useQueryClient(), visible = ref(false), busy = ref(false), error = ref(''), evidenceMetric = ref<string | null>(null), evidenceBusy = ref<string | null>(null)
 const owner = localStorage.getItem('id') || '', id = computed(() => Number(route.params.id))
 const editorSection = ref<'goal' | 'sources'>('goal')
 function openEditor(section: 'goal' | 'sources' = 'goal') { editorSection.value = section; visible.value = true }
@@ -27,10 +27,23 @@ const goal = computed(() => query.data.value)
 const relatedEnabled = computed(() => !removed.value && !!goal.value && !query.isError.value)
 const history = useQuery({ queryKey: computed(() => ['goals', owner, 'revisions', id.value]), queryFn: () => goalApi.revisions(id.value), enabled: relatedEnabled })
 const sources = useQuery({ queryKey: computed(() => ['goals', owner, 'sources', id.value]), queryFn: () => goalApi.sources(id.value), enabled: relatedEnabled })
+const metrics = useQuery({ queryKey: computed(() => ['goals', owner, 'metrics', id.value]), queryFn: () => goalApi.metrics(id.value), enabled: relatedEnabled })
+const evidence = useQuery({ queryKey: computed(() => ['goals', owner, 'evidence', id.value, evidenceMetric.value]), queryFn: () => goalApi.evidence(id.value, evidenceMetric.value || undefined), enabled: computed(() => relatedEnabled.value && !!evidenceMetric.value) })
 const missing = computed(() => (query.error.value as { response?: { status?: number } } | null)?.response?.status === 404)
 const included = computed(() => sources.data.value?.filter(s => !s.excluded) ?? [])
 const excluded = computed(() => sources.data.value?.filter(s => s.excluded) ?? [])
+const sourceGroups = computed(() => Object.entries(goalKinds).map(([kind, label]) => ({ kind, label, sources: included.value.filter(source => source.kind === kind) })).filter(group => group.sources.length))
+function sourceTitle(source: GoalSourceView) { return source.parentTitle ? `${source.parentTitle}／${source.title}` : source.title }
 const canRead = computed(() => goal.value && goal.value.cardCount > 0 && hasGoalCards(goal.value.definition))
+const availableMetrics = computed(() => metrics.data.value?.filter(metric => metric.coverageStatus !== 'NOT_AVAILABLE') ?? [])
+const metricLabel = (metric: GoalMetric) => goalMetrics[metric.metricKey] || metric.metricKey
+async function toggleEvidence(item: { id: string; excluded: boolean; version: number }) {
+  if (!goal.value || evidenceBusy.value) return
+  try {
+    const prompt = await ElMessageBox.prompt(item.excluded ? '請填寫恢復納入的原因。' : '請填寫排除這筆活動的原因。', item.excluded ? '恢復證據' : '排除證據', { inputPattern: /\S+/, inputErrorMessage: '請填寫原因', confirmButtonText: item.excluded ? '恢復納入' : '排除', cancelButtonText: '取消' })
+    evidenceBusy.value = item.id; await goalApi.saveEvidence(id.value, item.id, !item.excluded, prompt.value, item.version); await client.invalidateQueries({ queryKey: ['goals', owner, 'metrics', id.value] }); await evidence.refetch()
+  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error('儲存證據設定失敗，請重新讀取後再試。') } finally { evidenceBusy.value = null }
+}
 const sourceSignature = (definition: GoalDefinition) => definition.sources.map(source => `${source.kind}:${source.id}:${source.excluded}`).sort().join('|')
 const metricSignature = (definition: GoalDefinition) => [...definition.metrics].sort().join('|')
 function revisionTitle(item: GoalRevision, previous?: GoalRevision) {
@@ -97,12 +110,19 @@ async function command(value: string) {
         </section>
         <p v-else class="goal-help">期望結果可以之後再補充。<el-button type="primary" link size="small" @click="openEditor()">編輯目標</el-button></p>
         <section v-if="goal.definition.sources.length" class="app-panel app-panel--padded app-section">
-          <SectionHeader title="相關資料"><template #actions><el-button type="primary" link size="small" @click="openEditor('sources')">編輯來源</el-button><el-button v-if="canRead && !goal.definition.metrics.includes('M01')" type="primary" link size="small" @click="router.push({ path: '/board/goals', query: { goal: id } })">翻閱相關卡片</el-button></template></SectionHeader>
+          <SectionHeader :title="`追蹤內容 ${included.length} 項`"><template #actions><el-button type="primary" link size="small" @click="openEditor('sources')">編輯</el-button><el-button v-if="canRead && !goal.definition.metrics.includes('M01')" type="primary" link size="small" @click="router.push({ path: '/board/goals', query: { goal: id } })">翻閱相關卡片</el-button></template></SectionHeader>
           <p v-if="sources.isPending.value" class="goal-help">載入來源中…</p>
           <el-alert v-else-if="sources.isError.value" title="來源載入失敗" type="error" :closable="false"><el-button @click="sources.refetch()">重試</el-button></el-alert>
-          <template v-else><ul class="goal-sources"><li v-for="source in included" :key="`${source.kind}:${source.id}`"><span>{{ goalKinds[source.kind] }}</span><router-link v-if="source.available && source.path" :to="source.path">{{ source.title }}</router-link><strong v-else>{{ source.title }}</strong><small v-if="source.parentTitle">{{ source.parentTitle }}</small></li></ul><details v-if="excluded.length" class="goal-exceptions"><summary>已調整的追蹤範圍 · {{ excluded.length }} 項</summary><p v-for="source in excluded" :key="`${source.kind}:${source.id}`" class="goal-help">{{ source.kind === 'CARD' ? '不納入卡片' : '未透過實驗納入探索線' }}：{{ source.title }}<template v-if="source.parentTitle"> · {{ source.parentTitle }}</template></p></details></template>
+          <template v-else><dl class="goal-sources"><div v-for="group in sourceGroups" :key="group.kind"><dt>{{ group.label }}</dt><dd><template v-for="source in group.sources" :key="`${source.kind}:${source.id}`"><el-tag v-if="source.kind === 'TAG'" size="small" effect="plain">#{{ source.title }}</el-tag><router-link v-else-if="source.available && source.path" :to="source.path">{{ sourceTitle(source) }}</router-link><strong v-else>{{ sourceTitle(source) }}</strong></template></dd></div></dl><details v-if="excluded.length" class="goal-exceptions"><summary>已調整的追蹤範圍 · {{ excluded.length }} 項</summary><p v-for="source in excluded" :key="`${source.kind}:${source.id}`" class="goal-help">{{ source.kind === 'CARD' ? '不納入卡片' : '未透過實驗納入探索線' }}：{{ sourceTitle(source) }}</p></details></template>
         </section>
         <p v-else class="goal-help">未設定站內追蹤，也可以只記下目標。<el-button type="primary" link size="small" @click="openEditor('sources')">選擇相關資料</el-button></p>
+        <section v-if="goal.definition.metrics.length" class="app-panel app-panel--padded app-section" aria-labelledby="goal-metrics-title">
+          <SectionHeader title="期間觀測"><template #actions><span class="goal-help">{{ goal.definition.startsOn }} — {{ goal.definition.endsOn }}</span></template></SectionHeader>
+          <p v-if="metrics.isPending.value" class="goal-help">正在整理期間資料…</p>
+          <el-alert v-else-if="metrics.isError.value" title="期間資料載入失敗" type="error" :closable="false"><el-button @click="metrics.refetch()">重試</el-button></el-alert>
+          <template v-else-if="availableMetrics.length"><dl class="goal-metrics"><div v-for="metric in availableMetrics" :key="metric.metricKey"><dt>{{ metricLabel(metric) }}</dt><dd>{{ metric.value }} {{ metric.unit }}</dd><small>{{ metric.mode === 'CURRENT' ? '目前保留資料' : `自 ${formatDate(metric.coverageStart, 'YYYY-MM-DD')} 起記錄` }}</small><el-button v-if="metric.mode === 'PERIOD'" type="primary" link size="small" @click="evidenceMetric = evidenceMetric === metric.metricKey ? null : metric.metricKey">{{ evidenceMetric === metric.metricKey ? '收起證據' : '查看證據' }}</el-button></div></dl><div v-if="evidenceMetric" class="goal-evidence"><p v-if="evidence.isPending.value" class="goal-help">正在讀取證據…</p><el-alert v-else-if="evidence.isError.value" title="證據載入失敗" type="error" :closable="false"><el-button @click="evidence.refetch()">重試</el-button></el-alert><ul v-else class="goal-evidence-list"><li v-for="item in evidence.data.value?.content" :key="item.id"><span><strong>{{ item.type === 'CONTENT_UPDATED' ? '內容修改' : item.type }}</strong><small>{{ formatDate(item.occurredAt, 'YYYY-MM-DD HH:mm') }}<template v-if="item.excluded"> · 已排除</template></small></span><el-button type="primary" link size="small" :loading="evidenceBusy === item.id" @click="toggleEvidence(item)">{{ item.excluded ? '恢復納入' : '排除' }}</el-button></li></ul><p v-if="!evidence.data.value?.content.length" class="goal-help">這段期間沒有可追查的活動。</p></div></template>
+          <p v-else class="goal-help">已保存顯示偏好，但尚沒有可用的期間資料。</p>
+        </section>
         <p v-if="history.isPending.value" class="goal-help">正在讀取調整紀錄…</p>
         <el-alert v-else-if="history.isError.value" title="調整紀錄載入失敗" type="error" :closable="false"><el-button @click="history.refetch()">重試</el-button></el-alert>
         <section v-else-if="history.data.value?.length" class="goal-history app-panel app-panel--padded" aria-labelledby="goal-history-title">
@@ -143,13 +163,22 @@ async function command(value: string) {
 .goal-due { margin-top: var(--space-sm); color: var(--el-color-warning); font-size: var(--type-secondary); }
 .goal-related-card-link { display: inline-flex; align-items: center; gap: var(--space-2xs); padding: 0; }
 .goal-related-card-link :deep(.record-count) { margin: 0; }
-.goal-sources { display: grid; gap: var(--space-sm); list-style: none; padding: 0; margin: 0; }
-.goal-sources li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-xs); overflow-wrap: anywhere; }
-.goal-sources li > span, .goal-sources small { color: var(--el-text-color-secondary); font-size: var(--type-metadata); }
-.goal-sources a { color: var(--el-color-primary); text-decoration: none; }
+.goal-sources { display: grid; gap: var(--space-sm); margin: 0; }
+.goal-sources > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: var(--space-sm); align-items: baseline; }
+.goal-sources dt { color: var(--el-text-color-secondary); font-size: var(--type-metadata); }
+.goal-sources dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-xs) var(--space-md); margin: 0; min-width: 0; }
+.goal-sources a { color: var(--el-color-primary); text-decoration: none; overflow-wrap: anywhere; }
 .goal-sources a:hover { text-decoration: underline; }
-.goal-sources strong { font-size: var(--type-secondary); font-weight: var(--weight-medium); }
+.goal-sources strong { font-size: var(--type-secondary); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 .goal-exceptions summary, .revision-settings summary { cursor: pointer; font-size: var(--type-secondary); line-height: var(--leading-ui); }
+.goal-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-sm); margin: 0; }
+.goal-metrics > div { display: grid; gap: var(--space-2xs); min-width: 0; padding: var(--space-sm); border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-summary); }
+.goal-metrics dt, .goal-metrics small { color: var(--el-text-color-secondary); font-size: var(--type-metadata); }
+.goal-metrics dd { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-medium); }
+.goal-evidence { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--el-border-color-lighter); }
+.goal-evidence-list { display: grid; gap: var(--space-xs); list-style: none; margin: 0; padding: 0; }
+.goal-evidence-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm) 0; border-bottom: 1px solid var(--el-border-color-lighter); }
+.goal-evidence-list span { display: grid; gap: var(--space-2xs); min-width: 0; }.goal-evidence-list strong { font-size: var(--type-secondary); font-weight: var(--weight-medium); }.goal-evidence-list small { color: var(--el-text-color-secondary); font-size: var(--type-metadata); }
 .goal-exceptions p { margin-top: var(--space-xs); }
 .goal-history-heading { margin-bottom: var(--space-sm); }
 .goal-history-heading h2 { display: flex; align-items: center; gap: var(--space-xs); margin: 0; color: var(--el-text-color-primary); font-size: var(--type-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-section-title); }
