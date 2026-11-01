@@ -403,6 +403,7 @@
 | 發現表單 | `src/components/experiment/ExperimentExplorationEditor.vue`、`ExplorationThreadSelect.vue`、`ExplorationActionSelect.vue` | 與行動表單共用編輯元件的另一模式；記下發現、編輯內容及調整歸屬在同一表單完成，內容與歸屬一次保存，不改變下一步 |
 | 探索整理介面 | `src/components/experiment/ExplorationOrganizationDialog.vue`、`ExplorationMethodPicker.vue`、`src/components/ui/RecordPickerOption.vue` | 共用紀錄整理、歷史保存、卡片輸出及更新行動前的必要整理；依目的決定選取範圍與確認行為，不因預覽而寫入資料 |
 | 已選摘要 | `src/components/ui/SelectionSummary.vue`、`src/components/ui/CardPickerSelectionSummary.vue` | 已選名稱、metadata 與操作，依資料形狀選用 |
+| 集合卡片本身可開啟詳情，並含少量獨立操作 | `src/views/experiment/ExperimentList.vue`、`src/views/goal/GoalList.vue` 的 `el-card.app-collection-card` | 卡片容器承接 click、Enter 與 Space；卡內次要操作須停止事件傳遞。列表頁的 hover、focus 與減少動態效果由共用 class 承接；工作區摘要須先對照同一工作區的摘要卡，不因可開啟詳情就套用列表卡的浮動或陰影。 |
 | 歷程 | `src/components/ui/HistoryDialog.vue`、`src/components/ui/HistoryTimeline.vue`、`src/components/ui/HistoryEvent.vue`、`src/components/ui/HistoryFields.vue` | 外殼、事件與對照欄位；不強迫所有紀錄雙欄 |
 | 歷程入口／長文 | `src/components/ui/RecordHistoryTrigger.vue`、`src/components/ExpandableText.vue` | 名稱＋計數與全文展開 |
 | 封面 | `src/components/ui/CoverImage.vue`、`src/components/ui/CoverImageField.vue`、`src/utils/imageUrl.ts` | 可選圖片網址、預覽與失敗處理 |
