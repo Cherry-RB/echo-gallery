@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor // 自動注入 Repository
 public class CardService {
+    private final com.echogallery.goal.GoalActivityRecorder goalActivity;
 
     private final CardRepository cardRepository;
     private final UserRepository userRepository;
@@ -237,6 +238,8 @@ public class CardService {
         card.setTitle(request.getTitle());
         card.setUrl(request.getUrl());
         card.setCoverImageUrl(request.getCoverImageUrl());
+        boolean contentChanged = !java.util.Objects.equals(card.getCardNote(), request.getCardNote())
+                || !java.util.Objects.equals(card.getContent(), request.getContent());
         card.setCardNote(request.getCardNote());
         if (request.getExpectedContentVersion() == null || card.getContentVersion() != request.getExpectedContentVersion()) {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "卡片正文已有更新，請保留草稿並重新載入");
@@ -254,6 +257,7 @@ public class CardService {
             card.setNextShowAt(getStartOfTodayTaipei().plusDays(request.getIntervalDays()));
         }
         card.setArchived(request.getIsArchived());
+        if (contentChanged) goalActivity.contentChanged(card);
 
         // 6. 存入資料庫
         // Card savedCard = cardRepository.save(card);
@@ -287,6 +291,7 @@ public class CardService {
 
         // 1. 安全地從安全上下文取得目前登入的 userId（防範前端越權傳參）
         Long userId = SecurityUtil.getCurrentUserId();
+        treasureLifecycle.lockOwner(userId);
 
         // 2. 驗證使用者是否存在
         // getReferenceById 取代 findById：延遲載入的代理物件（Proxy），這個代理物件只帶有 ID。當你把它設定給 Card 並儲存時，JPA 只會去抓這個 Proxy 的 ID 寫入 cards.user_id 欄位，全程不會發送查詢 User 的 SQL，直接省掉一次資料庫 I/O
@@ -316,6 +321,8 @@ public class CardService {
 
         // 3. 存入資料庫
         Card savedCard = cardRepository.save(card);
+        goalActivity.record("CARD_CREATED", "card-created:" + savedCard.getId(),
+                com.echogallery.goal.GoalData.Kind.CARD, savedCard.getId(), java.util.Map.of());
 
         // 4. 將結果包裝成 Response DTO 回傳
         return savedCard;
@@ -379,7 +386,7 @@ public class CardService {
         return associatedTags;
     }
 
-    CardSummaryResponse convertToSummaryResponse(Card card){
+    public CardSummaryResponse convertToSummaryResponse(Card card){
         CardSummaryResponse response = new CardSummaryResponse();
         response.setId(card.getId());
         response.setType(card.getType());
@@ -408,6 +415,7 @@ public class CardService {
         response.setCardNote(card.getCardNote());
         response.setContent(card.getContent());
         response.setContentVersion(card.getContentVersion());
+        response.setContentUpdatedAt(card.getContentUpdatedAt());
         response.setUrl(card.getUrl());
         response.setIntervalDays(card.getIntervalDays());
         response.setNextShowAt(card.getNextShowAt());
@@ -605,6 +613,7 @@ public class CardService {
     @Transactional
     public CardDetailResponse readCard(Long cardId) {
         Long currentUserId = SecurityUtil.getCurrentUserId();
+        treasureLifecycle.lockOwner(currentUserId);
         Card card = cardRepository.findByIdForUpdate(cardId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "卡片不存在"));
 
         if (!card.getUser().getId().equals(currentUserId)) {
@@ -622,6 +631,8 @@ public class CardService {
             now = card.getLastOfferedAt();
         }
         card.setOpenCount(card.getOpenCount() + 1);
+        goalActivity.record("TODAY_REVIEWED", "review:" + cardId + ":" + card.getOpenCount(),
+                com.echogallery.goal.GoalData.Kind.CARD, cardId, java.util.Map.of());
         card.setLastOpenAt(now);
         card.setLastInteractionAt(now);
 

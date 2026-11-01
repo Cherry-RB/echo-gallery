@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service @RequiredArgsConstructor @Transactional(readOnly = true)
 public class WorkService {
+    private final com.echogallery.goal.GoalActivityRecorder goalActivity;
     private final CreativeWorkRepository works;
     private final WorkSourceRepository sources;
     private final CardRepository cards;
@@ -91,6 +92,9 @@ public class WorkService {
         if (w.getStage() != request.stage() || !Objects.equals(w.getFirstCompletedOn(), request.firstCompletedOn())) {
             if (w.getStage() != request.stage()) { w.setStage(request.stage()); w.setStageChangedAt(now()); }
             w.setFirstCompletedOn(request.firstCompletedOn()); w.setEditedAt(now());
+            goalActivity.record("WORK_STAGE_CHANGED", "work-stage:" + id + ":" + java.util.UUID.randomUUID(),
+                com.echogallery.goal.GoalData.Kind.WORK, id,
+                java.util.Map.of("stage", w.getStage().name(), "firstCompletedOn", java.util.Objects.toString(w.getFirstCompletedOn(), "")));
         }
         return detail(w);
     }
@@ -120,6 +124,8 @@ public class WorkService {
                 s.setCard(c);
             }
             sources.saveAndFlush(s);
+            goalActivity.record("CARD_REUSED", "work-source:" + s.getId(), com.echogallery.goal.GoalData.Kind.WORK, id,
+                java.util.Map.of("cardId", s.getCard().getId()));
         }
         return sources(id);
     }
@@ -158,7 +164,9 @@ public class WorkService {
     @Transactional public Detail createTreasure(Long id, TreasureRequests.Content request) {
         lock(); var w = linkable(id);
         var t = treasureService.create(request);
-        w.setTreasure(treasures.findById(t.id()).orElseThrow(this::missing)); return detail(w);
+        w.setTreasure(treasures.findById(t.id()).orElseThrow(this::missing));
+        goalActivity.record("TREASURE_ACQUIRED", "treasure:" + t.id(), com.echogallery.goal.GoalData.Kind.WORK, id, java.util.Map.of("treasureId", t.id()));
+        return detail(w);
     }
     @Transactional public Detail unlink(Long id) { lock(); var w = active(id); w.setTreasure(null); return detail(w); }
     private CreativeWork linkable(Long id) {

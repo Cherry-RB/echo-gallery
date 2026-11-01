@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../../components/goal/GoalBadge.vue'
 import { ref, computed, nextTick, onActivated, onBeforeUnmount, watch } from 'vue'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -295,6 +296,8 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
               <span class="tag-count">({{ tag.cardCount ?? 0 }})</span>
             </el-checkbox>
 
+            <GoalBadge kind="TAG" :id="Number(tag.id)" />
+
             <!-- 行內更多操作選單 (重新命名 / 刪除) -->
             <el-dropdown trigger="click" @command="(cmd: string | number | object) => handleCommand(cmd, tag)">
               <span class="more-action-btn">
@@ -497,7 +500,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 
 .tag-item-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) auto 28px;
   align-items: center;
   gap: var(--space-2xs);
   padding: 4px 8px;
@@ -509,6 +512,7 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
 }
 
 .tag-checkbox {
+  grid-column: 1;
   display: flex;
   min-width: 0;
   width: 100%;
@@ -557,6 +561,8 @@ const handleCommand = (command: string | number | object, tag: TagDto) => {
   display: flex;
   align-items: center;
 }
+.tag-item-row > :deep(.goal-badge-anchor) { grid-column: 2; grid-row: 1; }
+.tag-item-row > :deep(.el-dropdown) { grid-column: 3; grid-row: 1; }
 .more-action-btn:hover {
   background-color: var(--el-fill-color);
   color: var(--el-text-color-primary);

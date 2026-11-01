@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../../components/goal/GoalBadge.vue'
 import { computed, reactive, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
@@ -181,6 +182,7 @@ const submit = () => {
               <el-tooltip :content="experiment.title" :show-after="400" placement="top" popper-class="content-tooltip">
                 <h2 class="experiment-title">{{ experiment.title }}</h2>
               </el-tooltip>
+              <GoalBadge kind="EXPERIMENT" :id="experiment.id" />
               <el-tooltip :content="experiment.currentTry || experiment.hypothesis || experiment.description || '還沒設定下一步。不妨先翻翻收集的材料。'" :show-after="400" placement="top" popper-class="content-tooltip">
                 <p :class="['experiment-hypothesis', { empty: !experiment.currentTry && !experiment.hypothesis && !experiment.description }]">
                   <span v-if="experiment.currentTry" class="experiment-current-try-label">目前想試</span>

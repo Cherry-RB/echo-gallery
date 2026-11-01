@@ -14,6 +14,7 @@ import {
   CollectionTag,
   Aim,
   Trophy,
+  Flag,
   Menu
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/authStore';
@@ -37,6 +38,7 @@ const userProfile = ref({
 
 const menuItems = [
   { name: '總覽', path: '/overview', icon: Menu },
+  { name: '目標看板', path: '/board/goals', icon: Flag },
   { name: '今日回流', path: '/board/today', icon: Calendar },
   { name: '全部卡片', path: '/board/all', icon: Postcard },
   { name: '實驗場', path: '/experiments', icon: Aim },
@@ -46,7 +48,7 @@ const menuItems = [
   { name: '卡片查詢', path: '/search', icon: Search },
 ]
 
-const activeMenu = computed(() => route.path.startsWith('/works/') ? '/works' : route.path)
+const activeMenu = computed(() => route.path.startsWith('/goals') ? '/board/goals' : route.path.startsWith('/works/') ? '/works' : route.path)
 
 const openQuickCreate = () => {
   if (!isAuthenticated.value) {

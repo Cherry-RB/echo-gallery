@@ -103,6 +103,9 @@ public class Card {
     @UpdateTimestamp
     private ZonedDateTime updatedAt;
 
+    @Column(name = "content_updated_at")
+    private ZonedDateTime contentUpdatedAt;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "card_tags",

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../../components/goal/GoalBadge.vue'
 import SidePanel from '../../components/ui/SidePanel.vue'
 import TreasureWorkLink from '../../components/work/TreasureWorkLink.vue'
 import CoverImage from '../../components/ui/CoverImage.vue'
@@ -86,6 +87,7 @@ const handleCommand = (command: string) => {
         <template #metadata>
           <TreasureRankBadge :rank="treasure.rank" />
           <span>完成於 {{ treasure.acquiredOn }}</span><el-tag v-if="treasure.isArchived" type="info">已封存</el-tag>
+          <GoalBadge kind="TREASURE" :id="treasure.id" />
         </template>
       </DetailHeading>
       <div class="detail-grid">

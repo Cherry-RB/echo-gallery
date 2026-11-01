@@ -44,6 +44,9 @@ const routes = [
     component: () => import('../layout/MainLayout.vue'),
     meta: { requiresAuth: true }, // 直接在父路由加上需要權限，子路由會自動繼承
     children: [
+    { path: 'board/goals', name: 'GoalBoard', component: () => import('../views/goal/GoalBoard.vue') },
+    { path: 'goals', name: 'GoalList', component: () => import('../views/goal/GoalList.vue') },
+    { path: 'goals/:id', name: 'GoalDetail', component: () => import('../views/goal/GoalDetail.vue'), meta: { layout: 'detail' } },
     { path: 'works', name: 'WorkList', component: () => import('../views/work/WorkList.vue') },
     { path: 'works/:id', name: 'WorkDetail', component: () => import('../views/work/WorkDetail.vue'), meta: { layout: 'detail' } },
     {

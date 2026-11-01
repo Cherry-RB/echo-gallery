@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../goal/GoalBadge.vue'
 import { computed, defineAsyncComponent, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { ExplorationThreadDto } from '../../types/experiment'
@@ -33,6 +34,7 @@ const records = computed<ActivityRecord[]>(() => props.thread.records.map(r => (
 const unassignedCount = computed(() => props.thread.unassignedRecordCount ?? records.value.filter(r => r.methodId == null).length)
 </script>
 <template>
+  <GoalBadge kind="THREAD" :id="thread.id" />
   <div class="method-list">
     <el-skeleton v-if="page > 1 && query.isPending.value" :rows="3" />
     <p v-else-if="page > 1 && query.isError.value">載入行動失敗。<el-button type="primary" link @click="query.refetch()">重試</el-button></p>

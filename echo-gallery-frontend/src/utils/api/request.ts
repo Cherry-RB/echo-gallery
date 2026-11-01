@@ -3,6 +3,8 @@ import router from "../../router";
 import { ElMessage } from "element-plus";
 import { isNetworkError } from "../../stores/networkStatus";
 import { workDrafts } from '../workDrafts';
+import { clearGoalRounds } from '../goalRoundStorage';
+import { queryClient } from '../queryClient';
 
 // 建立 axios 實例
 const service = axios.create({
@@ -29,6 +31,13 @@ service.interceptors.request.use(
 service.interceptors.response.use(
     (response) => {
         isNetworkError.value = false; // 只要有一次成功，就清掉錯誤旗標
+        const method = response.config.method?.toLowerCase();
+        const path = response.config.url || '';
+        if (method && ['post', 'put', 'patch', 'delete'].includes(method)
+            && /^\/(cards|tags|experiments|creative-works|treasures)(\/|$)/.test(path)
+            && !/\/(list|random|preview|candidates|usages)$/.test(path)) {
+            void queryClient.invalidateQueries({ queryKey: ['goals', localStorage.getItem('id') || ''] });
+        }
         return response.data;
     },
     (error) => {
@@ -37,6 +46,11 @@ service.interceptors.response.use(
             isNetworkError.value = false; // 有回應代表後端是活的，只是業務邏輯錯誤
             const { status, data } = error.response;
             const message = data?.message; // 用 optional chaining
+
+            // 目標版本衝突由原畫面保留草稿並說明，不誤報為資料重複。
+            if (status === 409 && /^\/(goals|goal-board)(\/|$)/.test(error.config?.url || '')) return Promise.reject(error);
+            // 目標不存在或已刪除時，由詳情頁顯示返回入口，避免重複通知。
+            if (status === 404 && /^\/goals\/\d+(?:\/(?:sources|revisions))?$/.test(error.config?.url || '')) return Promise.reject(error);
 
             // 正文錯誤留在工作區持續顯示，避免自動儲存產生重複通知。
             if (error.config?.url?.match(/\/creative-works\/\d+\/body$/) && status !== 401 && status !== 403) return Promise.reject(error);
@@ -50,6 +64,7 @@ service.interceptors.response.use(
                   ElMessage.error(message || "資料已存在");
                   break;
                 case 401:
+                  clearGoalRounds();
                   ElMessage.error(message || "登入過期，請重新登入");
                   // 如果 URL 包含 '/login' 或 '/register'，就不執行強制登出與跳轉
                   const isAuthRequest = error.config.url?.includes('/login') || error.config.url?.includes('/register');
@@ -66,6 +81,7 @@ service.interceptors.response.use(
                   }
                   break;
                 case 403:
+                    clearGoalRounds();
                     ElMessage.error(message || "權限不足，拒絕存取");
                     localStorage.removeItem("token");
                     router.push("/login");

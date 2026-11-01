@@ -4,6 +4,7 @@ import { authApi } from '../utils/api/authApi'
 import { workDrafts } from '../utils/workDrafts'
 import { ElMessageBox } from 'element-plus'
 import { queryClient } from '../utils/queryClient'
+import { clearGoalRounds } from '../utils/goalRoundStorage'
 
 export const useAuthStore = defineStore('auth', () => {
   // 1. 狀態 (State) - 初始化時直接從 localStorage 讀取，確保重整網頁不會跳登出
@@ -39,6 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const resetDemo = async () => {
     const res = await authApi.resetDemoSession()
+    clearGoalRounds()
     if (id.value) await workDrafts.clear(String(id.value)).catch(() => {})
     await queryClient.cancelQueries()
     queryClient.clear()
@@ -77,6 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 內部輔助函式：設定憑證
   function setAuth(userToken: string, name: string, inputUserId: number) {
     if (id.value !== inputUserId) {
+      clearGoalRounds()
       void queryClient.cancelQueries()
       queryClient.clear()
     }
@@ -90,6 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 內部輔助函式：清除憑證
   function clearAuth() {
+    clearGoalRounds()
     void queryClient.cancelQueries()
     queryClient.clear()
     token.value = null

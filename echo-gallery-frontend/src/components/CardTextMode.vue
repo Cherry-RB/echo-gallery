@@ -7,6 +7,7 @@ import { useCardStatus } from '../utils/useCardStatus';
 import type { CardDto } from '../types/card';
 import { getBoardCapabilities, type BoardType } from '../types/board';
 import RecurrenceIntervalPicker from './RecurrenceIntervalPicker.vue';
+import GoalBadge from './goal/GoalBadge.vue'
 
 const AddCardToIssueDialog = defineAsyncComponent(() => import('./issue/AddCardToIssueDialog.vue'));
 const AddCardToExperimentDialog = defineAsyncComponent(() => import('./experiment/AddCardToExperimentDialog.vue'));
@@ -227,6 +228,7 @@ const deleteCard = async () => {
     <!-- header -->
      <div>
       <div class="card-header">
+        <GoalBadge kind="CARD" :id="Number(data.id)" />
         <!-- 標題 -->
         <h4 class="title-text">{{ data.title }}</h4>
       </div>

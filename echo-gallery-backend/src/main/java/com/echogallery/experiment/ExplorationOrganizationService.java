@@ -17,6 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 @Service @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ExplorationOrganizationService {
+    private final com.echogallery.goal.GoalActivityRecorder goalActivity;
     private static final DateTimeFormatter DISPLAY_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private final ExplorationActivityService activity;
     private final ExperimentExplorationRecordRepository records;
@@ -166,6 +167,7 @@ public class ExplorationOrganizationService {
                 version(card.getContentVersion(), snapshot.cardVersion());
                 card.setContent(append(card.getContent(), required(request.cardContent(), 500000)));
                 card.setContentVersion(card.getContentVersion() + 1);
+                goalActivity.contentChanged(card);
             }
             for (Long threadId : snapshot.groups().stream().map(GroupSnapshot::threadId).distinct().toList()) {
                 if (!links.existsByThreadIdAndCardIdAndRole(threadId, card.getId(), ExplorationThreadCardRole.RESULT))
@@ -175,6 +177,7 @@ public class ExplorationOrganizationService {
         }
 
         int cleared = 0;
+        Map<Long,Integer> clearedByThread = new LinkedHashMap<>();
         boolean clear = request.clearRecords() || snapshot.mode() == UPDATE_METHOD;
         for (var entry : selectedByGroup.entrySet()) {
             var group = entry.getKey();
@@ -197,10 +200,12 @@ public class ExplorationOrganizationService {
                 activity.bump(thread, method);
             }
             if (clear) { records.deleteAll(selected); cleared += selected.size(); }
+            clearedByThread.merge(thread.getId(), clear ? selected.size() : 0, Integer::sum);
             if (snapshot.mode() == UPDATE_METHOD) method.setContent(required(request.newMethodContent(), 2000));
             activity.touch(thread);
         }
         records.flush(); methods.flush();
+        goalActivity.organized(request.requestId(), clearedByThread, card == null ? null : card.getId());
         if (request.expectedFocusVersion() != null) {
             var group = snapshot.groups().getFirst();
             activity.focus(experimentId, new ExplorationActivityRequests.Focus(group.threadId(), group.methodId(), null,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../../components/goal/GoalBadge.vue'
 import CoverImage from '../../components/ui/CoverImage.vue'
 import { computed, reactive, ref } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -109,6 +110,7 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
         <article v-for="treasure in query.data.value.content" :key="treasure.id" class="treasure-card app-collection-card">
           <div class="treasure-card-heading">
             <TreasureRankBadge :rank="treasure.rank" />
+            <GoalBadge kind="TREASURE" :id="treasure.id" />
             <div class="card-quick-actions">
             <button type="button" class="quick-output" :aria-label="`為${treasure.title}記錄收益`" @click="openYield(treasure)">＋記收益</button>
             <button v-if="treasure.yieldCount > 0" type="button" class="output-count" :aria-label="`查看 ${treasure.yieldCount} 筆收益`" @click="openHistory(treasure)">{{ treasure.yieldCount }}</button>

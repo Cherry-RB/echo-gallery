@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TodayBoard from './TodayBoard.vue'
 import { cardApi } from '../../utils/api/cardApi'
+vi.mock('../../components/goal/GoalBadge.vue', () => ({ default: { template: '<span />' } }))
 
 vi.mock('../../utils/api/cardApi', () => ({
   cardApi: {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../goal/GoalBadge.vue'
 import { formatDate } from '../../utils/formatDate'
 import { MoreFilled } from '@element-plus/icons-vue'
 import type { WorkSummary } from '../../types/work'
@@ -26,6 +27,7 @@ async function command(value: string) {
 <template>
   <article class="work-preview app-collection-card">
     <header class="work-card-heading">
+      <GoalBadge kind="WORK" :id="work.id" />
       <p class="work-meta">{{ workStages[work.stage] }} · {{ work.published ? '已發表' : '未發表' }}<span v-if="work.archived"> · 已封存</span></p>
       <el-dropdown trigger="click" :disabled="busy" @command="command">
         <el-button class="work-menu" text circle :icon="MoreFilled" :aria-label="`${work.title} 的更多操作`" />
@@ -51,6 +53,7 @@ async function command(value: string) {
 .work-main h2 { margin: 0; font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); color: var(--el-text-color-primary); }
 .work-main::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .work-menu { position: relative; z-index: 1; }
+.work-card-heading :deep(.goal-badge-anchor) { position: relative; z-index: 1; flex-shrink: 0; }
 .work-preview:hover h2 { color: var(--el-color-primary); }
 .work-meta { color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
 .work-meta p + p { margin-top: var(--space-2xs); }

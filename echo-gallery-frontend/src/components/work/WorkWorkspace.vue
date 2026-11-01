@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../goal/GoalBadge.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -268,7 +269,7 @@ onBeforeUnmount(() => {
         </div>
       </nav>
     </template>
-    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="創作台" /></header>
+    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="創作台" /><GoalBadge kind="WORK" :id="id" /></header>
     <ExpandableText v-if="detail.work.description" :content="detail.work.description" :lines="3" />
     <el-alert v-if="readonly" title="此作品已封存，可以閱讀、複製與匯出；還原後才能編輯。" type="info" :closable="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert" />
@@ -355,7 +356,7 @@ onBeforeUnmount(() => {
 .work-experiment-link:hover { border-color: var(--el-color-primary-light-5); background: var(--surface-subtle); }
 a, a:hover, a:focus-visible, .work-actions :deep(.el-button), .work-return :deep(.el-button) { margin: 0; }
 .work-section-heading { justify-content: space-between; }
-.work-heading { margin-bottom: var(--space-md); }
+.work-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-md); }
 h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-section-title); }
 .work-panel { padding: var(--panel-padding); border: 1px solid var(--el-border-color-light); border-radius: var(--panel-radius); background: var(--el-bg-color); min-width: 0; }
 .work-panel > * + * { margin-top: var(--space-sm); }

@@ -32,5 +32,6 @@ public class CardDetailResponse {
     private Boolean needsProcessing;
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;
+    private ZonedDateTime contentUpdatedAt;
     private String sourceType;
 }

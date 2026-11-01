@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import WorkResume from '../../components/work/WorkResume.vue'
+import GoalOverview from '../../components/goal/GoalOverview.vue'
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
@@ -122,6 +123,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 
     <div class="overview-workspace app-workspace app-workspace--edge-to-edge">
       <div class="overview-stack app-stack">
+    <GoalOverview />
     <div v-if="isLoading" class="overview-state">正在整理觀測資料…</div>
     <el-result v-else-if="isError" icon="error" title="暫時無法取得觀測資料" sub-title="請稍後再試。">
       <template #extra><el-button type="primary" @click="refetch()">重新載入</el-button></template>

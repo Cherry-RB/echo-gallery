@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../goal/GoalBadge.vue'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -385,6 +386,7 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
             @dragstart="draggingThreadId = thread.id" @dragend="draggingThreadId = null; dropTarget = null">⠿</button>
           <button class="thread-identity" type="button" @click="openThreadDetail(thread)">{{ thread.name }}</button>
           <div class="thread-heading-meta">
+            <GoalBadge kind="THREAD" :id="thread.id" />
             <el-tag size="small" effect="plain">{{ statusLabel(thread.status) }}</el-tag>
             <span class="metadata">最近整理 <time :datetime="thread.lastActivityAt ?? undefined">{{ formatDate(thread.lastActivityAt) }}</time></span>
           </div>

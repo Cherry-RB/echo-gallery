@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 @Service @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class TreasureService {
+    private final com.echogallery.goal.GoalActivityRecorder goalActivity;
     private final TreasureRepository treasures;
     private final TreasureTrialRepository trials;
     private final TreasureTrialAttemptRepository attempts;
@@ -71,6 +72,8 @@ public class TreasureService {
         content(treasure, request);
         treasures.saveAndFlush(treasure);
         replaceSources(treasure, request.sourceTreasureIds());
+        if (treasure.getSourceExperiment() != null) goalActivity.record("TREASURE_ACQUIRED", "treasure:" + treasure.getId(),
+            com.echogallery.goal.GoalData.Kind.EXPERIMENT, treasure.getSourceExperiment().getId(), java.util.Map.of("treasureId", treasure.getId()));
         return detail(treasure);
     }
 
@@ -192,6 +195,8 @@ public class TreasureService {
         attempt.setStatus(request.status()); attempt.setResultNote(required(request.resultNote()));
         attempt.setEvidenceUrl(url(request.evidenceUrl())); attempt.setAttemptedAt(request.attemptedAt().withZoneSameInstant(clock.getZone())); attempt.setCreatedAt(now());
         attempts.saveAndFlush(attempt);
+        goalActivity.record("TRIAL_ATTEMPT", "attempt:" + attempt.getId(), com.echogallery.goal.GoalData.Kind.TREASURE,
+            treasure.getId(), java.util.Map.of("attemptId", attempt.getId(), "status", attempt.getStatus().name()), attempt.getAttemptedAt());
         // 以下只作為目前狀態摘要，不可取代獨立且不可變的嘗試歷程。
         definition.setStatus(request.status()); definition.setResultNote(attempt.getResultNote()); definition.setEvidenceUrl(attempt.getEvidenceUrl());
         definition.setAttemptedAt(attempt.getAttemptedAt()); definition.setUpdatedAt(now()); treasure.setUpdatedAt(now());
@@ -214,6 +219,10 @@ public class TreasureService {
         // 封存只退出目前館藏；仍可記下後續產出，但既有紀錄維持封存時的編輯限制。
         Treasure t = yieldId == null ? owned(id) : active(id);
         TreasureYield y = yieldId == null ? new TreasureYield() : yields.findByIdAndTreasureId(yieldId, id).orElseThrow(TreasureService::notFound);
+        boolean changed = yieldId == null || !java.util.Objects.equals(y.getTitle(), required(request.title()))
+            || !java.util.Objects.equals(y.getDescription(), clean(request.description()))
+            || !java.util.Objects.equals(y.getOccurredOn(), request.occurredOn())
+            || !java.util.Objects.equals(y.getRelatedCard() == null ? null : y.getRelatedCard().getId(), request.relatedCardId());
         if (request.occurredOn().isAfter(LocalDate.now(clock))) bad("收益必須是已發生事件");
         y.setTreasure(t);
         y.setTitle(required(request.title()));
@@ -223,6 +232,13 @@ public class TreasureService {
         if (yieldId == null) y.setCreatedAt(now());
         y.setUpdatedAt(now());
         yields.save(y);
+        if (changed) {
+            goalActivity.invalidate("yield:" + y.getId() + ":");
+            goalActivity.record("TREASURE_YIELD", "yield:" + y.getId() + ":" + java.util.UUID.randomUUID(),
+                com.echogallery.goal.GoalData.Kind.TREASURE, id,
+                java.util.Map.of("yieldId", y.getId(), "occurredOn", y.getOccurredOn().toString()),
+                y.getOccurredOn().atStartOfDay(clock.getZone()));
+        }
         t.setUpdatedAt(now());
         return TreasureService.yield(y);
     }
@@ -230,6 +246,7 @@ public class TreasureService {
     @Transactional
     public void deleteYield(Long id, Long yieldId) {
         lifecycle.lockOwner(owner());
+        goalActivity.invalidate("yield:" + yieldId + ":");
         Treasure t = active(id);
         yields.delete(yields.findByIdAndTreasureId(yieldId, id).orElseThrow(TreasureService::notFound));
         t.setUpdatedAt(now());

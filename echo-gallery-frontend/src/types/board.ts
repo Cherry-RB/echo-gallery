@@ -1,4 +1,5 @@
 export type BoardType =
+  | "goal"
   | "today"
   | "all"
   | "hot"
@@ -20,6 +21,7 @@ export interface BoardCapabilities {
 
 // 🚧 規則尚未定案，先全部開放，之後只需要改這張表，不用動任何元件程式碼
 const boardCapabilityMap: Record<BoardType, BoardCapabilities> = {
+  goal:     { canStar: true, canArchive: true, canSnooze: true },
   today:    { canStar: true, canArchive: true, canSnooze: true },
   all:      { canStar: true, canArchive: true, canSnooze: true },
   hot:      { canStar: true, canArchive: true, canSnooze: true },

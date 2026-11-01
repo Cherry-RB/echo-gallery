@@ -552,3 +552,5 @@ code {
     padding: var(--panel-padding);
   }
 }
+:root { --goal-color: #7545a8; --goal-bg: #f3ecfa; --goal-border: #d4bde9; }
+html.dark { --goal-color: #d1aff5; --goal-bg: #30223f; --goal-border: #71508f; }

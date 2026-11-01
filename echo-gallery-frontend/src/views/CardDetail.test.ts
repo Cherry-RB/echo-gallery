@@ -5,17 +5,21 @@ import type { CardDto } from '../types/card'
 import CardDetail from './CardDetail.vue'
 import ExperimentThreads from '../components/experiment/ExperimentThreads.vue'
 import router from '../router'
+vi.mock('../components/goal/GoalBadge.vue', () => ({ default: { template: '<span />' } }))
 
 const queryState = vi.hoisted(() => ({
   card: undefined as CardDto | undefined,
   loading: false,
   error: false,
+  routeQuery: {} as Record<string, string>,
   threads: [] as Array<{ threadId: number; threadName: string; experimentId: number; experimentTitle: string; role: string }>,
 }))
 
-vi.mock('@tanstack/vue-query', async () => {
+vi.mock('@tanstack/vue-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/vue-query')>()
   const { ref: vueRef } = await import('vue')
   return {
+    ...actual,
     useQuery: (options: { queryKey: { value: string[] } }) => ({
       data: vueRef(options.queryKey.value[0] === 'card-exploration-threads' ? queryState.threads : options.queryKey.value[0] === 'card-relations' ? [] : queryState.card),
       isLoading: vueRef(queryState.loading),
@@ -30,7 +34,7 @@ vi.mock('../router', () => ({
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: {} }),
+  useRoute: () => ({ query: queryState.routeQuery }),
   onBeforeRouteLeave: vi.fn(),
 }))
 
@@ -105,6 +109,7 @@ describe('CardDetail', () => {
     queryState.loading = false
     queryState.error = false
     queryState.threads = []
+    queryState.routeQuery = {}
     vi.mocked(router.push).mockClear()
   })
 
@@ -139,5 +144,19 @@ describe('CardDetail', () => {
     expect(wrapper.text()).toContain('這會改變我處理問題的方式。')
     expect(wrapper.text()).toContain('先理解問題，再選擇工具。')
     expect(wrapper.text()).toContain('完整筆記內容')
+  })
+
+  it('沒有瀏覽歷史時仍返回真正的目標看板路徑', async () => {
+    queryState.error = true
+    queryState.routeQuery = { from: 'goal' }
+    const original = window.history.state
+    window.history.replaceState({}, '')
+    const wrapper = mountDetail()
+    const button = wrapper.findAll('button').find(item => item.text() === '返回')
+    expect(button).toBeDefined()
+    await button!.trigger('click')
+    expect(router.push).toHaveBeenCalledWith('/board/goals')
+    wrapper.unmount()
+    window.history.replaceState(original, '')
   })
 })

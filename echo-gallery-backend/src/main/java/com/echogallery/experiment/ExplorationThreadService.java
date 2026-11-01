@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class ExplorationThreadService {
+    private final com.echogallery.goal.GoalActivityRecorder goalActivity;
     private final ExperimentRepository experiments;
     private final ExplorationActivityService activity;
     private final ExperimentExplorationRepository states;
@@ -88,6 +89,8 @@ public class ExplorationThreadService {
         for (Long cardId : ids) additions.add(ExplorationThreadCard.builder().thread(thread)
                 .card(available.get(cardId)).role(request.role()).sortOrder(position++).build());
         threadCards.saveAll(additions);
+        for (var link : additions) goalActivity.record("CARD_REUSED", "thread-card:" + link.getId(),
+                com.echogallery.goal.GoalData.Kind.THREAD, threadId, Map.of("cardId", link.getCard().getId()));
         touch(thread.getExperiment(), thread);
         return response(thread);
     }

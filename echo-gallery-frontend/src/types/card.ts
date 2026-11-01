@@ -72,6 +72,7 @@ export interface UpdateCardRequest extends CardContentRequest {
 }
 
 export interface CardDto {
+    contentUpdatedAt?: string | null;
     contentVersion?: number;
     id: string;
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GoalBadge from '../components/goal/GoalBadge.vue'
 import TagSelection from '../components/ui/TagSelection.vue'
 import UseForWork from '../components/work/UseForWork.vue'
 import SidePanel from '../components/ui/SidePanel.vue'
@@ -48,7 +49,7 @@ const goBack = () => {
   }
   // 沒有紀錄（重新整理 / 外部連結進入）→ 退回到 query 記錄的來源看板，沒有就給預設值
   const fallbackBoard = (route.query.from as string) || 'all';
-  router.push(`/board/${fallbackBoard}`);
+  router.push(fallbackBoard === 'goal' ? '/board/goals' : `/board/${fallbackBoard}`);
 };
 
 // --- 💡 編輯模式核心邏輯 ---
@@ -454,7 +455,10 @@ const {
                   <span class="detail-card-id">#{{ cardData.id }}</span>
                 </div>
                 <div class="title-with-action">
+                  <div class="card-title-group">
                   <h1>{{ cardData.title }}</h1>
+                  <GoalBadge kind="CARD" :id="Number(props.id)" />
+                  </div>
                   <button type="button" class="inline-edit-button" @click="openEditDialog('basic')">編輯</button>
                 </div>
                 <div v-if="cardData.tags.length" class="reading-tags" aria-label="卡片標籤">
@@ -640,6 +644,7 @@ const {
               <span>累積點閱 {{ cardData.openCount }} 次</span>
               <span>建立於 {{ formatDate(cardData.createdAt || '') }}</span>
               <span>更新於 {{ formatDate(cardData.updatedAt || '') }}</span>
+              <span>內容修改：{{ cardData.contentUpdatedAt ? formatDate(cardData.contentUpdatedAt) : '尚無修改時間紀錄' }}</span>
             </section>
           </aside>
         </div>
@@ -803,6 +808,7 @@ const {
 
                 <el-form-item prop="title" style="flex: 1; margin-bottom: 0;">
                   <h1 v-if="!isEditMode" class="main-title">{{ cardData.title }}</h1>
+                  <GoalBadge v-if="!isEditMode && props.id" kind="CARD" :id="Number(props.id)" />
                   <el-input
                     v-else
                     v-model="cardData.title"
@@ -1035,6 +1041,7 @@ const {
           <div class="time-stamp-section">
             <div>建立於：{{ formatDate(cardData.createdAt || '') }}</div>
             <div>更新於：{{ formatDate(cardData.updatedAt || '') }}</div>
+            <div>內容修改：{{ cardData.contentUpdatedAt ? formatDate(cardData.contentUpdatedAt) : '尚無修改時間紀錄' }}</div>
           </div>
         </SidePanel>
 
@@ -1314,6 +1321,9 @@ const {
   justify-content: space-between;
   gap: var(--space-md);
 }
+.card-title-group { display: flex; flex: 1; min-width: 0; align-items: baseline; flex-wrap: wrap; gap: var(--space-xs); }
+.card-title-group h1 { flex: 1 1 12rem; margin-top: 0; }
+.card-title-group :deep(.goal-badge-anchor) { flex-shrink: 0; }
 
 .reading-tags {
   margin-top: var(--space-md);

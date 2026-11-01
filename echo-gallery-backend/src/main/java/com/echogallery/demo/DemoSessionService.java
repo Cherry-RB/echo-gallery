@@ -33,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class DemoSessionService {
+    private final com.echogallery.goal.GoalService goalService;
     private final DemoProperties properties;
     private final UserRepository userRepository;
     private final CardRepository cardRepository;
@@ -137,6 +138,7 @@ public class DemoSessionService {
     }
 
     private void clearUserData(User user) {
+        goalService.clearOwner(user.getId());
         // 先移除成果及來源引用，再清理實驗、卡片與 session owner。
         treasureLifecycle.clearOwner(user.getId());
         experimentRepository.deleteAll(experimentRepository.findAllByUserId(user.getId()));

@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ExplorationActivityService {
+    private final com.echogallery.goal.GoalActivityRecorder goalActivity;
     private final ExperimentRepository experiments;
     private final ExperimentExplorationRepository states;
     private final ExplorationThreadRepository threads;
@@ -168,6 +169,8 @@ public class ExplorationActivityService {
                 .discovery(required(request.discovery(), 10000)).occurredAt(request.occurredAt() == null ? now() : request.occurredAt()).build());
         bump(target, method);
         if (method != null) remember(experiment, method);
+        goalActivity.record("DISCOVERY_CREATED", "discovery:" + record.getId(),
+                com.echogallery.goal.GoalData.Kind.THREAD, target.getId(), Map.of("recordId", record.getId(), "sourceOccurredAt", record.getOccurredAt().toString()));
         return record(record);
     }
 
@@ -337,6 +340,8 @@ public class ExplorationActivityService {
         var method = methods.saveAndFlush(ExplorationThreadMethod.builder().experiment(experiment).thread(target)
                 .content(required(content, 2000)).sortOrder(methods.nextPosition(target.getId())).build());
         touch(target);
+        goalActivity.record("METHOD_CREATED", "method:" + method.getId(), com.echogallery.goal.GoalData.Kind.THREAD,
+                target.getId(), Map.of("methodId", method.getId()));
         return method;
     }
     public void bump(ExplorationThread target, ExplorationThreadMethod method) {
