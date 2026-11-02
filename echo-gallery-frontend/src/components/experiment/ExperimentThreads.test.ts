@@ -13,12 +13,14 @@ async function render(query: string, dialogOnly = false) {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/experiments/:id', component: { template: '<div />' } }] })
   await router.push('/experiments/1?' + query)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client)
-  const wrapper = mount(ExperimentThreads, { props: { experimentId: 1, explorationRecords: [record], dialogOnly, initialThreadId: dialogOnly ? 3 : undefined }, global: {
+  const wrapper = mount(ExperimentThreads, { attachTo: document.body, props: { experimentId: 1, explorationRecords: [record], dialogOnly, initialThreadId: dialogOnly ? 3 : undefined }, global: {
     plugins: [router, [VueQueryPlugin, { queryClient: client }]], stubs: {
       AppDialog: { props: ['modelValue', 'title'], template: '<section v-if="modelValue" class="dialog"><h2>{{ title }}</h2><slot /><footer><slot name="footer" :request-close="() => $emit(\'update:modelValue\', false)" /></footer></section>' },
       ExperimentExplorationEditor: { name: 'ExperimentExplorationEditor', props: ['modelValue', 'threadId', 'mode'], emits: ['update:modelValue'], template: '<section v-if="modelValue" class="editor"><button @click="$emit(\'update:modelValue\', false)">取消</button></section>' },
       ExplorationOrganizationDialog: { name: 'ExplorationOrganizationDialog', props: ['modelValue', 'initialRecords'], template: '<section v-if="modelValue" class="organization" />' },
-      ExplorationThreadActivity: true, CardPickerDialog: true, SourceReadingDialog: true,
+      ExplorationThreadActivity: true, CardPickerDialog: true, SourceReadingDialog: true, GoalBadge: true,
+      'el-collapse-transition': { template: '<div><slot /></div>' }, 'el-tooltip': { template: '<span><slot /></span>' },
+      'el-input': true, 'el-form-item': true, 'el-option': true, 'el-select': true, 'el-form': true, 'el-alert': true,
       'el-button': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
       'el-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' }, 'el-dropdown-menu': { template: '<div><slot /></div>' },
       'el-dropdown-item': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
@@ -36,6 +38,50 @@ beforeEach(() => {
 })
 afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()) })
 describe('探索線的共用入口', () => {
+  it('標題列空白處只切換摘要，不開啟詳情；點名稱則直接開啟詳情', async () => {
+    const w = await render('')
+    await vi.waitFor(() => expect(w.find('.thread-summary-grid').exists()).toBe(true))
+    await w.get('.thread-row-heading').trigger('click')
+    expect(w.get('.thread-summary-grid').isVisible()).toBe(false)
+    await w.get('.thread-row-heading').trigger('click')
+    expect(w.get('.thread-summary-grid').isVisible()).toBe(true)
+    expect(api.getThread).not.toHaveBeenCalled()
+    await w.get('.thread-identity').trigger('click')
+    await vi.waitFor(() => expect(w.find('.thread-detail-grid').exists()).toBe(true))
+    expect(w.get('.thread-summary-grid').isVisible()).toBe(true)
+  })
+
+  it('全部收合與全部展開套用本頁，個別展開按鈕不會因冒泡切換兩次', async () => {
+    api.getThreadSummaries.mockResolvedValue({ content: [thread, { ...thread, id: 4 }], page: 0, size: 20, totalElements: 2, totalPages: 1 })
+    const w = await render('')
+    await vi.waitFor(() => expect(w.findAll('.thread-summary-grid')).toHaveLength(2))
+    await w.findAll('button').find(b => b.text() === '全部收合')!.trigger('click')
+    expect(w.findAll('.thread-summary-grid').every(summary => !summary.isVisible())).toBe(true)
+    await w.findAll('.thread-heading-actions button').find(b => b.text() === '展開')!.trigger('click')
+    expect(w.findAll('.thread-summary-grid').map(summary => summary.isVisible())).toEqual([true, false])
+    await w.findAll('button').find(b => b.text() === '全部展開')!.trigger('click')
+    expect(w.findAll('.thread-summary-grid').every(summary => summary.isVisible())).toBe(true)
+    expect(api.getThread).not.toHaveBeenCalled()
+  })
+
+  it.each(['click', 'keydown.enter', 'keydown.space'])('摘要區可透過 %s 開啟詳情', async event => {
+    const w = await render('')
+    await vi.waitFor(() => expect(w.find('.summary-cell').exists()).toBe(true))
+    await w.get('.summary-cell').trigger(event)
+    await vi.waitFor(() => expect(w.find('.thread-detail-grid').exists()).toBe(true))
+    expect(api.getThread).toHaveBeenCalledWith(1, 3)
+  })
+
+  it('點材料名稱保留卡片閱讀彈窗，不連帶開啟探索線詳情', async () => {
+    api.getThreadSummaries.mockResolvedValue({ content: [{ ...thread, materialCount: 1, recentMaterials: [{ cardId: 483, title: '寫作計畫', note: '' }] }], page: 0, size: 20, totalElements: 1, totalPages: 1 })
+    const w = await render('')
+    await vi.waitFor(() => expect(w.find('.material-preview button').exists()).toBe(true))
+    await w.get('.material-preview button').trigger('click')
+    expect(w.findComponent({ name: 'SourceReadingDialog' }).props('source')).toMatchObject({ cardId: 483, title: '寫作計畫' })
+    expect(api.getThread).not.toHaveBeenCalled()
+    expect(w.find('.thread-detail-grid').exists()).toBe(false)
+  })
+
   it('標題計數使用所有探索線總數，不使用目前頁面的預覽筆數', async () => {
     api.getThreadSummaries.mockResolvedValue({ content: [thread], page: 0, size: 20, totalElements: 23, totalPages: 2 })
     const w = await render('')

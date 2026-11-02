@@ -185,6 +185,22 @@ const toggleExpanded = (thread: ExplorationThreadSummaryDto) => {
   else next.add(thread.id)
   expandedThreadIds.value = next
 }
+const allExpanded = computed(() => summaryThreads.value.length > 0 && summaryThreads.value.every(isExpanded))
+const allCollapsed = computed(() => summaryThreads.value.every(thread => !isExpanded(thread)))
+const setAllExpanded = (expanded: boolean) => {
+  const next = new Set(expandedThreadIds.value)
+  summaryThreads.value.forEach(thread => expanded ? next.add(thread.id) : next.delete(thread.id))
+  expandedThreadIds.value = next
+}
+// 既有按鈕、連結與全文展開保留自己的操作，不觸發外層摘要或標題列。
+const isNestedControl = (event: Event) => event.target instanceof Element &&
+  !!event.target.closest('button, a, input, select, textarea, summary, [role="button"], [role="menuitem"], .el-dropdown')
+const toggleHeading = (event: MouseEvent, thread: ExplorationThreadSummaryDto) => {
+  if (!isNestedControl(event)) toggleExpanded(thread)
+}
+const openSummary = (event: MouseEvent, thread: ExplorationThreadSummaryDto, focus: 'MATERIALS' | 'RECORDS' | 'OUTCOMES') => {
+  if (!isNestedControl(event)) openThreadDetail(thread, focus)
+}
 const replaceThread = (thread: ExplorationThreadDto) => {
   queryClient.setQueryData(['experiment-thread', props.experimentId, thread.id], thread)
   queryClient.invalidateQueries({ queryKey: ['experiment-thread-summaries', props.experimentId] })
@@ -369,7 +385,11 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
 <template>
   <section v-if="!dialogOnly" class="thread-workspace">
     <SectionHeader title="探索線" :count="summariesQuery.data.value ? summaryTotal : undefined">
-      <template #actions><el-button type="primary" :icon="Plus" @click="openCreate">建立探索線</el-button></template>
+      <template #actions>
+        <el-button type="primary" link :disabled="!summaryThreads.length || allExpanded" :title="summaryTotal > 20 ? '展開本頁所有探索線摘要' : '展開所有探索線摘要'" @click="setAllExpanded(true)">{{ summaryTotal > 20 ? '本頁全部展開' : '全部展開' }}</el-button>
+        <el-button type="primary" link :disabled="!summaryThreads.length || allCollapsed" :title="summaryTotal > 20 ? '收合本頁所有探索線摘要' : '收合所有探索線摘要'" @click="setAllExpanded(false)">{{ summaryTotal > 20 ? '本頁全部收合' : '全部收合' }}</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate">建立探索線</el-button>
+      </template>
     </SectionHeader>
     <el-skeleton v-if="summariesQuery.isPending.value" :rows="5" animated />
     <el-result v-else-if="summariesQuery.isError.value" icon="error" title="無法讀取探索線">
@@ -380,7 +400,7 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
       <article v-for="(thread, index) in summaryThreads" :key="thread.id" class="thread-row"
         :class="{ 'drop-before': dropTarget === thread.id && !dropAfter, 'drop-after': dropTarget === thread.id && dropAfter }"
         @dragover.prevent="dragOver($event, thread.id)" @drop.prevent="dropThreadBefore(thread.id)">
-        <header class="thread-row-heading">
+        <header class="thread-row-heading" @click="toggleHeading($event, thread)">
           <button class="drag-handle" type="button" :draggable="!busy" title="拖曳排序；方向鍵可上下移動" aria-label="拖曳或用方向鍵調整探索線順序"
             @keydown.up.prevent="moveThread(thread.id, -1)" @keydown.down.prevent="moveThread(thread.id, 1)"
             @dragstart="draggingThreadId = thread.id" @dragend="draggingThreadId = null; dropTarget = null">⠿</button>
@@ -392,7 +412,7 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
           </div>
           <div class="thread-heading-actions">
             <el-button text type="primary" @click="openThreadDetail(thread)">查看詳情</el-button>
-            <el-button text type="primary" :aria-expanded="isExpanded(thread)" @click="toggleExpanded(thread)">{{ isExpanded(thread) ? '收合' : '展開' }}</el-button>
+            <el-button text type="primary" :aria-expanded="isExpanded(thread)" :aria-controls="`thread-summary-${experimentId}-${thread.id}`" @click="toggleExpanded(thread)">{{ isExpanded(thread) ? '收合' : '展開' }}</el-button>
           </div>
           <el-dropdown class="thread-more" trigger="click">
             <el-button text circle :icon="MoreFilled" aria-label="探索線操作" :disabled="busy" />
@@ -405,8 +425,8 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
           </el-dropdown>
         </header>
         <el-collapse-transition>
-        <div v-show="isExpanded(thread)" class="thread-summary-grid">
-          <section class="summary-cell">
+        <div v-show="isExpanded(thread)" :id="`thread-summary-${experimentId}-${thread.id}`" class="thread-summary-grid">
+          <section class="summary-cell" role="link" tabindex="0" :aria-label="`${thread.name}：查看材料與線索詳情`" title="點選查看材料與線索詳情" @click="openSummary($event, thread, 'MATERIALS')" @keydown.enter.self.prevent="openThreadDetail(thread, 'MATERIALS')" @keydown.space.self.prevent="openThreadDetail(thread, 'MATERIALS')">
             <header class="column-heading"><div class="heading-label"><h3>材料與線索</h3><span v-if="thread.materialCount" class="metadata">最近 {{ Math.min(5, thread.materialCount) }} 筆</span></div><RecordHistoryTrigger label="材料" count-only :count="thread.materialCount" @click="openThreadDetail(thread, 'MATERIALS')" /></header>
             <div v-if="thread.materialCount" class="material-preview">
               <el-tooltip v-for="card in thread.recentMaterials" :key="card.cardId" :content="card.note || card.title" popper-class="content-tooltip" :show-after="400">
@@ -415,7 +435,7 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
             </div>
             <p v-else class="quiet-empty">無材料</p>
           </section>
-          <section class="summary-cell">
+          <section class="summary-cell" role="link" tabindex="0" :aria-label="`${thread.name}：查看行動與發現詳情`" title="點選查看行動與發現詳情" @click="openSummary($event, thread, 'RECORDS')" @keydown.enter.self.prevent="openThreadDetail(thread, 'RECORDS')" @keydown.space.self.prevent="openThreadDetail(thread, 'RECORDS')">
             <header class="column-heading"><div class="heading-label"><h3>行動與發現</h3><span v-if="thread.recordCount" class="metadata">最近 {{ Math.min(3, thread.recordCount) }} 筆</span></div><div class="count-actions">
               <RecordHistoryTrigger label="行動" :count="thread.methodCount" @click="openThreadDetail(thread, 'RECORDS')" />
               <RecordHistoryTrigger label="發現" :count="thread.recordCount" @click="openThreadDetail(thread, 'RECORDS')" />
@@ -428,7 +448,7 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
             <p v-if="!thread.recordCount && thread.methodCount" class="summary-method">{{ thread.firstMethodContent }}</p>
             <p v-if="!thread.recordCount && !thread.methodCount" class="quiet-empty">無行動與發現</p>
           </section>
-          <section class="summary-cell">
+          <section class="summary-cell" role="link" tabindex="0" :aria-label="`${thread.name}：查看結論與成果詳情`" title="點選查看結論與成果詳情" @click="openSummary($event, thread, 'OUTCOMES')" @keydown.enter.self.prevent="openThreadDetail(thread, 'OUTCOMES')" @keydown.space.self.prevent="openThreadDetail(thread, 'OUTCOMES')">
             <header class="column-heading"><h3>結論與成果</h3><div class="count-actions">
               <RecordHistoryTrigger label="卡片" :count="thread.resultCardCount" @click="openThreadDetail(thread, 'OUTCOMES')" />
               <RecordHistoryTrigger label="作品" :count="thread.workCount" @click="openThreadDetail(thread, 'OUTCOMES')" />
@@ -539,11 +559,12 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
 .thread-row + .thread-row { border-top: 1px solid var(--el-border-color); }
 .thread-row.drop-before { box-shadow: 0 -3px 0 var(--el-color-primary); }
 .thread-row.drop-after { box-shadow: 0 3px 0 var(--el-color-primary); }
-.thread-row-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; grid-template-areas: 'drag name badge meta actions more'; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--panel-padding); background: var(--surface-collection); }
+.thread-row-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; grid-template-areas: 'drag name badge meta actions more'; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--panel-padding); background: var(--surface-collection); cursor: pointer; transition: background-color .15s ease; }
+.thread-row-heading:hover { background: var(--el-fill-color); }
 .thread-goal-badge { grid-area: badge; }
 .drag-handle, .thread-identity { border: 0; background: transparent; font: inherit; color: var(--el-text-color-primary); }
 .drag-handle { grid-area: drag; padding: var(--space-xs); color: var(--el-text-color-secondary); cursor: grab; }
-.thread-identity { grid-area: name; min-width: 0; padding: 0; font-size: var(--type-card-title); font-weight: var(--weight-semibold); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.thread-identity { grid-area: name; justify-self: start; min-width: 0; max-width: 100%; padding: 0; font-size: var(--type-card-title); font-weight: var(--weight-semibold); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 .thread-heading-meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); min-width: 0; }
 .thread-heading-meta .metadata, .thread-detail-meta .metadata { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2xs); }
 .metadata time { display: inline-block; white-space: nowrap; }
@@ -552,7 +573,10 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
 .thread-heading-actions :deep(.el-button), .column-heading :deep(.el-button) { margin-left: 0; }
 .metadata { color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-metadata); }
 .thread-summary-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); }
-.summary-cell { min-width: 0; padding: var(--panel-padding); border-top: 1px solid var(--el-border-color); }
+.summary-cell { min-width: 0; padding: var(--panel-padding); border-top: 1px solid var(--el-border-color); cursor: pointer; transition: background-color .15s ease, box-shadow .15s ease; }
+.summary-cell:hover, .summary-cell:focus-visible { background: var(--el-color-primary-light-9); box-shadow: inset 0 0 0 1px var(--el-color-primary-light-5); }
+.summary-cell:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
+.summary-cell > .column-heading h3::after { content: ' ›'; color: var(--el-color-primary); }
 .summary-cell + .summary-cell { border-left: 1px solid var(--el-border-color); }
 .heading-label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); min-width: 0; }
 .column-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs); min-height: 28px; margin-bottom: var(--space-sm); }
