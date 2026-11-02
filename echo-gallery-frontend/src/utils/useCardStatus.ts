@@ -1,9 +1,10 @@
-import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/vue-query';
+import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import { cardApi } from './api/cardApi';
 import { ElMessage } from 'element-plus';
 import type { BoardType } from '../types/board';
 import type { CardDto, TodayBatchResponse, UpdateCardRequest } from '../types/card';
 import { removeTodayCard, todayBatchQueryKey, updateTodayCard } from './todayBatchCache';
+import { cardDetailQueryKey } from './cardDetailQuery';
 
 // 簡單定義卡片與無限捲動快取的基礎型別，提升程式碼強健度
 interface CardDTO {
@@ -14,8 +15,24 @@ interface CardDTO {
     [key: string]: any; // 保留其他後端自訂欄位
 }
 
-interface CardCachePage {
-    content: CardDTO[];
+// 集中處理陣列、一般分頁與無限分頁，保留各格式的游標及其他資訊。
+function mapCardLists(data: unknown, transform: (cards: CardDTO[]) => CardDTO[]): unknown {
+    if (Array.isArray(data)) return transform(data);
+    if (!data || typeof data !== 'object') return data;
+    if ('pages' in data && Array.isArray(data.pages)) {
+        return { ...data, pages: data.pages.map(page => mapCardLists(page, transform)) };
+    }
+    if ('content' in data && Array.isArray(data.content)) return { ...data, content: transform(data.content) };
+    return data;
+}
+
+function findCard(data: unknown, id: string | number): CardDTO | undefined {
+    let found: CardDTO | undefined;
+    mapCardLists(data, cards => {
+        found ??= cards.find(card => String(card.id) === String(id));
+        return cards;
+    });
+    return found;
 }
 
 // =====================================================
@@ -34,10 +51,10 @@ export const useCardStatus = () => {
         // 1. 取消所有相關的網路請求，避免舊資料回流覆蓋了樂觀更新
         await queryClient.cancelQueries({ queryKey: ['cards'] });
         await queryClient.cancelQueries({ queryKey: todayBatchQueryKey });
-        await queryClient.cancelQueries({ queryKey: ['card', String(id)] });
+        await queryClient.cancelQueries({ queryKey: cardDetailQueryKey(id) });
 
         // 2. 獲取當前單張卡片的詳情快照
-        const previousCardDetail = queryClient.getQueryData<CardDTO>(['card', id]);
+        const previousCardDetail = queryClient.getQueryData<CardDTO>(cardDetailQueryKey(id));
         const previousTodayBatch = queryClient.getQueryData<TodayBatchResponse>(todayBatchQueryKey);
         // 3. 進階：找出所有以 ['cards'] 開頭的快取（例如包含篩選條件的 ['cards', { status: 'active' }]）
         const queryCache = queryClient.getQueryCache();
@@ -58,44 +75,27 @@ export const useCardStatus = () => {
         queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old =>
             updateTodayCard(old, id, patchFields as Partial<CardDto>));
         // A. 使用 setQueriesData 模糊更新所有開頭為 ['cards'] 的列表快取（不論是否帶篩選參數）
-        queryClient.setQueriesData<InfiniteData<CardDTO[] | CardCachePage> | CardCachePage | CardDTO[]>({ queryKey: ['cards'] }, (old: any) => {
-            // 如果目前根本還沒有快取資料（例如還沒開過首頁），就什麼都不做直接返回
-            if (!old) return old;
-            const updateCards = (cards: CardDTO[]) => cards.map(card =>
-                String(card.id) === String(id) ? { ...card, ...patchFields } : card);
-            // 看板與選擇器每頁使用 content，同時相容陣列分頁並保留游標等資訊。
-            if (old.pages && Array.isArray(old.pages)) {
-                return {
-                    ...old, // 保留原本分頁的其他資訊（例如 pageParams）
-                    pages: old.pages.map((page: CardDTO[] | CardCachePage) => {
-                        if (Array.isArray(page)) return updateCards(page);
-                        if (page && Array.isArray(page.content)) {
-                            return { ...page, content: updateCards(page.content) };
-                        }
-                        return page;
-                    })
-                };
-            }
-            // 備用：處理一般非無限捲動的一維陣列清單快取 [card, card]
-            if (Array.isArray(old)) {
-                return updateCards(old);
-            }
-            // 綜合查詢使用一般分頁 response，卡片位於 content。
-            if (Array.isArray(old.content)) {
-                return {
-                    ...old,
-                    content: updateCards(old.content)
-                };
-            }
-            return old;
-        });
+        queryClient.setQueriesData({ queryKey: ['cards'] }, old => mapCardLists(old, cards =>
+            cards.map(card => String(card.id) === String(id) ? { ...card, ...patchFields } : card)));
         // B. 同步更新「單張卡片詳情頁」的快取
-        queryClient.setQueryData<CardDTO>(['card', String(id)], (old) => {
+        queryClient.setQueryData<CardDTO>(cardDetailQueryKey(id), (old) => {
             // 如果詳情頁還沒有快取，就不處理
             if (!old) return old;
             // 找到了就直接進行物件欄位疊加覆蓋
             return { ...old, ...patchFields };
         });
+    };
+    const removeFromLists = (id: string | number, queryKey: readonly unknown[] = ['cards']) => {
+        queryClient.setQueriesData({ queryKey }, old => mapCardLists(old, cards =>
+            cards.filter(card => String(card.id) !== String(id))));
+    };
+    const invalidateCardRelations = () => {
+        // 封存或刪除會改變來源可用性、數量與目標納入結果，刷新已存在的相關查詢。
+        for (const key of ['cards', 'tags', 'sidebar', 'overview', 'goals', 'experiments', 'experiment',
+            'experiment-thread-summaries', 'experiment-thread', 'card-exploration-threads',
+            'works', 'work-candidates', 'treasures', 'issues', 'issue', 'issueCards']) {
+            void queryClient.invalidateQueries({ queryKey: [key] });
+        }
     };
     // =====================================================
     // 🎯 內部共用核心工具 3：發生錯誤時的統一彈回與錯誤提示
@@ -111,7 +111,7 @@ export const useCardStatus = () => {
         }
         // 還原詳情頁快取
         if (context?.previousCardDetail){
-            queryClient.setQueryData(['card', String(id)], context.previousCardDetail);
+            queryClient.setQueryData(cardDetailQueryKey(id), context.previousCardDetail);
         }
         if (context?.previousTodayBatch) {
             queryClient.setQueryData(todayBatchQueryKey, context.previousTodayBatch);
@@ -141,18 +141,10 @@ export const useCardStatus = () => {
             const nextLikeAvailableAt = starStatus ? sevenDaysLater : null;
 
             // 樂觀更新：前端星星秒變，並將該卡片的「點讚次數」加減（透過找出舊資料當前數量計算）
-            let currentLikeCount = 0;
-            if (snapshot.previousCardDetail?.likeCount !== undefined) {
-                // 優先使用詳情頁快取（最準確）
-                currentLikeCount = snapshot.previousCardDetail.likeCount;
-            } else if (snapshot.previousListsSnapshot && snapshot.previousListsSnapshot.length > 0) {
-                // 如果沒有詳情頁，遍歷所有符合的列表快取去撈取點讚數
-                const firstValidList: any = snapshot.previousListsSnapshot.find(snap => snap.data);
-                firstValidList?.data?.pages?.forEach((page: CardDTO[]) => {
-                    const found = page.find((c) => String(c.id) === String(id));
-                    if (found) currentLikeCount = found.likeCount;
-                });
-            }
+            const cachedCard = snapshot.previousCardDetail
+                ?? snapshot.previousTodayBatch?.cards.find(card => String(card.id) === String(id))
+                ?? snapshot.previousListsSnapshot.map(snap => findCard(snap.data, id)).find(Boolean);
+            const currentLikeCount = cachedCard?.likeCount ?? 0;
 
             const likeDelta = starStatus ? 1 : -1;
 
@@ -169,7 +161,7 @@ export const useCardStatus = () => {
         onSuccess: (updatedCard, variables) => {
             // 後端成功後，用後端精準的最新 DTO (含排序好的 tags、精準互動時間) 覆蓋
             updateLocalCache(variables.id, updatedCard);
-            queryClient.invalidateQueries({ queryKey: ['cards', 'search'] });
+            queryClient.invalidateQueries({ queryKey: ['cards'] });
         },
         // 後端失敗時執行：直接打包丟給工具 3 安全氣囊處理
         onError: (err, variables, context) => handleMutationError(err, variables.id, context)
@@ -201,10 +193,7 @@ export const useCardStatus = () => {
         onSuccess: (updatedCard, variables) => {
             // DTO 覆蓋快取
             updateLocalCache(variables.id, updatedCard);
-            queryClient.invalidateQueries({ queryKey: ['cards', 'search'] });
-
-            // 通知右側側邊欄過期，觸發自動重撈
-            queryClient.invalidateQueries({ queryKey: ['sidebar'] });
+            invalidateCardRelations();
 
             // 跳出 Element Plus 的成功通知
             ElMessage.success(updatedCard.isArchived ? "卡片已封存" : "卡片已還原");
@@ -296,7 +285,7 @@ export const useCardStatus = () => {
         // 【後端成功後執行】
         onSuccess: (updatedCard, variables) => {
             // Today 已在 onMutate 移除；其他看板依各自條件重新查詢。
-            queryClient.setQueryData(['card', String(variables.id)], updatedCard);
+            queryClient.setQueryData(cardDetailQueryKey(variables.id), updatedCard);
             queryClient.invalidateQueries({ queryKey: ['cards', 'snoozed'] });
             queryClient.invalidateQueries({ queryKey: ['cards', 'search'] });
 
@@ -325,21 +314,14 @@ export const useCardStatus = () => {
             }
 
             // 樂觀更新：立刻 filter 掉
-            queryClient.setQueriesData<InfiniteData<CardDTO[]>>({ queryKey: ['cards', sourceBoard] }, (oldData: any) => {
-                if (!oldData || !oldData.pages) return oldData;
-                return {
-                    ...oldData,
-                    pages: oldData.pages.map((page: any[]) =>
-                        page.filter(card => String(card.id) !== String(id))
-                    )
-                };
-            });
+            removeFromLists(id, ['cards', sourceBoard]);
 
             return snapshot;
         },
         // 【後端成功後執行】
         onSuccess: (updatedCard, variables) => {
-            queryClient.setQueryData(['card', String(variables.id)], updatedCard);
+            updateLocalCache(variables.id, updatedCard);
+            queryClient.setQueryData(cardDetailQueryKey(variables.id), updatedCard);
             // 通知右側側邊欄過期，觸發自動重撈
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
         },
@@ -381,7 +363,7 @@ export const useCardStatus = () => {
             ElMessage.success('卡片變更已儲存');
 
             // 🌟 讓當前這張卡片的詳細資料快取失效，觸發 Detail 頁面自動重撈
-            queryClient.invalidateQueries({ queryKey: ['card', String(variables.id)] });
+            queryClient.invalidateQueries({ queryKey: cardDetailQueryKey(variables.id) });
             // 🌟 同步刷新側邊欄與主頁瀑布流
             queryClient.invalidateQueries({ queryKey: ['sidebar'] });
             queryClient.invalidateQueries({ queryKey: ['cards'] });
@@ -405,32 +387,14 @@ export const useCardStatus = () => {
       onMutate: async ({ id }) => {
           const snapshot = await prepareSnapshot(id);
           queryClient.setQueryData<TodayBatchResponse>(todayBatchQueryKey, old => removeTodayCard(old, id));
-          queryClient.setQueriesData(
-              { queryKey: ['cards'] },
-              (oldData: any) => {
-                  if (!oldData?.pages) return oldData;
-                  return {
-                      ...oldData,
-                      pages: oldData.pages.map((page: CardDTO[]) =>
-                          page.filter(
-                              card => String(card.id) !== String(id)
-                          )
-                      )
-                  };
-              }
-          );
+          removeFromLists(id);
           return snapshot;
       },
 
       onSuccess: (_, variables) => {
           // 移除詳細頁快取
-          queryClient.removeQueries({ queryKey:['card', String(variables.id)] });
-          queryClient.invalidateQueries({ queryKey: ['cards'] });
-          // 來源已解除引用，重新讀取成果脈絡與收益關聯。
-          queryClient.invalidateQueries({ queryKey: ['treasures'] });
-          queryClient.invalidateQueries({ queryKey: ['overview'] });
-          // 更新側邊欄
-          queryClient.invalidateQueries({ queryKey:['sidebar'] });
+          queryClient.removeQueries({ queryKey: cardDetailQueryKey(variables.id) });
+          invalidateCardRelations();
           ElMessage.success('卡片刪除成功');
       },
 
