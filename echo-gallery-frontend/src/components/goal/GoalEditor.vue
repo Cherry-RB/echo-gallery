@@ -10,8 +10,8 @@ import GoalMetricSettings from './GoalMetricSettings.vue'
 import { goalApi } from '../../utils/api/goalApi'
 import { goalKinds, goalStatuses } from '../../types/goal'
 import { goalDates } from '../../utils/goalPresentation'
-import type { GoalDefinition, GoalOption, GoalSource, GoalSourceView, GoalView } from '../../types/goal'
-const props = defineProps<{ modelValue: boolean; goal?: GoalView | null; initialSection?: 'goal' | 'sources' }>()
+import type { GoalDefinition, GoalOption, GoalSource, GoalSourceView, GoalStatus, GoalView } from '../../types/goal'
+const props = defineProps<{ modelValue: boolean; goal?: GoalView | null; initialSection?: 'goal' | 'sources'; initialStatus?: GoalStatus }>()
 const emit = defineEmits<{ 'update:modelValue': [boolean]; saved: [GoalView] }>()
 const visible = computed({ get: () => props.modelValue, set: value => emit('update:modelValue', value) })
 const dialog = ref<InstanceType<typeof AppDialog>>(), picker = ref<InstanceType<typeof GoalSourcePicker>>()
@@ -31,6 +31,7 @@ watch(() => props.modelValue, async value => {
   const token = ++generation
   if (!value) return
   form.value = props.goal ? JSON.parse(JSON.stringify(props.goal.definition)) : empty()
+  if (props.initialStatus) form.value.status = props.initialStatus
   editingId.value = props.goal?.id ?? null; baseVersion.value = props.goal?.version ?? 0
   wasClosed.value = props.goal?.closedAt != null; submitted.value = false
   reason.value = ''; error.value = ''; sourceVisible.value = false; metadata.value = {}; requestId = crypto.randomUUID()

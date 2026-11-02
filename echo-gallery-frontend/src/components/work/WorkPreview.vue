@@ -27,17 +27,14 @@ async function command(value: string) {
 <template>
   <article class="work-preview app-collection-card">
     <header class="work-card-heading">
-      <GoalBadge kind="WORK" :id="work.id" />
       <p class="work-meta">{{ workStages[work.stage] }} · {{ work.published ? '已發表' : '未發表' }}<span v-if="work.archived"> · 已封存</span></p>
       <el-dropdown trigger="click" :disabled="busy" @command="command">
         <el-button class="work-menu" text circle :icon="MoreFilled" :aria-label="`${work.title} 的更多操作`" />
         <template #dropdown><el-dropdown-menu><el-dropdown-item v-if="!work.archived" command="edit">編輯作品資訊</el-dropdown-item><el-dropdown-item command="archive" divided>{{ work.archived ? '還原作品' : '封存作品' }}</el-dropdown-item></el-dropdown-menu></template>
       </el-dropdown>
     </header>
-    <router-link :to="{ path: `/works/${work.id}`, query: { from: route.fullPath } }" class="work-main">
-      <h2>{{ work.title }}</h2>
-      <p v-if="work.description" class="work-description">{{ work.description }}</p>
-    </router-link>
+    <div class="work-title-row"><router-link :to="{ path: `/works/${work.id}`, query: { from: route.fullPath } }" class="work-main"><h2>{{ work.title }}</h2></router-link><GoalBadge kind="WORK" :id="work.id" /></div>
+    <p v-if="work.description" class="work-description">{{ work.description }}</p>
     <div v-if="work.nextStep" class="work-next"><span>下次接著做</span><p>{{ work.nextStep }}</p></div>
     <footer class="work-card-footer">
       <div class="work-meta"><p>{{ work.experimentTitle || '無主要實驗' }}</p><p>最近編輯 {{ formatDate(work.editedAt) }}</p></div>
@@ -50,10 +47,11 @@ async function command(value: string) {
 .work-preview { position: relative; display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-md); min-width: 0; overflow-wrap: anywhere; }
 .work-card-heading { display: flex; justify-content: space-between; gap: var(--space-sm); align-items: center; }
 .work-main { display: block; flex: 1; color: inherit; text-decoration: none; }
-.work-main h2 { margin: 0; font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); color: var(--el-text-color-primary); }
+.work-title-row { display: flex; align-items: flex-start; gap: var(--space-xs); min-width: 0; }
+.work-main h2 { min-width: 0; margin: 0; font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); color: var(--el-text-color-primary); }
 .work-main::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 .work-menu { position: relative; z-index: 1; }
-.work-card-heading :deep(.goal-badge-anchor) { position: relative; z-index: 1; flex-shrink: 0; }
+.work-title-row :deep(.goal-badge-anchor) { position: relative; z-index: 1; flex: 0 0 auto; margin-top: 2px; }
 .work-preview:hover h2 { color: var(--el-color-primary); }
 .work-meta { color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
 .work-meta p + p { margin-top: var(--space-2xs); }

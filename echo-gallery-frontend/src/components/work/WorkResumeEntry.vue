@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router'
 import { workStages, type WorkSummary } from '../../types/work'
 import { formatDate } from '../../utils/formatDate'
+import GoalBadge from '../goal/GoalBadge.vue'
 defineProps<{ work: WorkSummary; compact?: boolean }>()
 const route = useRoute()
 </script>
@@ -10,6 +11,7 @@ const route = useRoute()
     <div class="resume-entry-main">
       <div class="resume-entry-heading">
         <router-link class="resume-entry-title" :title="compact ? work.title : undefined" :to="{ path: `/works/${work.id}`, query: { from: route.fullPath } }">{{ work.title }}</router-link>
+        <GoalBadge kind="WORK" :id="work.id" />
         <span class="resume-entry-stage">{{ workStages[work.stage] }}</span>
       </div>
       <div v-if="work.nextStep" class="resume-entry-next"><span v-if="!compact" class="resume-entry-label">下次接著做</span><p>{{ work.nextStep }}</p></div>
@@ -22,9 +24,10 @@ const route = useRoute()
 .resume-entry { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); min-height: 152px; padding: var(--space-md); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-md); background: var(--el-bg-color); min-width: 0; }
 .resume-entry-main { display: grid; gap: var(--space-sm); min-width: 0; width: 100%; }
 .resume-entry-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-xs); }
-.resume-entry-title { min-width: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); text-decoration: none; overflow-wrap: anywhere; }
+.resume-entry-title { flex: 1; min-width: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); text-decoration: none; overflow-wrap: anywhere; }
 .resume-entry-stage, .resume-entry-meta { color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
 .resume-entry-stage { flex-shrink: 0; white-space: nowrap; }
+.resume-entry-heading :deep(.goal-badge-anchor) { position: relative; z-index: 1; flex-shrink: 0; }
 .resume-entry-meta { margin: 0; }
 .resume-entry-next { min-width: 0; overflow-wrap: anywhere; font-size: var(--type-body); line-height: var(--leading-body); }
 .resume-entry-label { display: block; color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); margin-bottom: var(--space-2xs); }

@@ -178,11 +178,152 @@ class GoalIntegrationTests extends IntegrationTestBase {
         send(put("/api/goal-board/preferences"),token,preference).andExpect(status().isConflict());
         send(delete("/api/goals/{id}",goal.get("id").asLong()).param("version","1"),token,null).andExpect(status().isOk());assertThat(cards.existsById(c.getId())).isTrue();
     }
+    @Test void progressLogsReviewsAndReminderSnoozeAreOwnedAndVersioned() throws Exception {
+        var auth=session();String token=auth.get("token").asText();var definition=definition(List.of());definition.put("endsOn",LocalDate.now(clock).toString());long id=json(send(post("/api/goals"),token,request(definition,0)).andExpect(status().isOk())).get("id").asLong();
+        var log=json(send(post("/api/goals/{id}/logs",id),token,Map.of("kind","MEASUREMENT","occurredOn",LocalDate.now(clock),"amount",3,"unit","次","version",0)).andExpect(status().isOk()));
+        send(get("/api/goals/{id}/logs",id),token,null).andExpect(jsonPath("$[0].amount").value(3));
+        var review=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));
+        long reviewId=review.get("id").asLong();
+        Map<String,Object> content=Map.of("observation","已完成站外行動","decision","持續一週","direction","ALIGNED","informationHelpfulness",4,"actionEffectiveness",5);
+        var saved=json(send(put("/api/goals/{id}/reviews/{reviewId}",id,reviewId),token,Map.of("content",content,"version",1)).andExpect(status().isOk()));
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,reviewId),token,Map.of("version",saved.get("version").asLong(),"requestId",UUID.randomUUID(),"goalVersion",1)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SUBMITTED"));
+        send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isBadRequest());
+        send(post("/api/goal-reminders/snooze"),token,Map.of("goalId",id,"until",ZonedDateTime.now(clock).plusHours(1),"version",0)).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
+        send(delete("/api/goals/{id}/logs/{logId}",id,log.get("id").asLong()).param("version",log.get("version").asText()),token,null).andExpect(status().isOk());
+    }
+    @Test void reviewResumesOlderDraftAndFreezesOnlyItsPeriod() throws Exception {
+        var auth=session();String token=auth.get("token").asText();var user=users.findById(auth.get("id").asLong()).orElseThrow();
+        var card=cards.saveAndFlush(Card.builder().user(user).type("note").title("復盤期間材料").content("原文").build());
+        long id=create(token,List.of(source("CARD",card.getId()))).get("id").asLong();
+        send(put("/api/cards/{id}",card.getId()),token,Map.of("type","note","title","復盤期間材料","content","今天修改","cardNote","備註","expectedContentVersion",0,"isArchived",false,"tags",List.of())).andExpect(status().isOk());
+        var today=LocalDate.now(clock.withZone(ZoneId.of("Asia/Taipei")));
+        send(post("/api/goals/{id}/logs",id),token,Map.of("kind","NOTE","occurredOn",today.minusDays(1),"content","昨天補記","version",0)).andExpect(status().isOk());
+        send(post("/api/goals/{id}/logs",id),token,Map.of("kind","NOTE","occurredOn",today,"content","今天補記","version",0)).andExpect(status().isOk());
+        var first=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));
+        // 模擬前一日建立的草稿，次日仍應取得同一筆，而非產生重疊期間。
+        em.find(GoalReviewRow.class,first.get("id").asLong()).endsOn=today.minusDays(1);em.flush();
+        var resumed=json(send(get("/api/goals/{id}/reviews/{reviewId}",id,first.get("id").asLong()),token,null).andExpect(status().isOk()));
+        assertThat(resumed.get("id")).isEqualTo(first.get("id"));
+        assertThat(resumed.at("/snapshot/logs").size()).isEqualTo(1);
+        assertThat(resumed.at("/snapshot/metrics/1/value").asInt()).isZero();
+        var saved=saveReview(token,id,resumed,"ALIGNED");
+        var submitted=json(send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,saved.get("id").asLong()),token,reviewSubmission(saved,UUID.randomUUID(),null)).andExpect(status().isOk()));
+        var d=definition(List.of());d.put("name","後來更名");
+        send(put("/api/goals/{id}",id),token,request(d,1)).andExpect(status().isOk());
+        send(post("/api/goals/{id}/logs",id),token,Map.of("kind","NOTE","occurredOn",today.minusDays(1),"content","事後新增補記","version",0)).andExpect(status().isOk());
+        var later=json(send(get("/api/goals/{id}/reviews/{reviewId}",id,saved.get("id").asLong()),token,null).andExpect(status().isOk()));
+        assertThat(later.get("snapshot")).isEqualTo(submitted.get("snapshot"));
+        var next=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));
+        assertThat(next.get("startsOn").asText()).isEqualTo(today.toString());
+    }
+    @Test void reviewModificationDaysCountDistinctDatesRatherThanCardDays() throws Exception {
+        var auth=session();String token=auth.get("token").asText();var user=users.findById(auth.get("id").asLong()).orElseThrow();
+        var first=cards.saveAndFlush(Card.builder().user(user).type("note").title("第一張").content("原文").build());
+        var second=cards.saveAndFlush(Card.builder().user(user).type("note").title("第二張").content("原文").build());
+        var d=definition(List.of(source("CARD",first.getId()),source("CARD",second.getId())));d.put("metrics",List.of("M03","M04"));
+        long id=json(send(post("/api/goals"),token,request(d,0)).andExpect(status().isOk())).get("id").asLong();
+        for(var card:List.of(first,second))send(put("/api/cards/{id}",card.getId()),token,Map.of("type","note","title",card.getTitle(),"content","修改內容","cardNote","備註","expectedContentVersion",0,"isArchived",false,"tags",List.of())).andExpect(status().isOk());
+        send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()).andExpect(jsonPath("$.snapshot.metrics[0].value").value(2)).andExpect(jsonPath("$.snapshot.metrics[1].value").value(1)).andExpect(jsonPath("$.snapshot.metrics[1].unit").value("天"));
+    }
+    @Test void reviewStatusChangesAreAtomicIdempotentAndEditsDoNotReplayThem() throws Exception {
+        String token=session().get("token").asText();long id=create(token,List.of()).get("id").asLong();
+        var first=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));
+        var saved=saveReview(token,id,first,"COMPLETE");var submission=reviewSubmission(saved,UUID.randomUUID(),"COMPLETED");
+        var submitted=json(send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,first.get("id").asLong()),token,submission).andExpect(status().isOk()));
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,first.get("id").asLong()),token,submission).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(submitted.get("version").asInt()));
+        send(get("/api/goals/{id}",id),token,null).andExpect(jsonPath("$.definition.status").value("COMPLETED")).andExpect(jsonPath("$.version").value(2));
+        var changed=saveReview(token,id,submitted,"STOP");
+        assertThat(changed.get("status").asText()).isEqualTo("SUBMITTED");
+        send(get("/api/goals/{id}",id),token,null).andExpect(jsonPath("$.definition.status").value("COMPLETED")).andExpect(jsonPath("$.version").value(2));
+        var result=json(send(get("/api/goals/{id}/reviews/{reviewId}",id,first.get("id").asLong()),token,null).andExpect(status().isOk()));
+        assertThat(result.get("snapshot")).isEqualTo(submitted.get("snapshot"));
+        String other=session().get("token").asText();
+        send(get("/api/goals/{id}/reviews/{reviewId}",id,first.get("id").asLong()),other,null).andExpect(status().isNotFound());
+        send(post("/api/goals/{id}/reviews/{reviewId}/revisions",id,first.get("id").asLong()),other,null).andExpect(status().isNotFound());
+        send(delete("/api/goals/{id}",id).param("version","2"),token,null).andExpect(status().isOk());
+    }
+    @Test void changedGoalRejectsReviewSubmissionWithoutPartialStateChange() throws Exception {
+        String token=session().get("token").asText();long id=create(token,List.of()).get("id").asLong();
+        var first=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));
+        var saved=saveReview(token,id,first,"STOP");var d=definition(List.of());d.put("name","另一裝置更新");
+        send(put("/api/goals/{id}",id),token,request(d,1)).andExpect(status().isOk());
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,first.get("id").asLong()),token,reviewSubmission(saved,UUID.randomUUID(),"ENDED")).andExpect(status().isConflict());
+        send(get("/api/goals/{id}",id),token,null).andExpect(jsonPath("$.definition.status").value("ACTIVE"));
+        send(get("/api/goals/{id}/reviews/{reviewId}",id,first.get("id").asLong()),token,null).andExpect(jsonPath("$.status").value("DRAFT"));
+    }
+    @Test void reviewPreviewDoesNotWriteAndCompletedReviewEditsInPlace() throws Exception {
+        String token=session().get("token").asText();long id=create(token,List.of()).get("id").asLong();
+        send(get("/api/goals/{id}/reviews/preview",id),token,null).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DRAFT"));
+        send(get("/api/goals/{id}/reviews",id),token,null).andExpect(jsonPath("$.length()").value(0));
+        send(post("/api/goals/{id}/reviews",id),token,null).andExpect(status().isMethodNotAllowed());
+        send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation"," ")).andExpect(status().isBadRequest());
+        var initial=Map.of("observation","初次觀察","direction","ALIGNED");
+        var draft=json(send(post("/api/goals/{id}/reviews/initialize",id),token,initial).andExpect(status().isOk()));
+        send(post("/api/goals/{id}/reviews/initialize",id),token,initial).andExpect(status().isConflict());
+        var submitted=json(send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,draft.get("id").asLong()),token,reviewSubmission(draft,UUID.randomUUID(),null)).andExpect(status().isOk()));
+        var updated=Map.of("observation","補充觀察","direction","STOP");
+        var result=json(send(put("/api/goals/{id}/reviews/{reviewId}",id,draft.get("id").asLong()),token,Map.of("version",submitted.get("version").asLong(),"content",updated)).andExpect(status().isOk()));
+        assertThat(result.get("status").asText()).isEqualTo("SUBMITTED");
+        assertThat(result.get("snapshot")).isEqualTo(submitted.get("snapshot"));
+        send(get("/api/goals/{id}",id),token,null).andExpect(jsonPath("$.definition.status").value("ACTIVE"));
+        send(get("/api/goals/{id}/reviews",id),token,null).andExpect(jsonPath("$.length()").value(1));
+        send(put("/api/goals/{id}/reviews/{reviewId}",id,draft.get("id").asLong()),token,Map.of("version",submitted.get("version").asLong(),"content",updated)).andExpect(status().isConflict());
+    }
+    @Test void databaseRejectsDuplicateReviewPeriod() throws Exception {
+        String token=session().get("token").asText();long id=create(token,List.of()).get("id").asLong();
+        var first=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,first.get("id").asLong()),token,reviewSubmission(first,UUID.randomUUID(),null)).andExpect(status().isOk());
+        var original=em.find(GoalReviewRow.class,first.get("id").asLong());var duplicate=new GoalReviewRow();
+        duplicate.user=original.user;duplicate.goal=original.goal;duplicate.startsOn=original.startsOn;duplicate.endsOn=original.endsOn;
+        duplicate.status="SUBMITTED";duplicate.content=original.content;duplicate.snapshot=original.snapshot;duplicate.version=1;
+        duplicate.createdAt=ZonedDateTime.now(clock);duplicate.updatedAt=duplicate.createdAt;
+        assertThatThrownBy(()->{em.persist(duplicate);em.flush();}).isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("uq_goal_review_period");
+    }
+    @Test void finalPeriodReviewStopsReminderEvenWhenGoalRemainsActive() throws Exception {
+        String token=session().get("token").asText();var d=definition(List.of());d.put("endsOn",LocalDate.now(clock).toString());
+        long id=json(send(post("/api/goals"),token,request(d,0)).andExpect(status().isOk())).get("id").asLong();
+        var first=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));var saved=saveReview(token,id,first,"ALIGNED");
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,first.get("id").asLong()),token,reviewSubmission(saved,UUID.randomUUID(),null)).andExpect(status().isOk());
+        send(get("/api/goal-reminders"),token,null).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        assertThat(goals.reminder(em.find(GoalRow.class,id),ZonedDateTime.now(clock).plusDays(30).withHour(10))).isEmpty();
+    }
+    @Test void reviewRequiresMatchingStateAndKeepsLegacySnapshotsReadable() throws Exception {
+        String token=session().get("token").asText();long id=create(token,List.of()).get("id").asLong();
+        var first=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));var saved=saveReview(token,id,first,"PAUSE");
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,first.get("id").asLong()),token,reviewSubmission(saved,UUID.randomUUID(),null)).andExpect(status().isBadRequest());
+        send(get("/api/goals/{id}",id),token,null).andExpect(jsonPath("$.definition.status").value("ACTIVE"));
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,first.get("id").asLong()),token,reviewSubmission(saved,UUID.randomUUID(),"PAUSED")).andExpect(status().isOk());
+        send(get("/api/goals/{id}",id),token,null).andExpect(jsonPath("$.definition.status").value("PAUSED"));
+        var row=em.find(GoalReviewRow.class,first.get("id").asLong());
+        row.snapshot=mapper.writeValueAsString(Map.of("definition",definition(List.of()),"metrics",List.of(),"coverageAt",ZonedDateTime.now(clock)));em.flush();
+        send(get("/api/goals/{id}/reviews/{reviewId}",id,row.id),token,null).andExpect(status().isOk()).andExpect(jsonPath("$.snapshot.definition.name").value("寫作方向"));
+    }
+    @Test void completingReviewPreservesDeletedSourceAndOwnerCleanupStillWorks() throws Exception {
+        var auth=session();String token=auth.get("token").asText();var user=users.findById(auth.get("id").asLong()).orElseThrow();
+        var card=cards.saveAndFlush(Card.builder().user(user).type("note").title("已刪除來源").build());long id=create(token,List.of(source("CARD",card.getId()))).get("id").asLong();
+        em.flush();em.clear();
+        send(delete("/api/cards/{id}",card.getId()),token,null).andExpect(status().isOk());em.flush();em.clear();
+        var first=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));var saved=saveReview(token,id,first,"STOP");
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,first.get("id").asLong()),token,reviewSubmission(saved,UUID.randomUUID(),"ENDED")).andExpect(status().isOk());
+        send(get("/api/goals/{id}",id),token,null).andExpect(jsonPath("$.definition.status").value("ENDED"));
+        goals.clearOwner(user.getId());assertEmpty(user.getId());
+    }
+    JsonNode saveReview(String token,long id,JsonNode review,String direction)throws Exception {
+        return json(send(put("/api/goals/{id}/reviews/{reviewId}",id,review.get("id").asLong()),token,Map.of("version",review.get("version").asLong(),"content",Map.of("observation","觀察","decision","下一步","direction",direction))).andExpect(status().isOk()));
+    }
+    Map<String,Object> reviewSubmission(JsonNode review,UUID key,String target) {
+        Map<String,Object> request=new LinkedHashMap<>();request.put("version",review.get("version").asLong());request.put("requestId",key);request.put("goalVersion",review.get("goalVersion").asLong());if(target!=null)request.put("targetStatus",target);return request;
+    }
     @Test void demoResetAndExpiryCleanAllGoalTables() throws Exception {
         var session=json(send(post("/api/auth/demo-sessions"),null,Map.of("library","writing")).andExpect(status().isOk()));String token=session.get("token").asText();long owner=session.get("id").asLong();
-        var user=users.findById(owner).orElseThrow();var card=cards.saveAndFlush(Card.builder().user(user).type("note").title("目標測試資料").build());create(token,List.of(source("CARD",card.getId())));
+        var user=users.findById(owner).orElseThrow();var card=cards.saveAndFlush(Card.builder().user(user).type("note").title("目標測試資料").build());var tracked=create(token,List.of(source("CARD",card.getId())));long id=tracked.get("id").asLong();
         send(put("/api/cards/{id}",card.getId()),token,Map.of("type","note","title","目標測試資料","cardNote","加工","expectedContentVersion",0,"isArchived",false,"tags",List.of())).andExpect(status().isOk());
         send(get("/api/goals"),token,null).andExpect(jsonPath("$.totalElements").value(1));
+        send(post("/api/goals/{id}/logs",id),token,Map.of("kind","NOTE","occurredOn",LocalDate.now(clock),"content","展示補記","version",0)).andExpect(status().isOk());
+        var draft=json(send(post("/api/goals/{id}/reviews/initialize",id),token,Map.of("observation","initial","direction","ALIGNED")).andExpect(status().isOk()));var saved=saveReview(token,id,draft,"ALIGNED");
+        send(post("/api/goals/{id}/reviews/{reviewId}/submit",id,draft.get("id").asLong()),token,reviewSubmission(saved,UUID.randomUUID(),null)).andExpect(status().isOk());
+        send(post("/api/goal-reminders/snooze"),token,Map.of("goalId",id,"until",ZonedDateTime.now(clock).plusHours(1),"version",0)).andExpect(status().isOk());
         send(post("/api/auth/demo-sessions/reset"),token,null).andExpect(status().isOk());em.flush();em.clear();assertEmpty(owner);
         create(token,List.of());users.findById(owner).orElseThrow().setDemoExpiresAt(ZonedDateTime.now(clock).minusMinutes(1));em.flush();demo.clearExpiredSessions();em.flush();em.clear();assertEmpty(owner);assertThat(users.existsById(owner)).isFalse();
     }
@@ -213,7 +354,7 @@ class GoalIntegrationTests extends IntegrationTestBase {
         assertThat(em.createQuery("select count(f) from GoalFactRow f where f.user.id=:owner and f.type='TREASURE_ACQUIRED'",Long.class).setParameter("owner",owner).getSingleResult()).isEqualTo(1);
         assertThat(em.createQuery("select count(l) from GoalFactLinkRow l where l.user.id=:owner and l.fact.type='TREASURE_ACQUIRED'",Long.class).setParameter("owner",owner).getSingleResult()).isEqualTo(2);
     }
-    void assertEmpty(long owner){for(String table:List.of("GoalRow","GoalRuleRow","GoalSourceRow","GoalFactRow","GoalFactLinkRow","CardContentDayRow","GoalCardDayRow","GoalPreferenceRow"))assertThat(em.createQuery("select count(r) from "+table+" r where r.user.id=:owner",Long.class).setParameter("owner",owner).getSingleResult()).as(table).isZero();}
+    void assertEmpty(long owner){for(String table:List.of("GoalRow","GoalRuleRow","GoalSourceRow","GoalFactRow","GoalFactLinkRow","CardContentDayRow","GoalCardDayRow","GoalPreferenceRow","GoalEvidenceOverrideRow","GoalProgressLogRow","GoalReviewRow","GoalReminderRow"))assertThat(em.createQuery("select count(r) from "+table+" r where r.user.id=:owner",Long.class).setParameter("owner",owner).getSingleResult()).as(table).isZero();}
     Map<String,Object> definition(List<Map<String,Object>> sources){var today=LocalDate.now(clock);Map<String,Object> result=new LinkedHashMap<>();result.put("name","寫作方向");result.put("startsOn",today.minusDays(1));result.put("endsOn",today.plusDays(30));result.put("status","ACTIVE");result.put("reviewDays",7);result.put("pinned",true);result.put("archived",false);result.put("pinOrder",0);result.put("remindersEnabled",true);result.put("allTags",false);result.put("sources",sources);result.put("metrics",List.of("M01","M03"));return result;}
     Map<String,Object> request(Map<String,Object> definition,long version){return Map.of("definition",definition,"version",version,"reason","測試","requestId",UUID.randomUUID());}
     Map<String,Object> source(String kind,long id){return Map.of("kind",kind,"id",id,"excluded",false);}

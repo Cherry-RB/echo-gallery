@@ -42,4 +42,26 @@ public final class GoalData {
             String sourceKind, Long sourceId, boolean excluded, long version, String reason) {}
     public record EvidencePage(List<Evidence> content, long totalElements, int page, int size, int totalPages) {}
     public record EvidenceChange(boolean excluded, @NotBlank @Size(max=2000) String reason, @NotNull @Min(0) Long version) {}
+    public enum LogKind { NOTE, MEASUREMENT }
+    public record ProgressLog(Long id, LogKind kind, LocalDate occurredOn, String content, java.math.BigDecimal amount,
+            String unit, long version, ZonedDateTime createdAt, ZonedDateTime updatedAt) {}
+    public record ProgressLogSave(@NotNull LogKind kind, @NotNull LocalDate occurredOn, @Size(max=5000) String content,
+            @DecimalMin(value="0.01") java.math.BigDecimal amount, @Size(max=80) String unit, @NotNull @Min(0) Long version) {}
+    public enum ReviewStatus { DRAFT, SUBMITTED }
+    @JsonIgnoreProperties(ignoreUnknown=true)
+    public record ReviewContent(@Size(max=5000) String observation, @Size(max=5000) String decision,
+            @Pattern(regexp="ALIGNED|ADJUST|UNCERTAIN|PAUSE|COMPLETE|STOP|", message="方向選項不正確") String direction,
+            @Min(1) @Max(5) Integer informationHelpfulness, @Min(1) @Max(5) Integer actionEffectiveness) {}
+    @JsonIgnoreProperties(ignoreUnknown=true)
+    public record ReviewSnapshot(Integer formatVersion, Definition definition, List<Metric> metrics,
+            List<Source> sources, List<ProgressLog> logs, Long cardCount,
+            ZonedDateTime coverageAt, Status resultingStatus) {}
+    public record Review(Long id, LocalDate startsOn, LocalDate endsOn, ReviewStatus status,
+            ReviewContent content, long version, ZonedDateTime updatedAt, ZonedDateTime submittedAt,
+            ReviewSnapshot snapshot, long goalVersion) {}
+    public record ReviewSave(@Valid @NotNull ReviewContent content, @NotNull @Min(0) Long version) {}
+    public record ReviewSubmit(@NotNull @Min(0) Long version, @NotNull UUID requestId,
+            @NotNull @Min(1) Long goalVersion, Status targetStatus) {}
+    public record Reminder(Long goalId, String goalName, LocalDate dueOn, ZonedDateTime snoozedUntil, long version) {}
+    public record ReminderSnooze(@NotNull @Positive Long goalId, @NotNull ZonedDateTime until, @NotNull @Min(0) Long version) {}
 }

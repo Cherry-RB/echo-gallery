@@ -84,10 +84,10 @@ const handleCommand = (command: string) => {
     <template v-else-if="treasure">
       <main class="treasure-workspace">
       <DetailHeading eyebrow="已完成的成果" :title="treasure.title">
+        <template #eyebrow><GoalBadge kind="TREASURE" :id="treasure.id" /></template>
         <template #metadata>
           <TreasureRankBadge :rank="treasure.rank" />
           <span>完成於 {{ treasure.acquiredOn }}</span><el-tag v-if="treasure.isArchived" type="info">已封存</el-tag>
-          <GoalBadge kind="TREASURE" :id="treasure.id" />
         </template>
       </DetailHeading>
       <div class="detail-grid">

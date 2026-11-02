@@ -1,5 +1,5 @@
 import request from './request'
-import type { GoalAssociation, GoalBoardPage, GoalDefinition, GoalEvidence, GoalEvidencePage, GoalKind, GoalMetric, GoalOption, GoalPreference, GoalQuery, GoalSource, GoalSourceView, GoalView } from '../../types/goal'
+import type { GoalAssociation, GoalBoardPage, GoalDefinition, GoalEvidence, GoalEvidencePage, GoalKind, GoalMetric, GoalOption, GoalPreference, GoalProgressLog, GoalQuery, GoalReminder, GoalReview, GoalReviewContent, GoalSource, GoalSourceView, GoalView } from '../../types/goal'
 interface GoalPage { content: GoalView[]; totalElements: number; totalPages: number }
 export const goalApi = {
   list: (params: GoalQuery = {}) => request.get<never, GoalPage>('/goals', { params, paramsSerializer: { indexes: null } }),
@@ -17,6 +17,19 @@ export const goalApi = {
   metrics: (id: number) => request.get<never, GoalMetric[]>(`/goals/${id}/metrics`),
   evidence: (id: number, metric?: string, page = 0) => request.get<never, GoalEvidencePage>(`/goals/${id}/evidence`, { params: { metric, page } }),
   saveEvidence: (id: number, evidenceId: string, excluded: boolean, reason: string, version: number) => request.put<never, GoalEvidence>(`/goals/${id}/evidence/${evidenceId}`, { excluded, reason, version }),
+  logs: (id: number) => request.get<never, GoalProgressLog[]>(`/goals/${id}/logs`),
+  saveLog: (id: number, log: Partial<GoalProgressLog> & { kind: GoalProgressLog['kind']; occurredOn: string; version: number }) => log.id
+    ? request.put<never, GoalProgressLog>(`/goals/${id}/logs/${log.id}`, log)
+    : request.post<never, GoalProgressLog>(`/goals/${id}/logs`, log),
+  deleteLog: (id: number, logId: number, version: number) => request.delete<never, void>(`/goals/${id}/logs/${logId}`, { params: { version } }),
+  reviews: (id: number) => request.get<never, GoalReview[]>(`/goals/${id}/reviews`),
+  previewReview: (id: number) => request.get<never, GoalReview>(`/goals/${id}/reviews/preview`),
+  initializeReview: (id: number, content: GoalReviewContent) => request.post<never, GoalReview>(`/goals/${id}/reviews/initialize`, content),
+  review: (id: number, reviewId: number) => request.get<never, GoalReview>(`/goals/${id}/reviews/${reviewId}`),
+  saveReview: (id: number, reviewId: number, content: GoalReviewContent, version: number) => request.put<never, GoalReview>(`/goals/${id}/reviews/${reviewId}`, { content, version }),
+  submitReview: (id: number, reviewId: number, version: number, requestId: string, goalVersion: number, targetStatus?: GoalDefinition['status']) => request.post<never, GoalReview>(`/goals/${id}/reviews/${reviewId}/submit`, { version, requestId, goalVersion, targetStatus }),
+  reminders: () => request.get<never, GoalReminder[]>('/goal-reminders'),
+  snoozeReminder: (goalId: number, until: string, version: number) => request.post<never, GoalReminder>('/goal-reminders/snooze', { goalId, until, version }),
   preference: () => request.get<never, GoalPreference>('/goal-board/preferences'),
   savePreference: (selection: GoalPreference) => request.put<never, GoalPreference>('/goal-board/preferences', selection),
   board: (selection: GoalPreference, seed: string, cursor?: string, pageIds?: number[]) => request.post<never, GoalBoardPage>('/goal-board/cards', { selection, seed, cursor, pageIds }),

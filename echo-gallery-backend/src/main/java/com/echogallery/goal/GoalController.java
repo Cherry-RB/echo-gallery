@@ -33,6 +33,18 @@ public class GoalController {
     @GetMapping("/api/goals/{id}/evidence") public Object evidence(@PathVariable("id") Long id,@RequestParam(name="metric",required=false) String metric,
             @RequestParam(name="page",defaultValue="0") int page,@RequestParam(name="size",defaultValue="20") int size){return goals.evidence(id,metric,page,size);}
     @PutMapping("/api/goals/{id}/evidence/{linkId}") public Object evidence(@PathVariable("id") Long id,@PathVariable("linkId") String linkId,@Valid @RequestBody EvidenceChange request){return goals.evidence(id,linkId,request);}
+    @GetMapping("/api/goals/{id}/logs") public Object logs(@PathVariable("id") Long id){return goals.logs(id);}
+    @PostMapping("/api/goals/{id}/logs") public Object log(@PathVariable("id") Long id,@Valid @RequestBody ProgressLogSave request){return goals.createLog(id,request);}
+    @PutMapping("/api/goals/{id}/logs/{logId}") public Object log(@PathVariable("id") Long id,@PathVariable("logId") Long logId,@Valid @RequestBody ProgressLogSave request){return goals.saveLog(id,logId,request);}
+    @DeleteMapping("/api/goals/{id}/logs/{logId}") public void log(@PathVariable("id") Long id,@PathVariable("logId") Long logId,@RequestParam("version") long version){goals.deleteLog(id,logId,version);}
+    @GetMapping("/api/goals/{id}/reviews") public Object reviews(@PathVariable("id") Long id){return goals.reviews(id);}
+    @GetMapping("/api/goals/{id}/reviews/preview") public Object previewReview(@PathVariable("id") Long id){return goals.previewReview(id);}
+    @PostMapping("/api/goals/{id}/reviews/initialize") public Object initializeReview(@PathVariable("id") Long id,@Valid @RequestBody ReviewContent content){return goals.initializeReview(id,content);}
+    @GetMapping("/api/goals/{id}/reviews/{reviewId}") public Object review(@PathVariable("id") Long id,@PathVariable("reviewId") Long reviewId){return goals.review(id,reviewId);}
+    @PutMapping("/api/goals/{id}/reviews/{reviewId}") public Object review(@PathVariable("id") Long id,@PathVariable("reviewId") Long reviewId,@Valid @RequestBody ReviewSave request){return goals.saveReview(id,reviewId,request);}
+    @PostMapping("/api/goals/{id}/reviews/{reviewId}/submit") public Object submit(@PathVariable("id") Long id,@PathVariable("reviewId") Long reviewId,@Valid @RequestBody ReviewSubmit request){return goals.submitReview(id,reviewId,request);}
+    @GetMapping("/api/goal-reminders") public Object reminders(){return goals.reminders();}
+    @PostMapping("/api/goal-reminders/snooze") public Object snooze(@Valid @RequestBody ReminderSnooze request){return goals.snooze(request);}
     @GetMapping("/api/goal-board/preferences") public Object preference(){return goals.preference();}
     @PutMapping("/api/goal-board/preferences") public Object preference(@Valid @RequestBody Preference request){return goals.preference(request);}
     @PostMapping("/api/goal-board/cards") public Object board(@Valid @RequestBody Board request){return goals.board(request);}

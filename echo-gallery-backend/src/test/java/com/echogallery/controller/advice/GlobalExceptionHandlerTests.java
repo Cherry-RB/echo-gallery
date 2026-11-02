@@ -5,9 +5,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.sql.SQLException;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 class GlobalExceptionHandlerTests {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+
+    @Test
+    void responseStatusKeepsBusinessMessageAndHttpStatus() {
+        var response = handler.handleResponseStatus(new ResponseStatusException(HttpStatus.BAD_REQUEST, "本目標期間已完成復盤"));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isEqualTo(new com.echogallery.exception.ErrorResponse("本目標期間已完成復盤", 400));
+    }
 
     @Test
     void uniqueViolationIsReportedAsConflict() {

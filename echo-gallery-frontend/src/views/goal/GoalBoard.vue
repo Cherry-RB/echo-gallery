@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import AppEmptyState from '../../components/ui/AppEmptyState.vue'
 import GoalScopeDialog from '../../components/goal/GoalScopeDialog.vue'
+import GoalReminderNotice from '../../components/goal/GoalReminderNotice.vue'
 import { MasonryWall } from '@yeger/vue-masonry-wall'
 import { collectionLayoutTokens } from '../../utils/designTokens'
 import CardItem from '../../components/CardItem.vue'
@@ -68,6 +69,7 @@ onMounted(initialize)
     <PageHeader title="目標看板" description="記住你關心的方向，每次翻閱幾張相關材料。看過不會改變今日回流安排。">
       <template #actions><div class="scope-selector"><span>目標範圍</span><el-select :model-value="mode" aria-label="目標範圍" :disabled="busy || applying" @change="configure($event)"><el-option :value="true" label="所有進行中目標" /><el-option :value="false" label="自行選擇目標" /></el-select></div><el-button :disabled="busy || applying" @click="configure()">範圍設定</el-button><el-button @click="router.push('/goals')">管理目標</el-button></template>
     </PageHeader>
+    <GoalReminderNotice />
     <el-alert v-if="initialError" :title="initialError" type="error" :closable="false"><el-button @click="initialize">重新載入設定</el-button></el-alert>
     <el-alert v-if="error" :title="savedButNotLoaded ? '新設定已保存，但材料尚未載入；下方仍是原範圍。' : error" type="error" :closable="false"><el-button :disabled="busy" @click="retry">重試</el-button></el-alert>
     <p v-if="current" class="goal-results" aria-live="polite"><template v-if="current.selectedGoalCount != null">已選 {{ current.selectedGoalCount }} 個目標 · </template>相關卡片 {{ current.total }} 張</p>

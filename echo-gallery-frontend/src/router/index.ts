@@ -46,6 +46,9 @@ const routes = [
     children: [
     { path: 'board/goals', name: 'GoalBoard', component: () => import('../views/goal/GoalBoard.vue') },
     { path: 'goals', name: 'GoalList', component: () => import('../views/goal/GoalList.vue') },
+    { path: 'goals/:id/reviews/new', name: 'GoalReviewNew', component: () => import('../views/goal/GoalReview.vue'), props: { editing: true }, meta: { layout: 'detail' } },
+    { path: 'goals/:id/reviews/:reviewId/edit', name: 'GoalReviewEdit', component: () => import('../views/goal/GoalReview.vue'), props: { editing: true }, meta: { layout: 'detail' } },
+    { path: 'goals/:id/reviews/:reviewId', name: 'GoalReview', component: () => import('../views/goal/GoalReview.vue'), meta: { layout: 'detail' } },
     { path: 'goals/:id', name: 'GoalDetail', component: () => import('../views/goal/GoalDetail.vue'), meta: { layout: 'detail' } },
     { path: 'works', name: 'WorkList', component: () => import('../views/work/WorkList.vue') },
     { path: 'works/:id', name: 'WorkDetail', component: () => import('../views/work/WorkDetail.vue'), meta: { layout: 'detail' } },

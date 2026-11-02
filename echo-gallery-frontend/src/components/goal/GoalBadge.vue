@@ -28,7 +28,7 @@ const owner = localStorage.getItem('id') || '', opened = ref(false)
 const count = useQuery({ queryKey: computed(() => ['goals', owner, 'count', props.kind, props.id]), queryFn: () => countFor(owner, { kind: props.kind, id: props.id, excluded: false }), staleTime: 30000 })
 const details = useQuery({ queryKey: computed(() => ['goals', owner, 'associations', props.kind, props.id]), queryFn: () => goalApi.associations(props.kind, props.id), enabled: opened })
 const reasonLabels = (reasons: Array<{ label: string | null; direct: boolean }>) => reasons
-  .filter(reason => !reason.direct && reason.label)
+  .filter((reason): reason is { label: string; direct: boolean } => !reason.direct && Boolean(reason.label))
   .map(reason => reason.label)
 </script>
 <template>

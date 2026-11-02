@@ -18,6 +18,13 @@ export interface GoalAssociation { goalId: number; name: string; status: GoalSta
 export interface GoalMetric { metricKey: string; value: number | null; unit: string; mode: 'CURRENT' | 'PERIOD'; startsOn: string; endsOn: string; coverageStart: string; coverageStatus: 'CURRENT' | 'RECORDED' | 'NOT_AVAILABLE'; definitionVersion: number }
 export interface GoalEvidence { id: string; type: string; occurredAt: string; recordedAt: string; sourceKind: GoalKind | null; sourceId: number | null; excluded: boolean; version: number; reason: string | null }
 export interface GoalEvidencePage { content: GoalEvidence[]; totalElements: number; page: number; size: number; totalPages: number }
+export type GoalLogKind = 'NOTE' | 'MEASUREMENT'
+export interface GoalProgressLog { id: number; kind: GoalLogKind; occurredOn: string; content: string | null; amount: number | null; unit: string | null; version: number; createdAt: string; updatedAt: string }
+export type GoalReviewStatus = 'DRAFT' | 'SUBMITTED'
+export interface GoalReviewContent { observation: string; decision: string; direction: '' | 'ALIGNED' | 'ADJUST' | 'UNCERTAIN' | 'PAUSE' | 'COMPLETE' | 'STOP'; informationHelpfulness: number | null; actionEffectiveness: number | null }
+export interface GoalReviewSnapshot { formatVersion?: number; definition: GoalDefinition; metrics: GoalMetric[]; sources?: GoalSource[]; logs?: GoalProgressLog[]; cardCount?: number; coverageAt: string; resultingStatus?: GoalStatus }
+export interface GoalReview { id: number; startsOn: string; endsOn: string; status: GoalReviewStatus; content: GoalReviewContent; version: number; updatedAt: string; submittedAt: string | null; snapshot: GoalReviewSnapshot | null; goalVersion: number }
+export interface GoalReminder { goalId: number; goalName: string; dueOn: string; snoozedUntil: string | null; version: number }
 export const goalStatuses: Record<GoalStatus, string> = { PLANNED: '未開始', ACTIVE: '進行中', PAUSED: '暫停', COMPLETED: '已完成', ENDED: '已結束' }
 export const goalKinds: Record<GoalKind, string> = { TAG: '標籤', EXPERIMENT: '實驗', THREAD: '探索線', WORK: '作品', TREASURE: '展品', CARD: '個別卡片' }
 export function isGoalPeriodDue(goal: GoalView) {

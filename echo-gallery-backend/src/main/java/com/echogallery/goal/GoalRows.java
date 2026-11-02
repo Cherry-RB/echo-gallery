@@ -102,3 +102,39 @@ class GoalPreferenceRow extends GoalOwnedRow {
     @Column(nullable=false,columnDefinition="TEXT") String selection;
     @Column(nullable=false) long version;
 }
+
+@Entity(name="GoalProgressLogRow") @Table(name="goal_progress_logs")
+class GoalProgressLogRow extends GoalOwnedRow {
+    @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="goal_id",nullable=false) @OnDelete(action=OnDeleteAction.CASCADE) GoalRow goal;
+    @Column(nullable=false,length=20) String kind;
+    @Column(name="occurred_on",nullable=false) LocalDate occurredOn;
+    @Column(columnDefinition="TEXT") String content;
+    @Column(precision=18,scale=2) java.math.BigDecimal amount;
+    @Column(length=80) String unit;
+    @Column(nullable=false) long version;
+    @Column(name="created_at",nullable=false) ZonedDateTime createdAt;
+    @Column(name="updated_at",nullable=false) ZonedDateTime updatedAt;
+}
+
+@Entity(name="GoalReviewRow") @Table(name="goal_reviews", indexes=@Index(columnList="goal_id,status,ends_on"), uniqueConstraints=@UniqueConstraint(name="uq_goal_review_period",columnNames={"goal_id","starts_on","ends_on"}))
+class GoalReviewRow extends GoalOwnedRow {
+    @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="goal_id",nullable=false) @OnDelete(action=OnDeleteAction.CASCADE) GoalRow goal;
+    @Column(name="starts_on",nullable=false) LocalDate startsOn;
+    @Column(name="ends_on",nullable=false) LocalDate endsOn;
+    @Column(nullable=false,length=20) String status;
+    @Column(nullable=false,columnDefinition="TEXT") String content;
+    @Column(columnDefinition="TEXT") String snapshot;
+    @Column(name="submit_key",length=36) String submitKey;
+    @Column(nullable=false) long version;
+    @Column(name="created_at",nullable=false) ZonedDateTime createdAt;
+    @Column(name="updated_at",nullable=false) ZonedDateTime updatedAt;
+    @Column(name="submitted_at") ZonedDateTime submittedAt;
+}
+
+@Entity(name="GoalReminderRow") @Table(name="goal_reminders", uniqueConstraints=@UniqueConstraint(columnNames="goal_id"))
+class GoalReminderRow extends GoalOwnedRow {
+    @ManyToOne(fetch=FetchType.LAZY,optional=false) @JoinColumn(name="goal_id",nullable=false) @OnDelete(action=OnDeleteAction.CASCADE) GoalRow goal;
+    @Column(name="snoozed_until") ZonedDateTime snoozedUntil;
+    @Column(nullable=false) long version;
+    @Column(name="updated_at",nullable=false) ZonedDateTime updatedAt;
+}

@@ -228,9 +228,9 @@ const deleteCard = async () => {
     <!-- header -->
      <div>
       <div class="card-header">
-        <GoalBadge kind="CARD" :id="Number(data.id)" />
         <!-- 標題 -->
         <h4 class="title-text">{{ data.title }}</h4>
+        <GoalBadge kind="CARD" :id="Number(data.id)" />
       </div>
       <div v-if="data.url" class="card-source-row">
         <el-button
@@ -456,6 +456,8 @@ const deleteCard = async () => {
   gap: var(--space-xs);
   overflow: hidden; /* 防止標題把標籤擠掉 */
 }
+.card-header .title-text { flex: 1; min-width: 0; }
+.card-header :deep(.goal-badge-anchor) { flex: 0 0 auto; }
 .card-id {
   margin-left: auto;
   color: var(--el-text-color-placeholder);

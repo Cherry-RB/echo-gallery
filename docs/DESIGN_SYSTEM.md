@@ -403,6 +403,7 @@
 | 發現表單 | `src/components/experiment/ExperimentExplorationEditor.vue`、`ExplorationThreadSelect.vue`、`ExplorationActionSelect.vue` | 與行動表單共用編輯元件的另一模式；記下發現、編輯內容及調整歸屬在同一表單完成，內容與歸屬一次保存，不改變下一步 |
 | 探索整理介面 | `src/components/experiment/ExplorationOrganizationDialog.vue`、`ExplorationMethodPicker.vue`、`src/components/ui/RecordPickerOption.vue` | 共用紀錄整理、歷史保存、卡片輸出及更新行動前的必要整理；依目的決定選取範圍與確認行為，不因預覽而寫入資料 |
 | 已選摘要 | `src/components/ui/SelectionSummary.vue`、`src/components/ui/CardPickerSelectionSummary.vue` | 已選名稱、metadata 與操作，依資料形狀選用 |
+| 目標追蹤狀態 | `src/components/goal/GoalBadge.vue` | 只在進行中且未封存的目標關聯存在時顯示；點擊僅開啟目標與關聯原因，不觸發外層導航。非詳情頁放在標題列右側，有操作或其他元件時放在其左方；詳情頁放在標題上一行的既有資訊之後。可選取列表保留核取方塊的既有選取語意，旗幟不取代核取控制。 |
 | 集合卡片本身可開啟詳情，並含少量獨立操作 | `src/views/experiment/ExperimentList.vue`、`src/views/goal/GoalList.vue` 的 `el-card.app-collection-card` | 卡片容器承接 click、Enter 與 Space；卡內次要操作須停止事件傳遞。列表頁的 hover、focus 與減少動態效果由共用 class 承接；工作區摘要須先對照同一工作區的摘要卡，不因可開啟詳情就套用列表卡的浮動或陰影。 |
 | 歷程 | `src/components/ui/HistoryDialog.vue`、`src/components/ui/HistoryTimeline.vue`、`src/components/ui/HistoryEvent.vue`、`src/components/ui/HistoryFields.vue` | 外殼、事件與對照欄位；不強迫所有紀錄雙欄 |
 | 歷程入口／長文 | `src/components/ui/RecordHistoryTrigger.vue`、`src/components/ExpandableText.vue` | 名稱＋計數與全文展開 |
@@ -443,6 +444,7 @@
 | 更新行動前整理 | 從行動編輯進入時，底部使用返回編輯／重新讀取原文／確認更新；返回編輯保留整理草稿與修改後行動，重新進入可繼續 | ×、Esc 仍經草稿確認放棄當層變更並返回父表單；獨立整理保留取消，不因預覽或返回而寫入資料 |
 | 來源管理子流程 | 同一外殼中明示返回；取消變更／確認來源返回成果表單，×、Esc 沿用返回並放棄當層未確認選擇的語意 | 父層草稿保留，確認來源後仍待成果儲存；這是 7.3 的限定例外，不推廣至所有 × |
 | 卡片閱讀詳情 | 主要閱讀與屬性側欄可保留不同組合 | 兩者認知角色不同，仍遵守導覽、操作與重排規則 |
+| 目標追蹤旗幟 | 旗幟表示此項目被至少一個進行中且未封存的目標追蹤，是狀態資訊。列表、摘要與集合卡放在標題列右側；該列有操作按鈕或其他元件時，旗幟位於這些元件左方，保留原有元件的位置。詳情頁放在標題上一行，緊接該行既有資訊之後；使用 `DetailHeading` 時放入 `eyebrow` 插槽。 | 不放在正文開頭；不顯示於目標本身、統計彙總及沒有活躍追蹤關聯的項目。若項目可開啟詳情，旗幟必須維持獨立可點擊，不能巢狀放入連結或按鈕，也不觸發外層導航。 |
 | 作品長文編輯 | 預設可視化排版，正文獨立捲動，格式與儲存狀態持續可見；專注模式保留同一編輯器、選取與草稿，依可見視窗調整高度 | 正文仍儲存 Markdown；載入不自動改寫原文，無法保留等價內容時改用原始碼。支援大小標題、粗斜體、刪除線、清單、基本表格、標題收合、大綱與搜尋；收合及搜尋不寫入正文 |
 
 **功能設定備註：** 價值產出詳情目前採最近 3 筆；成果來源目前為一張卡片、一個實驗及最多 20 件展品。這些是已有功能設定，不是其他功能的全域上限；修改須依功能需求與 API 能力確認。後續宜由功能規格承接，本次不新增或修改其他文件。

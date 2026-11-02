@@ -180,7 +180,7 @@ const submitEdit = () => {
 
     <main v-else-if="experimentQuery.data.value" class="experiment-detail-content" :style="getExperimentThemeStyle(experimentQuery.data.value.themeColor)">
       <DetailHeading eyebrow="實驗主題" :title="experimentQuery.data.value.title">
-        <template #metadata><GoalBadge kind="EXPERIMENT" :id="Number(route.params.id)" /></template>
+        <template #eyebrow><GoalBadge kind="EXPERIMENT" :id="Number(route.params.id)" /></template>
       </DetailHeading>
 
       <section class="experiment-inquiry" aria-labelledby="experiment-inquiry-title">

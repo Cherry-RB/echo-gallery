@@ -269,7 +269,7 @@ onBeforeUnmount(() => {
         </div>
       </nav>
     </template>
-    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="創作台" /><GoalBadge kind="WORK" :id="id" /></header>
+    <header class="work-heading"><DetailHeading :title="detail.work.title" eyebrow="創作台"><template #eyebrow><GoalBadge kind="WORK" :id="id" /></template></DetailHeading></header>
     <ExpandableText v-if="detail.work.description" :content="detail.work.description" :lines="3" />
     <el-alert v-if="readonly" title="此作品已封存，可以閱讀、複製與匯出；還原後才能編輯。" type="info" :closable="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" role="alert" />

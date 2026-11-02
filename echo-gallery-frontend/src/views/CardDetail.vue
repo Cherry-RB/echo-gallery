@@ -453,11 +453,11 @@ const {
                     {{ cardData.type === 'note' ? '筆記' : '連結' }}
                   </el-tag>
                   <span class="detail-card-id">#{{ cardData.id }}</span>
+                  <GoalBadge kind="CARD" :id="Number(props.id)" />
                 </div>
                 <div class="title-with-action">
                   <div class="card-title-group">
-                  <h1>{{ cardData.title }}</h1>
-                  <GoalBadge kind="CARD" :id="Number(props.id)" />
+                    <h1>{{ cardData.title }}</h1>
                   </div>
                   <button type="button" class="inline-edit-button" @click="openEditDialog('basic')">編輯</button>
                 </div>
@@ -804,11 +804,13 @@ const {
                     </el-radio-group>
                   </el-form-item>
                   <span v-if="!isCreateMode" class="detail-card-id">#{{ cardData.id }}</span>
+                  <GoalBadge v-if="!isEditMode && props.id" kind="CARD" :id="Number(props.id)" />
                 </div>
 
                 <el-form-item prop="title" style="flex: 1; margin-bottom: 0;">
-                  <h1 v-if="!isEditMode" class="main-title">{{ cardData.title }}</h1>
-                  <GoalBadge v-if="!isEditMode && props.id" kind="CARD" :id="Number(props.id)" />
+                  <div v-if="!isEditMode" class="card-title-group">
+                    <h1 class="main-title">{{ cardData.title }}</h1>
+                  </div>
                   <el-input
                     v-else
                     v-model="cardData.title"

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.echogallery.exception.ErrorResponse;
 import com.echogallery.exception.UserAlreadyExistsException;
@@ -16,6 +17,12 @@ import com.echogallery.exception.UserAlreadyExistsException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
+        String message = ex.getReason() == null || ex.getReason().isBlank() ? "請稍後再試" : ex.getReason();
+        return ResponseEntity.status(ex.getStatusCode()).body(new ErrorResponse(message, ex.getStatusCode().value()));
+    }
 
     // 1. 處理格式驗證錯誤 (例如 Email 格式不對)
     @ExceptionHandler(MethodArgumentNotValidException.class)

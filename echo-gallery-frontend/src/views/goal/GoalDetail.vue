@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -11,24 +11,63 @@ import RecordCount from '../../components/ui/RecordCount.vue'
 import HistoryTimeline from '../../components/ui/HistoryTimeline.vue'
 import CoverImage from '../../components/ui/CoverImage.vue'
 import GoalEditor from '../../components/goal/GoalEditor.vue'
+import GoalProgressLogDialog from '../../components/goal/GoalProgressLogDialog.vue'
 import { goalApi } from '../../utils/api/goalApi'
 import { goalKinds, goalMetrics, goalStatuses, isGoalPeriodDue } from '../../types/goal'
 import { hasGoalCards } from '../../utils/goalPresentation'
 import { formatDate } from '../../utils/formatDate'
-import type { GoalDefinition, GoalMetric, GoalSourceView } from '../../types/goal'
+import { apiErrorMessage } from '../../utils/api/errorMessage'
+import type { GoalDefinition, GoalMetric, GoalProgressLog, GoalReview, GoalSourceView, GoalStatus } from '../../types/goal'
 type GoalRevision = { revision: number; definition: GoalDefinition; reason: string; effectiveAt: string }
 const route = useRoute(), router = useRouter(), client = useQueryClient(), visible = ref(false), busy = ref(false), error = ref(''), evidenceMetric = ref<string | null>(null), evidenceBusy = ref<string | null>(null)
 const owner = localStorage.getItem('id') || '', id = computed(() => Number(route.params.id))
 const editorSection = ref<'goal' | 'sources'>('goal')
-function openEditor(section: 'goal' | 'sources' = 'goal') { editorSection.value = section; visible.value = true }
+const editorInitialStatus = ref<GoalStatus | undefined>()
+const logVisible = ref(false), editingLog = ref<GoalProgressLog | null>(null), reviewStarting = ref(false)
+function openEditor(section: 'goal' | 'sources' = 'goal', initialStatus?: GoalStatus) { editorSection.value = section; editorInitialStatus.value = initialStatus; visible.value = true }
 const removed = ref(false)
 const query = useQuery({ queryKey: computed(() => ['goals', owner, 'detail', id.value]), queryFn: () => goalApi.detail(id.value), enabled: computed(() => !removed.value), retry: (count, e) => (e as { response?: { status?: number } }).response?.status !== 404 && count < 2 })
 const goal = computed(() => query.data.value)
+watch([() => route.query.action, goal], ([action, current]) => {
+  if (!current || typeof action !== 'string' || !['adjust', 'end', 'log'].includes(action)) return
+  if (action === 'log') openLog()
+  else openEditor('goal', action === 'end' ? 'ENDED' : undefined)
+  const query = { ...route.query }
+  delete query.action
+  void router.replace({ query })
+}, { immediate: true })
 const relatedEnabled = computed(() => !removed.value && !!goal.value && !query.isError.value)
 const history = useQuery({ queryKey: computed(() => ['goals', owner, 'revisions', id.value]), queryFn: () => goalApi.revisions(id.value), enabled: relatedEnabled })
 const sources = useQuery({ queryKey: computed(() => ['goals', owner, 'sources', id.value]), queryFn: () => goalApi.sources(id.value), enabled: relatedEnabled })
 const metrics = useQuery({ queryKey: computed(() => ['goals', owner, 'metrics', id.value]), queryFn: () => goalApi.metrics(id.value), enabled: relatedEnabled })
 const evidence = useQuery({ queryKey: computed(() => ['goals', owner, 'evidence', id.value, evidenceMetric.value]), queryFn: () => goalApi.evidence(id.value, evidenceMetric.value || undefined), enabled: computed(() => relatedEnabled.value && !!evidenceMetric.value) })
+const logs = useQuery({ queryKey: computed(() => ['goals', owner, 'logs', id.value]), queryFn: () => goalApi.logs(id.value), enabled: relatedEnabled })
+const reviews = useQuery({ queryKey: computed(() => ['goals', owner, 'reviews', id.value]), queryFn: () => goalApi.reviews(id.value), enabled: relatedEnabled })
+function todayInTaipei() { return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' }) }
+const reviewEndsOn = computed(() => !goal.value ? '' : [goal.value.definition.endsOn, todayInTaipei()].sort()[0])
+const latestSubmittedReview = computed<GoalReview | undefined>(() => (reviews.data.value ?? []).filter(review => review.status === 'SUBMITTED').sort((a, b) => b.endsOn.localeCompare(a.endsOn))[0])
+const reviewItems = computed(() => reviews.data.value ?? [])
+const reviewStartsOn = computed(() => {
+  const last = latestSubmittedReview.value?.endsOn
+  return last ? new Date(new Date(last + 'T00:00:00Z').getTime() + 86400000).toISOString().slice(0, 10) : goal.value?.definition.startsOn || ''
+})
+const pendingReview = computed(() => reviewItems.value.find(review => review.status === 'DRAFT' && review.startsOn === reviewStartsOn.value && review.endsOn <= reviewEndsOn.value))
+const reviewActionLabel = computed(() => pendingReview.value ? '繼續復盤' : '開始復盤')
+const nextReviewPeriod = computed(() => {
+  if (reviews.isFetching.value) return ''
+  if (pendingReview.value) return pendingReview.value.startsOn + ' — ' + pendingReview.value.endsOn
+  if (!goal.value || reviewUnavailableReason.value) return ''
+  return reviewStartsOn.value + ' — ' + reviewEndsOn.value
+})
+const reviewUnavailableReason = computed(() => {
+  if (!goal.value || reviews.isPending.value) return ''
+  if (reviews.isError.value) return '無法確認復盤紀錄，請先重試讀取。'
+  if (pendingReview.value) return ''
+  if (todayInTaipei() < goal.value.definition.startsOn) return '尚未進入可復盤期間。'
+  const latest = latestSubmittedReview.value
+  if (latest && latest.endsOn >= reviewEndsOn.value) return '本期已完成復盤；如需補充，請開啟紀錄編輯。'
+  return ''
+})
 const missing = computed(() => (query.error.value as { response?: { status?: number } } | null)?.response?.status === 404)
 const included = computed(() => sources.data.value?.filter(s => !s.excluded) ?? [])
 const excluded = computed(() => sources.data.value?.filter(s => s.excluded) ?? [])
@@ -37,6 +76,21 @@ function sourceTitle(source: GoalSourceView) { return source.parentTitle ? `${so
 const canRead = computed(() => goal.value && goal.value.cardCount > 0 && hasGoalCards(goal.value.definition))
 const availableMetrics = computed(() => metrics.data.value?.filter(metric => metric.coverageStatus !== 'NOT_AVAILABLE') ?? [])
 const metricLabel = (metric: GoalMetric) => goalMetrics[metric.metricKey] || metric.metricKey
+function openLog(log: GoalProgressLog | null = null) { editingLog.value = log; logVisible.value = true }
+async function logSaved() { await client.invalidateQueries({ queryKey: ['goals', owner, 'logs', id.value] }); await client.invalidateQueries({ queryKey: ['goals', owner, 'metrics', id.value] }) }
+async function removeLog(log: GoalProgressLog) {
+  try {
+    await ElMessageBox.confirm('刪除後無法復原這則補記。', '刪除補記', { type: 'warning', confirmButtonText: '刪除', cancelButtonText: '取消' })
+    await goalApi.deleteLog(id.value, log.id, log.version); await logSaved(); ElMessage.success('已刪除補記')
+  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error('刪除補記失敗，請重新整理後再試。') }
+}
+async function startReview() {
+  if (reviewStarting.value || reviews.isPending.value || reviews.isFetching.value || reviewUnavailableReason.value) return
+  reviewStarting.value = true
+  try { await router.push(pendingReview.value ? `/goals/${id.value}/reviews/${pendingReview.value.id}/edit` : `/goals/${id.value}/reviews/new`) }
+  catch (e) { ElMessage.error(apiErrorMessage(e, '無法開始復盤，請重新整理後再試。')) }
+  finally { reviewStarting.value = false }
+}
 async function toggleEvidence(item: { id: string; excluded: boolean; version: number }) {
   if (!goal.value || evidenceBusy.value) return
   try {
@@ -123,6 +177,32 @@ async function command(value: string) {
           <template v-else-if="availableMetrics.length"><dl class="goal-metrics"><div v-for="metric in availableMetrics" :key="metric.metricKey"><dt>{{ metricLabel(metric) }}</dt><dd>{{ metric.value }} {{ metric.unit }}</dd><small>{{ metric.mode === 'CURRENT' ? '目前保留資料' : `自 ${formatDate(metric.coverageStart, 'YYYY-MM-DD')} 起記錄` }}</small><el-button v-if="metric.mode === 'PERIOD'" type="primary" link size="small" @click="evidenceMetric = evidenceMetric === metric.metricKey ? null : metric.metricKey">{{ evidenceMetric === metric.metricKey ? '收起證據' : '查看證據' }}</el-button></div></dl><div v-if="evidenceMetric" class="goal-evidence"><p v-if="evidence.isPending.value" class="goal-help">正在讀取證據…</p><el-alert v-else-if="evidence.isError.value" title="證據載入失敗" type="error" :closable="false"><el-button @click="evidence.refetch()">重試</el-button></el-alert><ul v-else class="goal-evidence-list"><li v-for="item in evidence.data.value?.content" :key="item.id"><span><strong>{{ item.type === 'CONTENT_UPDATED' ? '內容修改' : item.type }}</strong><small>{{ formatDate(item.occurredAt, 'YYYY-MM-DD HH:mm') }}<template v-if="item.excluded"> · 已排除</template></small></span><el-button type="primary" link size="small" :loading="evidenceBusy === item.id" @click="toggleEvidence(item)">{{ item.excluded ? '恢復納入' : '排除' }}</el-button></li></ul><p v-if="!evidence.data.value?.content.length" class="goal-help">這段期間沒有可追查的活動。</p></div></template>
           <p v-else class="goal-help">已保存顯示偏好，但尚沒有可用的期間資料。</p>
         </section>
+        <section class="app-panel app-panel--padded app-section" aria-labelledby="goal-progress-title">
+          <SectionHeader title="補記與復盤">
+            <template #actions><el-button type="primary" link size="small" @click="openLog()">新增補記</el-button><el-tooltip :disabled="!reviewUnavailableReason" :content="reviewUnavailableReason"><span><el-button type="primary" link size="small" :loading="reviewStarting" :disabled="reviews.isPending.value || reviews.isFetching.value || !!reviewUnavailableReason" @click="startReview">{{ reviewActionLabel }}</el-button></span></el-tooltip></template>
+          </SectionHeader>
+          <p class="goal-help">補記站外進度；復盤會保留本期設定與數據快照。</p>
+          <el-alert v-if="logs.isError.value" title="補記讀取失敗" type="error" :closable="false"><el-button @click="logs.refetch()">重試</el-button></el-alert>
+          <ul v-else-if="logs.data.value?.length" class="goal-log-list">
+            <li v-for="log in logs.data.value" :key="log.id"><div><strong>{{ log.occurredOn }}</strong><span v-if="log.kind === 'MEASUREMENT'">{{ log.amount }} {{ log.unit }}</span><p v-if="log.content">{{ log.content }}</p></div><div class="goal-log-actions"><el-button type="primary" link size="small" @click="openLog(log)">編輯</el-button><el-button type="danger" link size="small" @click="removeLog(log)">刪除</el-button></div></li>
+          </ul>
+          <p v-else-if="!logs.isPending.value" class="goal-help">尚無補記。可在回顧前補上站外完成的活動或數值。</p>
+          <div class="goal-review-list">
+            <h3>復盤紀錄</h3>
+            <p v-if="nextReviewPeriod" class="goal-help">{{ pendingReview ? '未完成期間' : '下次復盤涵蓋' }}：{{ nextReviewPeriod }}</p>
+            <el-alert v-if="reviews.isError.value" title="復盤紀錄讀取失敗" type="error" :closable="false"><el-button @click="reviews.refetch()">重試</el-button></el-alert>
+            <ul v-else-if="reviewItems.length">
+              <li v-for="review in reviewItems" :key="review.id" class="goal-review-period">
+                <div class="goal-review-period-heading">
+                  <router-link :to="'/goals/' + id + '/reviews/' + review.id + (review.status === 'DRAFT' ? '/edit' : '')">{{ review.startsOn }} — {{ review.endsOn }}</router-link>
+                  <span class="goal-review-period-actions"><el-tag size="small" :type="review.status === 'SUBMITTED' ? 'success' : 'info'">{{ review.status === 'SUBMITTED' ? '已完成' : '未完成' }}</el-tag></span>
+                </div>
+              </li>
+            </ul>
+            <p v-else-if="!reviews.isPending.value" class="goal-help">尚未建立復盤。</p>
+            <p v-if="reviewUnavailableReason && !reviews.isPending.value" class="goal-help">{{ reviewUnavailableReason }}</p>
+          </div>
+        </section>
         <p v-if="history.isPending.value" class="goal-help">正在讀取調整紀錄…</p>
         <el-alert v-else-if="history.isError.value" title="調整紀錄載入失敗" type="error" :closable="false"><el-button @click="history.refetch()">重試</el-button></el-alert>
         <section v-else-if="history.data.value?.length" class="goal-history app-panel app-panel--padded" aria-labelledby="goal-history-title">
@@ -150,7 +230,8 @@ async function command(value: string) {
           </HistoryTimeline>
         </section>
       </div>
-      <GoalEditor v-model="visible" :goal="goal" :initial-section="editorSection" @saved="saved" />
+      <GoalEditor v-model="visible" :goal="goal" :initial-section="editorSection" :initial-status="editorInitialStatus" @saved="saved" />
+      <GoalProgressLogDialog v-model="logVisible" :goal-id="id" :log="editingLog" @saved="logSaved" />
     </template>
   </DetailShell>
 </template>
@@ -179,6 +260,19 @@ async function command(value: string) {
 .goal-evidence-list { display: grid; gap: var(--space-xs); list-style: none; margin: 0; padding: 0; }
 .goal-evidence-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm) 0; border-bottom: 1px solid var(--el-border-color-lighter); }
 .goal-evidence-list span { display: grid; gap: var(--space-2xs); min-width: 0; }.goal-evidence-list strong { font-size: var(--type-secondary); font-weight: var(--weight-medium); }.goal-evidence-list small { color: var(--el-text-color-secondary); font-size: var(--type-metadata); }
+.goal-log-list, .goal-review-list ul { display: grid; gap: var(--space-xs); margin: var(--space-sm) 0 0; padding: 0; list-style: none; }
+.goal-log-list li { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) 0; border-bottom: 1px solid var(--el-border-color-lighter); }
+.goal-log-list li > div:first-child { display: grid; gap: var(--space-2xs); min-width: 0; }
+.goal-log-list strong { color: var(--el-text-color-secondary); font-size: var(--type-metadata); font-weight: var(--weight-normal); }
+.goal-log-list span { color: var(--el-text-color-primary); font-size: var(--type-secondary); font-weight: var(--weight-medium); }
+.goal-log-list p { margin: 0; white-space: pre-wrap; color: var(--el-text-color-regular); font-size: var(--type-secondary); overflow-wrap: anywhere; }
+.goal-log-actions { display: flex; flex: 0 0 auto; gap: var(--space-2xs); }
+.goal-review-list { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--el-border-color-lighter); }
+.goal-review-list h3 { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-secondary); font-weight: var(--weight-medium); }
+.goal-review-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); font-size: var(--type-secondary); }
+.goal-review-list a { color: var(--el-color-primary); text-decoration: none; }.goal-review-list a:hover { text-decoration: underline; }
+.goal-review-list .goal-review-period { display: block; padding: var(--space-xs) 0; }
+.goal-review-period-heading, .goal-review-period-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; }
 .goal-exceptions p { margin-top: var(--space-xs); }
 .goal-history-heading { margin-bottom: var(--space-sm); }
 .goal-history-heading h2 { display: flex; align-items: center; gap: var(--space-xs); margin: 0; color: var(--el-text-color-primary); font-size: var(--type-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-section-title); }

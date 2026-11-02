@@ -211,15 +211,19 @@ public class GoalService {
         var goal=owned(id);var definition=definition(goal);return definition.metrics().stream().map(key->metric(goal,key)).toList();
     }
     Metric metric(GoalRow goal,String key) {
+        return metric(goal,key,goal.startsOn,goal.endsOn);
+    }
+    Metric metric(GoalRow goal,String key,LocalDate starts,LocalDate ends) {
         var definition=definition(goal);Long value=null;String mode="PERIOD",coverage="RECORDED";
         if("M01".equals(key)){value=countDefinition(definition);mode="CURRENT";coverage="CURRENT";}
         else if(Set.of("M03","M04").contains(key)) {
-            var links=dayLinks(goal);value="M03".equals(key)?links.stream().map(l->l.day.cardId).distinct().count():(long)links.size();
+            var links=dayLinks(goal).stream().filter(l->!l.day.modifiedOn.isBefore(starts)&&!l.day.modifiedOn.isAfter(ends)).toList();value="M03".equals(key)?links.stream().map(l->l.day.cardId).distinct().count():links.stream().map(l->l.day.modifiedOn).distinct().count();
         } else {
-            var types=metricTypes(key);if(types!=null)value=factLinks(goal).stream().filter(l->types.contains(l.fact.type)).map(l->factKey(l)).distinct().count();
+            var types=metricTypes(key);if(types!=null)value=factLinks(goal).stream().filter(l->{var date=l.fact.occurredAt.withZoneSameInstant(ZoneId.of("Asia/Taipei")).toLocalDate();return !date.isBefore(starts)&&!date.isAfter(ends);}).filter(l->types.contains(l.fact.type)).map(l->factKey(l)).distinct().count();
             else coverage="NOT_AVAILABLE";
         }
-        return new Metric(key,value,"張",mode,goal.startsOn,goal.endsOn,goal.trackingStartedAt,coverage,goal.version);
+        String unit=switch(key){case "M04" -> "天";case "M10","M11","M12","M17","M18" -> "次";case "M14" -> "件";case "M16" -> "件";default -> "張";};
+        return new Metric(key,value,unit,mode,starts,ends,goal.trackingStartedAt,coverage,goal.version);
     }
     Set<String> metricTypes(String key) { return switch(key) {
         case "M02" -> Set.of("CARD_CREATED"); case "M05" -> Set.of("TODAY_REVIEWED"); case "M06" -> Set.of("CARD_REUSED");
@@ -258,9 +262,143 @@ public class GoalService {
         }
         return "FACT".equals(type)?evidence(goal,em.find(GoalFactLinkRow.class,row)):evidence(goal,em.find(GoalCardDayRow.class,row));
     }
+    public List<ProgressLog> logs(Long id) {
+        owned(id);return em.createQuery("select l from GoalProgressLogRow l where l.goal.id=:goal and l.user.id=:owner order by l.occurredOn desc,l.id desc",GoalProgressLogRow.class)
+                .setParameter("goal",id).setParameter("owner",owner()).getResultStream().map(this::log).toList();
+    }
+    ProgressLog log(GoalProgressLogRow row) { return new ProgressLog(row.id,LogKind.valueOf(row.kind),row.occurredOn,row.content,row.amount,row.unit,row.version,row.createdAt,row.updatedAt); }
+    void validateLog(ProgressLogSave request) {
+        boolean hasContent=request.content()!=null&&!request.content().isBlank(),hasAmount=request.amount()!=null;
+        if(!hasContent&&!hasAmount)fail(HttpStatus.BAD_REQUEST,"請填寫補記內容或數量");
+        if(request.kind()==LogKind.MEASUREMENT&&(!hasAmount||request.unit()==null||request.unit().isBlank()))fail(HttpStatus.BAD_REQUEST,"量化補記需要數量與單位");
+    }
+    @Transactional public ProgressLog createLog(Long id,ProgressLogSave request) {
+        lock();var goal=owned(id);validateLog(request);if(request.version()!=0)fail(HttpStatus.CONFLICT,"補記已有更新，請重新讀取");
+        var row=new GoalProgressLogRow();row.user=goal.user;row.goal=goal;row.kind=request.kind().name();row.occurredOn=request.occurredOn();row.content=blankToNull(request.content());row.amount=request.amount();row.unit=blankToNull(request.unit());row.version=1;row.createdAt=now();row.updatedAt=row.createdAt;em.persist(row);return log(row);
+    }
+    GoalProgressLogRow ownedLog(GoalRow goal,Long logId) {
+        return em.createQuery("select l from GoalProgressLogRow l where l.goal=:goal and l.id=:id and l.user.id=:owner",GoalProgressLogRow.class)
+                .setParameter("goal",goal).setParameter("id",logId).setParameter("owner",owner()).getResultStream().findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"找不到補記"));
+    }
+    @Transactional public ProgressLog saveLog(Long id,Long logId,ProgressLogSave request) {
+        lock();var goal=owned(id);validateLog(request);var row=ownedLog(goal,logId);if(row.version!=request.version())fail(HttpStatus.CONFLICT,"補記已有更新，請重新讀取");
+        row.kind=request.kind().name();row.occurredOn=request.occurredOn();row.content=blankToNull(request.content());row.amount=request.amount();row.unit=blankToNull(request.unit());row.version++;row.updatedAt=now();return log(row);
+    }
+    @Transactional public void deleteLog(Long id,Long logId,long version) {
+        lock();var row=ownedLog(owned(id),logId);if(row.version!=version)fail(HttpStatus.CONFLICT,"補記已有更新，請重新讀取");em.remove(row);
+    }
+    public List<Review> reviews(Long id) {
+        owned(id);return em.createQuery("select r from GoalReviewRow r where r.goal.id=:goal and r.user.id=:owner order by r.endsOn desc,r.id desc",GoalReviewRow.class)
+                .setParameter("goal",id).setParameter("owner",owner()).getResultStream().map(this::review).toList();
+    }
+    GoalReviewRow ownedReview(GoalRow goal,Long reviewId) {
+        return em.createQuery("select r from GoalReviewRow r where r.goal=:goal and r.id=:id and r.user.id=:owner",GoalReviewRow.class)
+                .setParameter("goal",goal).setParameter("id",reviewId).setParameter("owner",owner()).getResultStream().map(r->org.hibernate.Hibernate.unproxy(r,GoalReviewRow.class)).findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"找不到復盤"));
+    }
+    Review review(GoalReviewRow row) {
+        row=org.hibernate.Hibernate.unproxy(row,GoalReviewRow.class);
+        var status=ReviewStatus.valueOf(row.status);
+        ReviewSnapshot snapshot=status==ReviewStatus.SUBMITTED
+                ? row.snapshot==null?null:mapper.readValue(row.snapshot,ReviewSnapshot.class)
+                : row.goal==null?null:reviewSnapshot(row,null);
+        var content=reviewContent(row);
+        return new Review(row.id,row.startsOn,row.endsOn,status,content,row.version,row.updatedAt,row.submittedAt,snapshot,row.goal==null?0:row.goal.version);
+    }
+    ReviewSnapshot reviewSnapshot(GoalReviewRow row,Status resultingStatus) {
+        var goal=row.goal;var definition=definition(goal);
+        var metrics=definition.metrics().stream().map(key->metric(goal,key,row.startsOn,row.endsOn)).toList();
+        var logs=logs(goal.id).stream().filter(l->!l.occurredOn().isBefore(row.startsOn)&&!l.occurredOn().isAfter(row.endsOn)).toList();
+        return new ReviewSnapshot(2,definition,metrics,definition.sources(),logs,countDefinition(definition),now(),resultingStatus);
+    }
+    ReviewContent reviewContent(GoalReviewRow row) {
+        if(row.content==null||row.content.isBlank())return new ReviewContent("","","",null,null);
+        return mapper.readValue(row.content,ReviewContent.class);
+    }
+    LocalDate latestReviewEnd(GoalRow goal) {
+        return em.createQuery("select r.endsOn from GoalReviewRow r where r.goal=:goal and r.status='SUBMITTED' order by r.endsOn desc",LocalDate.class)
+                .setParameter("goal",goal).setMaxResults(1).getResultStream().findFirst().orElse(null);
+    }
+    public Review previewReview(Long id) {
+        var goal=owned(id);var latest=latestReviewEnd(goal);
+        var starts=latest==null?goal.startsOn:latest.plusDays(1);
+        var today=now().toLocalDate();var ends=goal.endsOn.isBefore(today)?goal.endsOn:today;
+        if(ends.isBefore(starts))fail(HttpStatus.BAD_REQUEST,"目前沒有待復盤的期間");
+        var row=new GoalReviewRow();row.user=goal.user;row.goal=goal;row.startsOn=starts;row.endsOn=ends;
+        row.status=ReviewStatus.DRAFT.name();row.content=json(new ReviewContent("","",null,null,null));
+        row.createdAt=now();row.updatedAt=row.createdAt;
+        return review(row);
+    }
+    @Transactional public Review initializeReview(Long id,ReviewContent content) {
+        if((content.observation()==null||content.observation().isBlank())
+                &&(content.decision()==null||content.decision().isBlank())
+                &&(content.direction()==null||content.direction().isBlank())
+                &&content.informationHelpfulness()==null&&content.actionEffectiveness()==null)
+            fail(HttpStatus.BAD_REQUEST,"請先填寫復盤內容");
+        lock();var preview=previewReview(id);var goal=owned(id);
+        var existing=em.createQuery("select count(r) from GoalReviewRow r where r.goal=:goal and r.status='DRAFT' and r.startsOn=:starts and r.endsOn<=:ends",Long.class)
+                .setParameter("goal",goal).setParameter("starts",preview.startsOn()).setParameter("ends",preview.endsOn()).getSingleResult();
+        if(existing>0)fail(HttpStatus.CONFLICT,"已有未完成的復盤，請返回目標繼續填寫");
+        var row=new GoalReviewRow();row.user=goal.user;row.goal=goal;row.startsOn=preview.startsOn();row.endsOn=preview.endsOn();
+        row.status=ReviewStatus.DRAFT.name();row.content=json(content);row.version=1;row.createdAt=now();row.updatedAt=row.createdAt;
+        em.persist(row);return review(row);
+    }
+    public Review review(Long id,Long reviewId) { return review(ownedReview(owned(id),reviewId)); }
+    @Transactional public Review saveReview(Long id,Long reviewId,ReviewSave request) {
+        lock();var goal=owned(id);var row=ownedReview(goal,reviewId);if(row.version!=request.version())fail(HttpStatus.CONFLICT,"復盤已有更新，請重新讀取");
+        if(ReviewStatus.SUBMITTED.name().equals(row.status)) {
+            if(request.content().direction()==null||request.content().direction().isBlank())fail(HttpStatus.BAD_REQUEST,"請選擇本次決定");
+        }
+        row.content=json(request.content());row.version++;row.updatedAt=now();return review(row);
+    }
+    @Transactional public Review submitReview(Long id,Long reviewId,ReviewSubmit request) {
+        lock();var goal=owned(id);var row=ownedReview(goal,reviewId);if(ReviewStatus.SUBMITTED.name().equals(row.status)&&request.requestId().toString().equals(row.submitKey))return review(row);if(!ReviewStatus.DRAFT.name().equals(row.status)||row.version!=request.version())fail(HttpStatus.CONFLICT,"復盤已有更新，請重新讀取");
+        if(goal.version!=request.goalVersion())fail(HttpStatus.CONFLICT,"目標設定已有更新；請保留內容並重新確認摘要後再完成復盤");
+        var content=reviewContent(row);if(content.direction()==null||content.direction().isBlank())fail(HttpStatus.BAD_REQUEST,"請選擇本次決定");
+        var latest=latestReviewEnd(goal);var expected=latest==null?goal.startsOn:latest.plusDays(1);
+        if(!row.startsOn.equals(expected)||row.endsOn.isAfter(goal.endsOn)||row.endsOn.isAfter(now().toLocalDate()))fail(HttpStatus.CONFLICT,"復盤期間已變更或已完成，請重新確認");
+        Status target=request.targetStatus();
+        Status directionStatus=switch(content.direction()){case "PAUSE" -> Status.PAUSED;case "COMPLETE" -> Status.COMPLETED;case "STOP" -> Status.ENDED;default -> null;};
+        if(!Objects.equals(target,directionStatus))fail(HttpStatus.BAD_REQUEST,"請確認本次決定對應的目標狀態");
+        var snapshot=reviewSnapshot(row,target==null?status(goal):target);
+        row.snapshot=json(snapshot);
+        if(target!=null&&target!=status(goal)) {
+            var d=definition(goal);
+            var changed=new Definition(d.name(),d.startsOn(),d.endsOn(),d.expectation(),d.motivation(),d.imageUrl(),target,d.archived(),d.pinned(),d.pinOrder(),d.reviewDays(),d.remindersEnabled(),d.allTags(),d.sources(),d.metrics());
+            applyReviewStatus(goal,changed,"復盤決定："+content.direction()+(content.decision()==null?"":"；"+content.decision()));
+        }
+        row.status=ReviewStatus.SUBMITTED.name();row.submitKey=request.requestId().toString();row.submittedAt=now();row.updatedAt=row.submittedAt;row.version++;return review(row);
+    }
+    void applyReviewStatus(GoalRow goal,Definition definition,String reason) {
+        // 狀態變更沿用原來源外鍵（包含已刪除來源的空引用），不重新建立失效關聯。
+        var sources=em.createQuery("select s from GoalSourceRow s where s.rule.goal=:goal and s.rule.revision=:revision",GoalSourceRow.class)
+                .setParameter("goal",goal).setParameter("revision",goal.version).getResultList();
+        goal.definition=json(definition);goal.status=definition.status().name();goal.version++;
+        goal.closedAt=definition.status()==Status.COMPLETED||definition.status()==Status.ENDED?Optional.ofNullable(goal.closedAt).orElse(now()):null;
+        var revision=new GoalRuleRow();revision.user=goal.user;revision.goal=goal;revision.revision=goal.version;revision.definition=goal.definition;revision.reason=reason;revision.effectiveAt=now();em.persist(revision);
+        for(var source:sources) {
+            var copy=new GoalSourceRow();copy.user=goal.user;copy.rule=revision;copy.kind=source.kind;copy.sourceId=source.sourceId;copy.excluded=source.excluded;
+            copy.tag=source.tag;copy.experiment=source.experiment;copy.thread=source.thread;copy.work=source.work;copy.treasure=source.treasure;copy.card=source.card;em.persist(copy);
+        }
+    }
+    public List<Reminder> reminders() {
+        var now=now();return rows().stream().filter(g->!g.archived&&status(g)==Status.ACTIVE&&definition(g).remindersEnabled()).map(g->reminder(g,now)).flatMap(Optional::stream).toList();
+    }
+    Optional<Reminder> reminder(GoalRow goal,ZonedDateTime current) {
+        var definition=definition(goal);var latest=latestReviewEnd(goal);
+        if(latest!=null&&!latest.isBefore(goal.endsOn))return Optional.empty();
+        var due=Optional.ofNullable(latest).map(d->d.plusDays(definition.reviewDays())).orElse(goal.startsOn.plusDays(definition.reviewDays()));
+        if(due.isAfter(goal.endsOn))due=goal.endsOn;
+        if(due.isAfter(current.toLocalDate())||current.getHour()<9&&due.equals(current.toLocalDate()))return Optional.empty();var row=em.createQuery("select r from GoalReminderRow r where r.goal=:goal",GoalReminderRow.class).setParameter("goal",goal).getResultStream().findFirst().orElse(null);
+        if(row!=null&&row.snoozedUntil!=null&&row.snoozedUntil.isAfter(current))return Optional.empty();return Optional.of(new Reminder(goal.id,definition.name(),due,row==null?null:row.snoozedUntil,row==null?0:row.version));
+    }
+    @Transactional public Reminder snooze(ReminderSnooze request) {
+        lock();if(!request.until().isAfter(now()))fail(HttpStatus.BAD_REQUEST,"稍後時間需晚於現在");var goal=owned(request.goalId());var rows=em.createQuery("select r from GoalReminderRow r where r.goal=:goal",GoalReminderRow.class).setParameter("goal",goal).getResultList();var row=rows.isEmpty()?new GoalReminderRow():rows.getFirst();
+        row.snoozedUntil=request.until().withZoneSameInstant(ZoneId.of("Asia/Taipei"));row.updatedAt=now();if(row.id==null){if(request.version()!=0)fail(HttpStatus.CONFLICT,"提醒已有更新，請重新讀取");row.user=goal.user;row.goal=goal;row.version=1;em.persist(row);}else {if(row.version!=request.version())fail(HttpStatus.CONFLICT,"提醒已有更新，請重新讀取");row.version++;}return new Reminder(goal.id,definition(goal).name(),Optional.ofNullable(latestReviewEnd(goal)).map(d->d.plusDays(definition(goal).reviewDays())).orElse(goal.startsOn.plusDays(definition(goal).reviewDays())),row.snoozedUntil,row.version);
+    }
+    String blankToNull(String value) { return value==null||value.isBlank()?null:value.trim(); }
     @Transactional public void delete(Long id,long version) {
         lock();var g=owned(id);if(g.version!=version)fail(HttpStatus.CONFLICT,"目標已有更新，請重新載入");
-        for(String entity:List.of("GoalEvidenceOverrideRow","GoalCardDayRow","GoalFactLinkRow"))em.createQuery("delete from "+entity+" l where l.goal.id=:id").setParameter("id",id).executeUpdate();
+        for(String entity:List.of("GoalReminderRow","GoalProgressLogRow","GoalReviewRow","GoalEvidenceOverrideRow","GoalCardDayRow","GoalFactLinkRow"))em.createQuery("delete from "+entity+" l where l.goal.id=:id").setParameter("id",id).executeUpdate();
         em.createQuery("delete from GoalSourceRow s where s.rule.goal.id=:id").setParameter("id",id).executeUpdate();
         em.createQuery("delete from GoalRuleRow r where r.goal.id=:id").setParameter("id",id).executeUpdate();
         em.remove(g);em.flush();
@@ -435,7 +573,7 @@ public class GoalService {
     }
     @Transactional public void clearOwner(Long owner) {
         if(users.findByIdForUpdate(owner).isEmpty())return;
-        for(String entity:List.of("GoalCardDayRow","GoalFactLinkRow","GoalSourceRow","GoalRuleRow","GoalPreferenceRow","GoalFactRow","CardContentDayRow","GoalRow"))
+        for(String entity:List.of("GoalReminderRow","GoalProgressLogRow","GoalReviewRow","GoalEvidenceOverrideRow","GoalCardDayRow","GoalFactLinkRow","GoalSourceRow","GoalRuleRow","GoalPreferenceRow","GoalFactRow","CardContentDayRow","GoalRow"))
             em.createQuery("delete from "+entity+" r where r.user.id=:owner").setParameter("owner",owner).executeUpdate();
         em.flush();
         em.clear();

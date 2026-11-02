@@ -385,8 +385,8 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
             @keydown.up.prevent="moveThread(thread.id, -1)" @keydown.down.prevent="moveThread(thread.id, 1)"
             @dragstart="draggingThreadId = thread.id" @dragend="draggingThreadId = null; dropTarget = null">⠿</button>
           <button class="thread-identity" type="button" @click="openThreadDetail(thread)">{{ thread.name }}</button>
+          <GoalBadge class="thread-goal-badge" kind="THREAD" :id="thread.id" />
           <div class="thread-heading-meta">
-            <GoalBadge kind="THREAD" :id="thread.id" />
             <el-tag size="small" effect="plain">{{ statusLabel(thread.status) }}</el-tag>
             <span class="metadata">最近整理 <time :datetime="thread.lastActivityAt ?? undefined">{{ formatDate(thread.lastActivityAt) }}</time></span>
           </div>
@@ -539,7 +539,8 @@ const availableWorks = computed<WorkSummary[]>(() => works.value.filter(work =>
 .thread-row + .thread-row { border-top: 1px solid var(--el-border-color); }
 .thread-row.drop-before { box-shadow: 0 -3px 0 var(--el-color-primary); }
 .thread-row.drop-after { box-shadow: 0 3px 0 var(--el-color-primary); }
-.thread-row-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; grid-template-areas: 'drag name meta actions more'; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--panel-padding); background: var(--surface-collection); }
+.thread-row-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; grid-template-areas: 'drag name badge meta actions more'; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--panel-padding); background: var(--surface-collection); }
+.thread-goal-badge { grid-area: badge; }
 .drag-handle, .thread-identity { border: 0; background: transparent; font: inherit; color: var(--el-text-color-primary); }
 .drag-handle { grid-area: drag; padding: var(--space-xs); color: var(--el-text-color-secondary); cursor: grab; }
 .thread-identity { grid-area: name; min-width: 0; padding: 0; font-size: var(--type-card-title); font-weight: var(--weight-semibold); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
@@ -605,7 +606,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--el-color-primar
   .summary-cell + .summary-cell { border-left: 0; }
   .thread-detail-grid { gap: var(--space-md); height: auto; }
   .column-surface { flex: auto; overflow: visible; max-height: none; }
-  .thread-row-heading { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'drag name more' '. meta meta' '. actions actions'; }
+  .thread-row-heading { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: 'drag name badge more' '. meta meta meta' '. actions actions actions'; }
   .thread-heading-actions { justify-content: flex-end; }
 }
 @media (max-width: 760px) {

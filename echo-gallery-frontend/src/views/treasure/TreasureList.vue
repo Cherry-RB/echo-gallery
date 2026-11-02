@@ -110,7 +110,6 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
         <article v-for="treasure in query.data.value.content" :key="treasure.id" class="treasure-card app-collection-card">
           <div class="treasure-card-heading">
             <TreasureRankBadge :rank="treasure.rank" />
-            <GoalBadge kind="TREASURE" :id="treasure.id" />
             <div class="card-quick-actions">
             <button type="button" class="quick-output" :aria-label="`為${treasure.title}記錄收益`" @click="openYield(treasure)">＋記收益</button>
             <button v-if="treasure.yieldCount > 0" type="button" class="output-count" :aria-label="`查看 ${treasure.yieldCount} 筆收益`" @click="openHistory(treasure)">{{ treasure.yieldCount }}</button>
@@ -122,9 +121,9 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
           </div>
           <router-link :to="`/treasures/${treasure.id}`" class="treasure-main">
             <CoverImage :src="treasure.coverImageUrl" variant="collection" lazy />
-            <h2>{{ treasure.title }}</h2>
-            <p v-if="treasure.description" class="treasure-preview">{{ treasure.description }}</p>
           </router-link>
+          <div class="treasure-title-row"><router-link :to="`/treasures/${treasure.id}`" class="treasure-title-link"><h2>{{ treasure.title }}</h2></router-link><GoalBadge kind="TREASURE" :id="treasure.id" /></div>
+          <router-link v-if="treasure.description" :to="`/treasures/${treasure.id}`" class="treasure-main"><p class="treasure-preview">{{ treasure.description }}</p></router-link>
           <footer v-if="treasure.activeTrial" class="treasure-card-footer" :data-rank="treasure.activeTrial.targetRank">
             <el-tooltip :content="treasure.activeTrial.title" :show-after="400" placement="top"><p class="challenge-title"><span class="challenge-status"><span class="challenge-rank">{{ ranks[treasure.activeTrial.targetRank!] }}試煉</span> · {{ challengeState(treasure.activeTrial, treasure.rank) }}</span> {{ treasure.activeTrial.title }}</p></el-tooltip>
             <button type="button" class="challenge-update" @click="openTrial(treasure)">{{ treasure.isArchived || treasure.activeTrial.status === 'PASSED' ? '查看' : treasure.activeTrial.targetRank === nextRankOf(treasure.rank) ? '更新' : '編輯' }}</button>
@@ -164,15 +163,18 @@ const saved = (treasure: TreasureDetail) => { if (!editingTreasure.value) void r
 .challenge-status { margin-inline-end: var(--space-xs); }
 .challenge-rank { margin-inline-end: var(--space-2xs); }
 .challenge-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; min-width: 0; margin: 0; color: var(--el-text-color-regular); font-size: var(--type-ui); line-height: var(--leading-ui); overflow-wrap: anywhere; }
-.treasure-main { color: inherit; text-decoration: none; display: block; flex: 1; }
+.treasure-main { color: inherit; text-decoration: none; display: block; }
+.treasure-title-row { display: flex; align-items: flex-start; gap: var(--space-xs); min-width: 0; }
+.treasure-title-link { flex: 1; min-width: 0; color: inherit; text-decoration: none; }
+.treasure-title-row :deep(.goal-badge-anchor) { flex: 0 0 auto; }
 .treasure-main :deep(.cover-media) { margin-bottom: var(--space-sm); }
-.treasure-main h2 { font-size: var(--type-card-title); margin: 0 0 var(--space-xs); line-height: var(--leading-card-title); font-weight: var(--weight-semibold); color: var(--el-text-color-primary); overflow-wrap: anywhere; }
+.treasure-title-link h2 { font-size: var(--type-card-title); margin: 0; line-height: var(--leading-card-title); font-weight: var(--weight-semibold); color: var(--el-text-color-primary); overflow-wrap: anywhere; }
 .treasure-preview { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; white-space: pre-line; overflow-wrap: anywhere; font-size: var(--type-body); color: var(--el-text-color-secondary); line-height: var(--leading-body); }
 .treasure-card-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-xs); padding-top: var(--space-sm); border-top: 1px solid var(--el-border-color-lighter); }
 .quick-output, .challenge-update { padding: 0; border: 0; background: transparent; color: var(--el-color-primary); cursor: pointer; font: inherit; font-size: var(--type-caption); line-height: var(--leading-ui); white-space: nowrap; }
 .quick-output:hover, .quick-output:focus-visible, .challenge-update:hover, .challenge-update:focus-visible { color: var(--el-color-primary-light-3); text-decoration: underline; }
 .output-count:hover, .output-count:focus-visible { border-color: var(--el-color-primary); background: var(--el-color-primary-light-8); }
-.treasure-main:hover h2 { color: var(--el-color-primary); }
+.treasure-title-link:hover h2 { color: var(--el-color-primary); }
 @media (max-width: 1200px) { .treasure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
   .treasure-grid { grid-template-columns: 1fr; }

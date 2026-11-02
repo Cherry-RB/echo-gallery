@@ -6,6 +6,7 @@ import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import SectionHeader from '../../components/ui/SectionHeader.vue'
 import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
+import GoalBadge from '../../components/goal/GoalBadge.vue'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewPeriodDays } from '../../types/overview'
 import { eventKinds, ranks } from '../../utils/treasure'
@@ -80,8 +81,9 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
             <div class="section-title-row"><div><span class="section-eyebrow">材料聚集</span><h2 id="overview-materials-title">新到手的探索材料</h2></div><el-tooltip content="這些是近期加入探索線的材料。" placement="top"><el-icon class="info-icon"><InfoFilled /></el-icon></el-tooltip></div>
             <div v-if="period.recentExperimentMaterials.length" class="content-list">
               <article v-for="material in period.recentExperimentMaterials.slice(0, 3)" :key="`${material.experimentId}-${material.cardId}`" class="content-card">
-                <button type="button" class="content-card-main" @click="openCard(material.cardId)"><span>{{ formatDate(material.addedAt) }} · {{ material.sourceKind === 'EXPLORATION' ? '探索整理' : '放入材料' }}</span><h3>{{ material.title }}</h3></button>
-                <button type="button" class="context-link" @click="openExperiment(material.experimentId)">{{ material.experimentTitle }}</button>
+                <span class="content-card-date">{{ formatDate(material.addedAt) }} · {{ material.sourceKind === 'EXPLORATION' ? '探索整理' : '放入材料' }}</span>
+                <div class="content-card-title-row"><button type="button" class="content-card-main" @click="openCard(material.cardId)"><h3>{{ material.title }}</h3></button><GoalBadge kind="CARD" :id="material.cardId" /></div>
+                <div class="content-card-meta"><button type="button" class="context-link" @click="openExperiment(material.experimentId)">{{ material.experimentTitle }}</button></div>
               </article>
             </div>
             <p v-else class="empty-copy">這段時間沒有新加入探索線的材料。</p>
@@ -95,11 +97,9 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
             </SectionHeader>
             <div v-if="section.events.length" class="content-list">
               <article v-for="(event, index) in section.events" :key="`${event.kind}-${event.treasureId}-${event.eventAt}-${index}`" class="content-card">
-                <router-link :to="`/treasures/${event.treasureId}`" class="content-card-main treasure-record-main">
-                  <span><time :datetime="event.eventAt">{{ formatDate(event.eventAt) }}</time> · {{ event.rank ? `晉級至${ranks[event.rank]}` : eventKinds[event.kind] }}</span>
-                  <h3>{{ event.kind === 'COLLECTED' ? event.treasureTitle : event.eventTitle }}</h3>
-                </router-link>
-                <router-link v-if="event.kind !== 'COLLECTED'" :to="`/treasures/${event.treasureId}`" class="context-link treasure-record-source">{{ event.treasureTitle }}</router-link>
+                <span class="content-card-date"><time :datetime="event.eventAt">{{ formatDate(event.eventAt) }}</time> · {{ event.rank ? `晉級至${ranks[event.rank]}` : eventKinds[event.kind] }}</span>
+                <div class="content-card-title-row"><router-link :to="`/treasures/${event.treasureId}`" class="content-card-main treasure-record-main"><h3>{{ event.kind === 'COLLECTED' ? event.treasureTitle : event.eventTitle }}</h3></router-link><GoalBadge kind="TREASURE" :id="event.treasureId" /></div>
+                <div v-if="event.kind !== 'COLLECTED'" class="content-card-meta"><router-link :to="`/treasures/${event.treasureId}`" class="context-link treasure-record-source">{{ event.treasureTitle }}</router-link></div>
               </article>
             </div>
             <p v-else class="empty-copy">{{ section.empty }}</p>
@@ -135,10 +135,15 @@ const openExperiment = (experimentId: number) => router.push({ name: 'Experiment
 .content-card { min-width: 0; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); overflow-wrap: anywhere; }
 .content-card:first-child { padding-top: 0; border-top: 0; }
 .content-card-main, .context-link { display: block; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; }
-.content-card-main span, .content-card p { color: var(--el-text-color-secondary); font-size: var(--type-meta); }
+.content-card-main span, .content-card-date, .content-card p { color: var(--el-text-color-secondary); font-size: var(--type-meta); }
+.content-card-title-row { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+.content-card-title-row .content-card-main { flex: 1; min-width: 0; }
+.content-card-title-row :deep(.goal-badge-anchor) { flex: 0 0 auto; }
 .content-card-main h3 { margin: 4px 0 0; color: var(--el-text-color-primary); font-size: var(--type-ui); }
 .content-card-main:hover h3, .context-link:hover { color: var(--el-color-primary); }
 .content-card p { margin: 5px 0 0; line-height: var(--leading-ui); }
+.content-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); margin-top: 6px; }
+.content-card-meta .context-link { margin-top: 0; }
 .context-link { margin-top: 6px; color: var(--el-color-primary); font-size: var(--type-meta); }
 .treasure-gallery-link { color: var(--el-color-primary); font-size: var(--type-meta); text-decoration: none; white-space: nowrap; }
 .treasure-gallery-link:hover { text-decoration: underline; }

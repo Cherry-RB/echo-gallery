@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import WorkResume from '../../components/work/WorkResume.vue'
 import GoalOverview from '../../components/goal/GoalOverview.vue'
+import GoalBadge from '../../components/goal/GoalBadge.vue'
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
@@ -139,19 +140,22 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
             :key="experimentTry.experimentId"
             class="experiment-try-item"
           >
-            <button type="button" class="experiment-try-main" @click="openExperiment(experimentTry.experimentId)">
+            <div class="experiment-try-title-row"><button type="button" class="experiment-try-title" @click="openExperiment(experimentTry.experimentId)">
               <el-tooltip :content="experimentTry.experimentTitle" :show-after="400" placement="top" popper-class="content-tooltip">
                 <span>{{ experimentTry.experimentTitle }}</span>
               </el-tooltip>
+            </button><GoalBadge kind="EXPERIMENT" :id="experimentTry.experimentId" />
+              <div class="experiment-try-record-action">
+                <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
+                <RecordHistoryTrigger v-if="experimentTry.explorationRecordCount > 0" label="探索紀錄" :count="experimentTry.explorationRecordCount" count-only @click.stop="openHistory(experimentTry.experimentId)" />
+              </div>
+            </div>
+            <button type="button" class="experiment-try-summary" @click="openExperiment(experimentTry.experimentId)">
               <el-tooltip v-if="experimentTry.currentTry" :content="experimentTry.currentTry" :show-after="400" placement="top" popper-class="content-tooltip">
                 <strong>{{ experimentTry.currentTry }}</strong>
               </el-tooltip>
-              <p v-else class="experiment-try-empty">還沒設定下一步。不妨先翻翻收集的材料。</p>
+              <span v-else class="experiment-try-empty">還沒設定下一步。不妨先翻翻收集的材料。</span>
             </button>
-            <div class="experiment-try-record-action">
-              <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
-              <RecordHistoryTrigger v-if="experimentTry.explorationRecordCount > 0" label="探索紀錄" :count="experimentTry.explorationRecordCount" count-only @click.stop="openHistory(experimentTry.experimentId)" />
-            </div>
           </article>
         </div>
       </section>
@@ -172,6 +176,7 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
                   <router-link :to="`/treasures/${item.id}`" class="treasure-action-title">{{ item.title }}</router-link>
                 </div>
                 <div class="treasure-output-controls">
+                  <GoalBadge kind="TREASURE" :id="item.id" />
                   <button type="button" class="treasure-yield-trigger" :aria-label="`為${item.title}記錄收益`" @click="openTreasureYield(item)">＋記收益</button>
                   <RecordHistoryTrigger v-if="item.yieldCount > 0" label="收益" :count="item.yieldCount" count-only @click="openTreasureHistory(item)" />
                 </div>
@@ -284,14 +289,18 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
 .current-stat > span, .period-figure > div > span { margin-left: 3px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .current-stat small { display: block; margin-top: 5px; color: var(--el-text-color-secondary); font-size: var(--type-meta); }
 .experiment-try-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-.experiment-try-item { display: flex; align-items: flex-start; min-width: 0; padding: 13px 14px; overflow: hidden; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-summary); }
-.experiment-try-main { min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
-.experiment-try-main span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
-.experiment-try-main strong { display: -webkit-box; margin-top: 6px; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.experiment-try-empty { margin: 6px 0 0; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
+.experiment-try-item { display: flex; flex-direction: column; align-items: stretch; min-width: 0; padding: 13px 14px; overflow: hidden; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; background: var(--surface-summary); }
+.experiment-try-title-row { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+.experiment-try-title-row :deep(.goal-badge-anchor) { flex: 0 0 auto; }
+.experiment-try-title, .experiment-try-summary { width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; text-align: left; }
+.experiment-try-title { flex: 1; }
+.experiment-try-title span { display: block; overflow: hidden; color: var(--el-color-primary); font-size: var(--type-meta); text-overflow: ellipsis; white-space: nowrap; }
+.experiment-try-summary { margin-top: 6px; }
+.experiment-try-summary strong { display: -webkit-box; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-ui); font-weight: 500; line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.experiment-try-empty { display: block; color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .experiment-try-item:hover, .experiment-try-item:focus-within { border-color: var(--el-color-primary-light-5); }
-.experiment-try-main:hover strong, .experiment-try-main:focus-visible strong { color: var(--el-color-primary); }
-.experiment-try-record-action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-xs); margin-left: var(--space-sm); }
+.experiment-try-title:hover span, .experiment-try-title:focus-visible span, .experiment-try-summary:hover strong, .experiment-try-summary:focus-visible strong { color: var(--el-color-primary); }
+.experiment-try-record-action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-xs); }
 .action-grid, .content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .action-grid--single { grid-template-columns: minmax(0, 1fr); }
 .action-grid { align-items: start; }
