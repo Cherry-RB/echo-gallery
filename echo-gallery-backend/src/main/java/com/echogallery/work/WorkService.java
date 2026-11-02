@@ -30,7 +30,7 @@ public class WorkService {
     public record Summary(Long id, String title, String description, Long experimentId, String experimentTitle,
             CreativeWork.Mode editorMode, CreativeWork.Stage stage, String nextStep, boolean published,
             boolean archived, Long treasureId, ZonedDateTime editedAt, Integer characterCount) {}
-    public record Detail(Summary work, String body, long bodyVersion, String externalUrl, LocalDate firstCompletedOn,
+    public record Detail(Summary work, String body, long bodyVersion, String ideas, long ideasVersion, String manuscript, long manuscriptVersion, String externalUrl, LocalDate firstCompletedOn,
             ZonedDateTime stageChangedAt, String shareUrl, LocalDate sharedOn, String shareNote) {}
     public record SourceView(Long id, Long cardId, Long recordId, String title, String text,
             Long experimentId, String experimentTitle, boolean archived, String tryText, String discovery) {}
@@ -72,14 +72,23 @@ public class WorkService {
         lock(); var w = active(id); info(w, request); return detail(w);
     }
     @Transactional public SavedBody saveBody(Long id, WorkRequests.Body request) {
+        return saveSection(id, CreativeWork.Section.FOCUS, request);
+    }
+    @Transactional public SavedBody saveSection(Long id, CreativeWork.Section section, WorkRequests.Body request) {
         lock(); var w = active(id);
-        if (w.getEditorMode() != CreativeWork.Mode.INTERNAL) fail(HttpStatus.CONFLICT, "請先切換為內建編輯");
-        // owner 鎖涵蓋版本檢查與寫入，兩個分頁不能同時通過相同版本。
-        if (w.getBodyVersion() != request.expectedVersion()) fail(HttpStatus.CONFLICT, "這份作品已有較新內容，請保留目前草稿再重新載入");
-        if (!w.getBody().equals(request.body())) {
-            w.setBody(request.body()); w.setBodyVersion(w.getBodyVersion() + 1); w.setEditedAt(now());
+        var current = switch (section) { case FOCUS -> w.getBody(); case IDEAS -> w.getIdeas(); case MANUSCRIPT -> w.getManuscript(); };
+        long version = switch (section) { case FOCUS -> w.getBodyVersion(); case IDEAS -> w.getIdeasVersion(); case MANUSCRIPT -> w.getManuscriptVersion(); };
+        if (version != request.expectedVersion()) fail(HttpStatus.CONFLICT, "這個區域已有較新內容，請保留目前草稿再重新載入");
+        if (!current.equals(request.body())) {
+            version++;
+            switch (section) {
+                case FOCUS -> { w.setBody(request.body()); w.setBodyVersion(version); }
+                case IDEAS -> { w.setIdeas(request.body()); w.setIdeasVersion(version); }
+                case MANUSCRIPT -> { w.setManuscript(request.body()); w.setManuscriptVersion(version); }
+            }
+            w.setEditedAt(now());
         }
-        return new SavedBody(w.getBody(), w.getBodyVersion(), w.getEditedAt());
+        return new SavedBody(request.body(), version, w.getEditedAt());
     }
     @Transactional public Detail nextStep(Long id, WorkRequests.NextStep request) {
         lock(); var w = active(id);
@@ -180,7 +189,6 @@ public class WorkService {
         String externalUrl = url(r.externalUrl());
         if (!Objects.equals(w.getTitle(), r.title().trim()) || !Objects.equals(w.getDescription(), r.description()) || !Objects.equals(w.getExperiment() == null ? null : w.getExperiment().getId(), r.experimentId()) || w.getEditorMode() != r.editorMode() || !Objects.equals(w.getExternalUrl(), externalUrl)) w.setEditedAt(now());
         w.setTitle(r.title().trim()); w.setDescription(r.description()); w.setExperiment(e);
-        if (w.getEditorMode() != r.editorMode()) w.setBodyVersion(w.getBodyVersion() + 1);
         w.setEditorMode(r.editorMode()); w.setExternalUrl(externalUrl);
     }
     private SourceView card(Long id, Card c) {
@@ -188,7 +196,7 @@ public class WorkService {
         return new SourceView(id, c.getId(), null, c.getTitle(), text, null, null, c.isArchived(), null, null);
     }
     private Summary summary(CreativeWork w) { return new Summary(w.getId(), w.getTitle(), w.getDescription(), w.getExperiment() == null ? null : w.getExperiment().getId(), w.getExperiment() == null ? null : w.getExperiment().getTitle(), w.getEditorMode(), w.getStage(), w.getNextStep(), w.isPublished(), w.isArchived(), w.getTreasure() == null ? null : w.getTreasure().getId(), w.getEditedAt(), w.getEditorMode() == CreativeWork.Mode.INTERNAL ? w.getBody().codePointCount(0, w.getBody().length()) : null); }
-    private Detail detail(CreativeWork w) { return new Detail(summary(w), w.getBody(), w.getBodyVersion(), w.getExternalUrl(), w.getFirstCompletedOn(), w.getStageChangedAt(), w.getShareUrl(), w.getSharedOn(), w.getShareNote()); }
+    private Detail detail(CreativeWork w) { return new Detail(summary(w), w.getBody(), w.getBodyVersion(), w.getIdeas(), w.getIdeasVersion(), w.getManuscript(), w.getManuscriptVersion(), w.getExternalUrl(), w.getFirstCompletedOn(), w.getStageChangedAt(), w.getShareUrl(), w.getSharedOn(), w.getShareNote()); }
     private CreativeWork owned(Long id) { return works.findByIdAndUserId(id, owner()).orElseThrow(this::missing); }
     private CreativeWork active(Long id) { var w = owned(id); if (w.isArchived()) fail(HttpStatus.CONFLICT, "作品已封存，請先還原"); return w; }
     private Long owner() { var id = SecurityUtil.getCurrentUserId(); if (id == null) fail(HttpStatus.UNAUTHORIZED, "尚未登入"); return id; }

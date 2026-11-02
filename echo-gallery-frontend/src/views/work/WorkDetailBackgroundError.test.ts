@@ -11,7 +11,7 @@ vi.mock('../../utils/api/workApi', () => ({ workApi: api }))
 
 const detail: Detail = {
   work: { id: 1, title: '作品', description: '', experimentId: null, experimentTitle: null, editorMode: 'INTERNAL', stage: 'WORKING', nextStep: '', published: false, archived: false, treasureId: null, characterCount: 0, editedAt: '' },
-  body: '原始內容', bodyVersion: 0, externalUrl: null, firstCompletedOn: null, stageChangedAt: '', shareUrl: null, sharedOn: null, shareNote: null,
+  body: '原始內容', bodyVersion: 0, ideas: '', ideasVersion: 0, manuscript: '', manuscriptVersion: 0, externalUrl: null, firstCompletedOn: null, stageChangedAt: '', shareUrl: null, sharedOn: null, shareNote: null,
 }
 const Workspace = defineComponent({
   props: ['initial'],

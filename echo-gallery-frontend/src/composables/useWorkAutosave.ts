@@ -1,7 +1,8 @@
 import { computed, ref } from 'vue'
 import { workDrafts, type WorkDraft } from '../utils/workDrafts'
+import type { WorkSection } from '../types/work'
 export function useWorkAutosave(owner: string, workId: number, initial: string, initialVersion: number,
-  send: (body: string, version: number) => Promise<{ body: string; bodyVersion: number }>) {
+  send: (body: string, version: number) => Promise<{ body: string; bodyVersion: number }>, section: WorkSection = 'FOCUS') {
   const body = ref(initial), acknowledged = ref(initial), version = ref(initialVersion)
   const saving = ref(false), error = ref(''), conflict = ref(false), storageError = ref('')
   const dirty = computed(() => body.value !== acknowledged.value)
@@ -11,7 +12,7 @@ export function useWorkAutosave(owner: string, workId: number, initial: string, 
   // 每個編輯分頁各有一筆草稿，且同一分頁依序寫入，避免舊回應移除新草稿。
   let persistence = Promise.resolve()
   function backup() {
-    const draft: WorkDraft = { key, owner, workId, instance, body: body.value, version: version.value, sequence: ++sequence, savedAt: Date.now() }
+    const draft: WorkDraft = { key, owner, workId, instance, body: body.value, version: version.value, sequence: ++sequence, savedAt: Date.now(), section }
     const preserve = dirty.value || saving.value || conflict.value
     persistence = persistence.catch(() => {}).then(async () => {
       // Demo 重設或作品刪除後，其他分頁不能重新寫回已清理的草稿。

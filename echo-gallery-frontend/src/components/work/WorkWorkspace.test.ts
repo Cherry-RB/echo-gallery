@@ -9,19 +9,20 @@ import { experimentApi } from '../../utils/api/experimentApi'
 import ExperimentThreads from '../experiment/ExperimentThreads.vue'
 import ExpandableText from '../ExpandableText.vue'
 import WorkSourceReadingDialog from './WorkSourceReadingDialog.vue'
+import { ElMessageBox } from 'element-plus'
+import { workDrafts } from '../../utils/workDrafts'
 const route = vi.hoisted(() => ({ query: {} as Record<string, string> }))
 const navigation = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ push: navigation.push, beforeEach: () => vi.fn() }), onBeforeRouteLeave: vi.fn(), onBeforeRouteUpdate: vi.fn() }))
-vi.mock('../../utils/api/workApi', () => ({ workApi: { sources: vi.fn().mockResolvedValue([]), body: vi.fn(), update: vi.fn() } }))
+vi.mock('../../utils/api/workApi', () => ({ workApi: { sources: vi.fn().mockResolvedValue([]), body: vi.fn(), section: vi.fn(), update: vi.fn() } }))
 vi.mock('../../utils/api/request', () => ({ default: vi.fn() }))
 vi.mock('../../utils/api/treasureApi', () => ({ treasureApi: { list: vi.fn().mockResolvedValue({ content: [] }) } }))
 const clients: QueryClient[] = [], wrappers: ReturnType<typeof mount>[] = []
-const base: WorkDetail = { work: { id: 987, title: '工作區測試', description: '', experimentId: null, experimentTitle: null, editorMode: 'INTERNAL', stage: 'WORKING', nextStep: '', published: false, archived: false, treasureId: null, characterCount: 0, editedAt: '2026-10-20T10:00:00Z' }, body: '**正文**', bodyVersion: 0, externalUrl: null, firstCompletedOn: null, stageChangedAt: '2026-10-20T10:00:00Z', shareUrl: null, sharedOn: null, shareNote: null }
+const base: WorkDetail = { work: { id: 987, title: '工作區測試', description: '', experimentId: null, experimentTitle: null, editorMode: 'INTERNAL', stage: 'WORKING', nextStep: '', published: false, archived: false, treasureId: null, characterCount: 0, editedAt: '2026-10-20T10:00:00Z' }, body: '**正文**', bodyVersion: 0, ideas: '', ideasVersion: 0, manuscript: '', manuscriptVersion: 0, externalUrl: null, firstCompletedOn: null, stageChangedAt: '2026-10-20T10:00:00Z', shareUrl: null, sharedOn: null, shareNote: null }
 function render(initial: WorkDetail) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client)
   const wrapper = mount(WorkWorkspace, { props: { initial }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: {
     AppDialog: true, WorkFormDialog: true, WorkSourcePicker: true, WorkSourceReadingDialog: true, TreasureFormDialog: true, ExperimentThreads: true,
-    WorkMarkdownEditor: { props: ['modelValue', 'mode', 'readonly', 'saveStatus'], emits: ['update:modelValue'], template: '<div><span>{{ saveStatus }}</span><textarea v-if="mode !== \'read\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><div v-else class="markdown-reading"><strong>{{ modelValue.replaceAll(\'**\', \'\') }}</strong></div></div>' },
     RouterLink: { template: '<a><slot /></a>' },
     'el-button': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
     'el-radio-group': { template: '<div><slot /></div>' }, 'el-radio-button': { template: '<span><slot /></span>' },
@@ -34,6 +35,37 @@ function render(initial: WorkDetail) {
 }
 afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); clients.splice(0).forEach(c => c.clear()); route.query = {}; navigation.push.mockClear(); vi.restoreAllMocks() })
 describe('作品工作區模式與封存', () => {
+  it('復原確認期間切換區域，草稿仍只套用到原本的區域', async () => {
+    vi.spyOn(workDrafts, 'list').mockResolvedValueOnce([{ key: 'old', owner: '', workId: 987, instance: 'old', body: '復原的主專注', version: 0, sequence: 1, savedAt: Date.now(), section: 'FOCUS' }])
+    let confirm!: () => void
+    vi.spyOn(ElMessageBox, 'confirm').mockImplementationOnce(() => new Promise(resolve => { confirm = () => resolve('confirm' as never) }))
+    const d = structuredClone(base); d.ideas = '原本的構思'
+    const wrapper = render(d)
+    await vi.waitFor(() => expect(wrapper.text()).toContain('復原草稿'))
+    await wrapper.get('textarea').setValue('尚未儲存的主專注')
+    await wrapper.findAll('button').find(button => button.text() === '復原草稿')!.trigger('click')
+    await wrapper.findAll('.work-section-list button')[1]!.trigger('click')
+    confirm()
+    await vi.waitFor(() => expect(wrapper.get('textarea').element.value).toBe('原本的構思'))
+    await wrapper.findAll('.work-section-list button')[0]!.trigger('click')
+    await vi.waitFor(() => expect(wrapper.get('textarea').element.value).toBe('復原的主專注'))
+  })
+  it('切換三區保留各自內容並原樣複製', async () => {
+    const d = structuredClone(base); d.ideas = '構思\n第二行'; d.manuscript = '已寫稿件'
+    const wrapper = render(d)
+    expect(wrapper.find('.body-panel > textarea').exists()).toBe(true)
+    await wrapper.get('textarea').setValue('主專注的新內容')
+    const choices = wrapper.findAll('.work-section-list button')
+    await choices[1]!.trigger('click')
+    expect(wrapper.get('textarea').element.value).toBe('構思\n第二行')
+    await wrapper.get('textarea').setValue('構思的新內容')
+    await choices[2]!.trigger('click')
+    expect(wrapper.get('textarea').element.value).toBe('已寫稿件')
+    await choices[0]!.trigger('click')
+    expect(wrapper.get('textarea').element.value).toBe('主專注的新內容')
+    await choices[1]!.trigger('click')
+    expect(wrapper.get('textarea').element.value).toBe('構思的新內容')
+  })
   it('進出專注編輯保留正文及同一編輯器，離開時恢復頁面捲動', async () => {
     const previousOverflow = document.body.style.overflow
     const wrapper = render(structuredClone(base))
@@ -97,7 +129,7 @@ describe('作品工作區模式與封存', () => {
   })
   it('正文儲存成功後同步詳情字元數，並讓總覽與列表重新取得摘要', async () => {
     const saved = { body: '新稿😀', bodyVersion: 1, editedAt: '2026-10-22T10:00:00Z' }
-    vi.mocked(workApi.body).mockResolvedValueOnce(saved)
+    vi.mocked(workApi.section).mockResolvedValueOnce(saved)
     const wrapper = render(structuredClone(base))
     const client = clients.at(-1)!
     client.setQueryDefaults(['works', 'detail'], { gcTime: Infinity })
@@ -127,24 +159,24 @@ describe('作品工作區模式與封存', () => {
   it('封存作品只提供閱讀與匯出，還原入口仍可見', () => {
     const d = structuredClone(base); d.work.archived = true
     const wrapper = render(d)
-    expect(wrapper.find('textarea').exists()).toBe(false)
-    expect(wrapper.text()).toContain('還原作品'); expect(wrapper.text()).toContain('匯出 Markdown')
+    expect(wrapper.get('textarea').attributes('readonly')).toBeDefined()
+    expect(wrapper.text()).toContain('還原作品'); expect(wrapper.text()).toContain('複製全文')
     expect(wrapper.text()).not.toContain('加入來源'); expect(wrapper.text()).not.toContain('更改階段')
-    expect(wrapper.find('.markdown-reading strong').text()).toBe('正文')
+    expect(wrapper.get('textarea').element.value).toBe('**正文**')
   })
-  it('外部作品只有文件入口，沒有正文預覽或匯出', () => {
+  it('外部作品保有文件入口與站內純文字', () => {
     const d = structuredClone(base); d.work.editorMode = 'EXTERNAL'; d.externalUrl = 'https://example.com/original'
     const wrapper = render(d)
-    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.get('textarea').element.value).toBe(base.body)
     expect(wrapper.get('a[target="_blank"]').attributes('href')).toBe(d.externalUrl)
     expect(wrapper.text()).not.toContain('複製 Markdown'); expect(wrapper.text()).not.toContain('匯出 Markdown')
   })
-  it('展品閱讀入口直接顯示目前正文，不增加獨立快照', () => {
-    route.query = { mode: 'read' }
-    const d = structuredClone(base); d.body = '**已修改的最新版**'
+  it('展品閱讀入口顯示已寫稿件', () => {
+    route.query = { mode: 'read', section: 'MANUSCRIPT' }
+    const d = structuredClone(base); d.manuscript = '**已修改的最新版**'
     const wrapper = render(d)
-    expect(wrapper.find('textarea').exists()).toBe(false)
-    expect(wrapper.find('.markdown-reading strong').text()).toBe('已修改的最新版')
+    expect(wrapper.get('textarea').attributes('readonly')).toBeDefined()
+    expect(wrapper.get('textarea').element.value).toBe('**已修改的最新版**')
   })
   it('複製選單仍可取出正文，且不帶入私人下一步與分享備註', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
@@ -153,11 +185,8 @@ describe('作品工作區模式與封存', () => {
     try {
       const d = structuredClone(base); d.work.nextStep = '私人下一步'; d.shareNote = '私人分享備註'
       const wrapper = render(d)
-      const menu = wrapper.findAllComponents({ name: 'Dropdown' }).find(item => item.classes().includes('work-export'))!
-      menu.vm.$emit('command', 'markdown')
-      await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('# 工作區測試\n\n**正文**'))
-      menu.vm.$emit('command', 'plain')
-      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith('工作區測試\n\n正文'))
+      await wrapper.findAll('button').find(button => button.text() === '複製全文')!.trigger('click')
+      await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('**正文**'))
       expect(writeText.mock.calls.flat().join('')).not.toContain('私人')
     } finally {
       if (original) Object.defineProperty(navigator, 'clipboard', original)

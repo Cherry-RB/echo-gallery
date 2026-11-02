@@ -17,7 +17,7 @@ describe('共用作品資訊欄位', () => {
       const mode = wrapper.getComponent({ name: 'ModeControl' })
       mode.vm.$emit('update:modelValue', 'EXTERNAL')
       await wrapper.vm.$nextTick()
-      expect(wrapper.text()).toContain('內外部內容不會同步')
+      expect(wrapper.text()).toContain('兩者不會同步')
       const url = wrapper.findAllComponents({ name: 'TextInput' }).find(input => input.props('modelValue') === form.externalUrl)!
       url.vm.$emit('update:modelValue', 'https://example.com/revised')
       mode.vm.$emit('update:modelValue', 'INTERNAL')

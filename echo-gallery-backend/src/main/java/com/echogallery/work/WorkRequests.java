@@ -11,7 +11,7 @@ public final class WorkRequests {
             @Size(max = 50000) String description, Long experimentId,
             @NotNull CreativeWork.Mode editorMode, @Size(max = 2048) String externalUrl,
             @Size(max = 100) List<@NotNull @Valid Source> sources) {}
-    public record Body(@NotNull @Size(max = 500000) String body, @NotNull @Min(0) Long expectedVersion) {}
+    public record Body(@NotNull String body, @NotNull @Min(0) Long expectedVersion) {}
     public record Stage(@NotNull CreativeWork.Stage stage, LocalDate firstCompletedOn) {}
     public record NextStep(@Size(max = 50000) String nextStep) {}
     public record Share(boolean published, @Size(max = 2048) String shareUrl,

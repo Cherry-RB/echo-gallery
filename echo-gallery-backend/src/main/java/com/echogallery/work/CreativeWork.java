@@ -15,6 +15,7 @@ import com.echogallery.treasure.Treasure;
 @Getter @Setter
 public class CreativeWork {
     public enum Mode { INTERNAL, EXTERNAL }
+    public enum Section { FOCUS, IDEAS, MANUSCRIPT }
     public enum Stage { WORKING, FIRST_DRAFT, REVISING, REVISED, SHAREABLE }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "user_id", nullable = false)
@@ -28,6 +29,10 @@ public class CreativeWork {
     @Enumerated(EnumType.STRING) @Column(nullable = false) private Mode editorMode = Mode.INTERNAL;
     @Column(nullable = false, columnDefinition = "TEXT") private String body = "";
     @Column(nullable = false) private long bodyVersion;
+    @Column(nullable = false, columnDefinition = "TEXT") private String ideas = "";
+    @Column(nullable = false, columnDefinition = "TEXT") private String manuscript = "";
+    @Column(nullable = false) private long ideasVersion;
+    @Column(nullable = false) private long manuscriptVersion;
     @Column(length = 2048) private String externalUrl;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private Stage stage = Stage.WORKING;
     @Column(columnDefinition = "TEXT") private String nextStep;

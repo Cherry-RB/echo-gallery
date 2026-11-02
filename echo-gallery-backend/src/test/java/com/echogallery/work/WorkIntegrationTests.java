@@ -98,8 +98,18 @@ class WorkIntegrationTests extends IntegrationTestBase {
         send(put(ROOT + "/{id}/body", id), token, Map.of("body", "封存不可寫", "expectedVersion", 2)).andExpect(status().isConflict());
         send(put(ROOT + "/{id}/restore", id), token, null).andExpect(status().isOk());
         send(put(ROOT + "/{id}", id), token, Map.of("title", "外部", "editorMode", "EXTERNAL", "externalUrl", "https://example.com/file")).andExpect(status().isOk());
-        send(put(ROOT + "/{id}/body", id), token, Map.of("body", "不可覆寫", "expectedVersion", 2)).andExpect(status().isConflict());
+        send(put(ROOT + "/{id}/body", id), token, Map.of("body", "外部作品的主專注", "expectedVersion", 2)).andExpect(status().isOk());
         send(put(ROOT + "/{id}", id), token, Map.of("title", "外部", "editorMode", "INTERNAL", "externalUrl", "javascript:alert(1)")).andExpect(status().isBadRequest());
+    }
+    @Test void sectionsSaveIndependentlyAndProtectOwnersAndVersions() throws Exception {
+        String token = register(), other = register(); long id = create(token, "三區作品");
+        send(put(ROOT + "/{id}/sections/IDEAS", id), token, Map.of("body", "# 構思\n  原樣", "expectedVersion", 0)).andExpect(status().isOk()).andExpect(jsonPath("$.bodyVersion").value(1));
+        send(put(ROOT + "/{id}/sections/MANUSCRIPT", id), token, Map.of("body", "稿件", "expectedVersion", 0)).andExpect(status().isOk());
+        String longText = "長".repeat(500_001) + "\n";
+        send(put(ROOT + "/{id}/sections/MANUSCRIPT", id), token, Map.of("body", longText, "expectedVersion", 1)).andExpect(status().isOk()).andExpect(jsonPath("$.body").value(longText));
+        send(put(ROOT + "/{id}/sections/IDEAS", id), token, Map.of("body", "過期", "expectedVersion", 0)).andExpect(status().isConflict());
+        send(put(ROOT + "/{id}/sections/FOCUS", id), other, Map.of("body", "其他人", "expectedVersion", 0)).andExpect(status().isNotFound());
+        send(get(ROOT + "/{id}", id), token, null).andExpect(jsonPath("$.body").value("")).andExpect(jsonPath("$.ideas").value("# 構思\n  原樣")).andExpect(jsonPath("$.manuscript").value(longText));
     }
     @Test void sourcesRemainIndependentAndDeleteSafely() throws Exception {
         String token = register(); long work = create(token, "跨域素材");

@@ -32,6 +32,7 @@ public class WorkController {
     @GetMapping("/{id}") public WorkService.Detail detail(@PathVariable("id") Long id) { return service.detail(id); }
     @PutMapping("/{id}") public WorkService.Detail update(@PathVariable("id") Long id, @Valid @RequestBody WorkRequests.Info r) { return service.update(id, r); }
     @PutMapping("/{id}/body") public WorkService.SavedBody body(@PathVariable("id") Long id, @Valid @RequestBody WorkRequests.Body r) { return service.saveBody(id, r); }
+    @PutMapping("/{id}/sections/{section}") public WorkService.SavedBody section(@PathVariable("id") Long id, @PathVariable("section") CreativeWork.Section section, @Valid @RequestBody WorkRequests.Body r) { return service.saveSection(id, section, r); }
     @PutMapping("/{id}/next-step") public WorkService.Detail next(@PathVariable("id") Long id, @Valid @RequestBody WorkRequests.NextStep r) { return service.nextStep(id, r); }
     @PutMapping("/{id}/stage") public WorkService.Detail stage(@PathVariable("id") Long id, @Valid @RequestBody WorkRequests.Stage r) { return service.stage(id, r); }
     @PutMapping("/{id}/share") public WorkService.Detail share(@PathVariable("id") Long id, @Valid @RequestBody WorkRequests.Share r) { return service.share(id, r); }

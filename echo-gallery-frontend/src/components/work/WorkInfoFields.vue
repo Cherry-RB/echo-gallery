@@ -12,9 +12,9 @@ defineProps<{ experiments?: ExperimentOption[]; originalMode?: WorkMode }>()
     <el-input v-model="form.title" maxlength="255" />
     <p class="app-field-counter">總字數：{{ form.title.length }} / 255</p>
   </el-form-item>
-  <el-form-item class="work-info-field" label="主要編輯位置" required>
-    <el-radio-group v-model="form.editorMode"><el-radio value="INTERNAL">內建 Markdown</el-radio><el-radio value="EXTERNAL">外部工具</el-radio></el-radio-group>
-    <p v-if="originalMode && form.editorMode !== originalMode" class="app-field-help">更換後原正文與網址仍會保留；內外部內容不會同步。</p>
+  <el-form-item class="work-info-field" label="主要稿件來源" required>
+    <el-radio-group v-model="form.editorMode"><el-radio value="INTERNAL">站內已寫稿件</el-radio><el-radio value="EXTERNAL">外部文件</el-radio></el-radio-group>
+    <p v-if="originalMode && form.editorMode !== originalMode" class="app-field-help">切換後站內文字與網址都會保留；兩者不會同步。</p>
   </el-form-item>
   <el-form-item v-if="form.editorMode === 'EXTERNAL'" class="work-info-field" label="外部文件網址（選填）">
     <el-input v-model="form.externalUrl" maxlength="2048" placeholder="https://" />

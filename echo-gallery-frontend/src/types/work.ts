@@ -1,4 +1,5 @@
 export type WorkMode = 'INTERNAL' | 'EXTERNAL'
+export type WorkSection = 'FOCUS' | 'IDEAS' | 'MANUSCRIPT'
 export type WorkStage = 'WORKING' | 'FIRST_DRAFT' | 'REVISING' | 'REVISED' | 'SHAREABLE'
 export const workStages: Record<WorkStage, string> = { WORKING: '製作中', FIRST_DRAFT: '初版完成', REVISING: '編修中', REVISED: '編修完成', SHAREABLE: '可分享' }
 export interface WorkSummary {
@@ -8,7 +9,7 @@ export interface WorkSummary {
   characterCount: number | null
 }
 export interface WorkDetail {
-  work: WorkSummary; body: string; bodyVersion: number; externalUrl: string | null
+  work: WorkSummary; body: string; bodyVersion: number; ideas: string; ideasVersion: number; manuscript: string; manuscriptVersion: number; externalUrl: string | null
   firstCompletedOn: string | null; stageChangedAt: string; shareUrl: string | null; sharedOn: string | null; shareNote: string | null
 }
 export interface WorkInfo { title: string; description: string | null; experimentId: number | null; editorMode: WorkMode; externalUrl: string | null }

@@ -6,7 +6,7 @@ const props = defineProps<{ treasureId: number }>()
 const query = useQuery({ queryKey: computed(() => ['works', 'treasure', props.treasureId]), queryFn: () => workApi.fromTreasure(props.treasureId) })
 </script>
 <template>
-  <section v-if="query.data.value" class="treasure-work-link"><h3>來源作品</h3><p>{{ query.data.value.work.title }}{{ query.data.value.work.archived ? '（已封存）' : '' }}</p><router-link v-if="query.data.value.work.editorMode === 'INTERNAL'" :to="`/works/${query.data.value.work.id}?mode=read`">閱讀作品最新版</router-link><a v-else-if="query.data.value.externalUrl" :href="query.data.value.externalUrl" target="_blank" rel="noopener noreferrer">開啟原始文件</a><p v-else>尚未設定外部文件網址。</p><router-link :to="`/works/${query.data.value.work.id}`">前往作品工作區</router-link></section>
+  <section v-if="query.data.value" class="treasure-work-link"><h3>來源作品</h3><p>{{ query.data.value.work.title }}{{ query.data.value.work.archived ? '（已封存）' : '' }}</p><router-link v-if="query.data.value.work.editorMode === 'INTERNAL'" :to="{ path: `/works/${query.data.value.work.id}`, query: { mode: 'read', section: 'MANUSCRIPT' } }">閱讀已寫稿件</router-link><a v-else-if="query.data.value.externalUrl" :href="query.data.value.externalUrl" target="_blank" rel="noopener noreferrer">開啟外部文件</a><p v-else>尚未設定外部文件網址。</p><router-link :to="`/works/${query.data.value.work.id}`">前往作品工作區</router-link></section>
   <p v-else-if="query.isError.value">無法載入來源作品。<el-button @click="query.refetch()">重試</el-button></p>
 </template>
 <style scoped>

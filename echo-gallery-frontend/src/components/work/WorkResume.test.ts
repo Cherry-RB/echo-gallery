@@ -7,6 +7,7 @@ import type { WorkSummary } from '../../types/work'
 
 const list = vi.hoisted(() => vi.fn())
 vi.mock('../../utils/api/workApi', () => ({ workApi: { list } }))
+vi.mock('../../utils/api/request', () => ({ default: vi.fn() }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }), useRoute: () => ({ fullPath: '/experiments/7' }) }))
 
 const work: WorkSummary = { id: 12, title: '虛構作品', description: '作品庫的完整說明', experimentId: 7, experimentTitle: '寫作', editorMode: 'INTERNAL', stage: 'WORKING', nextStep: '', published: false, archived: false, treasureId: null, characterCount: 0, editedAt: '2026-10-22T00:00:00Z' }
@@ -40,7 +41,7 @@ describe('作品接續摘要', () => {
   })
 
   it('總覽摘要顯示後端字元數，外部文件不冒充零字元，並保留原本的非緊湊呈現', async () => {
-    const global = { stubs: { RouterLink: { template: '<a><slot /></a>' } } }
+    const global = { stubs: { GoalBadge: true, RouterLink: { template: '<a><slot /></a>' } } }
     const wrapper = mount(WorkResumeEntry, { props: { work: { ...work, nextStep: '補上結尾', characterCount: 1280 }, compact: true }, global })
     try {
       expect(wrapper.text()).toContain('1,280 字元')

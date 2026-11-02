@@ -16,7 +16,7 @@ const route = useRoute()
       </div>
       <div v-if="work.nextStep" class="resume-entry-next"><span v-if="!compact" class="resume-entry-label">下次接著做</span><p>{{ work.nextStep }}</p></div>
       <p v-else class="resume-entry-empty">尚未留下下一步</p>
-      <p class="resume-entry-meta"><template v-if="compact"><span :title="work.editorMode === 'INTERNAL' ? '已儲存 Markdown 正文的字元數，含符號、空白與換行。' : undefined">{{ work.editorMode === 'EXTERNAL' ? '外部文件' : work.characterCount != null ? `${work.characterCount.toLocaleString()} 字元` : '字元數尚未取得' }}</span> · </template>最近編輯 {{ formatDate(work.editedAt) }}</p>
+      <p class="resume-entry-meta"><template v-if="compact"><span :title="work.editorMode === 'INTERNAL' ? '主專注的字元數，含符號、空白與換行。' : undefined">{{ work.editorMode === 'EXTERNAL' ? '外部文件' : work.characterCount != null ? `${work.characterCount.toLocaleString()} 字元` : '字元數尚未取得' }}</span> · </template>最近編輯 {{ formatDate(work.editedAt) }}</p>
     </div>
   </article>
 </template>

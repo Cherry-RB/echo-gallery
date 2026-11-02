@@ -1,4 +1,4 @@
-export interface WorkDraft { key: string; owner: string; workId: number; instance: string; body: string; version: number; sequence: number; savedAt: number }
+export interface WorkDraft { key: string; owner: string; workId: number; instance: string; body: string; version: number; sequence: number; savedAt: number; section?: 'FOCUS' | 'IDEAS' | 'MANUSCRIPT' }
 let connection: Promise<IDBDatabase> | undefined
 function database() {
   connection ??= new Promise<IDBDatabase>((resolve, reject) => {

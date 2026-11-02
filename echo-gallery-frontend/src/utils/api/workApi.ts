@@ -1,5 +1,5 @@
 import request from './request'
-import type { WorkDetail, WorkInfo, WorkPage, WorkSource, WorkSummary, WorkUsage, ExperimentOption } from '../../types/work'
+import type { WorkDetail, WorkInfo, WorkPage, WorkSource, WorkSummary, WorkUsage, ExperimentOption, WorkSection } from '../../types/work'
 import type { TreasureContent } from '../../types/treasure'
 const root = '/creative-works'
 export const workApi = {
@@ -10,6 +10,7 @@ export const workApi = {
   create: (data: WorkInfo & { sources?: Array<{ cardId?: number; recordId?: number }> }) => request.post<never, WorkDetail>(root, data),
   info: (id: number, data: WorkInfo) => request.put<never, WorkDetail>(`${root}/${id}`, data),
   body: (id: number, body: string, expectedVersion: number) => request.put<never, { body: string; bodyVersion: number; editedAt: string }>(`${root}/${id}/body`, { body, expectedVersion }),
+  section: (id: number, section: WorkSection, body: string, expectedVersion: number) => request.put<never, { body: string; bodyVersion: number; editedAt: string }>(`${root}/${id}/sections/${section}`, { body, expectedVersion }),
   update: (id: number, section: string, data?: unknown) => request.put<never, WorkDetail>(`${root}/${id}/${section}`, data),
   delete: (id: number) => request.delete(`${root}/${id}`),
   sources: (id: number) => request.get<never, WorkSource[]>(`${root}/${id}/sources`),
