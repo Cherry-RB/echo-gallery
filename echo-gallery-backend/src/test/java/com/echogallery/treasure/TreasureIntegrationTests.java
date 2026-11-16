@@ -283,9 +283,9 @@ class TreasureIntegrationTests extends IntegrationTestBase {
                 .andExpect(jsonPath("$.activeTrial.status").value("PLANNED"));
         long card = json(send(post("/api/cards"), other, Map.of("type", "note", "title", "私人來源", "cardNote", "不可跨 owner")).andExpect(status().isOk())).get("id").asLong();
         long experiment = json(send(post("/api/experiments"), other, Map.of("title", "私人實驗")).andExpect(status().isOk())).get("id").asLong();
-        data.remove("rank"); data.put("sourceCardId", card);
+        data.remove("rank"); data.put("sourceCardIds", List.of(card));
         send(post("/api/treasures"), token, data).andExpect(status().isNotFound());
-        data.remove("sourceCardId"); data.put("sourceExperimentId", experiment);
+        data.remove("sourceCardIds"); data.put("sourceExperimentId", experiment);
         send(post("/api/treasures"), token, data).andExpect(status().isNotFound());
     }
 
@@ -511,14 +511,20 @@ class TreasureIntegrationTests extends IntegrationTestBase {
     void deletingCardAndExperimentDetachesSourcesAndPreservesTreasureAndYield() throws Exception {
         String token = register();
         long card = json(send(post("/api/cards"), token, Map.of("type", "note", "title", "來源卡片", "cardNote", "筆記")).andExpect(status().isOk())).get("id").asLong();
+        long otherCard = json(send(post("/api/cards"), token, Map.of("type", "note", "title", "第二張來源卡片", "cardNote", "筆記")).andExpect(status().isOk())).get("id").asLong();
         long experiment = json(send(post("/api/experiments"), token, Map.of("title", "來源實驗")).andExpect(status().isOk())).get("id").asLong();
         Map<String, Object> content = content("保留的成果", List.of());
-        content.put("sourceCardId", card); content.put("sourceExperimentId", experiment);
+        content.put("sourceCardIds", List.of(card, otherCard)); content.put("sourceExperimentId", experiment);
         long id = json(send(post("/api/treasures"), token, content).andExpect(status().isOk())).get("id").asLong();
+        send(get("/api/treasures/{id}", id), token, null).andExpect(jsonPath("$.sourceCards.length()").value(2))
+                .andExpect(jsonPath("$.sourceCards[0].id").value(card)).andExpect(jsonPath("$.sourceCards[1].id").value(otherCard));
         send(post("/api/treasures/{id}/yields", id), token, yieldPayload(LocalDate.now(clock))).andExpect(status().isOk());
         send(delete("/api/cards/{id}", card), token, null).andExpect(status().isOk());
+        send(get("/api/treasures/{id}", id), token, null).andExpect(jsonPath("$.sourceCards.length()").value(1))
+                .andExpect(jsonPath("$.sourceCards[0].id").value(otherCard));
+        send(delete("/api/cards/{id}", otherCard), token, null).andExpect(status().isOk());
         send(delete("/api/experiments/{id}", experiment), token, null).andExpect(status().isNoContent());
-        send(get("/api/treasures/{id}", id), token, null).andExpect(jsonPath("$.sourceCard").doesNotExist()).andExpect(jsonPath("$.sourceExperiment").doesNotExist()).andExpect(jsonPath("$.yieldCount").value(1));
+        send(get("/api/treasures/{id}", id), token, null).andExpect(jsonPath("$.sourceCards.length()").value(0)).andExpect(jsonPath("$.sourceExperiment").doesNotExist()).andExpect(jsonPath("$.yieldCount").value(1));
     }
 
     @Test
@@ -528,7 +534,7 @@ class TreasureIntegrationTests extends IntegrationTestBase {
         long owner = session.get("id").asLong(); owners.add(owner);
         long card = cards.findAllByUserId(owner).getFirst().getId();
         long experiment = json(send(post("/api/experiments"), token, Map.of("title", "Demo 實驗")).andExpect(status().isOk())).get("id").asLong();
-        Map<String, Object> content = content("Demo 成果", List.of()); content.put("sourceCardId", card); content.put("sourceExperimentId", experiment);
+        Map<String, Object> content = content("Demo 成果", List.of()); content.put("sourceCardIds", List.of(card)); content.put("sourceExperimentId", experiment);
         long source = json(send(post("/api/treasures"), token, content).andExpect(status().isOk())).get("id").asLong();
         long id = create(token, "Demo 衍生", List.of(source));
         long demoTrial = json(send(post("/api/treasures/{id}/trials", id), token, trial("PLANNED", null)).andExpect(status().isOk())).get("id").asLong();

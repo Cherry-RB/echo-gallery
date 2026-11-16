@@ -16,6 +16,7 @@ public class TreasureLifecycle {
     private final TreasureTrialAttemptRepository attempts;
     private final TreasureYieldRepository yields;
     private final TreasureRelationRepository relations;
+    private final TreasureCardSourceRepository cardSources;
     private final com.echogallery.work.WorkLifecycle workLifecycle;
 
     // 與 Demo 重設共用 owner 鎖，保護來源引用及跨成果關聯的一致性。
@@ -28,7 +29,6 @@ public class TreasureLifecycle {
     @Transactional
     public void detachCard(Long userId, Long cardId) {
         lockOwner(userId);
-        treasures.detachCard(cardId);
         yields.detachCard(cardId);
     }
 
@@ -43,6 +43,7 @@ public class TreasureLifecycle {
         lockOwner(userId);
         workLifecycle.clearOwner(userId);
         relations.deleteOwner(userId);
+        cardSources.deleteOwner(userId);
         attempts.deleteOwner(userId);
         trials.deleteOwner(userId);
         yields.deleteOwner(userId);

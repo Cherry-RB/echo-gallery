@@ -20,7 +20,7 @@ export interface TreasureDetail extends TreasureSummary {
   description: string | null
   artifactUrl: string | null
   nextRank: TreasureRank | null
-  sourceCard: TreasureReference | null
+  sourceCards: TreasureReference[]
   sourceExperiment: TreasureReference | null
   sourceTreasures: TreasureReference[]
   activeTrial: TreasureTrial | null
@@ -33,7 +33,7 @@ export interface TreasureContent {
   artifactUrl: string
   coverImageUrl: string
   acquiredOn: string
-  sourceCardId: number | null
+  sourceCardIds: number[]
   sourceExperimentId: number | null
   sourceTreasureIds: number[]
 }

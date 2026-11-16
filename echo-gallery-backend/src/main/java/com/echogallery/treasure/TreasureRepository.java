@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 public interface TreasureRepository extends JpaRepository<Treasure, Long>, JpaSpecificationExecutor<Treasure> {
-    @EntityGraph(attributePaths = {"sourceCard", "sourceExperiment"})
+    @EntityGraph(attributePaths = {"sourceExperiment"})
     Optional<Treasure> findByIdAndUserId(Long id, Long userId);
     long countByUserIdAndArchivedFalse(Long userId);
     long countByUserIdAndArchivedFalseAndRank(Long userId, TreasureRank rank);
@@ -18,8 +18,6 @@ public interface TreasureRepository extends JpaRepository<Treasure, Long>, JpaSp
     List<Treasure> findByUserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(
             Long userId, ZonedDateTime start, ZonedDateTime end, Pageable pageable);
 
-    @Modifying @Query("update Treasure t set t.sourceCard = null where t.sourceCard.id = :id")
-    void detachCard(@Param("id") Long id);
     @Modifying @Query("update Treasure t set t.sourceExperiment = null where t.sourceExperiment.id = :id")
     void detachExperiment(@Param("id") Long id);
     @Modifying @Query("delete from Treasure t where t.user.id = :userId")

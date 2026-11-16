@@ -2,10 +2,10 @@
 import { computed } from 'vue'
 import type { TreasureReference } from '../../types/treasure'
 import SelectionSummary from '../ui/SelectionSummary.vue'
-const props = defineProps<{ card: TreasureReference | null; experiment: TreasureReference | null; treasures: TreasureReference[]; disabled?: boolean }>()
+const props = defineProps<{ cards: TreasureReference[]; experiment: TreasureReference | null; treasures: TreasureReference[]; disabled?: boolean }>()
 const emit = defineEmits<{ remove: [kind: 'card' | 'experiment' | 'treasure', id: number] }>()
 const groups = computed(() => [
-  { kind: 'card' as const, title: '來源卡片', limit: 1, entries: props.card ? [props.card] : [] },
+  { kind: 'card' as const, title: '來源卡片', limit: 20, entries: props.cards },
   { kind: 'experiment' as const, title: '來源實驗', limit: 1, entries: props.experiment ? [props.experiment] : [] },
   { kind: 'treasure' as const, title: '來源展品', limit: 20, entries: props.treasures },
 ].filter(group => group.entries.length))
@@ -20,7 +20,7 @@ const groups = computed(() => [
         </SelectionSummary>
       </li></ul>
     </section>
-    <p v-if="!card && !experiment && !treasures.length" class="app-field-help">尚未關聯來源。</p>
+    <p v-if="!cards.length && !experiment && !treasures.length" class="app-field-help">尚未關聯來源。</p>
   </div>
 </template>
 <style scoped>

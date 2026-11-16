@@ -41,16 +41,16 @@ const beforeClose = (done: () => void) => {
   else done()
 }
 const selectedSources = ref<TreasureReference[]>([])
-const cardSource = ref<TreasureReference | null>(null)
+const cardSources = ref<TreasureReference[]>([])
 const experimentSource = ref<TreasureReference | null>(null)
-const hasSources = computed(() => !!cardSource.value || !!experimentSource.value || selectedSources.value.length > 0)
+const hasSources = computed(() => cardSources.value.length > 0 || !!experimentSource.value || selectedSources.value.length > 0)
 
 watch(() => props.modelValue, visible => {
   if (visible) {
     Object.assign(form, contentOf(props.treasure))
     if (!props.treasure && props.prefill) Object.assign(form, props.prefill)
     selectedSources.value = [...(props.treasure?.sourceTreasures ?? [])]
-    cardSource.value = props.treasure?.sourceCard ?? null
+    cardSources.value = [...(props.treasure?.sourceCards ?? [])]
     experimentSource.value = props.treasure?.sourceExperiment ?? props.sourceExperiment ?? null
     sourceVisible.value = false; error.value = ''
   }
@@ -62,7 +62,7 @@ const save = async () => {
   if (imageUrlError(form.coverImageUrl)) { error.value = imageUrlError(form.coverImageUrl); return }
   saving.value = true; error.value = ''
   try {
-    const data = { ...form, title: form.title.trim(), sourceCardId: cardSource.value?.id ?? null, sourceExperimentId: experimentSource.value?.id ?? null, sourceTreasureIds: selectedSources.value.map(s => s.id) }
+    const data = { ...form, title: form.title.trim(), sourceCardIds: cardSources.value.map(s => s.id), sourceExperimentId: experimentSource.value?.id ?? null, sourceTreasureIds: selectedSources.value.map(s => s.id) }
     const result = props.treasure ? await treasureApi.update(props.treasure.id, data) : await (props.createHandler ?? treasureApi.create)(data)
     await Promise.all([queryClient.invalidateQueries({ queryKey: ['treasures'] }), queryClient.invalidateQueries({ queryKey: ['overview'] }), queryClient.invalidateQueries({ queryKey: ['treasure-source-picker'] })])
     ElMessage.success(props.treasure ? '展品變更已儲存。' : '展品已收入館藏，這份成果的來歷留在了這裡。')
@@ -72,7 +72,7 @@ const save = async () => {
 </script>
 
 <template>
-  <AppDialog :busy="saving" :draft="sourceVisible ? undefined : [form, cardSource?.id, experimentSource?.id, selectedSources.map(s => s.id)]" :model-value="modelValue" :title="sourceVisible ? '管理成果來源' : treasure ? '編輯展品' : '收入展品'" :width="sourceVisible ? 'min(980px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" scroll-body :before-close="beforeClose" :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="close">
+  <AppDialog :busy="saving" :draft="sourceVisible ? undefined : [form, cardSources.map(s => s.id), experimentSource?.id, selectedSources.map(s => s.id)]" :model-value="modelValue" :title="sourceVisible ? '管理成果來源' : treasure ? '編輯展品' : '收入展品'" :width="sourceVisible ? 'min(980px, calc(100vw - 32px))' : 'min(760px, calc(100vw - 32px))'" scroll-body :before-close="beforeClose" :close-on-click-modal="!saving" :close-on-press-escape="!saving" @update:model-value="close">
     <div ref="content" class="form-content" tabindex="-1">
     <el-form v-show="!sourceVisible" label-position="top" :disabled="saving" @submit.prevent="save">
       <el-form-item label="成果名稱" required><el-input v-model="form.title" maxlength="255" /></el-form-item>
@@ -88,11 +88,11 @@ const save = async () => {
       <section class="source-section" aria-label="成果來源">
         <header class="source-heading"><h3>成果來源（選填）</h3><el-button data-source-manager :disabled="saving" @click="sourceVisible = true">{{ hasSources ? '管理來源' : '選擇來源' }}</el-button></header>
         <p>可關聯卡片、實驗或其他展品，原內容會保留。</p>
-        <TreasureSourceSummary v-if="hasSources" :card="cardSource" :experiment="experimentSource" :treasures="selectedSources" :disabled="saving" @remove="(kind, id) => { if (kind === 'card') cardSource = null; else if (kind === 'experiment') experimentSource = null; else selectedSources = selectedSources.filter(s => s.id !== id) }" />
+        <TreasureSourceSummary v-if="hasSources" :cards="cardSources" :experiment="experimentSource" :treasures="selectedSources" :disabled="saving" @remove="(kind, id) => { if (kind === 'card') cardSources = cardSources.filter(s => s.id !== id); else if (kind === 'experiment') experimentSource = null; else selectedSources = selectedSources.filter(s => s.id !== id) }" />
       </section>
       <el-alert v-if="error" :title="error" type="error" :closable="false" />
     </el-form>
-    <TreasureSourcePicker v-if="sourceVisible" ref="sourcePicker" :treasure-id="treasure?.id" :source-treasures="selectedSources" :source-card="cardSource" :source-experiment="experimentSource" @cancel="sourceVisible = false" @confirm="selectedSources = $event.treasures; cardSource = $event.card; experimentSource = $event.experiment; sourceVisible = false" />
+    <TreasureSourcePicker v-if="sourceVisible" ref="sourcePicker" :treasure-id="treasure?.id" :source-treasures="selectedSources" :source-cards="cardSources" :source-experiment="experimentSource" @cancel="sourceVisible = false" @confirm="selectedSources = $event.treasures; cardSources = $event.cards; experimentSource = $event.experiment; sourceVisible = false" />
     </div>
     <template #footer="{ requestClose }">
       <template v-if="sourceVisible"><el-button @click="sourceVisible = false">取消變更</el-button><el-button type="primary" @click="sourcePicker?.confirm()">確認來源</el-button></template>

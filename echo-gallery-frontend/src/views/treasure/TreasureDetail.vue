@@ -45,7 +45,7 @@ const openChallenge = (mode: 'route' | 'help' | 'edit' | 'attempt', rank?: Treas
   dialogRank.value = rank ?? dialogRank.value
   initialMode.value = mode; trialVisible.value = true
 }
-const hasSources = computed(() => !!treasure.value && Boolean(treasure.value.sourceCard || treasure.value.sourceExperiment || treasure.value.sourceTreasures.length))
+const hasSources = computed(() => !!treasure.value && Boolean(treasure.value.sourceCards.length || treasure.value.sourceExperiment || treasure.value.sourceTreasures.length))
 const hasLineage = computed(() => hasSources.value || derived.isLoading.value || derived.isError.value || Boolean(derived.data.value?.content.length))
 const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['treasures'] }), queryClient.invalidateQueries({ queryKey: ['overview'] }), queryClient.invalidateQueries({ queryKey: ['treasure-source-picker'] })])
 const archive = async () => {
@@ -101,11 +101,11 @@ const handleCommand = (command: string) => {
           <a v-if="treasure.artifactUrl" class="artifact-link" :href="treasure.artifactUrl" target="_blank" rel="noopener noreferrer"><el-icon><View /></el-icon>開啟成果</a>
           <p class="metadata">入藏於 {{ formatDate(treasure.createdAt) }} · 最近更新 {{ formatDate(treasure.updatedAt) }}</p>
           <section v-if="hasLineage" class="lineage-context" aria-labelledby="lineage-title">
-            <div class="lineage-heading"><h3 id="lineage-title">成果脈絡</h3><span class="metadata">{{ treasure.sourceTreasures.length + (treasure.sourceCard ? 1 : 0) + (treasure.sourceExperiment ? 1 : 0) }} 個來源<span v-if="derived.data.value"> · {{ derived.data.value.totalElements }} 件衍生成果</span></span></div>
+            <div class="lineage-heading"><h3 id="lineage-title">成果脈絡</h3><span class="metadata">{{ treasure.sourceTreasures.length + treasure.sourceCards.length + (treasure.sourceExperiment ? 1 : 0) }} 個來源<span v-if="derived.data.value"> · {{ derived.data.value.totalElements }} 件衍生成果</span></span></div>
             <div v-if="hasSources" class="lineage-branch">
               <span class="lineage-label">來自</span>
               <div class="lineage-links">
-                <router-link v-if="treasure.sourceCard" :to="`/card/${treasure.sourceCard.id}`">卡片 · {{ treasure.sourceCard.title }}</router-link>
+                <router-link v-for="source in treasure.sourceCards" :key="source.id" :to="`/card/${source.id}`">卡片 · {{ source.title }}</router-link>
                 <router-link v-if="treasure.sourceExperiment" :to="`/experiments/${treasure.sourceExperiment.id}`">實驗 · {{ treasure.sourceExperiment.title }}</router-link>
                 <router-link v-for="source in treasure.sourceTreasures" :key="source.id" :to="`/treasures/${source.id}`">展品 · {{ source.title }}</router-link>
               </div>

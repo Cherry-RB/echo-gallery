@@ -69,7 +69,7 @@ describe('展品表單互動', () => {
     await wrapper.findAll('button').find(button => button.text() === '確認來源')!.trigger('click')
     await wrapper.get('footer button:last-child').trigger('click')
     await vi.waitFor(() => expect(api.create).toHaveBeenCalledOnce())
-    expect(api.create.mock.calls[0]?.[0]).toMatchObject({ title: '完成的新成果', sourceTreasureIds: [1, 2], sourceCardId: null })
+    expect(api.create.mock.calls[0]?.[0]).toMatchObject({ title: '完成的新成果', sourceTreasureIds: [1, 2], sourceCardIds: [] })
     expect(api.create.mock.calls[0]?.[0]).not.toHaveProperty('rank')
     await flushPromises()
     expect(wrapper.emitted('saved')).toHaveLength(1)
@@ -152,7 +152,7 @@ describe('展品表單互動', () => {
     expect(wrapper.get('.source-summaries').text()).not.toContain('實驗 A')
     expect(api.create).not.toHaveBeenCalled()
     await wrapper.get('footer button:last-child').trigger('click')
-    await vi.waitFor(() => expect(api.create).toHaveBeenCalledWith(expect.objectContaining({ sourceCardId: 10, sourceExperimentId: 22, sourceTreasureIds: [1] })))
+    await vi.waitFor(() => expect(api.create).toHaveBeenCalledWith(expect.objectContaining({ sourceCardIds: [10], sourceExperimentId: 22, sourceTreasureIds: [1] })))
     wrapper.unmount()
   })
 
@@ -254,8 +254,21 @@ describe('展品表單互動', () => {
     wrapper.unmount()
   })
 
+  it('卡片來源可多選並在確認時保留全部選取', async () => {
+    api.cards.mockResolvedValue(page([{ id: 10, title: '來源卡片 A' }, { id: 11, title: '來源卡片 B' }]))
+    const wrapper = mount(TreasureSourcePicker, { props: { sourceTreasures: [], sourceCards: [], sourceExperiment: null }, global: global() })
+    wrapper.findComponent({ name: 'ElTabs' }).vm.$emit('update:modelValue', 'card')
+    await vi.waitFor(() => expect(wrapper.findAll('.source-options .picker-option')).toHaveLength(2))
+    await wrapper.findAll('.source-options .picker-option')[0]!.trigger('click')
+    await wrapper.findAll('.source-options .picker-option')[1]!.trigger('click')
+    expect(wrapper.findAll('.source-options .picker-option').map(option => option.attributes('aria-pressed'))).toEqual(['true', 'true'])
+    ;(wrapper.vm as unknown as { confirm: () => void }).confirm()
+    expect(wrapper.emitted('confirm')).toEqual([[{ treasures: [], cards: [{ id: 10, title: '來源卡片 A', metadata: expect.any(Array) }, { id: 11, title: '來源卡片 B', metadata: expect.any(Array) }], experiment: null }]])
+    wrapper.unmount()
+  })
+
   it('卡片來源沿用 Card ID 搜尋，切換種類仍保留已選內容', async () => {
-    const wrapper = mount(TreasureSourcePicker, { props: { sourceTreasures: [], sourceCard: null, sourceExperiment: null }, global: global() })
+    const wrapper = mount(TreasureSourcePicker, { props: { sourceTreasures: [], sourceCards: [], sourceExperiment: null }, global: global() })
     wrapper.findComponent({ name: 'ElTabs' }).vm.$emit('update:modelValue', 'card')
     await flushPromises()
     await wrapper.get('input').setValue('#10')
@@ -266,7 +279,7 @@ describe('展品表單互動', () => {
 
   it('續載失敗保留已選與已載入來源，重試後繼續累加', async () => {
     api.list.mockImplementation(({ page: index }) => index ? Promise.reject(new Error('暫時中斷')) : Promise.resolve(page([{ id: 1, title: '來源 A' }], 12)))
-    const wrapper = mount(TreasureSourcePicker, { props: { sourceTreasures: [], sourceCard: null, sourceExperiment: null }, global: global() })
+    const wrapper = mount(TreasureSourcePicker, { props: { sourceTreasures: [], sourceCards: [], sourceExperiment: null }, global: global() })
     await vi.waitFor(() => expect(wrapper.find('.source-options .picker-option').exists()).toBe(true))
     await wrapper.get('.source-options .picker-option').trigger('click')
     await wrapper.get('.load-more-row button').trigger('click')

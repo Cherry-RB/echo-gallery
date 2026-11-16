@@ -43,7 +43,7 @@ export function today(): string {
 export function contentOf(t?: TreasureDetail): TreasureContent {
   return {
     title: t?.title ?? '', description: t?.description ?? '', artifactUrl: t?.artifactUrl ?? '', coverImageUrl: t?.coverImageUrl ?? '',
-    acquiredOn: t?.acquiredOn ?? today(), sourceCardId: t?.sourceCard?.id ?? null, sourceExperimentId: t?.sourceExperiment?.id ?? null,
+    acquiredOn: t?.acquiredOn ?? today(), sourceCardIds: t?.sourceCards.map(source => source.id) ?? [], sourceExperimentId: t?.sourceExperiment?.id ?? null,
     sourceTreasureIds: t?.sourceTreasures.map(source => source.id) ?? [],
   }
 }

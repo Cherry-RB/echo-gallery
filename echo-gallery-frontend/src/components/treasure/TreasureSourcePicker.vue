@@ -10,13 +10,13 @@ import type { TreasureReference } from '../../types/treasure'
 import { treasureApi } from '../../utils/api/treasureApi'
 import { cardApi } from '../../utils/api/cardApi'
 import { experimentApi } from '../../utils/api/experimentApi'
-const props = defineProps<{ treasureId?: number; sourceTreasures: TreasureReference[]; sourceCard: TreasureReference | null; sourceExperiment: TreasureReference | null }>()
-const emit = defineEmits<{ cancel: []; confirm: [{ treasures: TreasureReference[]; card: TreasureReference | null; experiment: TreasureReference | null }] }>()
+const props = defineProps<{ treasureId?: number; sourceTreasures: TreasureReference[]; sourceCards: TreasureReference[]; sourceExperiment: TreasureReference | null }>()
+const emit = defineEmits<{ cancel: []; confirm: [{ treasures: TreasureReference[]; cards: TreasureReference[]; experiment: TreasureReference | null }] }>()
 const sourceKind = ref<'treasure' | 'card' | 'experiment'>('treasure')
 const keyword = ref('')
 // 此元件只編輯來源快照，確認後才帶回成果草稿。
 const treasures = ref([...props.sourceTreasures])
-const card = ref(props.sourceCard)
+const cards = ref([...props.sourceCards])
 const experiment = ref(props.sourceExperiment)
 const query = useInfiniteQuery({
   queryKey: computed(() => ['treasure-source-picker', sourceKind.value, keyword.value.trim()]),
@@ -39,20 +39,25 @@ const toggleTreasure = (item: TreasureReference) => {
   else if (treasures.value.length < 20) treasures.value.push(item)
   else ElMessage.warning('來源展品最多 20 件')
 }
+const toggleCard = (item: TreasureReference) => {
+  if (cards.value.some(source => source.id === item.id)) cards.value = cards.value.filter(source => source.id !== item.id)
+  else if (cards.value.length < 20) cards.value.push(item)
+  else ElMessage.warning('來源卡片最多 20 張')
+}
 const isSelected = (item: TreasureReference) => sourceKind.value === 'treasure'
   ? treasures.value.some(source => source.id === item.id)
-  : (sourceKind.value === 'card' ? card.value : experiment.value)?.id === item.id
+  : sourceKind.value === 'card' ? cards.value.some(source => source.id === item.id) : experiment.value?.id === item.id
 const select = (item: TreasureReference) => {
   if (sourceKind.value === 'treasure') toggleTreasure(item)
-  else if (sourceKind.value === 'card') card.value = item
+  else if (sourceKind.value === 'card') toggleCard(item)
   else experiment.value = item
 }
 const remove = (kind: string, id: number) => {
-  if (kind === 'card') card.value = null
+  if (kind === 'card') cards.value = cards.value.filter(item => item.id !== id)
   else if (kind === 'experiment') experiment.value = null
   else treasures.value = treasures.value.filter(item => item.id !== id)
 }
-const confirm = () => emit('confirm', { treasures: [...treasures.value], card: card.value, experiment: experiment.value })
+const confirm = () => emit('confirm', { treasures: [...treasures.value], cards: [...cards.value], experiment: experiment.value })
 defineExpose({ confirm })
 </script>
 <template>
@@ -60,12 +65,12 @@ defineExpose({ confirm })
     <header class="source-intro"><el-button text @click="emit('cancel')">返回編輯展品</el-button><p class="app-dialog-intro">選擇來源後確認，最後儲存成果才會生效。</p></header>
     <PickerWorkspace>
         <el-tabs v-model="sourceKind" aria-label="來源種類"><el-tab-pane label="展品" name="treasure" /><el-tab-pane label="卡片" name="card" /><el-tab-pane label="實驗" name="experiment" /></el-tabs>
-        <p class="source-rule">{{ sourceKind === 'treasure' ? '展品：最多選 20 件。' : sourceKind === 'card' ? '卡片：選 1 張；選擇另一張會替換原選項。' : '實驗：選 1 個；選擇另一個會替換原選項。' }}</p>
+        <p class="source-rule">{{ sourceKind === 'treasure' ? '展品：最多選 20 件。' : sourceKind === 'card' ? '卡片：最多選 20 張。' : '實驗：選 1 個；選擇另一個會替換原選項。' }}</p>
         <el-input v-if="sourceKind !== 'experiment'" v-model="keyword" :placeholder="sourceKind === 'card' ? '輸入 卡片 ID（例如 #7）或標題' : '依名稱搜尋來源'" clearable aria-label="搜尋來源" />
         <el-skeleton v-if="query.isLoading.value" :rows="3" animated />
         <el-button v-else-if="query.isError.value && !query.data.value" @click="query.refetch()">來源讀取失敗，重試</el-button>
         <div v-else class="source-options picker-results" aria-label="瀏覽來源">
-          <PickerOption v-for="item in candidates" :key="item.id" :title="item.title" :selected="isSelected(item)" :multiple="sourceKind === 'treasure'" @select="select(item)"><span>#{{ item.id }}</span><span v-for="text in item.metadata" :key="text">{{ text }}</span></PickerOption>
+          <PickerOption v-for="item in candidates" :key="item.id" :title="item.title" :selected="isSelected(item)" :multiple="sourceKind !== 'experiment'" @select="select(item)"><span>#{{ item.id }}</span><span v-for="text in item.metadata" :key="text">{{ text }}</span></PickerOption>
           <p v-if="!candidates.length" class="app-field-help">{{ keyword ? '沒有符合搜尋條件的來源。' : '目前沒有可選擇的來源。' }}</p>
           <div v-if="query.hasNextPage.value && !query.isFetchNextPageError.value" class="load-more-row"><el-button :loading="query.isFetchingNextPage.value" @click="query.fetchNextPage()">載入更多</el-button></div>
           <el-button v-if="query.isFetchNextPageError.value" @click="query.fetchNextPage()">後續來源讀取失敗，重試</el-button>
@@ -73,7 +78,7 @@ defineExpose({ confirm })
       <template #selection>
       <section class="source-selection" aria-label="已選來源">
         <h3>已選來源</h3>
-        <TreasureSourceSummary :card="card" :experiment="experiment" :treasures="treasures" @remove="remove" />
+        <TreasureSourceSummary :cards="cards" :experiment="experiment" :treasures="treasures" @remove="remove" />
       </section>
       </template>
     </PickerWorkspace>

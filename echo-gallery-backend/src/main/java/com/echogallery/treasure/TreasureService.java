@@ -26,6 +26,7 @@ public class TreasureService {
     private final TreasureTrialAttemptRepository attempts;
     private final TreasureYieldRepository yields;
     private final TreasureRelationRepository relations;
+    private final TreasureCardSourceRepository cardSources;
     private final CardRepository cards;
     private final ExperimentRepository experiments;
     private final TreasureLifecycle lifecycle;
@@ -71,6 +72,7 @@ public class TreasureService {
         treasure.setCreatedAt(now());
         content(treasure, request);
         treasures.saveAndFlush(treasure);
+        replaceCardSources(treasure, request.sourceCardIds());
         replaceSources(treasure, request.sourceTreasureIds());
         if (treasure.getSourceExperiment() != null) goalActivity.record("TREASURE_ACQUIRED", "treasure:" + treasure.getId(),
             com.echogallery.goal.GoalData.Kind.EXPERIMENT, treasure.getSourceExperiment().getId(), java.util.Map.of("treasureId", treasure.getId()));
@@ -82,6 +84,7 @@ public class TreasureService {
         lifecycle.lockOwner(owner());
         Treasure treasure = owned(id);
         content(treasure, request);
+        replaceCardSources(treasure, request.sourceCardIds());
         replaceSources(treasure, request.sourceTreasureIds());
         return detail(treasure);
     }
@@ -301,7 +304,6 @@ public class TreasureService {
         t.setArtifactUrl(url(r.artifactUrl()));
         t.setCoverImageUrl(url(r.coverImageUrl()));
         t.setAcquiredOn(r.acquiredOn());
-        t.setSourceCard(card(r.sourceCardId()));
         t.setSourceExperiment(experiment(r.sourceExperimentId()));
         t.setUpdatedAt(now());
     }
@@ -321,6 +323,20 @@ public class TreasureService {
             TreasureRelation r = new TreasureRelation();
             r.setSource(source); r.setTarget(t); r.setCreatedAt(now());
             relations.save(r);
+        }
+    }
+
+    private void replaceCardSources(Treasure t, List<Long> ids) {
+        List<Long> sources = ids == null ? List.of() : ids;
+        if (sources.size() > 20) bad("來源卡片最多 20 張");
+        if (new HashSet<>(sources).size() != sources.size()) bad("來源卡片不可重複");
+        List<Card> verified = sources.stream().map(this::card).toList();
+        cardSources.deleteByTreasureId(t.getId());
+        for (Card source : verified) {
+            TreasureCardSource relation = new TreasureCardSource();
+            relation.setTreasure(t);
+            relation.setCard(source);
+            cardSources.save(relation);
         }
     }
 
@@ -347,7 +363,8 @@ public class TreasureService {
         var selected = selectChallenge(t, trials.findByTreasureIdOrderByTargetRank(t.getId()));
         return new TreasureResponses.Detail(t.getId(), t.getTitle(), t.getDescription(), t.getArtifactUrl(), t.getCoverImageUrl(),
                 t.getRank(), t.getRank().next(), t.getAcquiredOn(), t.isArchived(),
-                t.getSourceCard() == null ? null : new TreasureResponses.Reference(t.getSourceCard().getId(), t.getSourceCard().getTitle()),
+                cardSources.findByTreasureIdOrderById(t.getId()).stream()
+                        .map(source -> new TreasureResponses.Reference(source.getCard().getId(), source.getCard().getTitle())).toList(),
                 t.getSourceExperiment() == null ? null : new TreasureResponses.Reference(t.getSourceExperiment().getId(), t.getSourceExperiment().getTitle()),
                 relations.findByTargetIdOrderById(t.getId()).stream().map(r -> reference(r.getSource())).toList(),
                 selected == null ? null : trial(selected), trials.countByTreasureId(t.getId()), yields.countByTreasureId(t.getId()),

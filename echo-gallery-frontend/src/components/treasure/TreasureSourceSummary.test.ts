@@ -5,7 +5,7 @@ import TreasureSourceSummary from './TreasureSourceSummary.vue'
 describe('來源摘要的共用呈現與操作', () => {
   it('卡片、實驗與多件展品使用相同摘要，移除操作只指向指定來源', async () => {
     const wrapper = mount(TreasureSourceSummary, { props: {
-      card: { id: 1, title: '卡片名稱'.repeat(30) }, experiment: { id: 2, title: '實驗名稱' },
+      cards: [{ id: 1, title: '卡片名稱'.repeat(30) }], experiment: { id: 2, title: '實驗名稱' },
       treasures: [{ id: 3, title: '奇珍甲' }, { id: 4, title: '奇珍乙' }],
     }, global: { stubs: { 'el-button': { props: ['disabled'], emits: ['click'], template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>' } } } })
     expect(wrapper.findAll('.source-group')).toHaveLength(3)

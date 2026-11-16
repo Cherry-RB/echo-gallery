@@ -14,7 +14,7 @@ public final class TreasureRequests {
             @Size(max = 2048) String artifactUrl,
             @Size(max = 2048) String coverImageUrl,
             @NotNull LocalDate acquiredOn,
-            @Positive Long sourceCardId,
+            @Size(max = 20) List<@NotNull @Positive Long> sourceCardIds,
             @Positive Long sourceExperimentId,
             @Size(max = 20) List<@NotNull @Positive Long> sourceTreasureIds) {}
 

@@ -9,7 +9,7 @@ vi.mock('vue-router', async importOriginal => ({ ...await importOriginal<typeof 
 vi.mock('element-plus', () => ({ ElMessage: { error: vi.fn() }, ElMessageBox: { confirm: vi.fn() }, ElCollapseTransition: { template: '<div><slot /></div>' } }))
 
 const trial = { id: 4, title: '在新情境使用', criteria: '完成一次實際運用並留下紀錄', targetRank: 'BRONZE', status: 'PLANNED', createdAt: '2026-10-14T10:00:00Z', resultNote: null, attemptedAt: null, passedAt: null }
-const detail = { id: 1, title: '完成的 MVP', rank: 'STONE', nextRank: 'BRONZE', description: '成果內容', acquiredOn: '2026-10-14', createdAt: '2026-10-14T10:00:00Z', updatedAt: '2026-10-14T10:00:00Z', sourceTreasures: [{ id: 2, title: '來源成果' }], sourceCard: null, sourceExperiment: null, trialCount: 1, yieldCount: 0, activeTrial: trial, isArchived: false }
+const detail = { id: 1, title: '完成的 MVP', rank: 'STONE', nextRank: 'BRONZE', description: '成果內容', acquiredOn: '2026-10-14', createdAt: '2026-10-14T10:00:00Z', updatedAt: '2026-10-14T10:00:00Z', sourceTreasures: [{ id: 2, title: '來源成果' }], sourceCards: [], sourceExperiment: null, trialCount: 1, yieldCount: 0, activeTrial: trial, isArchived: false }
 const page = (content: unknown[]) => ({ content, totalElements: content.length, totalPages: 1, page: 0, size: 10 })
 const clients: QueryClient[] = []
 const wrappers: ReturnType<typeof mount>[] = []

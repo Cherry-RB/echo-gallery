@@ -13,7 +13,7 @@ public final class TreasureResponses {
     public record Reference(Long id, String title) {}
     public record Detail(Long id, String title, String description, String artifactUrl, String coverImageUrl,
             TreasureRank rank, TreasureRank nextRank, LocalDate acquiredOn, boolean isArchived,
-            Reference sourceCard, Reference sourceExperiment, List<Reference> sourceTreasures,
+            List<Reference> sourceCards, Reference sourceExperiment, List<Reference> sourceTreasures,
             Trial activeTrial, long trialCount, long yieldCount, ZonedDateTime createdAt, ZonedDateTime updatedAt) {}
     public record Trial(Long id, TreasureRank targetRank, String title, String criteria, TrialStatus status,
             String resultNote, String evidenceUrl, ZonedDateTime attemptedAt, ZonedDateTime passedAt,

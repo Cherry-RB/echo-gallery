@@ -3,7 +3,6 @@ package com.echogallery.treasure;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
-import com.echogallery.card.Card;
 import com.echogallery.experiment.Experiment;
 import com.echogallery.user.User;
 import jakarta.persistence.*;
@@ -37,9 +36,6 @@ public class Treasure {
     private LocalDate acquiredOn;
     @Column(name = "is_archived", nullable = false)
     private boolean archived;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "source_card_id")
-    private Card sourceCard;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_experiment_id")
     private Experiment sourceExperiment;
