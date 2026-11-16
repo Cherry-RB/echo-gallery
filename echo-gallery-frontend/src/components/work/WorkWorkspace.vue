@@ -172,7 +172,7 @@ async function remove() {
   catch { error.value = '無法刪除作品，請重試。' } finally { busy.value = false }
 }
 async function unlink() {
-  try { await ElMessageBox.confirm('解除後作品與展品各自保留。重新連結時，作品須為可分享。', '解除展品關聯', { confirmButtonText: '解除關聯', cancelButtonText: '取消' }) } catch { return }
+  try { await ElMessageBox.confirm('解除後作品與展品各自保留。', '解除展品關聯', { confirmButtonText: '解除關聯', cancelButtonText: '取消' }) } catch { return }
   try { detail.value = await workApi.unlink(id); await invalidate() } catch { error.value = '無法解除關聯，請重試。' }
 }
 async function removeSource(source: WorkSource) {
@@ -271,7 +271,7 @@ onBeforeUnmount(() => {
             <template #dropdown><el-dropdown-menu><el-dropdown-item command="UNPUBLISHED" :disabled="!detail.work.published">未發表</el-dropdown-item><el-dropdown-item command="PUBLISHED" :disabled="detail.work.published">已發表</el-dropdown-item><el-dropdown-item divided command="EDIT">編輯分享資訊</el-dropdown-item></el-dropdown-menu></template>
           </el-dropdown>
           <el-button v-if="!readonly" plain type="primary" :icon="Edit" :disabled="busy" @click="safeBody().then(ok => { if (ok) editingInfo = true })">編輯資訊</el-button>
-          <el-button v-if="!readonly && detail.work.stage === 'SHAREABLE' && !detail.work.treasureId" type="primary" :disabled="busy" @click="openDialog('treasure')">收入展品</el-button>
+          <el-button v-if="!readonly && !detail.work.treasureId" type="primary" :disabled="busy" @click="openDialog('treasure')">收入展品</el-button>
           <el-button v-if="readonly" :disabled="busy" @click="archive">還原作品</el-button>
           <el-dropdown class="work-more-menu" trigger="click" :disabled="busy" @command="pageCommand">
             <el-button text circle :icon="MoreFilled" aria-label="更多作品操作" />
@@ -338,7 +338,7 @@ onBeforeUnmount(() => {
           <dl class="work-properties"><div><dt>發表狀態</dt><dd>{{ detail.work.published ? '已發表' : '未發表' }}</dd></div><div v-if="detail.sharedOn"><dt>分享日期</dt><dd>{{ detail.sharedOn }}</dd></div></dl>
           <a v-if="detail.shareUrl" :href="detail.shareUrl" target="_blank" rel="noopener noreferrer">查看分享連結</a>
           <p v-if="detail.shareNote" class="private-note">{{ detail.shareNote }}</p>
-          <div class="work-treasure-context"><template v-if="detail.work.treasureId"><router-link :to="`/treasures/${detail.work.treasureId}`">前往展品</router-link><el-button v-if="!readonly" link @click="unlink">解除關聯</el-button></template><el-button v-else-if="!readonly && detail.work.stage === 'SHAREABLE'" text type="primary" @click="openDialog('treasure')">收入展品</el-button><p v-else-if="!readonly" class="work-hint">作品標記可分享後，可以選擇收入展品。</p></div>
+          <div class="work-treasure-context"><template v-if="detail.work.treasureId"><router-link class="el-button el-button--primary is-plain treasure-navigation" :to="`/treasures/${detail.work.treasureId}`">前往展品</router-link><el-button v-if="!readonly" @click="unlink">解除關聯</el-button></template><el-button v-else-if="!readonly" text type="primary" @click="openDialog('treasure')">收入展品</el-button><p v-else-if="!readonly" class="work-hint">收錄展品不等於公開分享，作品仍可持續編修。</p></div>
         </div>
       </SidePanel>
     </aside></div>
@@ -351,7 +351,7 @@ onBeforeUnmount(() => {
         <el-form-item v-if="dialog === 'next'" label="下次接著做（選填）"><el-input v-model="form.nextStep" type="textarea" :rows="5" maxlength="50000" /><p class="app-field-counter">總字數：{{ form.nextStep.length }} / 50,000</p><p class="app-field-help">留下一個容易接續的切入點即可，不必填寫完整計畫。</p></el-form-item>
         <template v-if="dialog === 'stage'"><el-form-item label="首次初版完成日期（選填）"><el-date-picker v-model="form.firstCompletedOn" type="date" value-format="YYYY-MM-DD" /></el-form-item><p class="app-field-help">作品階段請在頁首選單變更；這裡只調整首次初版完成日期。</p></template>
         <template v-if="dialog === 'share'"><p class="app-dialog-intro">只保存最近一筆分享資訊；儲存會取代原有網址、日期與備註。複製、匯出或分享連結不會自動標記已發表。</p><el-form-item label="發表狀態"><el-switch v-model="form.published" active-text="已發表" inactive-text="未發表" /></el-form-item><el-form-item label="分享網址（選填）"><el-input v-model="form.shareUrl" maxlength="2048" /></el-form-item><el-form-item label="實際分享日期（選填）"><el-date-picker v-model="form.sharedOn" type="date" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="分享或回饋備註（選填）"><el-input v-model="form.shareNote" type="textarea" :rows="4" maxlength="50000" /><p class="app-field-counter">總字數：{{ form.shareNote.length }} / 50,000</p></el-form-item></template>
-        <template v-if="dialog === 'treasure'"><el-radio-group v-model="treasureMode"><el-radio value="new">新增展品</el-radio><el-radio value="existing">連到已有展品</el-radio></el-radio-group><template v-if="treasureMode === 'existing'"><p class="app-dialog-intro">保留展品原有說明、等級與收益；一件展品最多連到一件作品。</p><el-input v-model="treasureKeyword" placeholder="搜尋展品名稱" @input="treasurePage = 1" /><p v-if="treasures.isPending.value" role="status">正在載入展品…</p><el-alert v-else-if="treasures.isError.value" title="無法載入展品" type="error" :closable="false"><el-button @click="treasures.refetch()">重新載入</el-button></el-alert><p v-else-if="!treasures.data.value?.content.length" class="app-field-help">找不到符合條件的展品，可調整搜尋或改為新增展品。</p><div class="treasure-options"><PickerOption v-for="t in treasures.data.value?.content" :key="t.id" :title="t.title" :selected="selectedTreasure === t.id" :disabled="busy" @select="selectedTreasure = t.id" /></div><el-pagination v-if="(treasures.data.value?.totalElements ?? 0) > 20" v-model:current-page="treasurePage" :page-size="20" :total="treasures.data.value?.totalElements ?? 0" layout="prev, pager, next" /></template></template>
+        <template v-if="dialog === 'treasure'"><el-radio-group v-model="treasureMode"><el-radio value="new">新增展品</el-radio><el-radio value="existing">連到已有展品</el-radio></el-radio-group><template v-if="treasureMode === 'existing'"><p class="app-dialog-intro">保留展品原有說明、等級、收益及收錄作品。</p><el-input v-model="treasureKeyword" placeholder="搜尋展品名稱" @input="treasurePage = 1" /><p v-if="treasures.isPending.value" role="status">正在載入展品…</p><el-alert v-else-if="treasures.isError.value" title="無法載入展品" type="error" :closable="false"><el-button @click="treasures.refetch()">重新載入</el-button></el-alert><p v-else-if="!treasures.data.value?.content.length" class="app-field-help">找不到符合條件的展品，可調整搜尋或改為新增展品。</p><div class="treasure-options"><PickerOption v-for="t in treasures.data.value?.content" :key="t.id" :title="t.title" :selected="selectedTreasure === t.id" :disabled="busy" @select="selectedTreasure = t.id" /></div><el-pagination v-if="(treasures.data.value?.totalElements ?? 0) > 20" v-model:current-page="treasurePage" :page-size="20" :total="treasures.data.value?.totalElements ?? 0" layout="prev, pager, next" /></template></template>
         <el-alert v-if="error" :title="error" type="error" :closable="false" />
       </el-form>
       <template #footer="{ requestClose }"><el-button :disabled="busy" @click="requestClose">取消</el-button><el-button type="primary" :loading="busy" :disabled="dialog === 'treasure' && treasureMode === 'existing' && !selectedTreasure" @click="saveDialog">{{ dialog === 'treasure' && treasureMode === 'new' ? '填寫入藏資訊' : '儲存變更' }}</el-button></template>
@@ -404,6 +404,9 @@ h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-
 .work-properties dd { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: anywhere; }
 .work-hint { color: var(--el-text-color-secondary); }
 .work-treasure-context { display: flex; width: 100%; flex-wrap: wrap; align-items: center; gap: var(--space-sm); border-top: 1px solid var(--el-border-color-light); padding-top: var(--space-sm); }
+.work-treasure-context :deep(.el-button) { margin: 0; }
+.treasure-navigation, .treasure-navigation:hover, .treasure-navigation:focus { text-decoration: none; }
+.treasure-navigation:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: var(--space-2xs); }
 .work-disclosure:not([open]) summary { margin-bottom: 0; }
 .next-step { padding: var(--space-sm); border-radius: var(--radius-sm); background: var(--surface-summary); }
 .next-step-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs); }

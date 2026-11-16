@@ -11,10 +11,10 @@ import { treasureApi } from '../../utils/api/treasureApi'
 import { cardApi } from '../../utils/api/cardApi'
 import { experimentApi } from '../../utils/api/experimentApi'
 const props = defineProps<{ treasureId?: number; sourceTreasures: TreasureReference[]; sourceCards: TreasureReference[]; sourceExperiment: TreasureReference | null }>()
-const emit = defineEmits<{ cancel: []; confirm: [{ treasures: TreasureReference[]; cards: TreasureReference[]; experiment: TreasureReference | null }] }>()
+const emit = defineEmits<{ confirm: [{ treasures: TreasureReference[]; cards: TreasureReference[]; experiment: TreasureReference | null }] }>()
 const sourceKind = ref<'treasure' | 'card' | 'experiment'>('treasure')
 const keyword = ref('')
-// 此元件只編輯來源快照，確認後才帶回成果草稿。
+// 此元件只編輯來源快照，確認後交由上層儲存。
 const treasures = ref([...props.sourceTreasures])
 const cards = ref([...props.sourceCards])
 const experiment = ref(props.sourceExperiment)
@@ -58,11 +58,11 @@ const remove = (kind: string, id: number) => {
   else treasures.value = treasures.value.filter(item => item.id !== id)
 }
 const confirm = () => emit('confirm', { treasures: [...treasures.value], cards: [...cards.value], experiment: experiment.value })
-defineExpose({ confirm })
+const draft = computed(() => [cards.value.map(item => item.id), experiment.value?.id ?? null, treasures.value.map(item => item.id)])
+defineExpose({ confirm, draft })
 </script>
 <template>
   <section class="source-picker" aria-label="管理成果來源">
-    <header class="source-intro"><el-button text @click="emit('cancel')">返回編輯展品</el-button><p class="app-dialog-intro">選擇來源後確認，最後儲存成果才會生效。</p></header>
     <PickerWorkspace>
         <el-tabs v-model="sourceKind" aria-label="來源種類"><el-tab-pane label="展品" name="treasure" /><el-tab-pane label="卡片" name="card" /><el-tab-pane label="實驗" name="experiment" /></el-tabs>
         <p class="source-rule">{{ sourceKind === 'treasure' ? '展品：最多選 20 件。' : sourceKind === 'card' ? '卡片：最多選 20 張。' : '實驗：選 1 個；選擇另一個會替換原選項。' }}</p>

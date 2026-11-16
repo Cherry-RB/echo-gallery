@@ -25,7 +25,16 @@ public class WorkController {
         return service.list(keyword, experimentIds != null ? experimentIds : experimentId == null ? List.of() : List.of(experimentId), unassigned, stages != null ? stages : stage == null ? List.of() : List.of(stage), published, "all".equals(archived) ? null : Boolean.valueOf(archived), page, size);
     }
     @GetMapping("/experiments") public List<WorkService.ExperimentOption> experiments() { return service.experiments(); }
-    @GetMapping("/treasure/{id}") public WorkService.Detail treasure(@PathVariable("id") Long id) { return service.fromTreasure(id); }
+    @GetMapping("/treasure/{id}") public List<WorkService.Summary> treasure(@PathVariable("id") Long id) { return service.fromTreasure(id); }
+    @GetMapping("/treasure/{id}/candidates") public PageResponse<WorkService.Summary> treasureCandidates(
+            @PathVariable("id") Long id, @RequestParam(name = "keyword", required = false) String keyword,
+            @RequestParam(name = "page", defaultValue = "0") int page, @RequestParam(name = "size", defaultValue = "20") int size) {
+        return service.treasureCandidates(id, keyword, page, size);
+    }
+    @PutMapping("/treasure/{id}/works") public List<WorkService.Summary> replaceTreasureWorks(
+            @PathVariable("id") Long id, @Valid @RequestBody WorkRequests.TreasureWorks request) {
+        return service.replaceTreasureWorks(id, request);
+    }
     @GetMapping("/candidates") public PageResponse<WorkService.SourceView> candidates(@RequestParam("kind") String kind, @RequestParam(name = "keyword", required = false) String keyword, @RequestParam(name = "experimentId", required = false) Long experimentId, @RequestParam(name = "page", defaultValue = "0") int page, @RequestParam(name = "size", defaultValue = "20") int size) { return service.candidates(kind, keyword, experimentId, page, size); }
     @GetMapping("/usages") public List<WorkService.Usage> usages(@RequestParam(name = "cardIds", defaultValue = "") List<Long> cardIds, @RequestParam(name = "recordIds", defaultValue = "") List<Long> recordIds) { return service.usages(cardIds, recordIds); }
     @PostMapping public WorkService.Detail create(@Valid @RequestBody WorkRequests.Info r) { return service.create(r); }

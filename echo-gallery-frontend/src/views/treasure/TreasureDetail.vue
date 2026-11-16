@@ -2,6 +2,7 @@
 import GoalBadge from '../../components/goal/GoalBadge.vue'
 import SidePanel from '../../components/ui/SidePanel.vue'
 import TreasureWorkLink from '../../components/work/TreasureWorkLink.vue'
+import TreasureWorkPicker from '../../components/work/TreasureWorkPicker.vue'
 import CoverImage from '../../components/ui/CoverImage.vue'
 import { computed, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -11,6 +12,7 @@ import { ArrowLeft, Edit, MoreFilled, View } from '@element-plus/icons-vue'
 import ExpandableText from '../../components/ExpandableText.vue'
 import TreasureRankBadge from '../../components/treasure/TreasureRankBadge.vue'
 import TreasureFormDialog from '../../components/treasure/TreasureFormDialog.vue'
+import TreasureSourceDialog from '../../components/treasure/TreasureSourceDialog.vue'
 import TreasureTrialDialog from '../../components/treasure/TreasureTrialDialog.vue'
 import TreasureYieldHistory from '../../components/treasure/TreasureYieldHistory.vue'
 import TreasureChallengeRoute from '../../components/treasure/TreasureChallengeRoute.vue'
@@ -20,6 +22,7 @@ import type { TreasureRank } from '../../types/treasure'
 import { formatDate } from '../../utils/formatDate'
 import DetailShell from '../../components/ui/DetailShell.vue'
 import DetailHeading from '../../components/ui/DetailHeading.vue'
+import SectionHeader from '../../components/ui/SectionHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,10 +32,13 @@ const queryClient = useQueryClient()
 const detail = useQuery({ queryKey: computed(() => ['treasures', 'detail', id.value]), queryFn: () => treasureApi.detail(id.value), enabled: validId })
 const treasure = computed(() => detail.data.value)
 const relationPage = ref(0)
-watch(id, () => { relationPage.value = 0; editVisible.value = false; trialVisible.value = false; selectedRank.value = 'BRONZE'; dialogRank.value = 'BRONZE' })
+const workCount = ref<number>()
+watch(id, () => { relationPage.value = 0; workCount.value = undefined; editVisible.value = false; trialVisible.value = false; selectedRank.value = 'BRONZE'; dialogRank.value = 'BRONZE' })
 const routeQuery = useQuery({ queryKey: computed(() => ['treasures', id.value, 'route']), queryFn: () => treasureApi.route(id.value), enabled: computed(() => !!treasure.value) })
 const derived = useQuery({ queryKey: computed(() => ['treasures', id.value, 'relations', relationPage.value]), queryFn: () => treasureApi.relations(id.value, relationPage.value), enabled: computed(() => !!treasure.value) })
 const editVisible = ref(false)
+const workVisible = ref(false)
+const sourceVisible = ref(false)
 const trialVisible = ref(false)
 const selectedRank = ref<TreasureRank>('BRONZE')
 const dialogRank = ref<TreasureRank>('BRONZE')
@@ -46,7 +52,7 @@ const openChallenge = (mode: 'route' | 'help' | 'edit' | 'attempt', rank?: Treas
   initialMode.value = mode; trialVisible.value = true
 }
 const hasSources = computed(() => !!treasure.value && Boolean(treasure.value.sourceCards.length || treasure.value.sourceExperiment || treasure.value.sourceTreasures.length))
-const hasLineage = computed(() => hasSources.value || derived.isLoading.value || derived.isError.value || Boolean(derived.data.value?.content.length))
+const sourceCount = computed(() => treasure.value ? treasure.value.sourceCards.length + treasure.value.sourceTreasures.length + (treasure.value.sourceExperiment ? 1 : 0) : undefined)
 const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['treasures'] }), queryClient.invalidateQueries({ queryKey: ['overview'] }), queryClient.invalidateQueries({ queryKey: ['treasure-source-picker'] })])
 const archive = async () => {
   if (busy.value || !treasure.value) return
@@ -94,14 +100,23 @@ const handleCommand = (command: string) => {
         <div class="detail-main-column">
         <section class="detail-panel detail-content">
           <h2>成果內容</h2>
-          <TreasureWorkLink :treasure-id="id" />
           <CoverImage :src="treasure.coverImageUrl" alt="成果封面" class="artifact-cover" />
           <div v-if="treasure.description" class="reading-copy"><ExpandableText :content="treasure.description" :lines="7" /></div>
           <p v-else class="empty-copy">這件展品的來歷尚未寫下。可透過「編輯展品」補充內容與經驗。</p>
-          <a v-if="treasure.artifactUrl" class="artifact-link" :href="treasure.artifactUrl" target="_blank" rel="noopener noreferrer"><el-icon><View /></el-icon>開啟成果</a>
-          <p class="metadata">入藏於 {{ formatDate(treasure.createdAt) }} · 最近更新 {{ formatDate(treasure.updatedAt) }}</p>
-          <section v-if="hasLineage" class="lineage-context" aria-labelledby="lineage-title">
-            <div class="lineage-heading"><h3 id="lineage-title">成果脈絡</h3><span class="metadata">{{ treasure.sourceTreasures.length + treasure.sourceCards.length + (treasure.sourceExperiment ? 1 : 0) }} 個來源<span v-if="derived.data.value"> · {{ derived.data.value.totalElements }} 件衍生成果</span></span></div>
+          <el-button v-if="treasure.artifactUrl" class="artifact-action" tag="a" type="primary" size="large" :icon="View" :href="treasure.artifactUrl" target="_blank" rel="noopener noreferrer">開啟成果</el-button>
+          <p class="metadata treasure-metadata">入藏於 {{ formatDate(treasure.createdAt) }} · 最近更新 {{ formatDate(treasure.updatedAt) }}</p>
+          <section class="treasure-work-section" aria-label="收錄作品">
+            <SectionHeader title="收錄作品" :count="workCount" description="這件展品所收錄的創作；作品仍可在創作台持續編修。">
+              <template #actions><el-button v-if="!treasure.isArchived" type="primary" plain @click="workVisible = true">管理作品</el-button></template>
+            </SectionHeader>
+            <TreasureWorkLink :treasure-id="id" @count="workCount = $event" />
+          </section>
+          <section class="lineage-context" aria-labelledby="lineage-title">
+            <SectionHeader id="lineage-title" title="創作脈絡" description="回看這件展品從哪些卡片、實驗與既有成果形成。">
+              <template #title-extra><span class="metadata lineage-count">{{ sourceCount }} 個來源<span v-if="derived.data.value"> · {{ derived.data.value.totalElements }} 件衍生成果</span></span></template>
+              <template #actions><el-button @click="sourceVisible = true">管理來源</el-button></template>
+            </SectionHeader>
+            <p v-if="!hasSources && !derived.isLoading.value && !derived.isError.value && !derived.data.value?.content.length" class="lineage-empty">尚未建立創作脈絡。可從「管理來源」關聯卡片、實驗或其他展品。</p>
             <div v-if="hasSources" class="lineage-branch">
               <span class="lineage-label">來自</span>
               <div class="lineage-links">
@@ -129,6 +144,8 @@ const handleCommand = (command: string) => {
       </div>
       </main>
       <TreasureFormDialog v-model="editVisible" :treasure="treasure" />
+      <TreasureWorkPicker v-if="workVisible" v-model="workVisible" :treasure-id="treasure.id" />
+      <TreasureSourceDialog v-if="sourceVisible" v-model="sourceVisible" :treasure="treasure" />
       <TreasureTrialDialog v-if="trialVisible" v-model="trialVisible" :treasure-id="id" :current-rank="treasure.rank" :next-rank="treasure.nextRank" :archived="treasure.isArchived" :initial-rank="dialogRank" :initial-mode="initialMode" />
     </template>
   </DetailShell>
@@ -142,27 +159,29 @@ const handleCommand = (command: string) => {
 .detail-panel { min-width: 0; padding: var(--panel-padding); border: 1px solid var(--el-border-color-light); background: var(--el-bg-color); border-radius: var(--radius-md); }
 .detail-panel h2 { margin: 0; font-size: var(--type-section-title); overflow-wrap: anywhere; }
 .detail-panel h3 { margin: 0; font-size: var(--type-card-title); overflow-wrap: anywhere; }
+.treasure-work-section { margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--el-border-color-light); }
+.treasure-work-section :deep(.app-section-header), .lineage-context :deep(.app-section-header) { align-items: flex-start; }
 .reading-copy { overflow-wrap: anywhere; margin: var(--space-md) 0; max-width: var(--reading-max-width); }
 .empty-copy { margin-top: var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-body); }
-.artifact-link { display: inline-flex; gap: var(--space-xs); align-items: center; color: var(--el-color-primary); text-decoration: none; }
+.artifact-action, .artifact-action:hover, .artifact-action:focus, .artifact-action:active { text-decoration: none; }
+.artifact-action { min-height: 44px; padding-inline: var(--space-lg); }
+.artifact-action:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: var(--space-2xs); }
+.treasure-metadata { margin: var(--space-md) 0 0; }
 .metadata { color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-metadata); }
 .artifact-cover { width: 100%; margin-top: var(--space-md); border-radius: var(--radius-sm); }
-.lineage-context { margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--el-border-color-light); }
-.lineage-heading { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-sm); }
-.lineage-heading h3 { color: var(--el-text-color-regular); font-size: var(--type-ui); font-weight: var(--weight-semibold); }
+.lineage-context { margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--el-border-color-light); }
+.lineage-count { overflow-wrap: anywhere; }
 .lineage-branch { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--space-sm); align-items: start; margin-top: var(--space-sm); }
 .lineage-label { color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }
 .lineage-links { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
 .lineage-links a { display: inline-flex; max-width: 100%; padding: var(--space-2xs) var(--space-xs); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-sm); color: var(--el-color-primary); font-size: var(--type-meta); line-height: var(--leading-metadata); text-decoration: none; overflow-wrap: anywhere; }
 .lineage-links a:hover { border-color: var(--el-color-primary-light-5); background: var(--surface-subtle); }
+.lineage-empty { margin: var(--space-md) 0 0; color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); }
 .yield-panel { width: 100%; box-sizing: border-box; }
 .challenge-panel { box-shadow: none; }
 @media (max-width: 900px) {
   .detail-grid { grid-template-columns: minmax(0, 1fr); }
   .challenge-panel { grid-row: 1; }
   .detail-main-column { grid-row: 2; }
-}
-@media (max-width: 760px) {
-  .lineage-heading { align-items: flex-start; flex-direction: column; gap: var(--space-2xs); }
 }
 </style>

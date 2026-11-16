@@ -220,10 +220,10 @@ class TreasureIntegrationTests extends IntegrationTestBase {
         long a = create(token, "A", List.of());
         long b = create(token, "B", List.of(a));
         long c = create(token, "C", List.of(b));
-        send(put("/api/treasures/{id}", a), token, content("循環", List.of(c))).andExpect(status().isConflict())
+        send(put("/api/treasures/{id}/sources", a), token, sourceUpdate(List.of(c), List.of())).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("此來源會造成循環關聯"));
-        send(put("/api/treasures/{id}", b), token, content("自我", List.of(b))).andExpect(status().isBadRequest());
-        send(put("/api/treasures/{id}", b), token, content("重複", List.of(a, a))).andExpect(status().isBadRequest());
+        send(put("/api/treasures/{id}/sources", b), token, sourceUpdate(List.of(b), List.of(a))).andExpect(status().isBadRequest());
+        send(put("/api/treasures/{id}/sources", b), token, sourceUpdate(List.of(a, a), List.of(a))).andExpect(status().isBadRequest());
         send(get("/api/treasures/{id}", b), token, null).andExpect(jsonPath("$.title").value("B")).andExpect(jsonPath("$.sourceTreasures[0].id").value(a));
         send(delete("/api/treasures/{id}", b), token, null).andExpect(status().isNoContent());
         send(get("/api/treasures/{id}", c), token, null).andExpect(jsonPath("$.sourceTreasures.length()").value(0));
@@ -253,8 +253,8 @@ class TreasureIntegrationTests extends IntegrationTestBase {
         long a = create(token, "併發 A", List.of());
         long b = create(token, "併發 B", List.of());
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
-            Callable<Integer> firstRequest = () -> send(put("/api/treasures/{id}", a), token, content("A", List.of(b))).andReturn().getResponse().getStatus();
-            Callable<Integer> secondRequest = () -> send(put("/api/treasures/{id}", b), token, content("B", List.of(a))).andReturn().getResponse().getStatus();
+            Callable<Integer> firstRequest = () -> send(put("/api/treasures/{id}/sources", a), token, sourceUpdate(List.of(b), List.of())).andReturn().getResponse().getStatus();
+            Callable<Integer> secondRequest = () -> send(put("/api/treasures/{id}/sources", b), token, sourceUpdate(List.of(a), List.of())).andReturn().getResponse().getStatus();
             Future<Integer> first = executor.submit(firstRequest);
             Future<Integer> second = executor.submit(secondRequest);
             assertThat(List.of(first.get(20, TimeUnit.SECONDS), second.get(20, TimeUnit.SECONDS)))
@@ -559,7 +559,26 @@ class TreasureIntegrationTests extends IntegrationTestBase {
         owners.add(user.get("id").asLong());
         return user.get("token").asText();
     }
+    @Test
+    void sourceUpdatesAreIsolatedAndRejectStaleOrForeignSelections() throws Exception {
+        String token = register(), other = register();
+        long target = create(token, "展品", List.of());
+        long source = create(token, "來源", List.of());
+        long foreign = create(other, "私人來源", List.of());
+        var initial = Map.of("sourceCardIds", List.of(), "sourceTreasureIds", List.of(source), "expectedCardIds", List.of(), "expectedTreasureIds", List.of());
+        send(put("/api/treasures/{id}/sources", target), token, initial).andExpect(status().isOk());
+        send(put("/api/treasures/{id}/sources", target), token, initial).andExpect(status().isConflict());
+        var invalid = Map.of("sourceCardIds", List.of(), "sourceTreasureIds", List.of(foreign), "expectedCardIds", List.of(), "expectedTreasureIds", List.of(source));
+        send(put("/api/treasures/{id}/sources", target), token, invalid).andExpect(status().isNotFound());
+        send(get("/api/treasures/{id}", target), token, null).andExpect(jsonPath("$.title").value("展品"))
+                .andExpect(jsonPath("$.sourceTreasures[0].id").value(source));
+        send(put("/api/treasures/{id}/sources", target), other, initial).andExpect(status().isNotFound());
+        send(put("/api/treasures/{id}", target), token, content("更新標題", List.of())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.sourceTreasures[0].id").value(source));
+    }
+
     private long create(String token, String title, List<Long> sources) throws Exception { return json(send(post("/api/treasures"), token, content(title, sources)).andExpect(status().isOk())).get("id").asLong(); }
+    private Map<String, Object> sourceUpdate(List<Long> sources, List<Long> expected) { return Map.of("sourceCardIds", List.of(), "sourceTreasureIds", sources, "expectedCardIds", List.of(), "expectedTreasureIds", expected); }
     private Map<String, Object> content(String title, List<Long> sources) { return new HashMap<>(Map.of("title", title, "acquiredOn", LocalDate.now(clock).toString(), "sourceTreasureIds", sources)); }
     private String time() { return ZonedDateTime.now(clock).minusMinutes(1).toString(); }
     private Map<String, Object> trial(String status, String attemptedAt) { var result = new HashMap<String, Object>(Map.of("title", "現實挑戰", "criteria", "完成並留下證據", "status", status, "resultNote", "已實際嘗試")); if (attemptedAt != null) result.put("attemptedAt", attemptedAt); return result; }

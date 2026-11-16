@@ -31,7 +31,8 @@ public class TreasureController {
     @GetMapping("/stats") public TreasureResponses.Stats stats() { return service.stats(); }
     @PostMapping public TreasureResponses.Detail create(@Valid @RequestBody TreasureRequests.Content request) { return service.create(request); }
     @GetMapping("/{id}") public TreasureResponses.Detail detail(@PathVariable("id") Long id) { return service.detail(id); }
-    @PutMapping("/{id}") public TreasureResponses.Detail update(@PathVariable("id") Long id, @Valid @RequestBody TreasureRequests.Content request) { return service.update(id, request); }
+    @PutMapping("/{id}") public TreasureResponses.Detail update(@PathVariable("id") Long id, @Valid @RequestBody TreasureRequests.Basic request) { return service.update(id, request); }
+    @PutMapping("/{id}/sources") public TreasureResponses.Detail replaceSources(@PathVariable("id") Long id, @Valid @RequestBody TreasureRequests.Sources request) { return service.replaceSources(id, request); }
     @DeleteMapping("/{id}") public ResponseEntity<Void> delete(@PathVariable("id") Long id) { service.delete(id); return ResponseEntity.noContent().build(); }
     @PutMapping("/{id}/archive") public TreasureResponses.Detail archive(@PathVariable("id") Long id) { return service.archive(id, true); }
     @PutMapping("/{id}/restore") public TreasureResponses.Detail restore(@PathVariable("id") Long id) { return service.archive(id, false); }

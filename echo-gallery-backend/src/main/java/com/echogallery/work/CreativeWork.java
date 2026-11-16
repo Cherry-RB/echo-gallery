@@ -24,7 +24,7 @@ public class CreativeWork {
     @Column(columnDefinition = "TEXT") private String description;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "experiment_id")
     @OnDelete(action = OnDeleteAction.SET_NULL) private Experiment experiment;
-    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "treasure_id", unique = true)
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "treasure_id")
     @OnDelete(action = OnDeleteAction.SET_NULL) private Treasure treasure;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private Mode editorMode = Mode.INTERNAL;
     @Column(nullable = false, columnDefinition = "TEXT") private String body = "";

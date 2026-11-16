@@ -18,6 +18,21 @@ public final class TreasureRequests {
             @Positive Long sourceExperimentId,
             @Size(max = 20) List<@NotNull @Positive Long> sourceTreasureIds) {}
 
+    public record Basic(
+            @NotBlank @Size(max = 255) String title,
+            @Size(max = 50000) String description,
+            @Size(max = 2048) String artifactUrl,
+            @Size(max = 2048) String coverImageUrl,
+            @NotNull LocalDate acquiredOn) {}
+
+    public record Sources(
+            @NotNull @Size(max = 20) List<@NotNull @Positive Long> sourceCardIds,
+            @Positive Long sourceExperimentId,
+            @NotNull @Size(max = 20) List<@NotNull @Positive Long> sourceTreasureIds,
+            @NotNull @Size(max = 20) List<@NotNull @Positive Long> expectedCardIds,
+            @Positive Long expectedExperimentId,
+            @NotNull @Size(max = 20) List<@NotNull @Positive Long> expectedTreasureIds) {}
+
     public record Trial(
             TreasureRank targetRank,
             @NotBlank @Size(max = 255) String title,

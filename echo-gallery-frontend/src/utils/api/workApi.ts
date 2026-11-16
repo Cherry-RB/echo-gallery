@@ -5,7 +5,9 @@ const root = '/creative-works'
 export const workApi = {
   list: (params: Record<string, unknown> = {}) => request.get<never, WorkPage<WorkSummary>>(root, { params }),
   detail: (id: number) => request.get<never, WorkDetail>(`${root}/${id}`),
-  fromTreasure: (id: number) => request.get<never, WorkDetail | null>(`${root}/treasure/${id}`),
+  fromTreasure: (id: number) => request.get<never, WorkSummary[]>(`${root}/treasure/${id}`),
+  treasureCandidates: (id: number, params: Record<string, unknown> = {}) => request.get<never, WorkPage<WorkSummary>>(`${root}/treasure/${id}/candidates`, { params }),
+  replaceTreasureWorks: (id: number, workIds: number[], expectedWorkIds: number[]) => request.put<never, WorkSummary[]>(`${root}/treasure/${id}/works`, { workIds, expectedWorkIds }),
   experiments: () => request.get<never, ExperimentOption[]>(`${root}/experiments`),
   create: (data: WorkInfo & { sources?: Array<{ cardId?: number; recordId?: number }> }) => request.post<never, WorkDetail>(root, data),
   info: (id: number, data: WorkInfo) => request.put<never, WorkDetail>(`${root}/${id}`, data),

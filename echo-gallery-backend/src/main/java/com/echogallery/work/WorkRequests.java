@@ -19,4 +19,6 @@ public final class WorkRequests {
     public record Source(Long cardId, Long recordId) {}
     public record Sources(@NotNull @Size(min = 1, max = 100) List<@NotNull @Valid Source> sources) {}
     public record Link(@NotNull @Positive Long treasureId) {}
+    public record TreasureWorks(@NotNull @Size(max = 100) List<@NotNull @Positive Long> workIds,
+            @NotNull @Size(max = 100) List<@NotNull @Positive Long> expectedWorkIds) {}
 }

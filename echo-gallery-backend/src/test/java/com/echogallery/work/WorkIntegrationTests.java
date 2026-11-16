@@ -220,9 +220,8 @@ class WorkIntegrationTests extends IntegrationTestBase {
         String token = register(); long work = create(token, "完成作品");
         var content = Map.of("title", "原有奇珍", "description", "保留策展說明", "acquiredOn", LocalDate.now(clock).toString());
         long treasure = json(send(post("/api/treasures"), token, content)).get("id").asLong();
-        send(put(ROOT + "/{id}/treasure", work), token, Map.of("treasureId", treasure)).andExpect(status().isConflict());
-        send(put(ROOT + "/{id}/stage", work), token, Map.of("stage", "SHAREABLE", "firstCompletedOn", LocalDate.now(clock).toString())).andExpect(status().isOk());
         send(put(ROOT + "/{id}/treasure", work), token, Map.of("treasureId", treasure)).andExpect(jsonPath("$.work.treasureId").value(treasure));
+        send(put(ROOT + "/{id}/stage", work), token, Map.of("stage", "SHAREABLE", "firstCompletedOn", LocalDate.now(clock).toString())).andExpect(status().isOk());
         send(get("/api/treasures/{id}", treasure), token, null).andExpect(jsonPath("$.description").value("保留策展說明"));
         send(put(ROOT + "/{id}/stage", work), token, Map.of("stage", "REVISING")).andExpect(jsonPath("$.work.treasureId").value(treasure));
         send(put(ROOT + "/{id}/share", work), token, Map.of("published", false, "shareUrl", "https://example.com/private")).andExpect(jsonPath("$.work.published").value(false));
@@ -231,6 +230,33 @@ class WorkIntegrationTests extends IntegrationTestBase {
         send(delete("/api/treasures/{id}", treasure), token, null).andExpect(status().isNoContent());
         em.flush(); em.clear();
         send(get(ROOT + "/{id}", work), token, null).andExpect(jsonPath("$.work.treasureId").isEmpty());
+    }
+    @Test void treasureCanCollectMultipleActiveWorksAndRejectArchivedOrForeignWorks() throws Exception {
+        String token = register(), other = register();
+        long first = create(token, "First work"), second = create(token, "Second work"), foreign = create(other, "Foreign work");
+        long treasure = json(send(post("/api/treasures"), token, Map.of("title", "Collection", "acquiredOn", LocalDate.now(clock).toString()))).get("id").asLong();
+        send(put(ROOT + "/treasure/{id}/works", treasure), token, Map.of("workIds", List.of(first, second), "expectedWorkIds", List.of()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+        send(get(ROOT + "/treasure/{id}", treasure), token, null).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+        send(put(ROOT + "/{id}/archive", second), token, null).andExpect(status().isOk());
+        send(put(ROOT + "/treasure/{id}/works", treasure), token, Map.of("workIds", List.of(first, second), "expectedWorkIds", List.of(first, second))).andExpect(status().isOk());
+        send(put(ROOT + "/treasure/{id}/works", treasure), token, Map.of("workIds", List.of(first, foreign), "expectedWorkIds", List.of(first, second))).andExpect(status().isNotFound());
+        send(put(ROOT + "/treasure/{id}/works", treasure), token, Map.of("workIds", List.of(first), "expectedWorkIds", List.of(first, second))).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+    }
+    @Test void treasureEditSavesWorksAtomicallyAndPreservesArchivedRelations() throws Exception {
+        String token = register(), other = register();
+        long first = create(token, "First"), second = create(token, "Second"), foreign = create(other, "Foreign");
+        var created = json(send(post("/api/treasures"), token, Map.of("title", "Original", "acquiredOn", LocalDate.now(clock).toString())).andExpect(status().isOk()));
+        long treasure = created.get("id").asLong();
+        send(put("/api/treasures/{id}", treasure), token, Map.of("title", "Updated", "acquiredOn", LocalDate.now(clock).toString())).andExpect(status().isOk());
+        send(put(ROOT + "/treasure/{id}/works", treasure), token, Map.of("workIds", List.of(first, second), "expectedWorkIds", List.of())).andExpect(status().isOk());
+        send(put(ROOT + "/{id}/archive", second), token, null).andExpect(status().isOk());
+        send(put(ROOT + "/treasure/{id}/works", treasure), token, Map.of("workIds", List.of(first, foreign), "expectedWorkIds", List.of(first, second))).andExpect(status().isNotFound());
+        send(get("/api/treasures/{id}", treasure), token, null).andExpect(jsonPath("$.title").value("Updated"));
+        send(get(ROOT + "/treasure/{id}", treasure), token, null).andExpect(jsonPath("$.length()").value(2));
+        send(put(ROOT + "/treasure/{id}/works", treasure), token, Map.of("workIds", List.of(first, second), "expectedWorkIds", List.of(first, second))).andExpect(status().isOk());
+        send(put(ROOT + "/treasure/{id}/works", treasure), token, Map.of("workIds", List.of(first), "expectedWorkIds", List.of())).andExpect(status().isConflict());
+        send(get(ROOT + "/treasure/{id}", treasure), token, null).andExpect(jsonPath("$.length()").value(2));
     }
     @Test void demoWorkCanBeEditedResetAndExpiredWithAllDependencies() throws Exception {
         var session = json(send(post("/api/auth/demo-sessions"), null, Map.of("library", "writing")).andExpect(status().isOk()));

@@ -37,6 +37,8 @@ export interface TreasureContent {
   sourceExperimentId: number | null
   sourceTreasureIds: number[]
 }
+export interface TreasureBasicContent { title: string; description: string; artifactUrl: string; coverImageUrl: string; acquiredOn: string }
+export interface TreasureSources { sourceCardIds: number[]; sourceExperimentId: number | null; sourceTreasureIds: number[]; expectedCardIds: number[]; expectedExperimentId: number | null; expectedTreasureIds: number[] }
 export interface TreasureTrial {
   id: number
   targetRank: TreasureRank | null

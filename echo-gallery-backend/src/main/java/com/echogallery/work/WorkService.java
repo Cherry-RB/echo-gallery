@@ -57,7 +57,21 @@ public class WorkService {
         return page(works.findAll(spec, paging(page, size).withSort(Sort.by(Sort.Direction.DESC, "editedAt", "id"))), this::summary);
     }
     public Detail detail(Long id) { return detail(owned(id)); }
-    public Detail fromTreasure(Long id) { return works.findByTreasureIdAndUserId(id, owner()).map(this::detail).orElse(null); }
+    public List<Summary> fromTreasure(Long id) {
+        treasureOwned(id);
+        return works.findByTreasureIdAndUserIdOrderByEditedAtDescIdDesc(id, owner()).stream().map(this::summary).toList();
+    }
+    public PageResponse<Summary> treasureCandidates(Long treasureId, String keyword, int page, int size) {
+        treasureOwned(treasureId);
+        Specification<CreativeWork> spec = (root, query, cb) -> {
+            var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
+            predicates.add(cb.equal(root.get("user").get("id"), owner()));
+            predicates.add(cb.isFalse(root.get("archived")));
+            if (keyword != null && !keyword.isBlank()) predicates.add(cb.like(cb.lower(root.get("title")), like(keyword), '\\'));
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+        return page(works.findAll(spec, paging(page, size).withSort(Sort.by(Sort.Direction.DESC, "editedAt", "id"))), this::summary);
+    }
     public List<ExperimentOption> experiments() {
         return experiments.findAllByUserId(owner()).stream().map(e -> new ExperimentOption(e.getId(), e.getTitle(), e.isArchived())).toList();
     }
@@ -166,8 +180,9 @@ public class WorkService {
 
     @Transactional public Detail link(Long id, Long treasureId) {
         lock(); var w = linkable(id);
-        var t = treasures.findByIdAndUserId(treasureId, owner()).orElseThrow(this::missing);
-        if (works.existsByTreasureId(treasureId)) fail(HttpStatus.CONFLICT, "這件奇珍已連到作品，請先解除關聯");
+        var t = treasureOwned(treasureId);
+        if (t.isArchived()) fail(HttpStatus.CONFLICT, "展品已封存，請先還原");
+        if (works.findByTreasureIdAndUserIdOrderByEditedAtDescIdDesc(treasureId, owner()).size() >= 100) fail(HttpStatus.CONFLICT, "展品最多收錄 100 件作品");
         w.setTreasure(t); return detail(w);
     }
     @Transactional public Detail createTreasure(Long id, TreasureRequests.Content request) {
@@ -177,10 +192,33 @@ public class WorkService {
         goalActivity.record("TREASURE_ACQUIRED", "treasure:" + t.id(), com.echogallery.goal.GoalData.Kind.WORK, id, java.util.Map.of("treasureId", t.id()));
         return detail(w);
     }
-    @Transactional public Detail unlink(Long id) { lock(); var w = active(id); w.setTreasure(null); return detail(w); }
+    @Transactional public Detail unlink(Long id) { lock(); var w = active(id); if (w.getTreasure() != null && w.getTreasure().isArchived()) fail(HttpStatus.CONFLICT, "展品已封存，請先還原"); w.setTreasure(null); return detail(w); }
+    @Transactional public List<Summary> replaceTreasureWorks(Long treasureId, WorkRequests.TreasureWorks request) {
+        lock(); var treasure = treasureOwned(treasureId);
+        if (treasure.isArchived()) fail(HttpStatus.CONFLICT, "展品已封存，請先還原");
+        var existing = works.findByTreasureIdAndUserIdOrderByEditedAtDescIdDesc(treasureId, owner());
+        var existingIds = existing.stream().map(CreativeWork::getId).collect(java.util.stream.Collectors.toSet());
+        if (!existingIds.equals(new HashSet<>(request.expectedWorkIds()))) fail(HttpStatus.CONFLICT, "收錄作品已變更，請重新載入後再試");
+        var selectedIds = new LinkedHashSet<>(request.workIds());
+        var selected = new ArrayList<CreativeWork>();
+        for (Long workId : selectedIds) {
+            var work = owned(workId);
+            if (work.isArchived() && !existingIds.contains(workId)) fail(HttpStatus.CONFLICT, "作品已封存，請先還原");
+            if (work.getTreasure() != null && !work.getTreasure().getId().equals(treasureId)) {
+                fail(HttpStatus.CONFLICT, "作品已收錄於其他展品，請先解除關聯");
+            }
+            selected.add(work);
+        }
+        var selectedIdSet = Set.copyOf(selectedIds);
+        for (var work : existing) {
+            if (!selectedIdSet.contains(work.getId())) work.setTreasure(null);
+        }
+        selected.forEach(work -> work.setTreasure(treasure));
+        return works.findByTreasureIdAndUserIdOrderByEditedAtDescIdDesc(treasureId, owner()).stream().map(this::summary).toList();
+    }
     private CreativeWork linkable(Long id) {
         var w = active(id);
-        if (w.getStage() != CreativeWork.Stage.SHAREABLE || w.getTreasure() != null) fail(HttpStatus.CONFLICT, "作品須為可分享且尚未入藏");
+        if (w.getTreasure() != null) fail(HttpStatus.CONFLICT, "作品已收錄於展品，請先解除關聯");
         return w;
     }
     private void info(CreativeWork w, WorkRequests.Info r) {
@@ -198,6 +236,7 @@ public class WorkService {
     private Summary summary(CreativeWork w) { return new Summary(w.getId(), w.getTitle(), w.getDescription(), w.getExperiment() == null ? null : w.getExperiment().getId(), w.getExperiment() == null ? null : w.getExperiment().getTitle(), w.getEditorMode(), w.getStage(), w.getNextStep(), w.isPublished(), w.isArchived(), w.getTreasure() == null ? null : w.getTreasure().getId(), w.getEditedAt(), w.getEditorMode() == CreativeWork.Mode.INTERNAL ? w.getBody().codePointCount(0, w.getBody().length()) : null); }
     private Detail detail(CreativeWork w) { return new Detail(summary(w), w.getBody(), w.getBodyVersion(), w.getIdeas(), w.getIdeasVersion(), w.getManuscript(), w.getManuscriptVersion(), w.getExternalUrl(), w.getFirstCompletedOn(), w.getStageChangedAt(), w.getShareUrl(), w.getSharedOn(), w.getShareNote()); }
     private CreativeWork owned(Long id) { return works.findByIdAndUserId(id, owner()).orElseThrow(this::missing); }
+    private Treasure treasureOwned(Long id) { return treasures.findByIdAndUserId(id, owner()).orElseThrow(this::missing); }
     private CreativeWork active(Long id) { var w = owned(id); if (w.isArchived()) fail(HttpStatus.CONFLICT, "作品已封存，請先還原"); return w; }
     private Long owner() { var id = SecurityUtil.getCurrentUserId(); if (id == null) fail(HttpStatus.UNAUTHORIZED, "尚未登入"); return id; }
     private void lock() { lifecycle.lockOwner(owner()); }

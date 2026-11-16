@@ -80,12 +80,26 @@ public class TreasureService {
     }
 
     @Transactional
-    public TreasureResponses.Detail update(Long id, TreasureRequests.Content request) {
+    public TreasureResponses.Detail update(Long id, TreasureRequests.Basic request) {
         lifecycle.lockOwner(owner());
         Treasure treasure = owned(id);
-        content(treasure, request);
+        basic(treasure, request);
+        return detail(treasure);
+    }
+
+    @Transactional
+    public TreasureResponses.Detail replaceSources(Long id, TreasureRequests.Sources request) {
+        lifecycle.lockOwner(owner());
+        Treasure treasure = owned(id);
+        var currentCards = cardSources.findByTreasureIdOrderById(id).stream().map(source -> source.getCard().getId()).collect(java.util.stream.Collectors.toSet());
+        var currentTreasures = relations.findByTargetIdOrderById(id).stream().map(source -> source.getSource().getId()).collect(java.util.stream.Collectors.toSet());
+        Long currentExperiment = treasure.getSourceExperiment() == null ? null : treasure.getSourceExperiment().getId();
+        if (!currentCards.equals(new HashSet<>(request.expectedCardIds())) || !currentTreasures.equals(new HashSet<>(request.expectedTreasureIds())) || !Objects.equals(currentExperiment, request.expectedExperimentId()))
+            conflict("創作脈絡已變更，請重新載入後再試");
+        treasure.setSourceExperiment(experiment(request.sourceExperimentId()));
         replaceCardSources(treasure, request.sourceCardIds());
         replaceSources(treasure, request.sourceTreasureIds());
+        treasure.setUpdatedAt(now());
         return detail(treasure);
     }
 
@@ -298,13 +312,17 @@ public class TreasureService {
     }
 
     private void content(Treasure t, TreasureRequests.Content r) {
+        basic(t, new TreasureRequests.Basic(r.title(), r.description(), r.artifactUrl(), r.coverImageUrl(), r.acquiredOn()));
+        t.setSourceExperiment(experiment(r.sourceExperimentId()));
+    }
+
+    private void basic(Treasure t, TreasureRequests.Basic r) {
         if (r.acquiredOn().isAfter(LocalDate.now(clock))) bad("只能收入已完成的成果");
         t.setTitle(required(r.title()));
         t.setDescription(clean(r.description()));
         t.setArtifactUrl(url(r.artifactUrl()));
         t.setCoverImageUrl(url(r.coverImageUrl()));
         t.setAcquiredOn(r.acquiredOn());
-        t.setSourceExperiment(experiment(r.sourceExperimentId()));
         t.setUpdatedAt(now());
     }
 

@@ -8,8 +8,8 @@ public interface CreativeWorkRepository extends JpaRepository<CreativeWork, Long
     @Override @EntityGraph(attributePaths = {"experiment", "treasure"})
     org.springframework.data.domain.Page<CreativeWork> findAll(org.springframework.data.jpa.domain.Specification<CreativeWork> spec, org.springframework.data.domain.Pageable pageable);
     Optional<CreativeWork> findByIdAndUserId(Long id, Long userId);
-    Optional<CreativeWork> findByTreasureIdAndUserId(Long treasureId, Long userId);
-    boolean existsByTreasureId(Long treasureId);
+    @EntityGraph(attributePaths = {"experiment", "treasure"})
+    java.util.List<CreativeWork> findByTreasureIdAndUserIdOrderByEditedAtDescIdDesc(Long treasureId, Long userId);
     long countByUserId(Long userId);
     long countByUserIdAndArchivedFalse(Long userId);
     @Modifying @Query("delete from CreativeWork w where w.user.id = :owner")
