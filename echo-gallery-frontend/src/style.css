@@ -227,6 +227,17 @@ code {
   }
 
   /* iOS Safari 會在小於 16px 的輸入欄位取得焦點時自動放大頁面。 */
+  .el-input,
+  .el-textarea,
+  .el-select,
+  .el-date-editor,
+  .el-time-select,
+  .el-input-number,
+  .el-cascader,
+  .el-autocomplete {
+    --el-font-size-base: 16px;
+  }
+
   input,
   textarea,
   select,
@@ -235,7 +246,7 @@ code {
   .el-select__wrapper,
   .el-select__selected-item,
   .el-range-input {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 }
 
