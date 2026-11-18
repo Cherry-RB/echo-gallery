@@ -225,6 +225,18 @@ code {
     --type-page-title: 24px;
     --type-detail-title: var(--type-page-title);
   }
+
+  /* iOS Safari 會在小於 16px 的輸入欄位取得焦點時自動放大頁面。 */
+  input,
+  textarea,
+  select,
+  .el-input__inner,
+  .el-textarea__inner,
+  .el-select__wrapper,
+  .el-select__selected-item,
+  .el-range-input {
+    font-size: 16px;
+  }
 }
 
 /* =====================================================
