@@ -4,7 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, ArrowLeft, Close, Edit, FullScreen, MoreFilled, Plus } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowLeft, Close, Edit, FullScreen, MoreFilled, Plus, View } from '@element-plus/icons-vue'
 import { formatDate } from '../../utils/formatDate'
 import AppDialog from '../AppDialog.vue'
 import DetailShell from '../ui/DetailShell.vue'
@@ -82,8 +82,20 @@ function updateViewport() {
     requestAnimationFrame(() => editorComponent.value?.scrollIntoView({ block: 'nearest' }))
   }
 }
-const preview = ref<'write' | 'split' | 'read'>(route.query.mode === 'read' || readonly.value ? 'read' : 'write')
+const preview = ref<'write' | 'read'>(route.query.mode === 'read' || readonly.value ? 'read' : 'write')
+const readingWidth = ref<'narrow' | 'standard' | 'wide'>((localStorage.getItem('work-reading-width') as 'narrow' | 'standard' | 'wide' | null) || 'standard')
+const readingFont = ref<'sans' | 'serif'>((localStorage.getItem('work-reading-font') as 'sans' | 'serif' | null) || 'serif')
+const readerStyle = computed(() => ({ '--work-reading-width': readingWidth.value === 'narrow' ? '640px' : readingWidth.value === 'wide' ? '920px' : 'var(--reading-max-width)' }))
 watch(() => route.query.mode, mode => { preview.value = mode === 'read' || readonly.value ? 'read' : 'write' })
+watch(readingWidth, value => localStorage.setItem('work-reading-width', value))
+watch(readingFont, value => localStorage.setItem('work-reading-font', value))
+function selectView(view: 'read' | 'write' | 'focus') {
+  if (view === 'focus') {
+    if (readonly.value) return
+    preview.value = 'write'; focusMode.value = true; return
+  }
+  focusMode.value = false; preview.value = view
+}
 const libraryReturn = computed(() => typeof route.query.from === 'string' && /^\/works(?:\?|$)/.test(route.query.from) ? route.query.from : '/works')
 function returnToLibrary() {
   if (window.history.state?.back === libraryReturn.value) router.back()
@@ -288,26 +300,34 @@ onBeforeUnmount(() => {
     <el-alert v-if="auto.error.value" :title="auto.error.value" type="error" :closable="false" role="alert"><div class="work-actions"><el-button @click="copy(workDocument(detail.work.title, body))">複製目前稿件</el-button><el-button @click="downloadWork(detail.work.title, body)">下載目前稿件</el-button><el-button v-if="auto.conflict.value" :disabled="saving" @click="reload">重新載入</el-button><el-button v-else @click="auto.error.value = ''; auto.flush()">重試儲存</el-button></div></el-alert>
     <details v-if="recovery.length" class="work-panel" open><summary>此瀏覽器有 {{ recovery.length }} 份復原草稿</summary><article v-for="d in recovery" :key="d.key"><p>{{ sectionNames[d.section ?? 'FOCUS'] }} · {{ formatDate(new Date(d.savedAt).toISOString()) }} · {{ d.body.length }} 字元</p><div class="work-actions"><el-button v-if="!readonly" @click="recover(d)">復原草稿</el-button><el-button @click="copy(workDocument(detail.work.title, d.body))">複製</el-button><el-button @click="downloadWork(detail.work.title, d.body)">下載</el-button><el-button @click="discard(d)">捨棄草稿</el-button></div></article></details>
 
-    <div class="work-layout"><section ref="editorPanel" class="work-panel body-panel" :class="{ 'body-panel--internal': internal }" :role="focusMode ? 'dialog' : undefined" :aria-modal="focusMode ? true : undefined" :aria-labelledby="focusMode ? `work-body-title-${id}` : undefined" @keydown="focusKey">
+    <div class="work-layout" :class="{ 'is-reading': preview === 'read' }"><section ref="editorPanel" class="work-panel body-panel" :class="{ 'body-panel--internal': internal, 'body-panel--reader': preview === 'read' }" :role="focusMode ? 'dialog' : undefined" :aria-modal="focusMode ? true : undefined" :aria-labelledby="focusMode ? `work-body-title-${id}` : undefined" @keydown="focusKey">
         <div class="work-section-heading work-editor-heading">
           <div class="work-editor-title"><h2 :id="`work-body-title-${id}`">{{ sectionNames[selectedSection] }}</h2><p class="work-status">{{ count.toLocaleString() }} 字元 · {{ readonly ? '唯讀' : status }}</p></div>
-          <el-button v-if="preview === 'read' && !readonly" text @click="preview = 'write'">開始編輯</el-button>
-          <el-button class="work-focus-toggle" :icon="focusMode ? Close : FullScreen" :aria-pressed="focusMode" @click="focusMode = !focusMode">{{ focusMode ? '退出專注' : '專注編輯' }}</el-button>
-          <div class="editor-controls">
-            <el-radio-group v-model="selectedSection" aria-label="切換作品內容"><el-radio-button v-for="(label, section) in sectionNames" :key="section" :value="section">{{ label }}</el-radio-button></el-radio-group>
-            <el-button @click="copy(body)">複製全文</el-button>
-            <el-button @click="downloadWork(`${detail.work.title}-${sectionNames[selectedSection]}`, body)">下載文字</el-button>
+          <el-radio-group v-if="!focusMode" v-model="selectedSection" class="work-section-tabs" aria-label="切換作品內容"><el-radio-button v-for="(label, section) in sectionNames" :key="section" :value="section">{{ label }}</el-radio-button></el-radio-group>
+          <div v-if="preview === 'read'" class="reader-actions">
+            <label>欄寬<select v-model="readingWidth" aria-label="閱讀欄寬"><option value="narrow">窄</option><option value="standard">標準</option><option value="wide">寬</option></select></label><label>字體<select v-model="readingFont" aria-label="閱讀字體"><option value="sans">無襯線</option><option value="serif">襯線</option></select></label>
+            <el-button v-if="readonly" @click="copy(body)">複製全文</el-button><el-button v-if="readonly" @click="downloadWork(`${detail.work.title}-${sectionNames[selectedSection]}`, body)">下載文字</el-button>
+            <el-button v-if="!readonly" plain type="primary" :icon="Edit" @click="selectView('write')">返回編修</el-button>
           </div>
+          <div v-else class="editor-mode-actions"><el-button class="work-focus-toggle" :icon="focusMode ? Close : FullScreen" :aria-pressed="focusMode" @click="focusMode ? selectView('write') : selectView('focus')">{{ focusMode ? '退出專注' : '專注模式' }}</el-button><el-button v-if="!focusMode" :icon="View" @click="selectView('read')">預覽</el-button></div>
           <a v-if="!internal && detail.externalUrl" :href="detail.externalUrl" target="_blank" rel="noopener noreferrer">開啟外部文件</a>
           <p v-else-if="!internal" class="work-hint">尚未設定外部文件網址。</p>
         </div>
-        <div v-if="detail.work.nextStep" class="next-step"><div class="next-step-heading"><span>下次接著做</span><el-button v-if="!readonly" link type="primary" @click="openDialog('next')">編輯下一步</el-button></div><ExpandableText :content="detail.work.nextStep" :lines="3" /></div>
-        <el-button v-else-if="!readonly" class="next-step-add" text type="primary" @click="openDialog('next')">留下次接著做</el-button>
-        <textarea ref="editorComponent" class="plain-work-editor" :value="body" :readonly="readonly || reloading || preview === 'read'" :aria-label="sectionNames[selectedSection]" :placeholder="readonly || preview === 'read' ? '此區尚無內容' : `在此輸入${sectionNames[selectedSection]}…`" @input="auto.edit(($event.target as HTMLTextAreaElement).value)" />
+        <template v-if="preview === 'read'">
+          <article class="work-reader" :class="`work-reader--${readingFont}`" :style="readerStyle" aria-live="polite">
+            <p v-if="!body" class="work-reader-empty">此區尚無內容。</p>
+            <p v-for="(paragraph, index) in body.split(/\n\s*\n/)" v-else :key="index">{{ paragraph }}</p>
+          </article>
+        </template>
+        <template v-else>
+          <textarea ref="editorComponent" class="plain-work-editor" :value="body" :readonly="readonly || reloading" :aria-label="sectionNames[selectedSection]" :placeholder="readonly ? '此區尚無內容' : `在此輸入${sectionNames[selectedSection]}…`" @input="auto.edit(($event.target as HTMLTextAreaElement).value)" />
+          <div v-if="focusMode" class="focus-status"><span>{{ sectionNames[selectedSection] }}</span><span>{{ count.toLocaleString() }} 字元</span><span>{{ status }}</span></div>
+        </template>
 
     </section>
-    <aside class="work-aside">
-      <SidePanel><h2>作品內容</h2><div class="work-section-list"><button v-for="(label, section) in sectionNames" :key="section" type="button" :class="{ selected: selectedSection === section }" :aria-pressed="selectedSection === section" @click="selectedSection = section">{{ label }} <small v-if="autos[section].dirty.value || autos[section].saving.value || autos[section].error.value">{{ autos[section].status.value }}</small></button></div></SidePanel>
+    <aside v-if="preview === 'write' && !focusMode" class="work-aside">
+      <SidePanel class="work-next-step"><div class="next-step-heading"><h2>下次接著做</h2><el-button v-if="detail.work.nextStep && !readonly" link type="primary" @click="openDialog('next')">編輯</el-button></div><ExpandableText v-if="detail.work.nextStep" :content="detail.work.nextStep" :lines="3" /><el-button v-else-if="!readonly" text type="primary" @click="openDialog('next')">留下次接著做</el-button><p v-else class="work-hint">尚未留下下一步。</p></SidePanel>
+      <SidePanel class="work-document-tools"><h2>稿件工具</h2><div class="work-document-actions"><el-button @click="copy(body)">複製全文</el-button><el-button @click="downloadWork(`${detail.work.title}-${sectionNames[selectedSection]}`, body)">下載文字</el-button></div></SidePanel>
       <SidePanel as="details" class="work-disclosure" open>
         <summary class="side-panel-heading"><h2>作品階段</h2><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></summary>
         <div class="work-disclosure-content"><dl class="work-properties"><div><dt>目前階段</dt><dd>{{ workStages[detail.work.stage] }}</dd></div><div v-if="detail.firstCompletedOn"><dt>首次初版完成</dt><dd>{{ detail.firstCompletedOn }}</dd></div><div><dt>階段切換</dt><dd>{{ formatDate(detail.stageChangedAt) }}</dd></div></dl></div>
@@ -363,6 +383,7 @@ onBeforeUnmount(() => {
 .work-workspace { min-width: 0; }
 .work-return, .work-actions, .work-section-heading { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
 .work-return { min-width: 0; }
+.work-section-tabs { display: flex; align-items: center; flex-wrap: wrap; justify-self: center; }
 .work-experiment-link { display: inline-flex; max-width: 100%; padding: var(--space-2xs) var(--space-xs); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-sm); color: var(--el-color-primary); font-size: var(--type-meta); line-height: var(--leading-metadata); text-decoration: none; overflow-wrap: anywhere; }
 .work-experiment-link:hover { border-color: var(--el-color-primary-light-5); background: var(--surface-subtle); }
 a, a:hover, a:focus-visible, .work-actions :deep(.el-button), .work-return :deep(.el-button) { margin: 0; }
@@ -372,20 +393,23 @@ h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-
 .work-panel { padding: var(--panel-padding); border: 1px solid var(--el-border-color-light); border-radius: var(--panel-radius); background: var(--el-bg-color); min-width: 0; }
 .work-panel > * + * { margin-top: var(--space-sm); }
 .body-panel--internal { padding: 0; }
+.body-panel--reader { padding: 0; }
 .plain-work-editor { box-sizing: border-box; display: block; width: 100%; min-height: 55dvh; resize: vertical; padding: var(--space-md); border: 0; border-top: 1px solid var(--el-border-color-light); background: var(--el-bg-color); color: var(--el-text-color-primary); font: inherit; line-height: 1.7; white-space: pre-wrap; }
 .plain-work-editor::placeholder { color: var(--el-text-color-placeholder); }
 .plain-work-editor:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
 .is-focus .plain-work-editor { flex: 1; min-height: 0; }
-.work-section-list { display: grid; gap: var(--space-xs); margin-top: var(--space-sm); }
-.work-section-list button { padding: var(--space-sm); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-sm); background: var(--surface-subtle); color: var(--el-text-color-primary); font: inherit; text-align: left; cursor: pointer; }
-.work-section-list button.selected { border-color: var(--el-color-primary); color: var(--el-color-primary); }
-.work-section-list small { float: right; color: var(--el-text-color-secondary); }
+.work-reader { width: min(100% - (var(--space-md) * 2), var(--work-reading-width)); margin: var(--space-xl) auto var(--space-3xl); color: var(--el-text-color-primary); font-size: 17px; line-height: 1.9; }
+.work-reader--serif { font-family: Georgia, 'Times New Roman', serif; }
+.work-reader p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.work-reader p + p { margin-top: var(--space-lg); }
+.work-reader-empty { color: var(--el-text-color-secondary); font-family: var(--sans); }
+.reader-actions, .editor-mode-actions, .work-document-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); }
+.reader-actions label { display: inline-flex; align-items: center; gap: var(--space-2xs); color: var(--el-text-color-secondary); font-size: var(--type-ui-label); }
+.reader-actions select { min-height: 30px; border: 1px solid var(--el-border-color); border-radius: var(--radius-sm); padding: 0 var(--space-xs); background: var(--el-bg-color); color: var(--el-text-color-primary); font: inherit; }
 .body-panel > .work-editor-heading { padding: var(--space-md); }
-.body-panel > .next-step { margin: 0 var(--space-md) var(--space-sm); }
-.body-panel > .next-step-add { margin: 0 var(--space-md) var(--space-sm); }
 .is-focus .body-panel { position: fixed; z-index: 1200; top: var(--work-viewport-top); left: 0; right: 0; height: var(--work-viewport-height); display: flex; flex-direction: column; border: 0; border-radius: 0; }
 .is-focus .body-panel > .work-editor-heading { flex-shrink: 0; padding-block: var(--space-xs); }
-.is-focus .body-panel > .next-step, .is-focus .body-panel > .next-step-add { display: none; }
+.focus-status { display: flex; flex-shrink: 0; justify-content: center; gap: var(--space-sm); padding: var(--space-xs) var(--space-md); border-top: 1px solid var(--el-border-color-light); color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
 .work-panel summary { cursor: pointer; font-size: var(--type-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-section-title); color: var(--el-text-color-primary); }
 .work-disclosure summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); list-style: none; }
 .work-disclosure summary h2 { flex: 1 1 auto; min-width: 0; }
@@ -408,20 +432,20 @@ h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-
 .treasure-navigation, .treasure-navigation:hover, .treasure-navigation:focus { text-decoration: none; }
 .treasure-navigation:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: var(--space-2xs); }
 .work-disclosure:not([open]) summary { margin-bottom: 0; }
-.next-step { padding: var(--space-sm); border-radius: var(--radius-sm); background: var(--surface-summary); }
 .next-step-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-xs); }
-.next-step span { color: var(--el-text-color-secondary); font-size: var(--type-metadata); line-height: var(--leading-metadata); }
-.next-step :deep(.expandable-text) { margin-top: var(--space-xs); font-size: var(--type-body); line-height: var(--leading-body); }
-.next-step-add { margin-left: 0; }
-.next-step p, .private-note { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--type-body); line-height: var(--leading-body); }
+.work-next-step { display: grid; gap: var(--space-sm); }
+.work-document-tools { display: grid; gap: var(--space-sm); }
+.private-note { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--type-body); line-height: var(--leading-body); }
 .work-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 320px); gap: var(--space-lg); align-items: start; margin-top: var(--space-lg); }
+.work-layout.is-reading { grid-template-columns: minmax(0, 1fr); }
 .work-aside { display: grid; gap: var(--space-md); min-width: 0; }
 .work-aside :deep(.side-panel) { box-shadow: none; }
-.editor-controls { display: flex; flex: 1 0 100%; min-width: 0; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
-.work-editor-heading { align-items: center; }
+.work-editor-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
 .work-editor-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-xs) var(--space-sm); min-width: 0; }
 .work-editor-title .work-status { margin: 0; }
 .work-focus-toggle { flex-shrink: 0; margin: 0; }
+.reader-actions, .editor-mode-actions { justify-self: end; }
+.work-editor-heading > a, .work-editor-heading > .work-hint { grid-column: 1 / -1; }
 .work-aside p { font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: anywhere; }
 .work-status { color: var(--el-text-color-secondary); font-size: var(--type-metadata); font-weight: var(--weight-medium); line-height: var(--leading-metadata); }
 .work-source { min-width: 0; padding: var(--space-sm); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-md); background: var(--surface-subtle); overflow-wrap: anywhere; cursor: pointer; }
@@ -448,16 +472,12 @@ h2 { margin: 0; font-size: var(--type-section-title); font-weight: var(--weight-
 .treasure-options { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-xs); margin-block: var(--space-md); }
 .el-alert { margin-block: var(--space-sm); }
 @media (max-width: 1060px) { .work-layout { grid-template-columns: minmax(0, 1fr); } .work-aside { display: grid; gap: var(--space-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); } }
-@media (max-width: 760px) { .work-aside { display: grid; grid-template-columns: minmax(0, 1fr); } .work-return { width: 100%; } .editor-controls { justify-content: flex-start; width: 100%; } }
+@media (max-width: 760px) { .work-aside { display: grid; grid-template-columns: minmax(0, 1fr); } .work-return { width: 100%; } .work-editor-heading { display: flex; } .work-section-tabs { flex: 1 0 100%; order: 4; } .work-section-tabs :deep(.el-radio-button) { flex: 1; min-width: 0; } .work-section-tabs :deep(.el-radio-button__inner) { width: 100%; padding-inline: var(--space-xs); } .work-reader { width: min(100% - (var(--space-md) * 2), var(--work-reading-width)); font-size: var(--type-body); line-height: var(--leading-body); } .reader-actions, .editor-mode-actions { flex: 1 0 100%; order: 5; justify-self: auto; } }
 @media (max-width: 760px) { .body-panel--internal { margin-inline: calc(var(--page-gutter) * -1); border-inline: 0; border-radius: 0; } .is-focus .body-panel { margin: 0; } }
 @media (max-width: 760px) {
   .work-actions > .el-dropdown { min-width: 0; }
   .work-actions > .work-stage-menu, .work-actions > .work-publication-menu { display: flex; }
   .work-actions .status-trigger { width: 100%; min-width: 0; }
   .work-actions > .work-more-menu { justify-self: end; }
-  .editor-controls { justify-content: flex-start; flex-wrap: wrap; }
-  .editor-controls > .el-radio-group { display: flex; flex: 1 0 100%; min-width: 0; }
-  .editor-controls :deep(.el-radio-button) { flex: 1; min-width: 0; }
-  .editor-controls :deep(.el-radio-button__inner) { width: 100%; padding-inline: var(--space-xs); }
 }
 </style>

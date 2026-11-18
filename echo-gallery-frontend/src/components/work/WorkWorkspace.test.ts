@@ -25,7 +25,7 @@ function render(initial: WorkDetail) {
     AppDialog: true, WorkFormDialog: true, WorkSourcePicker: true, WorkSourceReadingDialog: true, TreasureFormDialog: true, ExperimentThreads: true,
     RouterLink: { template: '<a><slot /></a>' },
     'el-button': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
-    'el-radio-group': { template: '<div><slot /></div>' }, 'el-radio-button': { template: '<span><slot /></span>' },
+    'el-radio-group': { props: ['modelValue'], emits: ['update:modelValue'], template: '<div><slot /></div>' }, 'el-radio-button': { props: ['value'], methods: { select() { this.$parent.$emit('update:modelValue', this.value) } }, template: '<button @click="select"><slot /></button>' },
     'el-dropdown': { name: 'Dropdown', emits: ['command'], template: '<div><slot /><slot name="dropdown" /></div>' }, 'el-alert': { props: ['title'], template: '<div>{{ title }}<slot /></div>' },
     'el-dropdown-menu': { template: '<div><slot /></div>' }, 'el-dropdown-item': { template: '<span><slot /></span>' },
     'el-input': true, 'el-form-item': true, 'el-option': true, 'el-select': true, 'el-date-picker': true,
@@ -44,10 +44,10 @@ describe('作品工作區模式與封存', () => {
     await vi.waitFor(() => expect(wrapper.text()).toContain('復原草稿'))
     await wrapper.get('textarea').setValue('尚未儲存的主專注')
     await wrapper.findAll('button').find(button => button.text() === '復原草稿')!.trigger('click')
-    await wrapper.findAll('.work-section-list button')[1]!.trigger('click')
+    await wrapper.findAll('.work-section-tabs button')[1]!.trigger('click')
     confirm()
     await vi.waitFor(() => expect(wrapper.get('textarea').element.value).toBe('原本的構思'))
-    await wrapper.findAll('.work-section-list button')[0]!.trigger('click')
+    await wrapper.findAll('.work-section-tabs button')[0]!.trigger('click')
     await vi.waitFor(() => expect(wrapper.get('textarea').element.value).toBe('復原的主專注'))
   })
   it('切換三區保留各自內容並原樣複製', async () => {
@@ -55,7 +55,7 @@ describe('作品工作區模式與封存', () => {
     const wrapper = render(d)
     expect(wrapper.find('.body-panel > textarea').exists()).toBe(true)
     await wrapper.get('textarea').setValue('主專注的新內容')
-    const choices = wrapper.findAll('.work-section-list button')
+    const choices = wrapper.findAll('.work-section-tabs button')
     await choices[1]!.trigger('click')
     expect(wrapper.get('textarea').element.value).toBe('構思\n第二行')
     await wrapper.get('textarea').setValue('構思的新內容')
@@ -71,7 +71,7 @@ describe('作品工作區模式與封存', () => {
     const wrapper = render(structuredClone(base))
     const input = wrapper.get('textarea').element
     await wrapper.get('textarea').setValue('專注中的草稿')
-    await wrapper.findAll('button').find(button => button.text() === '專注編輯')!.trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === '專注模式')!.trigger('click')
     expect(wrapper.get('.body-panel').attributes('role')).toBe('dialog')
     expect(document.body.style.overflow).toBe('hidden')
     expect(wrapper.get('textarea').element).toBe(input)
@@ -159,10 +159,10 @@ describe('作品工作區模式與封存', () => {
   it('封存作品只提供閱讀與匯出，還原入口仍可見', () => {
     const d = structuredClone(base); d.work.archived = true
     const wrapper = render(d)
-    expect(wrapper.get('textarea').attributes('readonly')).toBeDefined()
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.get('.work-reader').text()).toContain('**正文**')
     expect(wrapper.text()).toContain('還原作品'); expect(wrapper.text()).toContain('複製全文')
     expect(wrapper.text()).not.toContain('加入來源'); expect(wrapper.text()).not.toContain('更改階段')
-    expect(wrapper.get('textarea').element.value).toBe('**正文**')
   })
   it('外部作品保有文件入口與站內純文字', () => {
     const d = structuredClone(base); d.work.editorMode = 'EXTERNAL'; d.externalUrl = 'https://example.com/original'
@@ -175,8 +175,36 @@ describe('作品工作區模式與封存', () => {
     route.query = { mode: 'read', section: 'MANUSCRIPT' }
     const d = structuredClone(base); d.manuscript = '**已修改的最新版**'
     const wrapper = render(d)
-    expect(wrapper.get('textarea').attributes('readonly')).toBeDefined()
-    expect(wrapper.get('textarea').element.value).toBe('**已修改的最新版**')
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.get('.work-reader').text()).toContain('**已修改的最新版**')
+  })
+
+  it('閱讀模式以文章段落呈現純文字，並可調整閱讀偏好', async () => {
+    route.query = { mode: 'read' }
+    const d = structuredClone(base); d.body = '**保留原始符號**\n單一換行\n\n第二段'
+    const wrapper = render(d)
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.find('.work-aside').exists()).toBe(false)
+    expect(wrapper.findAll('.work-reader p')).toHaveLength(2)
+    expect(wrapper.get('.work-reader').text()).toContain('**保留原始符號**')
+    expect(wrapper.find('.work-section-tabs').exists()).toBe(true)
+    await wrapper.get('select[aria-label="閱讀欄寬"]').setValue('wide')
+    await wrapper.get('select[aria-label="閱讀字體"]').setValue('serif')
+    expect(wrapper.get('.work-reader').classes()).toContain('work-reader--serif')
+    expect(wrapper.get('.work-reader').attributes('style')).toContain('920px')
+  })
+
+  it('可從閱讀模式切回編修或進入專注寫作，且專注時不顯示下一步', async () => {
+    route.query = { mode: 'read' }
+    const d = structuredClone(base); d.work.nextStep = '從這裡繼續'
+    const wrapper = render(d)
+    await wrapper.findAll('button').find(button => button.text() === '返回編修')!.trigger('click')
+    expect(wrapper.find('textarea').exists()).toBe(true)
+    expect(wrapper.find('.work-aside').exists()).toBe(true)
+    await wrapper.findAll('button').find(button => button.text() === '專注模式')!.trigger('click')
+    expect(wrapper.find('.is-focus').exists()).toBe(true)
+    expect(wrapper.find('.next-step').exists()).toBe(false)
+    expect(wrapper.get('.focus-status').text()).toContain('已儲存')
   })
   it('複製選單仍可取出正文，且不帶入私人下一步與分享備註', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
