@@ -53,7 +53,7 @@ service.interceptors.response.use(
             if (status === 404 && /^\/goals\/\d+(?:\/(?:sources|revisions))?$/.test(error.config?.url || '')) return Promise.reject(error);
 
             // 正文錯誤留在工作區持續顯示，避免自動儲存產生重複通知。
-            if (error.config?.url?.match(/\/creative-works\/\d+\/body$/) && status !== 401 && status !== 403) return Promise.reject(error);
+            if (error.config?.url?.match(/\/creative-works\/\d+\/(?:body|sections\/[^/]+)$/) && status !== 401 && status !== 403) return Promise.reject(error);
 
             switch (status) {
                 case 400: // 格式錯誤

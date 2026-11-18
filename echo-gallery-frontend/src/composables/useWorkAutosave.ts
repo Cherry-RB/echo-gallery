@@ -42,10 +42,11 @@ export function useWorkAutosave(owner: string, workId: number, initial: string, 
       const result = await send(sent, version.value)
       acknowledged.value = result.body; version.value = result.bodyVersion
     } catch (e) {
-      const status = (e as { response?: { status: number } }).response?.status
-      // 回應不明時亦停止自動重試，重新載入時再確認伺服器版本。
-      conflict.value = status === 409 || !status
+      const status = (e as { response?: { status?: number } }).response?.status
+      // 只有明確的版本衝突才需要重新載入；其他失敗保留草稿並讓使用者手動重試。
+      conflict.value = status === 409
       error.value = conflict.value ? '這份作品可能已有較新內容，目前修改尚未儲存。請先複製或下載，再重新載入。' : status === 401 || status === 403 ? '登入已失效，正文尚未儲存。請保留草稿，重新登入同一帳號後再復原。' : '正文尚未儲存，請保留草稿後重試。'
+      if (!conflict.value && !status) error.value = '連線中斷或儲存逾時，稿件已保留。請重試儲存。'
     } finally {
       saving.value = false; await backup()
       if (dirty.value && !error.value && !stopped) schedule()
