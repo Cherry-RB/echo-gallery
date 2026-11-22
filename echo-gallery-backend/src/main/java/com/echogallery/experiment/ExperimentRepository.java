@@ -12,6 +12,8 @@ import jakarta.persistence.LockModeType;
 import java.util.Optional;
 
 public interface ExperimentRepository extends JpaRepository<Experiment, Long> {
+    Optional<Experiment> findByIdAndUserId(Long id, Long userId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from Experiment e where e.id = :id and e.user.id = :owner")
     Optional<Experiment> lockOwned(@Param("id") Long id, @Param("owner") Long owner);

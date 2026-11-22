@@ -9,10 +9,19 @@ import type {
   ExplorationThreadStatus,
   ExplorationThreadCardRole,
   CardExplorationThreadDto,
+  ExperimentRecordDto,
+  ExperimentRecordRequest,
+  ExperimentTopicDto,
+  ExperimentPinnedPracticeDto,
+  ExperimentRecordReferenceDto,
+  ExperimentRecordReferenceRequest,
 } from '../../types/experiment'
 import request from './request'
 
 export const experimentApi = {
+  getCardRecordReferences(cardId: string | number): Promise<Array<{ referenceId: number; recordId: number; experimentId: number; experimentTitle: string; recordTitle: string; experimentArchived: boolean }>> {
+    return request({ url: `/cards/${cardId}/experiment-record-references`, method: 'GET' })
+  },
   getExperiments(archived: false | true | 'all' = false, page = 0, size = 20): Promise<PageResponse<ExperimentDto>> {
     return request({ url: '/experiments', method: 'GET', params: { archived, page, size } })
   },
@@ -31,6 +40,38 @@ export const experimentApi = {
   deleteExperiment(id: number): Promise<void> {
     return request({ url: `/experiments/${id}`, method: 'DELETE' })
   },
+  getRecords(experimentId: number, page = 0, size = 20, params: { keyword?: string; understandingNode?: boolean; methodCandidate?: boolean; highlight?: string; dateFrom?: string; dateTo?: string; topicIds?: number[]; topicMatch?: 'ANY' | 'ALL'; unclassified?: boolean; sort?: string } = {}): Promise<PageResponse<ExperimentRecordDto>> {
+    const { topicIds, ...rest } = params
+    return request({ url: `/experiments/${experimentId}/records`, method: 'GET', params: { page, size, ...rest, topicIds: topicIds?.join(',') } })
+  },
+  getRecord(experimentId: number, recordId: number): Promise<ExperimentRecordDto> {
+    return request({ url: `/experiments/${experimentId}/records/${recordId}`, method: 'GET' })
+  },
+  getRecentPractices(experimentId: number): Promise<string[]> { return request({ url: `/experiments/${experimentId}/recent-practices`, method: 'GET' }) },
+  createRecord(experimentId: number, data: ExperimentRecordRequest): Promise<ExperimentRecordDto> {
+    return request({ url: `/experiments/${experimentId}/records`, method: 'POST', data })
+  },
+  createRecordFromCard(experimentId: number, cardId: number, record: ExperimentRecordRequest): Promise<ExperimentRecordDto> {
+    return request({ url: `/experiments/${experimentId}/records/from-card`, method: 'POST', data: { cardId, record } })
+  },
+  updateRecord(experimentId: number, recordId: number, data: ExperimentRecordRequest): Promise<ExperimentRecordDto> {
+    return request({ url: `/experiments/${experimentId}/records/${recordId}`, method: 'PUT', data })
+  },
+  deleteRecord(experimentId: number, recordId: number, expectedVersion: number): Promise<void> {
+    return request({ url: `/experiments/${experimentId}/records/${recordId}`, method: 'DELETE', params: { expectedVersion } })
+  },
+  getRecordReferences(experimentId: number, recordId: number): Promise<ExperimentRecordReferenceDto[]> { return request({ url: `/experiments/${experimentId}/records/${recordId}/references`, method: 'GET' }) },
+  createRecordReference(experimentId: number, recordId: number, data: ExperimentRecordReferenceRequest): Promise<ExperimentRecordReferenceDto> { return request({ url: `/experiments/${experimentId}/records/${recordId}/references`, method: 'POST', data }) },
+  deleteRecordReference(experimentId: number, recordId: number, referenceId: number): Promise<void> { return request({ url: `/experiments/${experimentId}/records/${recordId}/references/${referenceId}`, method: 'DELETE' }) },
+  getTopics(experimentId: number): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/topics`, method: 'GET' }) },
+  createTopic(experimentId: number, name: string): Promise<ExperimentTopicDto> { return request({ url: `/experiments/${experimentId}/topics`, method: 'POST', data: { name } }) },
+  pinTopic(experimentId: number, topicId: number, slot: number): Promise<ExperimentTopicDto> { return request({ url: `/experiments/${experimentId}/topics/${topicId}/pin`, method: 'PUT', data: { slot } }) },
+  deleteTopic(experimentId: number, topicId: number): Promise<void> { return request({ url: `/experiments/${experimentId}/topics/${topicId}`, method: 'DELETE' }) },
+  getRecordTopics(experimentId: number, recordId: number): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/records/${recordId}/topics`, method: 'GET' }) },
+  setRecordTopics(experimentId: number, recordId: number, topicIds: number[]): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/records/${recordId}/topics`, method: 'PUT', data: { topicIds } }) },
+  getPinnedPractices(experimentId: number): Promise<ExperimentPinnedPracticeDto[]> { return request({ url: `/experiments/${experimentId}/pinned-practices`, method: 'GET' }) },
+  pinPractice(experimentId: number, content: string, slot?: number): Promise<ExperimentPinnedPracticeDto> { return request({ url: `/experiments/${experimentId}/pinned-practices`, method: 'POST', data: { content, slot } }) },
+  unpinPractice(experimentId: number, practiceId: number): Promise<void> { return request({ url: `/experiments/${experimentId}/pinned-practices/${practiceId}`, method: 'DELETE' }) },
   getExploration(experimentId: number): Promise<ExperimentExplorationDto> {
     return request({ url: `/experiments/${experimentId}/activity`, method: 'GET' })
   },

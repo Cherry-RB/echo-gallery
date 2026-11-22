@@ -29,7 +29,6 @@ import CoverImageField from '../components/ui/CoverImageField.vue';
 import { cardDetailQueryKey } from '../utils/cardDetailQuery';
 import RecurrenceIntervalPicker from '../components/RecurrenceIntervalPicker.vue';
 import AddCardToExperimentDialog from '../components/experiment/AddCardToExperimentDialog.vue';
-import ExperimentThreads from '../components/experiment/ExperimentThreads.vue';
 import { getTextLength, trimToTextLength } from '../utils/textLength';
 
 const props = defineProps<{ id: string }>();
@@ -66,8 +65,6 @@ const editSection = ref<EditSection>('all')
 const cardData = ref<CardDto>(getDefaultCardData());
 
 const addExperimentDialogVisible = ref(false)
-const openedThread = ref<{ experimentId: number; threadId: number }>()
-watch(() => props.id, () => { openedThread.value = undefined })
 
 // 監聽路由的 id 變動，當從詳情頁切換到 'new' (新增模式) 時，強制重置表單與狀態
 watch(() => props.id, (newId) => {
@@ -89,13 +86,13 @@ const { data: fetchedCard, isLoading, isError, refetch } = useQuery({
   enabled: computed(() => !isCreateMode.value && !!props.id),
   refetchOnWindowFocus: false,
 });
-const { data: cardThreads, isError: cardThreadsError, isPending: cardThreadsLoading, refetch: retryCardThreads } = useQuery({
-  queryKey: computed(() => ['card-exploration-threads', props.id]),
-  queryFn: () => experimentApi.getCardThreads(props.id),
+const { data: cardRecordReferences, isError: cardRecordReferencesError, isPending: cardRecordReferencesLoading, refetch: retryCardRecordReferences } = useQuery({
+  queryKey: computed(() => ['card-record-references', props.id]),
+  queryFn: () => experimentApi.getCardRecordReferences(props.id),
   enabled: computed(() => !isCreateMode.value && !!props.id),
   refetchOnWindowFocus: false,
 });
-const linkedThreads = computed(() => cardThreads.value ?? []);
+const linkedRecordReferences = computed(() => cardRecordReferences.value ?? []);
 const updateProcessingStatus = async (needsProcessing: boolean) => {
   const updated = await cardApi.updateProcessingStatus(props.id, needsProcessing);
   cardData.value.needsProcessing = updated.needsProcessing;
@@ -612,28 +609,26 @@ const {
 
             <SidePanel class="property-card experiment-context-card">
               <header class="property-heading side-panel-heading">
-                <h2>關聯探索線</h2>
+                <h2>關聯探索紀錄</h2>
                 <div class="experiment-context-actions">
-                  <el-button type="primary" link size="small" :icon="Plus" @click="addExperimentDialogVisible = true">加入探索線</el-button>
+                  <el-button type="primary" link size="small" :icon="Plus" @click="addExperimentDialogVisible = true">記到實驗</el-button>
                   <el-button type="primary" link size="small" @click="router.push('/experiments')">前往實驗場</el-button>
                 </div>
               </header>
               <div class="experiment-context-section">
-                <p v-if="cardThreadsLoading" class="property-hint">正在載入探索線…</p>
-                <p v-else-if="cardThreadsError" class="property-hint">無法載入探索線。<el-button text @click="retryCardThreads()">重試</el-button></p>
-                <p v-else-if="!linkedThreads.length" class="property-hint">尚未加入任何探索線。</p>
+                <p v-if="cardRecordReferencesLoading" class="property-hint">正在載入探索紀錄…</p>
+                <p v-else-if="cardRecordReferencesError" class="property-hint">無法載入探索紀錄。<el-button text @click="retryCardRecordReferences()">重試</el-button></p>
+                <p v-else-if="!linkedRecordReferences.length" class="property-hint">尚未加入任何探索紀錄。</p>
                 <div v-else class="experiment-context-list">
-                  <button v-for="thread in linkedThreads" :key="`${thread.threadId}-${thread.role}`" type="button" class="experiment-context-item side-relation" @click="openedThread = thread">
-                    <span>{{ thread.threadName }}</span>
-                    <small>{{ thread.experimentTitle }} · {{ thread.role === 'MATERIAL' ? '材料與線索' : '成果卡片' }}</small>
-                    <small v-if="thread.note">備註：{{ thread.note }}</small>
-                    <el-tag v-if="thread.experimentArchived" type="info" size="small">實驗已封存</el-tag>
+                  <button v-for="reference in linkedRecordReferences" :key="reference.referenceId" type="button" class="experiment-context-item side-relation" @click="router.push(`/experiments/${reference.experimentId}`)">
+                    <span>{{ reference.recordTitle }}</span>
+                    <small>{{ reference.experimentTitle }}</small>
+                    <el-tag v-if="reference.experimentArchived" type="info" size="small">實驗已封存</el-tag>
                   </button>
                 </div>
               </div>
             </SidePanel>
 
-            <ExperimentThreads v-if="openedThread" :key="openedThread.threadId" :experiment-id="openedThread.experimentId" :initial-thread-id="openedThread.threadId" dialog-only @closed="openedThread = undefined" />
             <AddCardToExperimentDialog
               v-if="addExperimentDialogVisible"
               v-model="addExperimentDialogVisible"

@@ -23,8 +23,8 @@ public class GoalService {
     private final CardService cardService;
     private final ObjectMapper mapper;
     private final Clock clock;
-    private static final Set<String> METRICS = java.util.stream.IntStream.rangeClosed(1,20)
-            .mapToObj(i -> "M%02d".formatted(i)).collect(Collectors.toSet());
+    private static final Set<String> METRICS = Set.of(
+            "M01", "M02", "M03", "M04", "M05", "M06", "M13", "M14", "M15", "M16", "M17", "M18", "M19", "M20", "M21");
 
     Long owner() {
         Long id = SecurityUtil.getCurrentUserId();
@@ -120,7 +120,6 @@ public class GoalService {
             switch(s.kind()) {
                 case TAG -> source.tag=em.getReference(com.echogallery.tag.Tag.class,s.id());
                 case EXPERIMENT -> source.experiment=em.getReference(com.echogallery.experiment.Experiment.class,s.id());
-                case THREAD -> source.thread=em.getReference(com.echogallery.experiment.ExplorationThread.class,s.id());
                 case WORK -> source.work=em.getReference(com.echogallery.work.CreativeWork.class,s.id());
                 case TREASURE -> source.treasure=em.getReference(com.echogallery.treasure.Treasure.class,s.id());
                 case CARD -> source.card=em.getReference(Card.class,s.id());
@@ -140,29 +139,27 @@ public class GoalService {
     }
     void validateSources(List<Source> sources) {
         if(sources.stream().map(s->s.kind()+":"+s.id()).distinct().count()!=sources.size())fail(HttpStatus.BAD_REQUEST,"來源不可重複或同時納入與排除");
-        if(sources.stream().anyMatch(s->s.excluded()&&s.kind()!=Kind.CARD&&s.kind()!=Kind.THREAD))fail(HttpStatus.BAD_REQUEST,"個別排除目前支援卡片與探索線");
+        if(sources.stream().anyMatch(s->s.excluded()&&s.kind()!=Kind.CARD))fail(HttpStatus.BAD_REQUEST,"個別排除目前僅支援卡片");
         for(Kind kind:Kind.values()) {
             var ids=sources.stream().filter(s->s.kind()==kind).map(Source::id).distinct().toList();if(ids.isEmpty())continue;
-            String sql=kind==Kind.THREAD?"select count(*) from exploration_threads t join experiments e on e.id=t.experiment_id where t.id in (:ids) and e.user_id=:owner"
-                    :"select count(*) from "+sourceTable(kind)+" where id in (:ids) and user_id=:owner";
+            String sql="select count(*) from "+sourceTable(kind)+" where id in (:ids) and user_id=:owner";
             long found=((Number)em.createNativeQuery(sql).setParameter("ids",ids).setParameter("owner",owner()).getSingleResult()).longValue();
             if(found!=ids.size())fail(HttpStatus.BAD_REQUEST,"來源不存在或不可使用，請重新選擇");
         }
     }
-    String sourceTable(Kind kind) {return switch(kind){case TAG->"tags";case EXPERIMENT->"experiments";case THREAD->"exploration_threads";case WORK->"creative_works";case TREASURE->"treasures";case CARD->"cards";};}
+    String sourceTable(Kind kind) {return switch(kind){case TAG->"tags";case EXPERIMENT->"experiments";case WORK->"creative_works";case TREASURE->"treasures";case CARD->"cards";};}
     public List<Option> options(Kind kind,String keyword,int page) {
         return options(kind,keyword,page,null);
     }
     public List<Option> options(Kind kind,String keyword,int page,Long experimentId) {
-        if(experimentId!=null){if(kind!=Kind.THREAD)fail(HttpStatus.BAD_REQUEST,"只有探索線可限定實驗");validateSources(List.of(new Source(Kind.EXPERIMENT,experimentId,false)));}
-        String from=kind==Kind.THREAD?"exploration_threads s join experiments e on e.id=s.experiment_id":"%s s".formatted(sourceTable(kind));
-        String name=kind==Kind.THREAD||kind==Kind.TAG?"s.name":"s.title";
-        String user=kind==Kind.THREAD?"e.user_id":"s.user_id";
-        String metadata=kind==Kind.THREAD?",e.id,e.title":",cast(null as bigint),cast(null as text)";
-        String search=kind==Kind.THREAD?"(lower(s.name) like :keyword escape '!' or lower(e.title) like :keyword escape '!')":"lower("+name+") like :keyword escape '!'";
-        var query=em.createNativeQuery("select s.id,"+name+metadata+" from "+from+" where "+user+"=:owner and "+search+(experimentId==null?"":" and e.id=:experiment")+" order by s.id desc")
+        if(experimentId!=null)fail(HttpStatus.BAD_REQUEST,"不再支援依探索線限定實驗");
+        String from="%s s".formatted(sourceTable(kind));
+        String name=kind==Kind.TAG?"s.name":"s.title";
+        String user="s.user_id";
+        String metadata=",cast(null as bigint),cast(null as text)";
+        String search="lower("+name+") like :keyword escape '!'";
+        var query=em.createNativeQuery("select s.id,"+name+metadata+" from "+from+" where "+user+"=:owner and "+search+" order by s.id desc")
                 .setParameter("owner",owner()).setParameter("keyword","%"+(keyword==null?"":keyword.toLowerCase(Locale.ROOT).replace("!","!!").replace("%","!%").replace("_","!_"))+"%");
-        if(experimentId!=null)query.setParameter("experiment",experimentId);
         @SuppressWarnings("unchecked") List<Object[]> values=query.setFirstResult((int)Math.min(Integer.MAX_VALUE,(long)Math.max(0,page)*20)).setMaxResults(20).getResultList();
         return values.stream().map(v->new Option(kind,((Number)v[0]).longValue(),(String)v[1],v[2]==null?null:((Number)v[2]).longValue(),(String)v[3])).toList();
     }
@@ -191,16 +188,14 @@ public class GoalService {
         var d=definition(owned(id));if(d.sources().isEmpty())return List.of();
         Map<String,Object> params=new HashMap<>();List<String> parts=new ArrayList<>();int index=0;
         for(var source:d.sources()) {
-            String p="source"+index++;params.put(p,source.id());String title=source.kind()==Kind.THREAD||source.kind()==Kind.TAG?"s.name":"s.title";
-            String from=source.kind()==Kind.THREAD?"exploration_threads s join experiments e on e.id=s.experiment_id":sourceTable(source.kind())+" s";
-            String ownerColumn=source.kind()==Kind.THREAD?"e.user_id":"s.user_id";
-            parts.add("select '"+source.kind().name()+"' as kind,s.id,"+title+" as title,"+(source.kind()==Kind.THREAD?"s.experiment_id,e.title":"cast(null as bigint),cast(null as text)")+" from "+from+" where s.id=:"+p+" and "+ownerColumn+"=:owner");
+            String p="source"+index++;params.put(p,source.id());String title=source.kind()==Kind.TAG?"s.name":"s.title";
+            parts.add("select '"+source.kind().name()+"' as kind,s.id,"+title+" as title,cast(null as bigint),cast(null as text) from "+sourceTable(source.kind())+" s where s.id=:"+p+" and s.user_id=:owner");
         }
         var q=em.createNativeQuery(String.join(" union all ",parts)).setParameter("owner",owner());params.forEach(q::setParameter);
         @SuppressWarnings("unchecked") List<Object[]> values=q.getResultList();Map<String,Object[]> found=new HashMap<>();values.forEach(v->found.put(v[0]+":"+v[1],v));
         return d.sources().stream().map(s->{var value=found.get(s.kind()+":"+s.id());Map<String,Object> result=new LinkedHashMap<>();result.put("kind",s.kind());result.put("id",s.id());result.put("title",value==null?"來源已刪除":value[2]);result.put("available",value!=null);result.put("excluded",s.excluded());
             result.put("parentId",value==null?null:value[3]);result.put("parentTitle",value==null?null:value[4]);
-            result.put("path",value==null?"":switch(s.kind()){case TAG->"";case CARD->"/card/"+s.id();case EXPERIMENT->"/experiments/"+s.id();case THREAD->"/experiments/"+value[3]+"?thread="+s.id();case WORK->"/works/"+s.id();case TREASURE->"/treasures/"+s.id();});return result;}).toList();
+            result.put("path",value==null?"":switch(s.kind()){case TAG->"";case CARD->"/card/"+s.id();case EXPERIMENT->"/experiments/"+s.id();case WORK->"/works/"+s.id();case TREASURE->"/treasures/"+s.id();});return result;}).toList();
     }
     public List<Map<String,Object>> revisions(Long id) {
         owned(id);return em.createQuery("select r from GoalRuleRow r where r.goal.id=:goal and r.user.id=:owner order by r.revision desc",GoalRuleRow.class)
@@ -222,12 +217,12 @@ public class GoalService {
             var types=metricTypes(key);if(types!=null)value=factLinks(goal).stream().filter(l->{var date=l.fact.occurredAt.withZoneSameInstant(ZoneId.of("Asia/Taipei")).toLocalDate();return !date.isBefore(starts)&&!date.isAfter(ends);}).filter(l->types.contains(l.fact.type)).map(l->factKey(l)).distinct().count();
             else coverage="NOT_AVAILABLE";
         }
-        String unit=switch(key){case "M04" -> "天";case "M10","M11","M12","M17","M18" -> "次";case "M14" -> "件";case "M16" -> "件";default -> "張";};
+        String unit=switch(key){case "M04" -> "天";case "M17","M18","M21" -> "次";case "M14" -> "件";case "M16" -> "件";default -> "張";};
         return new Metric(key,value,unit,mode,starts,ends,goal.trackingStartedAt,coverage,goal.version);
     }
     Set<String> metricTypes(String key) { return switch(key) {
         case "M02" -> Set.of("CARD_CREATED"); case "M05" -> Set.of("TODAY_REVIEWED"); case "M06" -> Set.of("CARD_REUSED");
-        case "M10" -> Set.of("DISCOVERY_CREATED"); case "M11" -> Set.of("METHOD_CREATED"); case "M12" -> Set.of("EXPLORATION_ORGANIZED");
+        case "M21" -> Set.of("EXPERIMENT_RECORD_CREATED");
         case "M14" -> Set.of("WORK_STAGE_CHANGED"); case "M16" -> Set.of("TREASURE_ACQUIRED"); case "M17" -> Set.of("TRIAL_ATTEMPT"); case "M18" -> Set.of("TREASURE_YIELD"); default -> null;
     }; }
     List<GoalFactLinkRow> allFactLinks(GoalRow goal) { return em.createQuery("select l from GoalFactLinkRow l join fetch l.fact where l.goal=:goal and l.fact.valid=true and l.fact.occurredAt>=:from and l.fact.occurredAt<:to",GoalFactLinkRow.class)
@@ -377,7 +372,7 @@ public class GoalService {
         var revision=new GoalRuleRow();revision.user=goal.user;revision.goal=goal;revision.revision=goal.version;revision.definition=goal.definition;revision.reason=reason;revision.effectiveAt=now();em.persist(revision);
         for(var source:sources) {
             var copy=new GoalSourceRow();copy.user=goal.user;copy.rule=revision;copy.kind=source.kind;copy.sourceId=source.sourceId;copy.excluded=source.excluded;
-            copy.tag=source.tag;copy.experiment=source.experiment;copy.thread=source.thread;copy.work=source.work;copy.treasure=source.treasure;copy.card=source.card;em.persist(copy);
+            copy.tag=source.tag;copy.experiment=source.experiment;copy.work=source.work;copy.treasure=source.treasure;copy.card=source.card;em.persist(copy);
         }
     }
     public List<Reminder> reminders() {
@@ -409,15 +404,12 @@ public class GoalService {
     // 所有來源規則都留在資料庫篩選，不將整個卡片池載入前端或 Java 記憶體。
     String predicate(Definition d,String prefix,Map<String,Object> params) {
         List<String> includes=new ArrayList<>(),excludes=new ArrayList<>(),tagRules=new ArrayList<>();int i=0;
-        List<Long> excludedThreads=d.sources().stream().filter(s->s.excluded()&&s.kind()==Kind.THREAD).map(Source::id).toList();
-        String threadFilter=excludedThreads.isEmpty()?"":" and tc.thread_id not in ("+excludedThreads.stream().map(String::valueOf).collect(Collectors.joining(","))+")";
         for(Source s:d.sources()) {
             if(s.excluded()&&s.kind()!=Kind.CARD)continue;
             String p=prefix+(i++);params.put(p,s.id());String condition=switch(s.kind()) {
                 case CARD->"c.id=:"+p;
                 case TAG->"exists(select 1 from card_tags ct where ct.card_id=c.id and ct.tag_id=:"+p+")";
-                case THREAD->"exists(select 1 from exploration_thread_cards tc where tc.card_id=c.id and tc.thread_id=:"+p+")";
-                case EXPERIMENT->"exists(select 1 from exploration_thread_cards tc join exploration_threads t on t.id=tc.thread_id where tc.card_id=c.id and t.experiment_id=:"+p+threadFilter+")";
+                case EXPERIMENT->"exists(select 1 from experiment_record_references rr join experiment_records r on r.id=rr.record_id where rr.kind='CARD' and rr.card_id=c.id and r.experiment_id=:"+p+")";
                 case WORK->"exists(select 1 from creative_work_sources ws where ws.card_id=c.id and ws.work_id=:"+p+")";
                 case TREASURE->"c.id=:"+p+" and false";
             };
@@ -509,14 +501,9 @@ public class GoalService {
             var q=em.createNativeQuery("select distinct id,goal_id from ("+String.join(" union all ",parts)+") matches").setParameter("owner",owner()).setParameter("cards",requestedCards);params.forEach(q::setParameter);
             @SuppressWarnings("unchecked") List<Object[]> values=q.getResultList();for(var v:values){var g=byId.get(((Number)v[1]).longValue());var definition=definitions.get(g.id);result.get("CARD:"+v[0]).add(new Association(g.id,definition.name(),status(g),cardReasons(definition,((Number)v[0]).longValue())));}
         }
-        Set<Long> threadIds=new HashSet<>(),workIds=new HashSet<>();
-        definitions.values().forEach(d->d.sources().forEach(s->{if(s.kind()==Kind.THREAD)threadIds.add(s.id());if(s.kind()==Kind.WORK)workIds.add(s.id());}));
-        objects.stream().filter(s->s.kind()==Kind.THREAD).forEach(s->threadIds.add(s.id()));
-        Map<Long,Long> threadExperiments=new HashMap<>(),workTreasures=new HashMap<>();
-        if(!threadIds.isEmpty()) {
-            @SuppressWarnings("unchecked") List<Object[]> values=em.createNativeQuery("select t.id,t.experiment_id from exploration_threads t join experiments e on e.id=t.experiment_id where e.user_id=:owner and t.id in (:ids)").setParameter("owner",owner()).setParameter("ids",threadIds).getResultList();
-            values.forEach(v->threadExperiments.put(((Number)v[0]).longValue(),((Number)v[1]).longValue()));
-        }
+        Set<Long> workIds=new HashSet<>();
+        definitions.values().forEach(d->d.sources().forEach(s->{if(s.kind()==Kind.WORK)workIds.add(s.id());}));
+        Map<Long,Long> workTreasures=new HashMap<>();
         if(!workIds.isEmpty()) {
             @SuppressWarnings("unchecked") List<Object[]> values=em.createNativeQuery("select id,treasure_id from creative_works where user_id=:owner and id in (:ids) and treasure_id is not null").setParameter("owner",owner()).setParameter("ids",workIds).getResultList();
             values.forEach(v->workTreasures.put(((Number)v[0]).longValue(),((Number)v[1]).longValue()));
@@ -524,21 +511,12 @@ public class GoalService {
         for(Kind kind:Kind.values()) {
             if(kind==Kind.CARD)continue;var requested=objects.stream().filter(s->s.kind()==kind).map(Source::id).distinct().toList();if(requested.isEmpty())continue;
             Set<Long> valid;
-            if(kind==Kind.THREAD)valid=threadExperiments.keySet();
-            else {@SuppressWarnings("unchecked") List<Number> ids=em.createNativeQuery("select id from "+sourceTable(kind)+" where user_id=:owner and id in (:ids)").setParameter("owner",owner()).setParameter("ids",requested).getResultList();valid=ids.stream().map(Number::longValue).collect(Collectors.toSet());}
+            {@SuppressWarnings("unchecked") List<Number> ids=em.createNativeQuery("select id from "+sourceTable(kind)+" where user_id=:owner and id in (:ids)").setParameter("owner",owner()).setParameter("ids",requested).getResultList();valid=ids.stream().map(Number::longValue).collect(Collectors.toSet());}
             for(Long id:requested) {
                 if(!valid.contains(id))continue;
                 for(var g:goals) {
                     var d=definitions.get(g.id);List<AssociationReason> reasons=new ArrayList<>();
                     if(d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==kind&&s.id().equals(id)))reasons.add(new AssociationReason(kind,id,null,true));
-                    if(kind==Kind.THREAD&&d.sources().stream().noneMatch(s->s.excluded()&&s.kind()==Kind.THREAD&&s.id().equals(id))
-                            &&d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==Kind.EXPERIMENT&&s.id().equals(threadExperiments.get(id)))) {
-                        Long experiment=threadExperiments.get(id);reasons.add(new AssociationReason(Kind.EXPERIMENT,experiment,"因「"+sourceTitle(Kind.EXPERIMENT,experiment)+"」實驗",false));
-                    }
-                    if(kind==Kind.EXPERIMENT&&d.sources().stream().noneMatch(s->!s.excluded()&&s.kind()==Kind.EXPERIMENT&&id.equals(s.id()))) {
-                        d.sources().stream().filter(s->!s.excluded()&&s.kind()==Kind.THREAD&&id.equals(threadExperiments.get(s.id())))
-                                .forEach(s->reasons.add(new AssociationReason(Kind.THREAD,s.id(),"因「"+sourceTitle(Kind.THREAD,s.id())+"」探索線",false)));
-                    }
                     if(kind==Kind.TREASURE&&d.sources().stream().anyMatch(s->!s.excluded()&&s.kind()==Kind.WORK&&id.equals(workTreasures.get(s.id())))) {
                         d.sources().stream().filter(s->!s.excluded()&&s.kind()==Kind.WORK&&id.equals(workTreasures.get(s.id())))
                                 .forEach(s->reasons.add(new AssociationReason(Kind.WORK,s.id(),"因「"+sourceTitle(Kind.WORK,s.id())+"」作品關聯",false)));
@@ -554,10 +532,9 @@ public class GoalService {
         if(included.stream().anyMatch(s->s.kind()==Kind.CARD&&s.id().equals(cardId)))reasons.add(new AssociationReason(Kind.CARD,cardId,"直接選入此卡片",false));
         var tags=ids(included,Kind.TAG);var matchedTags=cardRelatedIds("select tag_id from card_tags where card_id=:card and tag_id in (:ids)",cardId,tags,List.of());
         if(!tags.isEmpty()&&(!definition.allTags()||matchedTags.containsAll(tags)))for(Long id:matchedTags)reasons.add(new AssociationReason(Kind.TAG,id,"因 #"+sourceTitle(Kind.TAG,id)+" 標籤",false));
-        var threads=ids(included,Kind.THREAD);for(Long id:cardRelatedIds("select thread_id from exploration_thread_cards where card_id=:card and thread_id in (:ids)",cardId,threads,List.of()))reasons.add(new AssociationReason(Kind.THREAD,id,"因「"+sourceTitle(Kind.THREAD,id)+"」探索線收錄",false));
-        var experiments=ids(included,Kind.EXPERIMENT);var excludedThreads=definition.sources().stream().filter(s->s.excluded()&&s.kind()==Kind.THREAD).map(Source::id).toList();
-        String experimentSql="select t.experiment_id from exploration_thread_cards tc join exploration_threads t on t.id=tc.thread_id where tc.card_id=:card and t.experiment_id in (:ids)"+(excludedThreads.isEmpty()?"":" and tc.thread_id not in (:excluded)");
-        for(Long id:cardRelatedIds(experimentSql,cardId,experiments,excludedThreads))reasons.add(new AssociationReason(Kind.EXPERIMENT,id,"因「"+sourceTitle(Kind.EXPERIMENT,id)+"」實驗收錄",false));
+        var experiments=ids(included,Kind.EXPERIMENT);
+        String experimentSql="select distinct r.experiment_id from experiment_record_references rr join experiment_records r on r.id=rr.record_id where rr.kind='CARD' and rr.card_id=:card and r.experiment_id in (:ids)";
+        for(Long id:cardRelatedIds(experimentSql,cardId,experiments,List.of()))reasons.add(new AssociationReason(Kind.EXPERIMENT,id,"因「"+sourceTitle(Kind.EXPERIMENT,id)+"」實驗紀錄引用",false));
         var works=ids(included,Kind.WORK);for(Long id:cardRelatedIds("select work_id from creative_work_sources where card_id=:card and work_id in (:ids)",cardId,works,List.of()))reasons.add(new AssociationReason(Kind.WORK,id,"因「"+sourceTitle(Kind.WORK,id)+"」作品引用",false));
         return reasons;
     }
@@ -567,7 +544,7 @@ public class GoalService {
         @SuppressWarnings("unchecked") List<Number> values=query.getResultList();return values.stream().map(Number::longValue).collect(Collectors.toCollection(LinkedHashSet::new));
     }
     String sourceTitle(Kind kind,Long id) {
-        String title=kind==Kind.TAG||kind==Kind.THREAD?"s.name":"s.title";String from=kind==Kind.THREAD?"exploration_threads s join experiments e on e.id=s.experiment_id":sourceTable(kind)+" s";String user=kind==Kind.THREAD?"e.user_id":"s.user_id";
+        String title=kind==Kind.TAG?"s.name":"s.title";String from=sourceTable(kind)+" s";String user="s.user_id";
         @SuppressWarnings("unchecked") List<Object> values=em.createNativeQuery("select "+title+" from "+from+" where s.id=:id and "+user+"=:owner").setParameter("id",id).setParameter("owner",owner()).getResultList();
         return values.isEmpty()?"已刪除來源":String.valueOf(values.getFirst());
     }

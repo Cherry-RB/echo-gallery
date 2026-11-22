@@ -10,6 +10,8 @@ export interface ExperimentDto {
   description: string | null
   hypothesis: string | null
   conclusion: string | null
+  startingPoint: string | null
+  desiredOutcome: string | null
   currentTry: string | null
   explorationRecordCount: number
   themeColor: ExperimentThemeColor
@@ -23,8 +25,43 @@ export interface ExperimentRequest {
   description?: string
   hypothesis?: string
   conclusion?: string
+  startingPoint?: string
+  desiredOutcome?: string
   themeColor?: ExperimentThemeColor
 }
+
+export type ExperimentRecordHighlight = 'GENERAL' | 'GAIN' | 'CHALLENGE_OVERCOME' | 'PEAK_EXPERIENCE'
+
+export interface ExperimentRecordDto {
+  id: number
+  title: string | null
+  content: string | null
+  practiceText: string | null
+  recordedOn: string
+  understandingNode: boolean
+  methodCandidate: boolean
+  highlight: ExperimentRecordHighlight
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ExperimentRecordRequest {
+  title?: string | null
+  content?: string | null
+  practiceText?: string | null
+  recordedOn: string
+  understandingNode: boolean
+  methodCandidate: boolean
+  highlight: ExperimentRecordHighlight
+  requestId?: string
+  expectedVersion?: number
+}
+
+export interface ExperimentTopicDto { id: number; name: string; pinnedSlot: number | null; createdAt: string }
+export interface ExperimentPinnedPracticeDto { id: number; content: string; slot: number; createdAt: string }
+export interface ExperimentRecordReferenceDto { id: number; kind: 'CARD' | 'URL'; cardId: number | null; title: string | null; url: string | null; label: string | null; createdAt: string }
+export interface ExperimentRecordReferenceRequest { kind: 'CARD' | 'URL'; cardId?: number | null; url?: string | null; label?: string | null }
 
 export interface ExperimentExplorationCardRequest extends CardContentRequest {
   recordIds: number[]

@@ -5,17 +5,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
 import { MoreFilled, Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import type { ExperimentDto, ExperimentExplorationRecordDto, ExperimentRequest } from '../../types/experiment'
+import type { ExperimentDto, ExperimentRecordRequest, ExperimentRequest } from '../../types/experiment'
 import { formatDate } from '../../utils/formatDate'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import { experimentApi } from '../../utils/api/experimentApi'
 import { experimentThemeOptions, getExperimentThemeStyle } from '../../utils/experimentTheme'
 import AppDialog from '../../components/AppDialog.vue'
-import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
-import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
-import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
+import ExperimentRecordEditor from '../../components/experiment/ExperimentRecordEditor.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
-import RecordHistoryTrigger from '../../components/ui/RecordHistoryTrigger.vue'
 import AppEmptyState from '../../components/ui/AppEmptyState.vue'
 
 const router = useRouter()
@@ -26,12 +23,9 @@ const currentPage = ref(0)
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
 const quickRecordExperimentId = ref<number | null>(null)
-const quickRecordMode = ref<'TRY' | 'DISCOVERY'>('TRY')
-const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
 const quickRecordVisible = ref(false)
-const historyExperimentId = ref<number | null>(null)
-const historyVisible = ref(false)
-const form = reactive<ExperimentRequest>({ title: '', hypothesis: '', conclusion: '', description: '', themeColor: 'LEAF' })
+const quickRecordSaving = ref(false)
+const form = reactive<ExperimentRequest>({ title: '', startingPoint: '', desiredOutcome: '', hypothesis: '', conclusion: '', description: '', themeColor: 'LEAF' })
 
 const experimentsQuery = useQuery({
   queryKey: computed(() => ['experiments', selectedScope.value, currentPage.value]),
@@ -39,11 +33,6 @@ const experimentsQuery = useQuery({
     selectedScope.value === 'ALL' ? 'all' : selectedScope.value === 'ARCHIVED', currentPage.value, 20),
 })
 const experiments = computed(() => experimentsQuery.data.value?.content ?? [])
-const historyQuery = useQuery({
-  queryKey: computed(() => ['experiment-exploration', historyExperimentId.value]),
-  queryFn: () => experimentApi.getExploration(historyExperimentId.value!),
-  enabled: computed(() => historyVisible.value && historyExperimentId.value !== null),
-})
 
 function selectScope(scope: ExperimentScope) {
   if (selectedScope.value === scope) return
@@ -78,6 +67,8 @@ const archiveMutation = useMutation({
 const openCreate = () => {
   editingId.value = null
   form.title = ''
+  form.startingPoint = ''
+  form.desiredOutcome = ''
   form.hypothesis = ''
   form.conclusion = ''
   form.description = ''
@@ -88,6 +79,8 @@ const openCreate = () => {
 const openEdit = (experiment: ExperimentDto) => {
   editingId.value = experiment.id
   form.title = experiment.title
+  form.startingPoint = experiment.startingPoint ?? ''
+  form.desiredOutcome = experiment.desiredOutcome ?? ''
   form.hypothesis = experiment.hypothesis ?? ''
   form.conclusion = experiment.conclusion ?? ''
   form.description = experiment.description ?? ''
@@ -101,20 +94,25 @@ const handleCardCommand = (experiment: ExperimentDto, command: string) => {
   if (command === 'restore') archiveMutation.mutate({ id: experiment.id, archived: false })
 }
 
-const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
+const openQuickRecord = (experimentId: number) => {
   quickRecordExperimentId.value = experimentId
-  quickRecordMode.value = mode
-  editingExplorationRecord.value = null
   quickRecordVisible.value = true
 }
-
-const openHistory = (experimentId: number) => {
-  historyExperimentId.value = experimentId
-  historyVisible.value = true
+const saveQuickRecord = async (value: ExperimentRecordRequest) => {
+  if (quickRecordExperimentId.value === null) return
+  quickRecordSaving.value = true
+  try {
+    await experimentApi.createRecord(quickRecordExperimentId.value, value)
+    await queryClient.invalidateQueries({ queryKey: ['experiments'] })
+    quickRecordVisible.value = false
+    ElMessage.success('已新增探索紀錄')
+  } catch { ElMessage.error('儲存探索紀錄失敗，請稍後重試') } finally { quickRecordSaving.value = false }
 }
 
 const submit = () => {
   form.title = trimToTextLength(form.title, 255).trim()
+  form.startingPoint = trimToTextLength(form.startingPoint ?? '', 5000).trim()
+  form.desiredOutcome = trimToTextLength(form.desiredOutcome ?? '', 5000).trim()
   form.hypothesis = trimToTextLength(form.hypothesis ?? '', 2000).trim()
   form.conclusion = trimToTextLength(form.conclusion ?? '', 10000).trim()
   form.description = trimToTextLength(form.description ?? '', 5000)
@@ -182,18 +180,18 @@ const submit = () => {
               <div class="experiment-title-row"><el-tooltip :content="experiment.title" :show-after="400" placement="top" popper-class="content-tooltip">
                 <h2 class="experiment-title">{{ experiment.title }}</h2>
               </el-tooltip></div>
-              <el-tooltip :content="experiment.currentTry || experiment.hypothesis || experiment.description || '還沒設定下一步。不妨先翻翻收集的材料。'" :show-after="400" placement="top" popper-class="content-tooltip">
-                <p :class="['experiment-hypothesis', { empty: !experiment.currentTry && !experiment.hypothesis && !experiment.description }]">
-                  <span v-if="experiment.currentTry" class="experiment-current-try-label">目前想試</span>
-                  {{ experiment.currentTry || experiment.hypothesis || experiment.description || '還沒設定下一步。不妨先翻翻收集的材料。' }}
+              <el-tooltip :content="experiment.desiredOutcome || experiment.startingPoint || experiment.hypothesis || experiment.description || '尚未補充實驗方向。'" :show-after="400" placement="top" popper-class="content-tooltip">
+                <p :class="['experiment-hypothesis', { empty: !experiment.desiredOutcome && !experiment.startingPoint && !experiment.hypothesis && !experiment.description }]">
+                  <span v-if="experiment.desiredOutcome" class="experiment-current-try-label">想達成的改變</span>
+                  {{ experiment.desiredOutcome || experiment.startingPoint || experiment.hypothesis || experiment.description || '尚未補充實驗方向。' }}
                 </p>
               </el-tooltip>
             </div>
             <aside class="experiment-summary-side">
               <header class="experiment-card-header">
                 <GoalBadge kind="EXPERIMENT" :id="experiment.id" />
-                <ExperimentQuickRecordAction @select="openQuickRecord(experiment.id, $event)" />
-                <RecordHistoryTrigger v-if="experiment.explorationRecordCount > 0" label="探索紀錄" :count="experiment.explorationRecordCount" count-only @click.stop="openHistory(experiment.id)" />
+                <el-button class="quick-record-trigger" text type="primary" @click.stop="openQuickRecord(experiment.id)">新增紀錄</el-button>
+                <span v-if="experiment.explorationRecordCount > 0" class="record-count">{{ experiment.explorationRecordCount }} 筆紀錄</span>
                 <el-dropdown trigger="click" @command="handleCardCommand(experiment, $event)">
                   <el-button text circle :icon="MoreFilled" :disabled="archiveMutation.isPending.value" aria-label="實驗主題操作" @click.stop />
                   <template #dropdown>
@@ -231,19 +229,19 @@ const submit = () => {
     scroll-body
     destroy-on-close
   >
-    <p class="dialog-intro">先為想探索的方向取個名字；實驗目的與結論之後再補也可以。</p>
+    <p class="dialog-intro">先為想探索的方向取個名字；起點與想達成的改變之後再補也可以。</p>
     <el-form label-position="top" @submit.prevent="submit">
       <el-form-item label="實驗主題名稱" required>
         <el-input v-model="form.title" maxlength="255" placeholder="例如：尋找一種適合自己的學習方式" />
         <p class="field-counter">總字數：{{ getTextLength(form.title) }} / 255</p>
       </el-form-item>
-      <el-form-item label="實驗目的（選填）">
-        <el-input v-model="form.hypothesis" type="textarea" :rows="3" maxlength="2000" placeholder="想弄懂哪個問題？還不清楚，也可以先留白。" />
-        <p class="field-counter">總字數：{{ getTextLength(form.hypothesis ?? '') }} / 2000</p>
+      <el-form-item label="目前的狀況">
+        <el-input v-model="form.startingPoint" type="textarea" :rows="3" maxlength="5000" placeholder="現在正處於什麼狀況？" />
+        <p class="field-counter">總字數：{{ getTextLength(form.startingPoint ?? '') }} / 5,000</p>
       </el-form-item>
-      <el-form-item label="實驗結論（選填）">
-        <el-input v-model="form.conclusion" type="textarea" :rows="4" maxlength="10000" placeholder="形成階段性理解後，再寫下目前的結論。" />
-        <p class="field-counter">總字數：{{ getTextLength(form.conclusion ?? '') }} / 10,000</p>
+      <el-form-item label="想達成的改變">
+        <el-input v-model="form.desiredOutcome" type="textarea" :rows="3" maxlength="5000" placeholder="希望因為這次實驗，出現什麼改變？" />
+        <p class="field-counter">總字數：{{ getTextLength(form.desiredOutcome ?? '') }} / 5,000</p>
       </el-form-item>
       <el-form-item label="主題說明（選填）">
         <el-input v-model="form.description" type="textarea" :rows="3" maxlength="5000" placeholder="補充背景、動機或預計如何觀察。" />
@@ -263,26 +261,12 @@ const submit = () => {
     </template>
   </AppDialog>
 
-  <ExperimentExplorationEditor
+  <ExperimentRecordEditor
     v-if="quickRecordExperimentId !== null"
     v-model="quickRecordVisible"
-    :experiment-id="quickRecordExperimentId"
-    :mode="quickRecordMode"
-    :record="editingExplorationRecord"
-    @closed="quickRecordExperimentId = null; editingExplorationRecord = null"
-  />
-
-  <ExperimentExplorationHistoryDialog
-    :experiment-id="historyExperimentId ?? undefined"
-    v-if="historyExperimentId !== null"
-    v-model="historyVisible"
-    :records="historyQuery.data.value?.records ?? []"
-    :loading="historyQuery.isLoading.value"
-    manageable
-    :show-organize="false"
-    @record="historyExperimentId !== null && openQuickRecord(historyExperimentId, $event)"
-    @add-thread="router.push({ path: '/experiments/' + historyExperimentId, query: { importRecord: $event == null ? 'all' : String($event) } })"
-    @open-card="router.push(`/card/${$event}`)"
+    :saving="quickRecordSaving"
+    @save="saveQuickRecord"
+    @update:model-value="!$event && (quickRecordExperimentId = null)"
   />
 </template>
 
@@ -302,6 +286,7 @@ const submit = () => {
 .experiment-hypothesis { display: -webkit-box; margin: var(--space-xs) 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
 .experiment-hypothesis.empty { color: var(--el-text-color-placeholder); font-weight: 400; }
 .experiment-current-try-label { display: block; margin-bottom: var(--space-2xs); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); }
+.record-count { color: var(--el-text-color-secondary); font-size: var(--type-meta); white-space: nowrap; }
 .experiment-summary-side { display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
 .experiment-card-footer { margin-top: auto; color: var(--el-text-color-placeholder); font-size: var(--type-meta); text-align: right; }
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }

@@ -56,6 +56,12 @@ public class Experiment {
     @Column(columnDefinition = "TEXT")
     private String conclusion;
 
+    @Column(name = "starting_point", columnDefinition = "TEXT")
+    private String startingPoint;
+
+    @Column(name = "desired_outcome", columnDefinition = "TEXT")
+    private String desiredOutcome;
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "theme_color", length = 20)

@@ -1,0 +1,33 @@
+.record-label {
+  margin: 0 0 var(--space-xs);
+  color: var(--el-text-color-secondary);
+  font-size: var(--type-meta);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+
+.record-supplementary {
+  margin-top: var(--space-lg);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--surface-summary);
+}
+
+.record-supplementary > summary {
+  color: var(--el-text-color-regular);
+  font-size: var(--type-meta);
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.record-supplementary > summary:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+:global(.record-dialog .el-dialog__title) {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

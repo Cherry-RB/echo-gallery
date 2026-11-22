@@ -33,7 +33,6 @@ class WorkIntegrationTests extends IntegrationTestBase {
     @Autowired CardRepository cards;
     @Autowired UserRepository users;
     @Autowired ExperimentRepository experiments;
-    @Autowired ExperimentExplorationRecordRepository records;
     @Autowired jakarta.persistence.EntityManager em;
     @Autowired DemoSessionService demo;
     @Autowired Clock clock;

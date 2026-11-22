@@ -22,8 +22,7 @@ class GoalControllerBindingTests {
         mvc.perform(get("/api/goals").param("statuses","ACTIVE","PAUSED").param("archiveScope","ALL").param("pinned","true").param("sort","pinOrder")).andExpect(status().isOk());
         verify(service).list(null,null,false,0,20,java.util.List.of(GoalData.Status.ACTIVE,GoalData.Status.PAUSED),GoalData.ArchiveScope.ALL,true,"pinOrder");
         mvc.perform(get("/api/goals/42")).andExpect(status().isOk());verify(service).detail(42L);
-        mvc.perform(get("/api/goals/options").param("kind","THREAD").param("page","1")).andExpect(status().isOk());verify(service).options(GoalData.Kind.THREAD,null,1);
-        mvc.perform(get("/api/goals/options").param("kind","THREAD").param("experimentId","7")).andExpect(status().isOk());verify(service).options(GoalData.Kind.THREAD,null,0,7L);
+        mvc.perform(get("/api/goals/options").param("kind","EXPERIMENT").param("page","1")).andExpect(status().isOk());verify(service).options(GoalData.Kind.EXPERIMENT,null,1);
         mvc.perform(get("/api/goal-associations").param("kind","CARD").param("id","9")).andExpect(status().isOk());verify(service).associations(new GoalData.Source(GoalData.Kind.CARD,9L,false));
         mvc.perform(delete("/api/goals/42").param("version","3")).andExpect(status().isOk());verify(service).delete(42L,3L);
     }

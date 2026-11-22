@@ -20,5 +20,11 @@ public class ExperimentRequest {
     @Size(max = 10000, message = "實驗結論不可超過 10000 字")
     private String conclusion;
 
+    @Size(max = 10000)
+    private String startingPoint;
+
+    @Size(max = 10000)
+    private String desiredOutcome;
+
     private ExperimentThemeColor themeColor;
 }

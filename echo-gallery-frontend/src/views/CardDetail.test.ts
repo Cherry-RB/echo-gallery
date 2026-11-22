@@ -3,7 +3,6 @@ import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CardDto } from '../types/card'
 import CardDetail from './CardDetail.vue'
-import ExperimentThreads from '../components/experiment/ExperimentThreads.vue'
 import router from '../router'
 vi.mock('../components/goal/GoalBadge.vue', () => ({ default: { template: '<span />' } }))
 
@@ -12,7 +11,7 @@ const queryState = vi.hoisted(() => ({
   loading: false,
   error: false,
   routeQuery: {} as Record<string, string>,
-  threads: [] as Array<{ threadId: number; threadName: string; experimentId: number; experimentTitle: string; role: string }>,
+  recordReferences: [] as Array<{ referenceId: number; recordId: number; recordTitle: string; experimentId: number; experimentTitle: string; experimentArchived: boolean }>,
 }))
 
 vi.mock('@tanstack/vue-query', async (importOriginal) => {
@@ -21,7 +20,7 @@ vi.mock('@tanstack/vue-query', async (importOriginal) => {
   return {
     ...actual,
     useQuery: (options: { queryKey: { value: string[] } }) => ({
-      data: vueRef(options.queryKey.value[0] === 'card-exploration-threads' ? queryState.threads : options.queryKey.value[0] === 'card-relations' ? [] : queryState.card),
+      data: vueRef(options.queryKey.value[0] === 'card-record-references' ? queryState.recordReferences : options.queryKey.value[0] === 'card-relations' ? [] : queryState.card),
       isLoading: vueRef(queryState.loading),
       isError: vueRef(queryState.error),
       refetch: vi.fn(),
@@ -108,22 +107,17 @@ describe('CardDetail', () => {
     queryState.card = undefined
     queryState.loading = false
     queryState.error = false
-    queryState.threads = []
+    queryState.recordReferences = []
     queryState.routeQuery = {}
     vi.mocked(router.push).mockClear()
   })
 
-  it('點擊關聯探索線在卡片原頁開啟共用彈窗', async () => {
+  it('點擊關聯探索紀錄前往相應實驗', async () => {
     queryState.card = card
-    queryState.threads = [{ threadId: 3, threadName: '散步探索', experimentId: 8, experimentTitle: '生活實驗', role: 'MATERIAL' }]
+    queryState.recordReferences = [{ referenceId: 3, recordId: 12, recordTitle: '散步探索', experimentId: 8, experimentTitle: '生活實驗', experimentArchived: false }]
     const wrapper = mountDetail()
     await wrapper.get('.experiment-context-item').trigger('click')
-    const dialog = wrapper.findComponent(ExperimentThreads)
-    expect(dialog.props()).toMatchObject({ experimentId: 8, initialThreadId: 3, dialogOnly: true })
-    expect(router.push).not.toHaveBeenCalled()
-    dialog.vm.$emit('closed')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.findComponent(ExperimentThreads).exists()).toBe(false)
+    expect(router.push).toHaveBeenCalledWith('/experiments/8')
     wrapper.unmount()
   })
 

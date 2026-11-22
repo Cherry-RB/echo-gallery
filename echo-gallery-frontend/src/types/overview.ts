@@ -53,7 +53,7 @@ export interface OverviewRecentResponse {
 export interface OverviewExperimentTry {
   experimentId: number
   experimentTitle: string
-  currentTry: string
+  summary: string
   explorationRecordCount: number
 }
 

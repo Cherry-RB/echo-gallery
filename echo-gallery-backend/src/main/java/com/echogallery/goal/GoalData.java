@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public final class GoalData {
     private GoalData() {}
     public enum Status { PLANNED, ACTIVE, PAUSED, COMPLETED, ENDED }
-    public enum Kind { TAG, EXPERIMENT, THREAD, WORK, TREASURE, CARD }
+    public enum Kind { TAG, EXPERIMENT, WORK, TREASURE, CARD }
     public record Source(@NotNull Kind kind, @NotNull @Positive Long id, boolean excluded) {}
     public record Definition(@NotBlank @Size(max=255) String name, @NotNull LocalDate startsOn,
             @NotNull LocalDate endsOn, @Size(max=5000) String expectation, @Size(max=5000) String motivation,

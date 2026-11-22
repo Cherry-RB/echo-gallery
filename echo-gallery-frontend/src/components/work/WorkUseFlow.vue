@@ -18,6 +18,7 @@ const mode = ref<'new' | 'existing'>('new'), keyword = ref(''), page = ref(1)
 const selectedWorkId = ref<number>(), busy = ref(false), error = ref(''), draftBaseline = ref<string>()
 const form = reactive<WorkInfo>({ title: '', description: '', editorMode: 'INTERNAL', experimentId: null, externalUrl: '' })
 const cardIds = computed(() => [...new Set(workUseTarget.value?.cardIds ?? [])])
+const recordIds = computed(() => [...new Set(workUseTarget.value?.recordIds ?? [])])
 const params = computed(() => ({ keyword: keyword.value, page: page.value - 1 }))
 const works = useQuery({
   queryKey: computed(() => ['works', 'source-targets', params.value]),
@@ -29,18 +30,18 @@ onBeforeUnmount(() => { workUseTarget.value = undefined })
 watch(workUseTarget, target => {
   if (!target) return
   mode.value = 'new'; keyword.value = ''; page.value = 1; selectedWorkId.value = undefined
-  error.value = target.recordIds?.length ? '探索紀錄須先整理成卡片，才能用於作品。' : ''
+  error.value = ''
   Object.assign(form, { title: '', description: '', editorMode: 'INTERNAL', experimentId: target.experimentId ?? null, externalUrl: '' })
   draftBaseline.value = JSON.stringify([mode.value, form, selectedWorkId.value])
 }, { immediate: true })
 watch(keyword, () => { page.value = 1 })
 async function save() {
-  if (busy.value || !cardIds.value.length || workUseTarget.value?.recordIds?.length) return
+  if (busy.value || (!cardIds.value.length && !recordIds.value.length)) return
   if (mode.value === 'new' && !form.title.trim()) { error.value = '請填寫作品名稱。'; return }
   if (mode.value === 'existing' && !selectedWorkId.value) { error.value = '請選擇要加入的作品。'; return }
   busy.value = true; error.value = ''
   try {
-    const sources = cardIds.value.map(cardId => ({ cardId }))
+    const sources = [...cardIds.value.map(cardId => ({ cardId })), ...recordIds.value.map(recordId => ({ recordId }))]
     const id = mode.value === 'new' ? (await workApi.create({ ...form, sources })).work.id : selectedWorkId.value!
     if (mode.value === 'existing') await workApi.addSources(id, sources)
     await client.invalidateQueries({ queryKey: ['works'] })
@@ -64,7 +65,7 @@ async function save() {
       <el-pagination v-if="(works.data.value?.totalPages ?? 0) > 1" v-model:current-page="page" :disabled="busy" :page-size="20" :total="works.data.value?.totalElements ?? 0" layout="prev, pager, next" />
     </section>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
-    <template #footer="{ requestClose }"><el-button :disabled="busy" @click="requestClose">取消</el-button><el-button type="primary" :loading="busy" :disabled="!cardIds.length || !!workUseTarget?.recordIds?.length || (mode === 'existing' && !selectedWorkId)" @click="save">{{ mode === 'new' ? '建立並開始' : '加入作品' }}</el-button></template>
+    <template #footer="{ requestClose }"><el-button :disabled="busy" @click="requestClose">取消</el-button><el-button type="primary" :loading="busy" :disabled="(!cardIds.length && !recordIds.length) || (mode === 'existing' && !selectedWorkId)" @click="save">{{ mode === 'new' ? '建立並開始' : '加入作品' }}</el-button></template>
   </AppDialog>
 </template>
 <style scoped>.existing-picker { display: grid; gap: var(--space-sm); margin-top: var(--space-md); }</style>

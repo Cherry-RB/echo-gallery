@@ -38,7 +38,7 @@ class GoalRuleRow extends GoalOwnedRow {
 }
 
 @Entity(name="GoalSourceRow") @Table(name="goal_tracking_sources", indexes=@Index(columnList="kind,source_id"))
-@org.hibernate.annotations.Check(constraints="kind in ('TAG','EXPERIMENT','THREAD','WORK','TREASURE','CARD') and (num_nonnulls(tag_id,experiment_id,thread_id,work_id,treasure_id,card_id)=0 or (num_nonnulls(tag_id,experiment_id,thread_id,work_id,treasure_id,card_id)=1 and coalesce((kind='TAG' and tag_id=source_id) or (kind='EXPERIMENT' and experiment_id=source_id) or (kind='THREAD' and thread_id=source_id) or (kind='WORK' and work_id=source_id) or (kind='TREASURE' and treasure_id=source_id) or (kind='CARD' and card_id=source_id),false)))")
+@org.hibernate.annotations.Check(constraints="kind in ('TAG','EXPERIMENT','WORK','TREASURE','CARD') and (num_nonnulls(tag_id,experiment_id,work_id,treasure_id,card_id)=0 or (num_nonnulls(tag_id,experiment_id,work_id,treasure_id,card_id)=1 and coalesce((kind='TAG' and tag_id=source_id) or (kind='EXPERIMENT' and experiment_id=source_id) or (kind='WORK' and work_id=source_id) or (kind='TREASURE' and treasure_id=source_id) or (kind='CARD' and card_id=source_id),false)))")
 class GoalSourceRow extends GoalOwnedRow {
     @ManyToOne(fetch=FetchType.LAZY, optional=false) @JoinColumn(name="rule_id",nullable=false)
     @OnDelete(action=OnDeleteAction.CASCADE) GoalRuleRow rule;
@@ -48,7 +48,6 @@ class GoalSourceRow extends GoalOwnedRow {
     // 即時來源各有真實外鍵；刪除時設空，歷史識別不當作活連結使用。
     @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="tag_id") @OnDelete(action=OnDeleteAction.SET_NULL) com.echogallery.tag.Tag tag;
     @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="experiment_id") @OnDelete(action=OnDeleteAction.SET_NULL) com.echogallery.experiment.Experiment experiment;
-    @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="thread_id") @OnDelete(action=OnDeleteAction.SET_NULL) com.echogallery.experiment.ExplorationThread thread;
     @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="work_id") @OnDelete(action=OnDeleteAction.SET_NULL) com.echogallery.work.CreativeWork work;
     @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="treasure_id") @OnDelete(action=OnDeleteAction.SET_NULL) com.echogallery.treasure.Treasure treasure;
     @ManyToOne(fetch=FetchType.LAZY) @JoinColumn(name="card_id") @OnDelete(action=OnDeleteAction.SET_NULL) com.echogallery.card.Card card;

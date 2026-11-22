@@ -75,7 +75,7 @@ const sourceSummary = computed(() => {
   return [...counts.entries()].map(([kind, count]) => goalKinds[kind] + ' ' + count + ' 項').join(' · ')
 })
 const visibleMetrics = computed(() => hasPeriodSnapshot.value ? (snapshot.value?.metrics ?? []).filter(metric => metric.coverageStatus !== 'NOT_AVAILABLE' && metric.mode === 'PERIOD') : [])
-const linkedSources = computed(() => (currentSources.data.value ?? []).filter(source => !source.excluded && ['EXPERIMENT', 'THREAD', 'WORK'].includes(source.kind) && source.available && source.path))
+const linkedSources = computed(() => (currentSources.data.value ?? []).filter(source => !source.excluded && ['EXPERIMENT', 'WORK'].includes(source.kind) && source.available && source.path))
 watch([() => review.data.value, reviewReady], ([value, ready]) => {
   if (!value || !ready || (value.id || 0) !== reviewId.value) return
   if (initializedId.value !== (value.id || 0)) {

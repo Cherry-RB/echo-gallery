@@ -8,11 +8,9 @@ import lombok.RequiredArgsConstructor;
 public class WorkLifecycle {
     private final CreativeWorkRepository works;
     private final WorkSourceRepository sources;
-    private final com.echogallery.experiment.ExplorationOperationReceiptRepository explorationReceipts;
 
     @Transactional
     public void clearOwner(Long owner) {
-        explorationReceipts.deleteByUserId(owner);
         sources.deleteOwner(owner);
         works.deleteOwner(owner);
     }

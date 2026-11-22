@@ -59,9 +59,9 @@ describe('總覽成果行動入口', () => {
     expect(state.push).toHaveBeenCalledWith('/treasures')
   })
 
-  it('作品排在全部實驗摘要後方，保留實驗導頁與探索操作', async () => {
+  it('作品排在全部實驗摘要後方，並以最新探索紀錄摘要導向實驗詳情', async () => {
     const experimentTries = Array.from({ length: 9 }, (_, index) => ({
-      experimentId: index + 1, experimentTitle: `探索 ${index + 1}`, currentTry: '繼續觀察', explorationRecordCount: 2,
+      experimentId: index + 1, experimentTitle: `探索 ${index + 1}`, summary: '繼續觀察', explorationRecordCount: 2,
     }))
     const wrapper = render([], 0, 1, { activeExperimentCount: 12, experimentTries })
     await flushPromises()
@@ -71,13 +71,10 @@ describe('總覽成果行動入口', () => {
     expect(works.attributes('hideempty')).toBeDefined()
     expect(wrapper.findAll('.experiment-try-item')).toHaveLength(9)
     expect(panel.get('[aria-label="尚未落幕的探索數量：12"]').text()).toBe('12')
-    expect(panel.findAll('.record-history-trigger')).toHaveLength(9)
     expect(panel.get('.experiment-try-title-row').find('.experiment-try-record-action').exists()).toBe(true)
+    expect(panel.text()).toContain('繼續觀察')
     await wrapper.get('.experiment-try-title').trigger('click')
     expect(state.push).toHaveBeenCalledWith({ name: 'ExperimentDetail', params: { id: 1 } })
-    wrapper.findComponent({ name: 'ExperimentQuickRecordAction' }).vm.$emit('select', 'DISCOVERY')
-    await flushPromises()
-    expect(wrapper.findComponent({ name: 'ExperimentExplorationEditor' }).props('experimentId')).toBe(1)
   })
 
   it('沒有展品時仍顯示提醒，並使用單欄版面', async () => {

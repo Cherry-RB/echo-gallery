@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import GoalBadge from '../../components/goal/GoalBadge.vue'
 import WorkResume from '../../components/work/WorkResume.vue'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, ArrowLeft, Delete, Edit } from '@element-plus/icons-vue'
-import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
-import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
-import ExperimentThreads from '../../components/experiment/ExperimentThreads.vue'
-import ExplorationOrganizationDialog from '../../components/experiment/ExplorationOrganizationDialog.vue'
+import ExperimentRecordWorkspace from '../../components/experiment/ExperimentRecordWorkspace.vue'
+import ExperimentOrganizationPanel from '../../components/experiment/ExperimentOrganizationPanel.vue'
 import AppDialog from '../../components/AppDialog.vue'
-import RecordHistoryTrigger from '../../components/ui/RecordHistoryTrigger.vue'
 import DetailShell from '../../components/ui/DetailShell.vue'
 import DetailHeading from '../../components/ui/DetailHeading.vue'
 import ExpandableText from '../../components/ExpandableText.vue'
-import type { ExperimentExplorationDto, ExperimentExplorationRecordDto, ExperimentRequest } from '../../types/experiment'
+import type { ExperimentRequest } from '../../types/experiment'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import { formatDate } from '../../utils/formatDate'
 import { experimentApi } from '../../utils/api/experimentApi'
@@ -27,37 +24,8 @@ const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const experimentId = computed(() => Number(route.params.id))
-const emptyExploration: ExperimentExplorationDto = { currentTry: '', currentTrySourceMethodId: null, favoriteTries: [], records: [] }
-const explorationQuery = useQuery({
-  queryKey: computed(() => ['experiment-exploration', experimentId.value]),
-  queryFn: () => experimentApi.getExploration(experimentId.value),
-})
-const exploration = computed(() => explorationQuery.data.value ?? emptyExploration)
-const latestObservation = computed(() => {
-  const latest = exploration.value.records[0]
-  return latest ? { text: latest.discovery, createdAt: latest.createdAt } : null
-})
-const explorationEditorVisible = ref(false)
-const explorationEditorMode = ref<'TRY' | 'DISCOVERY'>('TRY')
-const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
-const historyDialogVisible = ref(false)
-const organizationVisible = ref(false)
-watch(experimentId, () => {
-  explorationEditorVisible.value = false
-  historyDialogVisible.value = false
-  organizationVisible.value = false
-})
-watch([experimentId, () => route.query.history], () => {
-  historyDialogVisible.value = route.query.history === '1'
-}, { immediate: true })
-const openExplorationEditor = (mode: 'TRY' | 'DISCOVERY', record: ExperimentExplorationRecordDto | null = null) => {
-  explorationEditorMode.value = mode
-  editingExplorationRecord.value = record
-  explorationEditorVisible.value = true
-}
-
 const editVisible = ref(false)
-const editForm = reactive<ExperimentRequest>({ title: '', hypothesis: '', conclusion: '', description: '', themeColor: 'LEAF' })
+const editForm = reactive<ExperimentRequest>({ title: '', startingPoint: '', desiredOutcome: '', hypothesis: '', conclusion: '', description: '', themeColor: 'LEAF' })
 const experimentQuery = useQuery({
   queryKey: computed(() => ['experiment', experimentId.value]),
   queryFn: () => experimentApi.getExperiment(experimentId.value)
@@ -128,6 +96,8 @@ const openEdit = () => {
   editForm.title = experiment.title
   editForm.hypothesis = experiment.hypothesis ?? ''
   editForm.conclusion = experiment.conclusion ?? ''
+  editForm.startingPoint = experiment.startingPoint ?? ''
+  editForm.desiredOutcome = experiment.desiredOutcome ?? ''
   editForm.description = experiment.description ?? ''
   editForm.themeColor = experiment.themeColor
   editVisible.value = true
@@ -137,6 +107,8 @@ const submitEdit = () => {
   editForm.title = trimToTextLength(editForm.title, 255).trim()
   editForm.hypothesis = trimToTextLength(editForm.hypothesis ?? '', 2000).trim()
   editForm.conclusion = trimToTextLength(editForm.conclusion ?? '', 10000).trim()
+  editForm.startingPoint = trimToTextLength(editForm.startingPoint ?? '', 10000).trim()
+  editForm.desiredOutcome = trimToTextLength(editForm.desiredOutcome ?? '', 10000).trim()
   editForm.description = trimToTextLength(editForm.description ?? '', 5000)
   if (editForm.title) editMutation.mutate()
 }
@@ -183,75 +155,41 @@ const submitEdit = () => {
         <template #eyebrow><GoalBadge kind="EXPERIMENT" :id="Number(route.params.id)" /></template>
       </DetailHeading>
 
-      <section class="experiment-inquiry" aria-labelledby="experiment-inquiry-title">
+      <section class="experiment-direction" aria-label="實驗方向">
+        <div class="direction-part direction-start">
+          <h2><strong>起點</strong>｜目前的狀況</h2>
+          <ExpandableText v-if="experimentQuery.data.value.startingPoint" :content="experimentQuery.data.value.startingPoint" :lines="5" />
+          <p v-else>尚未記下目前的狀況。</p>
+        </div>
+        <span class="direction-arrow" aria-hidden="true">→</span>
+        <div class="direction-part direction-outcome">
+          <h2><strong>終點</strong>｜想達成的改變</h2>
+          <ExpandableText v-if="experimentQuery.data.value.desiredOutcome" :content="experimentQuery.data.value.desiredOutcome" :lines="5" />
+          <p v-else>尚未記下想達成的改變。</p>
+        </div>
+      </section>
+
+      <ExperimentRecordWorkspace :experiment-id="experimentId" :desired-outcome="experimentQuery.data.value.desiredOutcome" />
+      <ExperimentOrganizationPanel :experiment-id="experimentId" />
+
+      <section v-if="experimentQuery.data.value && false" class="experiment-inquiry" aria-labelledby="experiment-inquiry-title">
         <header class="section-heading">
           <h2 id="experiment-inquiry-title">實驗目的</h2>
         </header>
         <ExpandableText
-          v-if="experimentQuery.data.value.hypothesis"
+          v-if="experimentQuery.data.value?.hypothesis"
           class="experiment-hypothesis"
-          :content="experimentQuery.data.value.hypothesis"
+          :content="experimentQuery.data.value?.hypothesis ?? ''"
           :lines="5"
         />
         <p v-else class="quiet-empty">還沒有寫下問題；也可以先從探索或材料開始。</p>
-        <div v-if="experimentQuery.data.value.conclusion" class="experiment-conclusion">
+        <div v-if="experimentQuery.data.value?.conclusion" class="experiment-conclusion">
           <span>實驗結論</span>
-          <ExpandableText :content="experimentQuery.data.value.conclusion" :lines="8" />
+          <ExpandableText :content="experimentQuery.data.value?.conclusion ?? ''" :lines="8" />
         </div>
-      </section>
-
-      <section class="exploration-workspace" aria-label="這次想怎麼探索">
-        <header class="exploration-heading">
-          <h2>下一步與發現</h2>
-          <div v-if="!explorationQuery.isLoading.value && !explorationQuery.isError.value" class="exploration-actions">
-            <time v-if="latestObservation?.createdAt" :datetime="latestObservation.createdAt">{{ formatDate(latestObservation.createdAt) }}</time>
-            <RecordHistoryTrigger v-if="exploration.records.length" label="探索紀錄" :count="exploration.recordCount ?? exploration.records.length" @click="historyDialogVisible = true" />
-          </div>
-        </header>
-        <el-skeleton v-if="explorationQuery.isLoading.value" :rows="3" animated />
-        <el-result v-else-if="explorationQuery.isError.value" icon="error" title="無法載入探索資料" sub-title="請稍後再試。">
-          <template #extra><el-button type="primary" @click="explorationQuery.refetch()">重新載入</el-button></template>
-        </el-result>
-        <template v-else>
-        <div class="exploration-overview">
-          <div :class="['exploration-snapshot', 'current-try-snapshot', { 'is-next-action': !exploration.currentTry }]">
-            <div class="exploration-snapshot-heading">
-              <span>{{ exploration.currentTry ? '下一步' : '1．設定下一步' }}</span>
-              <el-button :text="Boolean(exploration.currentTry)" type="primary" size="small" @click="openExplorationEditor('TRY')">設定下一步</el-button>
-            </div>
-            <ExpandableText
-              v-if="exploration.currentTry"
-              class="exploration-snapshot-copy"
-              :content="exploration.currentTry"
-              :lines="6"
-            />
-            <p v-else class="empty">還沒設定下一步。不妨先翻翻收集的材料。</p>
-          </div>
-          <div :class="['exploration-snapshot', { 'is-next-action': Boolean(exploration.currentTry) && !latestObservation }]">
-            <div class="exploration-snapshot-heading">
-              <span>{{ latestObservation ? '最近一次觀察' : '2．記下發現' }}</span>
-              <el-button :text="!exploration.currentTry || Boolean(latestObservation)" type="primary" size="small" @click="openExplorationEditor('DISCOVERY')">{{ exploration.currentTry || latestObservation ? '記下發現' : '直接記下發現' }}</el-button>
-            </div>
-            <ExpandableText
-              v-if="latestObservation?.text"
-              class="exploration-snapshot-copy"
-              :content="latestObservation.text"
-              :lines="6"
-            />
-            <p v-else class="empty">{{ exploration.currentTry ? '試過、沒試成或改變想法，都可以記在這裡。' : '設定下一步後，再留下觀察；也可以直接記錄現在的發現。' }}</p>
-          </div>
-        </div>
-        <div class="exploration-footnote">
-          <span>上方與探索線共用活動發現；整理後可選擇清除，歷史留在探索線。</span>
-          <div class="exploration-utility-actions">
-            <el-button v-if="exploration.records.length" text type="primary" size="small" @click="organizationVisible = true">整理或清除發現</el-button>
-          </div>
-        </div>
-        </template>
       </section>
 
       <WorkResume :experiment-id="experimentId" compact />
-      <ExperimentThreads :experiment-id="experimentId" />
 
       <section class="experiment-supporting" aria-label="實驗主題補充資訊">
         <details>
@@ -273,29 +211,22 @@ const submitEdit = () => {
     </main>
   </DetailShell>
 
-  <ExperimentExplorationHistoryDialog
-    :experiment-id="experimentId"
-    v-model="historyDialogVisible"
-    :records="exploration.records"
-    @open-card="router.push(`/card/${$event}`)"
-  />
-
-  <ExperimentExplorationEditor
-    v-model="explorationEditorVisible"
-    :experiment-id="experimentId"
-    :mode="explorationEditorMode"
-    :record="editingExplorationRecord"
-    @closed="editingExplorationRecord = null"
-  />
-
-  <ExplorationOrganizationDialog v-if="organizationVisible" v-model="organizationVisible" :experiment-id="experimentId" />
-
   <AppDialog :busy="editMutation.isPending.value" :draft="editForm" v-model="editVisible" title="編輯實驗主題" width="min(680px, calc(100vw - 32px))" scroll-body>
     <el-form label-position="top" @submit.prevent="submitEdit">
       <el-form-item label="實驗主題名稱" required>
         <el-input v-model="editForm.title" maxlength="255" />
         <p class="field-counter">總字數：{{ getTextLength(editForm.title) }} / 255</p>
       </el-form-item>
+      <div class="direction-form-grid">
+        <el-form-item label="起點｜目前的狀況">
+          <el-input v-model="editForm.startingPoint" type="textarea" :rows="5" maxlength="10000" />
+          <p class="field-counter">總字數：{{ getTextLength(editForm.startingPoint ?? '') }} / 10,000</p>
+        </el-form-item>
+        <el-form-item label="終點｜想達成的改變">
+          <el-input v-model="editForm.desiredOutcome" type="textarea" :rows="5" maxlength="10000" />
+          <p class="field-counter">總字數：{{ getTextLength(editForm.desiredOutcome ?? '') }} / 10,000</p>
+        </el-form-item>
+      </div>
       <el-form-item label="實驗目的（選填）">
         <el-input v-model="editForm.hypothesis" type="textarea" :rows="3" maxlength="2000" />
         <p class="field-counter">總字數：{{ getTextLength(editForm.hypothesis ?? '') }} / 2000</p>
@@ -335,6 +266,15 @@ const submitEdit = () => {
   display: grid;
   gap: var(--space-lg);
 }
+.experiment-direction { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-lg); padding: var(--panel-padding); border: 1px solid var(--el-border-color-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
+.direction-part { min-width: 0; }
+.direction-part h2 { margin: 0 0 var(--space-sm); color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-regular); line-height: var(--leading-card-title); }
+.direction-part h2 strong { font-weight: var(--weight-semibold); }
+.direction-part p, .direction-part :deep(.expandable-content) { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-body); line-height: var(--leading-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.direction-outcome h2 { color: var(--el-color-primary); }
+.direction-outcome p, .direction-outcome :deep(.expandable-content) { color: var(--el-text-color-primary); }
+.direction-arrow { color: var(--el-text-color-secondary); font-size: var(--type-section-title); }
+.direction-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-md); }
 .experiment-inquiry,
 .exploration-workspace,
 .experiment-supporting {
@@ -408,6 +348,8 @@ const submitEdit = () => {
 .theme-option > span { width: 14px; height: 14px; border-radius: 50%; background: var(--option-color); }
 .theme-option.active { border-color: color-mix(in srgb, var(--option-color) 40%, var(--el-bg-color)); background: color-mix(in srgb, var(--option-color) 26%, var(--el-bg-color)); color: var(--el-text-color-primary); }
 @media (max-width: 900px) {
+  .experiment-direction, .direction-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .direction-arrow { justify-self: center; transform: rotate(90deg); }
   .exploration-overview { grid-template-columns: minmax(0, 1fr); }
   .exploration-snapshot { padding-right: 0; }
   .exploration-snapshot + .exploration-snapshot { margin-top: var(--space-md); padding-top: var(--space-md); padding-left: 0; border-top: 1px solid var(--el-border-color-lighter); border-left: 0; }

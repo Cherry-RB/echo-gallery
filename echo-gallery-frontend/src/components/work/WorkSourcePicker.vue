@@ -11,7 +11,7 @@ import { workApi } from '../../utils/api/workApi'
 import type { WorkSource } from '../../types/work'
 const props = defineProps<{ modelValue: boolean; workId: number }>()
 const emit = defineEmits<{ 'update:modelValue': [boolean]; saved: [] }>()
-const keyword = ref(''), page = ref(1)
+const keyword = ref(''), page = ref(1), kind = ref<'CARD' | 'RECORD'>('CARD'), experimentId = ref<number>()
 const selected = reactive(new Map<string, WorkSource>()), reading = ref<WorkSource>()
 const busy = ref(false), error = ref('')
 const shell = ref<InstanceType<typeof AppDialog>>()
@@ -29,9 +29,11 @@ function toggle(s: WorkSource) {
   if (selected.has(keyOf(s))) selected.delete(keyOf(s))
   else if (selected.size < 100) selected.set(keyOf(s), s)
 }
-const params = computed(() => ({ kind: 'CARD', keyword: keyword.value, page: page.value - 1 }))
-const query = useQuery({ queryKey: ['work-candidates', params], queryFn: () => workApi.candidates(params.value) })
+const params = computed(() => ({ kind: kind.value, keyword: keyword.value, page: page.value - 1, experimentId: experimentId.value }))
+const experiments = useQuery({ queryKey: ['work-experiment-options'], queryFn: () => workApi.experiments() })
+const query = useQuery({ queryKey: ['work-candidates', params], queryFn: () => workApi.candidates(params.value), enabled: computed(() => kind.value === 'CARD' || experimentId.value != null) })
 watch(keyword, () => { page.value = 1 })
+watch(kind, () => { page.value = 1; keyword.value = '' })
 watch(() => props.modelValue, async visible => {
   if (!visible) return
   await nextTick()
@@ -48,6 +50,13 @@ async function save() {
   <AppDialog v-if="!reading" ref="shell" :model-value="modelValue" title="加入參考素材" pattern="picker" width="min(980px, calc(100vw - 32px))" :draft="[...selected.keys()]" :draft-baseline="draftBaseline" :busy="busy" scroll-body @update:model-value="emit('update:modelValue', $event)">
     <div>
       <PickerWorkspace>
+      <el-radio-group v-model="kind" :disabled="busy" aria-label="來源類型">
+        <el-radio-button value="CARD">收藏卡片</el-radio-button>
+        <el-radio-button value="RECORD">探索紀錄</el-radio-button>
+      </el-radio-group>
+      <el-select v-if="kind === 'RECORD'" v-model="experimentId" class="experiment-filter" clearable filterable placeholder="選擇實驗主題" :disabled="busy || experiments.isPending.value">
+        <el-option v-for="experiment in experiments.data.value" :key="experiment.id" :value="experiment.id" :label="`${experiment.title}${experiment.archived ? '（已封存）' : ''}`" />
+      </el-select>
       <div class="source-search"><el-input v-model="keyword" :disabled="busy" placeholder="搜尋卡片標題或 ID" clearable aria-label="搜尋卡片素材" /></div>
       <p class="source-rule">探索內容請先整理成卡片，再加入作品作為參考。</p>
       <p class="source-rule">已選 {{ selected.size }} 筆。可跨搜尋與分頁選取，最多 100 筆；原始內容不會貼入正文。</p>
@@ -79,6 +88,7 @@ async function save() {
 </template>
 <style scoped>
 .source-search { display: flex; gap: var(--space-sm); margin-block: var(--space-md); flex-wrap: wrap; }
+.experiment-filter { width: min(100%, 320px); margin-top: var(--space-sm); }
 .source-search > * { flex: 1; min-width: min(100%, 180px); }
 .source-rule { color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); }
 .selected-sources { display: grid; gap: var(--space-sm); }

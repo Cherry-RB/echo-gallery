@@ -48,7 +48,7 @@ public record OverviewResponse(
             List<String> tags) {
     }
 
-    public record ExperimentTryResponse(Long experimentId, String experimentTitle, String currentTry, long explorationRecordCount) {
+    public record ExperimentTryResponse(Long experimentId, String experimentTitle, String summary, long explorationRecordCount) {
     }
 
     public record AttentionSignalResponse(String key, int cardCount) {

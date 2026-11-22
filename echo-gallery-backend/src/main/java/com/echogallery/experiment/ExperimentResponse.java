@@ -8,6 +8,8 @@ public record ExperimentResponse(
         String description,
         String hypothesis,
         String conclusion,
+        String startingPoint,
+        String desiredOutcome,
         String currentTry,
         long explorationRecordCount,
         ExperimentThemeColor themeColor,

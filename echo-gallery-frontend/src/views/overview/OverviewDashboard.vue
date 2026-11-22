@@ -14,24 +14,13 @@ import TreasureTrialDialog from '../../components/treasure/TreasureTrialDialog.v
 import TreasureYieldDialog from '../../components/treasure/TreasureYieldDialog.vue'
 import TreasureYieldHistory from '../../components/treasure/TreasureYieldHistory.vue'
 import OverviewNavigation from '../../components/overview/OverviewNavigation.vue'
-import ExperimentExplorationEditor from '../../components/experiment/ExperimentExplorationEditor.vue'
-import ExperimentExplorationHistoryDialog from '../../components/experiment/ExperimentExplorationHistoryDialog.vue'
-import ExperimentQuickRecordAction from '../../components/experiment/ExperimentQuickRecordAction.vue'
-import { experimentApi } from '../../utils/api/experimentApi'
 import { ranks, challengeState, nextRankOf, yieldHistoryDescription } from '../../utils/treasure'
 import type { TreasureSummary } from '../../types/treasure'
 import { formatDate } from '../../utils/formatDate'
 import { overviewApi } from '../../utils/api/overviewApi'
 import type { OverviewAttentionSignal } from '../../types/overview'
-import type { ExperimentExplorationRecordDto } from '../../types/experiment'
 
 const router = useRouter()
-const quickRecordExperimentId = ref<number | null>(null)
-const quickRecordMode = ref<'TRY' | 'DISCOVERY'>('TRY')
-const editingExplorationRecord = ref<ExperimentExplorationRecordDto | null>(null)
-const quickRecordVisible = ref(false)
-const historyExperimentId = ref<number | null>(null)
-const historyVisible = ref(false)
 const selectedTreasure = ref<TreasureSummary | null>(null)
 const treasureTrialVisible = ref(false)
 const treasureYieldVisible = ref(false)
@@ -57,11 +46,6 @@ const treasureActions = computed(() => current.value.treasureActions)
 const isCurrentTrial = (item: TreasureSummary) => !!item.activeTrial
     && item.activeTrial.targetRank === nextRankOf(item.rank)
     && ['PLANNED', 'ATTEMPTED', 'NOT_PASSED'].includes(item.activeTrial.status)
-const historyQuery = useQuery({
-  queryKey: computed(() => ['experiment-exploration', historyExperimentId.value]),
-  queryFn: () => experimentApi.getExploration(historyExperimentId.value!),
-  enabled: computed(() => historyVisible.value && historyExperimentId.value !== null),
-})
 
 const currentItems = computed(() => [
   { key: 'today-return', label: '今日回流', value: current.value.todayReturnPoolCount, unit: '張卡片' },
@@ -81,7 +65,6 @@ const attentionItems = computed(() => (current.value.attentionSignals ?? []).map
   actionLabel: signal.key === 'processing' ? '查看待整理卡片' : '查看稍後再看',
 })))
 
-const openCard = (cardId: number) => router.push({ name: 'CardDetail', params: { id: cardId }, query: { from: 'overview' } })
 const openExperiment = (experimentId: number) => router.push({ name: 'ExperimentDetail', params: { id: experimentId } })
 const openTreasureTrial = (treasure: TreasureSummary) => {
   selectedTreasure.value = treasure
@@ -94,16 +77,6 @@ const openTreasureYield = (treasure: TreasureSummary) => {
 const openTreasureHistory = (treasure: TreasureSummary) => {
   selectedTreasure.value = treasure
   treasureHistoryVisible.value = true
-}
-const openQuickRecord = (experimentId: number, mode: 'TRY' | 'DISCOVERY') => {
-  quickRecordExperimentId.value = experimentId
-  quickRecordMode.value = mode
-  editingExplorationRecord.value = null
-  quickRecordVisible.value = true
-}
-const openHistory = (experimentId: number) => {
-  historyExperimentId.value = experimentId
-  historyVisible.value = true
 }
 const openCardReturn = () => router.push('/overview/cards')
 const openCurrentItem = (key: string) => {
@@ -145,14 +118,11 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
                 <span>{{ experimentTry.experimentTitle }}</span>
               </el-tooltip>
             </button><GoalBadge kind="EXPERIMENT" :id="experimentTry.experimentId" />
-              <div class="experiment-try-record-action">
-                <ExperimentQuickRecordAction @select="openQuickRecord(experimentTry.experimentId, $event)" />
-                <RecordHistoryTrigger v-if="experimentTry.explorationRecordCount > 0" label="探索紀錄" :count="experimentTry.explorationRecordCount" count-only @click.stop="openHistory(experimentTry.experimentId)" />
-              </div>
+              <span class="experiment-try-record-action">{{ experimentTry.explorationRecordCount }} 筆紀錄</span>
             </div>
             <button type="button" class="experiment-try-summary" @click="openExperiment(experimentTry.experimentId)">
-              <el-tooltip v-if="experimentTry.currentTry" :content="experimentTry.currentTry" :show-after="400" placement="top" popper-class="content-tooltip">
-                <strong>{{ experimentTry.currentTry }}</strong>
+              <el-tooltip v-if="experimentTry.summary" :content="experimentTry.summary" :show-after="400" placement="top" popper-class="content-tooltip">
+                <strong>{{ experimentTry.summary }}</strong>
               </el-tooltip>
               <span v-else class="experiment-try-empty">還沒設定下一步。不妨先翻翻收集的材料。</span>
             </button>
@@ -248,25 +218,6 @@ const attentionSymbol = (kind: OverviewAttentionSignal['key']) => kind === 'proc
       <template #actions><el-button link type="primary" @click="openTreasureYield(selectedTreasure)">＋記收益</el-button></template>
       <TreasureYieldHistory :treasure-id="selectedTreasure.id" embedded />
     </HistoryDialog>
-    <ExperimentExplorationEditor
-      v-if="quickRecordExperimentId !== null"
-      v-model="quickRecordVisible"
-      :experiment-id="quickRecordExperimentId"
-      :mode="quickRecordMode"
-      :record="editingExplorationRecord"
-      @closed="quickRecordExperimentId = null; editingExplorationRecord = null"
-    />
-    <ExperimentExplorationHistoryDialog
-      :experiment-id="historyExperimentId ?? undefined"
-      v-if="historyExperimentId !== null"
-      v-model="historyVisible"
-      :records="historyQuery.data.value?.records ?? []"
-      :loading="historyQuery.isLoading.value"
-      manageable
-      :show-organize="false"
-      @add-thread="router.push({ path: '/experiments/' + historyExperimentId, query: { importRecord: $event == null ? 'all' : String($event) } })"
-      @open-card="openCard"
-    />
   </section>
 </template>
 

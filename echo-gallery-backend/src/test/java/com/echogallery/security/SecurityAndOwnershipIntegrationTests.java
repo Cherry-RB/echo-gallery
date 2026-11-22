@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.echogallery.card.CardRepository;
+import com.echogallery.experiment.ExperimentRepository;
 import com.echogallery.support.IntegrationTestBase;
 import com.echogallery.tag.TagRepository;
 import com.echogallery.user.UserRepository;
@@ -61,6 +62,9 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
     @Autowired
     private IssueRepository issueRepository;
 
+    @Autowired
+    private ExperimentRepository experimentRepository;
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
@@ -69,6 +73,7 @@ class SecurityAndOwnershipIntegrationTests extends IntegrationTestBase {
         issueRepository.deleteAll();
         cardRepository.deleteAll();
         tagRepository.deleteAll();
+        experimentRepository.deleteAll();
         userRepository.deleteAll();
     }
 

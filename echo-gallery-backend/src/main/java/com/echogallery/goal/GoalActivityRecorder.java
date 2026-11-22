@@ -71,18 +71,6 @@ public class GoalActivityRecorder {
 
     @Transactional
     public void organized(String operationId,Map<Long,Integer> clearedByThread,Long cardId) {
-        GoalService goals=service.getObject();goals.lock();em.flush();
-        Map<Long,GoalRow> matched=new LinkedHashMap<>();Map<Long,Map<Long,Integer>> attributed=new HashMap<>();
-        for(var entry:clearedByThread.entrySet())for(var g:relevant(goals,Kind.THREAD,entry.getKey())) {
-            matched.put(g.id,g);attributed.computeIfAbsent(g.id,key->new LinkedHashMap<>()).put(entry.getKey(),entry.getValue());
-        }
-        if(matched.isEmpty())return;
-        String key="organize:"+operationId;
-        if(em.createQuery("select count(f) from GoalFactRow f where f.user.id=:owner and f.factKey=:key",Long.class).setParameter("owner",goals.owner()).setParameter("key",key).getSingleResult()>0)return;
-        var fact=new GoalFactRow();fact.user=matched.values().iterator().next().user;fact.type="EXPLORATION_ORGANIZED";fact.factKey=key;
-        fact.sourceId=clearedByThread.keySet().iterator().next();fact.occurredAt=goals.now();fact.recordedAt=fact.occurredAt;
-        fact.details=goals.json(Map.of("operationId",operationId.toString(),"clearedByThread",clearedByThread,"cardId",cardId==null?0L:cardId));em.persist(fact);
-        for(var g:matched.values()){var link=new GoalFactLinkRow();link.user=g.user;link.goal=g;link.rule=revision(g);link.fact=fact;
-            link.details=goals.json(Map.of("clearedByThread",attributed.get(g.id),"clearedCount",attributed.get(g.id).values().stream().mapToInt(Integer::intValue).sum(),"cardId",cardId==null?0L:cardId));em.persist(link);}
+        // 舊探索線整理流程已退場；保留方法僅供舊服務編譯相容，不能再寫入目標事件。
     }
 }

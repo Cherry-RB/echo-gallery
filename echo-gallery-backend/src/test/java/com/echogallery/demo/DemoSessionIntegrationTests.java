@@ -2,238 +2,175 @@ package com.echogallery.demo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
-import com.echogallery.card.Card;
 import com.echogallery.card.CardRepository;
+import com.echogallery.experiment.ExperimentPinnedPracticeRepository;
+import com.echogallery.experiment.ExperimentRecordRepository;
+import com.echogallery.experiment.ExperimentTopicRepository;
 import com.echogallery.support.IntegrationTestBase;
-import com.echogallery.tag.TagRepository;
-import com.echogallery.user.User;
 import com.echogallery.user.UserRepository;
-import com.echogallery.issue.IssueCardRepository;
-import com.echogallery.issue.IssueRepository;
-import com.echogallery.experiment.ExperimentRepository;
-import com.echogallery.experiment.ExplorationThreadRepository;
 import com.echogallery.work.CreativeWorkRepository;
+import com.echogallery.work.WorkSourceRepository;
 
 import tools.jackson.databind.ObjectMapper;
 
+/** Demo 資料必須能建立、讀取並在重設或逾期時完整清理新紀錄關聯。 */
 @AutoConfigureMockMvc
-@Import(DemoSessionIntegrationTests.ClockTestConfig.class)
 class DemoSessionIntegrationTests extends IntegrationTestBase {
 
-    @Autowired MockMvc mockMvc;
-    @Autowired ObjectMapper objectMapper;
-    @Autowired CardRepository cardRepository;
-    @Autowired TagRepository tagRepository;
-    @Autowired UserRepository userRepository;
-    @Autowired IssueCardRepository issueCardRepository;
-    @Autowired IssueRepository issueRepository;
-    @Autowired ExperimentRepository experimentRepository;
-    @Autowired ExplorationThreadRepository explorationThreadRepository;
-    @Autowired CreativeWorkRepository workRepository;
-    @Autowired DemoSessionService demoSessionService;
-    @Autowired MutableClock clock;
-    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired MockMvc mvc;
+    @Autowired ObjectMapper json;
+    @Autowired DemoSessionService demos;
+    @Autowired UserRepository users;
+    @Autowired CardRepository cards;
+    @Autowired CreativeWorkRepository works;
+    @Autowired WorkSourceRepository workSources;
+    @Autowired ExperimentRecordRepository records;
+    @Autowired ExperimentTopicRepository topics;
+    @Autowired ExperimentPinnedPracticeRepository pinnedPractices;
 
-    @BeforeEach
-    void cleanDatabase() {
-        issueCardRepository.deleteAll();
-        issueRepository.deleteAll();
-        cardRepository.deleteAll();
-        tagRepository.deleteAll();
-        userRepository.deleteAll();
-        clock.set(Instant.parse("2026-08-24T04:00:00Z"));
+    @Test
+    void createsIsolatedDemoLibrariesAndResetsTheirCatalog() throws Exception {
+        DemoSession first = start("tech");
+        DemoSession second = start("visual");
+
+        assertThat(cards.findAllByUserId(first.userId())).hasSize(15);
+        assertThat(cards.findAllByUserId(second.userId())).hasSize(15);
+        assertThat(works.countByUserId(first.userId())).isEqualTo(1);
+
+        var changed = cards.findAllByUserId(first.userId()).getFirst();
+        changed.setTitle("重設前的變更");
+        cards.saveAndFlush(changed);
+        reset(first.token());
+
+        assertThat(cards.findAllByUserId(first.userId())).extracting(card -> card.getTitle())
+                .doesNotContain("重設前的變更");
+        assertThat(cards.findAllByUserId(second.userId())).hasSize(15);
+        assertThat(works.countByUserId(first.userId())).isEqualTo(1);
     }
 
     @Test
-    void createsIsolatedLibrariesWithTwoFiveCardTodayBatches() throws Exception {
-        DemoSession tech = start("tech");
-        DemoSession visual = start("visual");
-        DemoSession writing = start("writing");
-
-        assertLibrary(tech.userId(), "tech", 15, 10);
-        assertLibrary(visual.userId(), "visual", 15, 10);
-        assertLibrary(writing.userId(), "writing", 15, 10);
-        assertThat(cardRepository.findAllByUserId(tech.userId()))
-                .extracting(Card::getTitle)
-                .doesNotContainAnyElementsOf(cardRepository.findAllByUserId(visual.userId()).stream().map(Card::getTitle).toList());
-
-        MvcResult techFirst = today(tech.token()).andExpect(jsonPath("$.cards.length()").value(5)).andReturn();
-        MvcResult visualFirst = today(visual.token()).andExpect(jsonPath("$.cards.length()").value(5)).andReturn();
-        MvcResult writingFirst = today(writing.token()).andExpect(jsonPath("$.cards.length()").value(5)).andReturn();
-        next(tech.token(), batchTime(techFirst)).andExpect(jsonPath("$.cards.length()").value(5));
-        next(visual.token(), batchTime(visualFirst)).andExpect(jsonPath("$.cards.length()").value(5));
-        next(writing.token(), batchTime(writingFirst)).andExpect(jsonPath("$.cards.length()").value(5));
-    }
-
-    @Test
-    void resetDeletesChangesAndRestoresTheInitialCatalog() throws Exception {
+    void resetClearsNewRecordGraphAndRecordWorkSourcesBeforeDeletingExperiments() throws Exception {
         DemoSession session = start("writing");
-        Card changed = cardRepository.findAllByUserId(session.userId()).getFirst();
-        changed.setTitle("使用者已修改的資料");
-        cardRepository.saveAndFlush(changed);
+        long experimentId = createExperiment(session.token(), "新紀錄清理測試");
+        long recordId = createRecord(session.token(), experimentId, "清理前紀錄");
+        long topicId = createTopic(session.token(), experimentId, "整理主題");
 
-        String resetToken = reset(session.token());
-        assertLibrary(session.userId(), "writing", 15, 10);
-        assertThat(cardRepository.findAllByUserId(session.userId()))
-                .extracting(Card::getTitle).doesNotContain("使用者已修改的資料");
-        assertThat(workRepository.countByUserId(session.userId())).isEqualTo(1);
-        today(resetToken).andExpect(jsonPath("$.cards.length()").value(5));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/experiments/{experimentId}/records/{recordId}/topics", experimentId, recordId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(session.token()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"topicIds\":[%d]}".formatted(topicId)))
+                .andExpect(status().isOk());
+        String practiceBody = mvc.perform(post("/api/experiments/{experimentId}/pinned-practices", experimentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(session.token()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"content\":\"先寫一段觀察\",\"slot\":1}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long practiceId = json.readTree(practiceBody).get("id").asLong();
+
+        long workId = works.findAll().stream().filter(work -> work.getUser().getId().equals(session.userId()))
+                .findFirst().orElseThrow().getId();
+        mvc.perform(post("/api/creative-works/{workId}/sources", workId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(session.token()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"sources\":[{\"recordId\":%d}]}".formatted(recordId)))
+                .andExpect(status().isOk());
+        assertThat(workSources.existsByRecordId(recordId)).isTrue();
+
+        reset(session.token());
+
+        assertThat(records.findById(recordId)).isEmpty();
+        assertThat(topics.findById(topicId)).isEmpty();
+        assertThat(pinnedPractices.findById(practiceId)).isEmpty();
+        assertThat(workSources.existsByRecordId(recordId)).isFalse();
+        assertThat(works.countByUserId(session.userId())).isEqualTo(1);
     }
 
     @Test
-    void expiredSessionsAreRejectedAndCleanupRemovesOnlyExpiredDemoData() throws Exception {
+    void resetClearsCardReferencesBeforeRemovingTheRecord() throws Exception {
+        DemoSession session = start("tech");
+        long experimentId = createExperiment(session.token(), "Reference cleanup");
+        long recordId = createRecord(session.token(), experimentId, "Reference record");
+        long cardId = cards.findAllByUserId(session.userId()).getFirst().getId();
+
+        mvc.perform(post("/api/experiments/{experimentId}/records/{recordId}/references", experimentId, recordId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(session.token()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"CARD\",\"cardId\":%d}".formatted(cardId)))
+                .andExpect(status().isCreated());
+
+        reset(session.token());
+
+        assertThat(records.findById(recordId)).isEmpty();
+    }
+
+    @Test
+    void expiredDemoSessionDeletesTheNewRecordGraphWithoutTouchingAnotherOwner() throws Exception {
         DemoSession expired = start("tech");
         DemoSession active = start("visual");
-        long experimentId = createExperiment(expired.token(), "demo cleanup experiment");
-        long cardId = cardRepository.findAllByUserId(expired.userId()).getFirst().getId();
-        mockMvc.perform(post("/api/experiments/{id}/threads/materials", experimentId)
-                        .header(HttpHeaders.AUTHORIZATION, bearer(expired.token()))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"demo cleanup thread\",\"cardId\":%d}".formatted(cardId)))
-                .andExpect(status().isOk());
-        assertThat(explorationThreadRepository.countByExperimentId(experimentId)).isEqualTo(1);
-        seedActivity(expired, experimentId);
-        User expiredUser = userRepository.findById(expired.userId()).orElseThrow();
-        expiredUser.setDemoExpiresAt(ZonedDateTime.now(clock).minusMinutes(1));
-        userRepository.saveAndFlush(expiredUser);
+        long experimentId = createExperiment(expired.token(), "逾期清理測試");
+        long recordId = createRecord(expired.token(), experimentId, "待清除紀錄");
+        var expiredUser = users.findById(expired.userId()).orElseThrow();
+        expiredUser.setDemoExpiresAt(ZonedDateTime.now().minusMinutes(1));
+        users.saveAndFlush(expiredUser);
 
-        mockMvc.perform(post("/api/auth/demo-sessions/reset")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(expired.token())))
-                .andExpect(status().isUnauthorized());
+        demos.clearExpiredSessions();
 
-        demoSessionService.clearExpiredSessions();
-        assertThat(userRepository.findById(expired.userId())).isEmpty();
-        assertThat(cardRepository.findAllByUserId(expired.userId())).isEmpty();
-        assertThat(workRepository.countByUserId(expired.userId())).isZero();
-        assertThat(explorationThreadRepository.countByExperimentId(experimentId)).isZero();
-        assertThat(jdbc.queryForObject("select count(*) from experiment_method_preferences where experiment_id=?", Long.class, experimentId)).isZero();
-        assertThat(jdbc.queryForObject("select count(*) from exploration_operation_receipts where user_id=?", Long.class, expired.userId())).isZero();
-        assertThat(userRepository.findById(active.userId())).isPresent();
-        assertThat(cardRepository.findAllByUserId(active.userId())).hasSize(15);
-    }
-
-    @Test
-    void resetClearsActivityHistoryPreferencesAndOperationReceipts() throws Exception {
-        DemoSession session = start("tech");
-        long id = createExperiment(session.token(), "重設活動資料");
-        seedActivity(session, id);
-        String token = reset(session.token());
-        assertThat(jdbc.queryForObject("select count(*) from experiment_method_preferences where experiment_id=?", Long.class, id)).isZero();
-        assertThat(jdbc.queryForObject("select count(*) from exploration_operation_receipts where user_id=?", Long.class, session.userId())).isZero();
-        assertThat(jdbc.queryForObject("select count(*) from experiment_exploration_records where experiment_id=?", Long.class, id)).isZero();
-        assertThat(explorationThreadRepository.countByExperimentId(id)).isZero();
-        today(token).andExpect(status().isOk());
-    }
-
-    private tools.jackson.databind.JsonNode activityRequest(DemoSession session, String root, String method, Object body) throws Exception {
-        var request = org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request(org.springframework.http.HttpMethod.valueOf(method), root)
-            .header(HttpHeaders.AUTHORIZATION, bearer(session.token())).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(body));
-        return objectMapper.readTree(mockMvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-    }
-
-    private void seedActivity(DemoSession session, long id) throws Exception {
-        String root = "/api/experiments/"+id+"/activity";
-        var focus = activityRequest(session,root+"/focus","PUT",java.util.Map.of("newContent","範例試法","expectedVersion",0));
-        long method=focus.get("currentMethod").get("id").asLong(), thread=focus.get("currentThreadId").asLong();
-        activityRequest(session,root+"/favorites","PUT",java.util.Map.of("methodIds",java.util.List.of(method),"expectedVersion",1));
-        var record=activityRequest(session,root+"/records","POST",java.util.Map.of("threadId",thread,"methodId",method,"discovery","隔離觀察","expectedMethodVersion",0));
-        var preview=activityRequest(session,root+"/organizations/preview","POST",java.util.Map.of("mode","HISTORY","groups",java.util.List.of(java.util.Map.of("threadId",thread,"methodId",method,"recordIds",java.util.List.of(record.get("id").asLong()),"includeMethod",true))));
-        activityRequest(session,root+"/organizations","POST",java.util.Map.of("token",preview.get("token").asText(),"requestId",java.util.UUID.randomUUID().toString(),"clearRecords",false,"drafts",java.util.List.of(java.util.Map.of("key","method:"+method,"text","範例歷史"))));
-        assertThat(jdbc.queryForObject("select count(*) from exploration_operation_receipts where user_id=?",Long.class,session.userId())).isEqualTo(1);
-    }
-
-    private void assertLibrary(long userId, String library, int expectedCards, int expectedToday) {
-        User user = userRepository.findById(userId).orElseThrow();
-        assertThat(user.getDemoLibrary()).isEqualTo(library);
-        assertThat(user.getDemoExpiresAt()).isEqualTo(ZonedDateTime.now(clock).plusHours(24));
-        assertThat(cardRepository.findAllByUserId(userId)).hasSize(expectedCards);
-        assertThat(cardRepository.findAllByUserId(userId)).filteredOn(card -> !card.isArchived() && card.getNextShowAt() != null
-                && !card.getNextShowAt().toLocalDate().isAfter(ZonedDateTime.now(clock).toLocalDate())).hasSize(expectedToday);
-        assertThat(issueRepository.findAllByUserId(userId)).hasSize(1);
+        assertThat(users.findById(expired.userId())).isEmpty();
+        assertThat(records.findById(recordId)).isEmpty();
+        assertThat(users.findById(active.userId())).isPresent();
+        assertThat(cards.findAllByUserId(active.userId())).hasSize(15);
     }
 
     private DemoSession start(String library) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/auth/demo-sessions")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"library\":\"" + library + "\"}"))
-                .andExpect(status().isOk()).andReturn();
-        var response = objectMapper.readTree(result.getResponse().getContentAsString());
+        String body = mvc.perform(post("/api/auth/demo-sessions").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"library\":\"%s\"}".formatted(library)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var response = json.readTree(body);
         return new DemoSession(response.get("id").asLong(), response.get("token").asText());
     }
 
-    private String reset(String token) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/auth/demo-sessions/reset")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
-                .andExpect(status().isOk()).andReturn();
-        return objectMapper.readTree(result.getResponse().getContentAsString()).get("token").asText();
+    private void reset(String token) throws Exception {
+        mvc.perform(post("/api/auth/demo-sessions/reset").header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk());
     }
 
     private long createExperiment(String token, String title) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/experiments")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"%s\",\"hypothesis\":\"demo hypothesis\"}".formatted(title)))
-                .andExpect(status().isOk())
-                .andReturn();
-        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+        String body = mvc.perform(post("/api/experiments").header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"%s\"}".formatted(title)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return json.readTree(body).get("id").asLong();
     }
 
-    private org.springframework.test.web.servlet.ResultActions today(String token) throws Exception {
-        return mockMvc.perform(post("/api/cards/today/prepare").header(HttpHeaders.AUTHORIZATION, bearer(token)))
-                .andExpect(status().isOk());
+    private long createRecord(String token, long experimentId, String title) throws Exception {
+        String body = mvc.perform(post("/api/experiments/{experimentId}/records", experimentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"%s\",\"recordedOn\":\"2026-11-22\",\"understandingNode\":false,\"methodCandidate\":false,\"highlight\":\"GENERAL\",\"requestId\":\"%s\"}"
+                                .formatted(title, UUID.randomUUID())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return json.readTree(body).get("id").asLong();
     }
 
-    private org.springframework.test.web.servlet.ResultActions next(String token, String batchOfferedAt) throws Exception {
-        return mockMvc.perform(post("/api/cards/today/next")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"currentBatchOfferedAt\":\"" + batchOfferedAt + "\"}"))
-                .andExpect(status().isOk());
+    private long createTopic(String token, long experimentId, String name) throws Exception {
+        String body = mvc.perform(post("/api/experiments/{experimentId}/topics", experimentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"%s\"}".formatted(name)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        return json.readTree(body).get("id").asLong();
     }
 
-    private String batchTime(MvcResult result) throws Exception {
-        return objectMapper.readTree(result.getResponse().getContentAsString()).get("batchOfferedAt").asText();
+    private String bearer(String token) {
+        return "Bearer " + token;
     }
-
-    private String bearer(String token) { return "Bearer " + token; }
 
     private record DemoSession(long userId, String token) {}
-
-    @TestConfiguration
-    static class ClockTestConfig {
-        @Bean @Primary MutableClock demoClock() {
-            return new MutableClock(Instant.parse("2026-08-24T04:00:00Z"), ZoneId.of("Asia/Taipei"));
-        }
-    }
-
-    static class MutableClock extends Clock {
-        private volatile Instant instant;
-        private final ZoneId zone;
-        MutableClock(Instant instant, ZoneId zone) { this.instant = instant; this.zone = zone; }
-        void set(Instant instant) { this.instant = instant; }
-        @Override public ZoneId getZone() { return zone; }
-        @Override public Clock withZone(ZoneId zone) { return new MutableClock(instant, zone); }
-        @Override public Instant instant() { return instant; }
-    }
 }

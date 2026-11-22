@@ -22,6 +22,7 @@ public class WorkService {
     private final WorkSourceRepository sources;
     private final CardRepository cards;
     private final ExperimentRepository experiments;
+    private final ExperimentRecordRepository experimentRecords;
     private final TreasureRepository treasures;
     private final TreasureService treasureService;
     private final TreasureLifecycle lifecycle;
@@ -134,21 +135,28 @@ public class WorkService {
     }
     @Transactional public void delete(Long id) { lock(); works.delete(owned(id)); }
     public List<SourceView> sources(Long id) {
-        owned(id); return sources.findByWorkIdOrderByIdDesc(id).stream().map(s -> card(s.getId(), s.getCard())).toList();
+        owned(id); return sources.findByWorkIdOrderByIdDesc(id).stream()
+                .map(s -> s.getCard() != null ? card(s.getId(), s.getCard()) : record(s.getId(), s.getRecord())).toList();
     }
     @Transactional public List<SourceView> addSources(Long id, WorkRequests.Sources request) {
         lock(); var w = active(id);
         for (var input : request.sources()) {
-            if (input.cardId() == null || input.recordId() != null) fail(HttpStatus.BAD_REQUEST, "作品參考素材僅接受卡片，請先將探索內容整理成卡片");
+            if ((input.cardId() == null) == (input.recordId() == null)) fail(HttpStatus.BAD_REQUEST, "來源必須且只能選擇一張卡片或一筆探索紀錄");
             var s = new WorkSource(); s.setWork(w);
             if (input.cardId() != null) {
                 var c = cards.findById(input.cardId()).filter(x -> x.getUser().getId().equals(owner())).orElseThrow(this::missing);
                 if (sources.existsByWorkIdAndCardId(id, c.getId())) continue;
                 s.setCard(c);
+            } else {
+                var record = experimentRecords.findById(input.recordId())
+                        .filter(item -> item.getExperiment().getUser().getId().equals(owner()))
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "指定的探索紀錄不存在或不可使用"));
+                if (sources.existsByWorkIdAndRecordId(id, record.getId())) continue;
+                s.setRecord(record);
             }
             sources.saveAndFlush(s);
-            goalActivity.record("CARD_REUSED", "work-source:" + s.getId(), com.echogallery.goal.GoalData.Kind.WORK, id,
-                java.util.Map.of("cardId", s.getCard().getId()));
+            goalActivity.record("WORK_SOURCE_ADDED", "work-source:" + s.getId(), com.echogallery.goal.GoalData.Kind.WORK, id,
+                s.getCard() != null ? java.util.Map.of("cardId", s.getCard().getId()) : java.util.Map.of("recordId", s.getRecord().getId()));
         }
         return sources(id);
     }
@@ -160,8 +168,12 @@ public class WorkService {
     public List<Usage> usages(List<Long> cardIds, List<Long> recordIds) {
         if (cardIds.size() + recordIds.size() > 100) fail(HttpStatus.BAD_REQUEST, "一次最多查詢 100 筆來源");
         if (cardIds.isEmpty() && recordIds.isEmpty()) return List.of();
-        return sources.usages(owner(), cardIds.isEmpty() ? List.of(-1L) : cardIds).stream()
-                .map(s -> new Usage(s.getCard().getId(), null, s.getWork().getId(), s.getWork().getTitle(), s.getWork().isArchived())).toList();
+        var result = new ArrayList<Usage>();
+        sources.usages(owner(), cardIds.isEmpty() ? List.of(-1L) : cardIds).forEach(s ->
+                result.add(new Usage(s.getCard().getId(), null, s.getWork().getId(), s.getWork().getTitle(), s.getWork().isArchived())));
+        sources.recordUsages(owner(), recordIds.isEmpty() ? List.of(-1L) : recordIds).forEach(s ->
+                result.add(new Usage(null, s.getRecord().getId(), s.getWork().getId(), s.getWork().getTitle(), s.getWork().isArchived())));
+        return result;
     }
     public PageResponse<SourceView> candidates(String kind, String keyword, Long experimentId, int page, int size) {
         if ("CARD".equals(kind)) {
@@ -173,6 +185,12 @@ public class WorkService {
                 catch (NumberFormatException ignored) { return cb.and(own, title); }
             };
             return page(cards.findAll(spec, paging(page, size).withSort(Sort.by(Sort.Direction.DESC, "id"))), c -> card(null, c));
+        }
+        if ("RECORD".equals(kind)) {
+            if (experimentId == null) fail(HttpStatus.BAD_REQUEST, "探索紀錄來源需要指定實驗主題");
+            experiments.findByIdAndUserId(experimentId, owner()).orElseThrow(this::missing);
+            return page(experimentRecords.findByExperimentIdAndExperimentUserId(experimentId, owner(),
+                    paging(page, size).withSort(Sort.by(Sort.Direction.DESC, "recordedOn", "id"))), record -> record(null, record));
         }
         fail(HttpStatus.BAD_REQUEST, "作品參考素材僅接受卡片");
         return null;
@@ -232,6 +250,12 @@ public class WorkService {
     private SourceView card(Long id, Card c) {
         String text = java.util.stream.Stream.of(c.getUrl(), c.getCardNote(), c.getContent()).filter(s -> s != null && !s.isBlank()).distinct().collect(java.util.stream.Collectors.joining("\n\n"));
         return new SourceView(id, c.getId(), null, c.getTitle(), text, null, null, c.isArchived(), null, null);
+    }
+    private SourceView record(Long id, ExperimentRecord record) {
+        String title = record.getTitle() == null || record.getTitle().isBlank() ? "探索紀錄" : record.getTitle();
+        String text = java.util.stream.Stream.of(record.getContent(), record.getPracticeText()).filter(value -> value != null && !value.isBlank()).collect(java.util.stream.Collectors.joining("\n\n"));
+        var experiment = record.getExperiment();
+        return new SourceView(id, null, record.getId(), title, text, experiment.getId(), experiment.getTitle(), experiment.isArchived(), record.getPracticeText(), record.getContent());
     }
     private Summary summary(CreativeWork w) { return new Summary(w.getId(), w.getTitle(), w.getDescription(), w.getExperiment() == null ? null : w.getExperiment().getId(), w.getExperiment() == null ? null : w.getExperiment().getTitle(), w.getEditorMode(), w.getStage(), w.getNextStep(), w.isPublished(), w.isArchived(), w.getTreasure() == null ? null : w.getTreasure().getId(), w.getEditedAt(), w.getEditorMode() == CreativeWork.Mode.INTERNAL ? w.getBody().codePointCount(0, w.getBody().length()) : null); }
     private Detail detail(CreativeWork w) { return new Detail(summary(w), w.getBody(), w.getBodyVersion(), w.getIdeas(), w.getIdeasVersion(), w.getManuscript(), w.getManuscriptVersion(), w.getExternalUrl(), w.getFirstCompletedOn(), w.getStageChangedAt(), w.getShareUrl(), w.getSharedOn(), w.getShareNote()); }

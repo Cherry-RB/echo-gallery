@@ -70,17 +70,25 @@ class GoalIntegrationTests extends IntegrationTestBase {
         send(get("/api/goals").param("archiveScope","ALL"),session().get("token").asText(),null).andExpect(jsonPath("$.totalElements").value(0));
     }
 
-    @Test void trackingPreviewDoesNotRequireGoalNameAndThreadOptionsHaveContext() throws Exception {
+    @Test void retiredThreadSourceIsRejected() throws Exception {
         String token=session().get("token").asText();
-        long experiment=json(send(post("/api/experiments"),token,Map.of("title","同名線的所屬實驗")).andExpect(status().isOk())).get("id").asLong();
-        long thread=json(send(put("/api/experiments/"+experiment+"/activity/focus"),token,Map.of("newContent","下一步","expectedVersion",0)).andExpect(status().isOk())).get("currentThreadId").asLong();
-        send(get("/api/goals/options").param("kind","THREAD").param("experimentId",String.valueOf(experiment)),token,null)
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].parentId").value(experiment)).andExpect(jsonPath("$[0].parentTitle").value("同名線的所屬實驗"));
-        var goal=create(token,List.of(source("THREAD",thread)));
-        send(get("/api/goals/"+goal.get("id").asLong()+"/sources"),token,null).andExpect(jsonPath("$[0].parentId").value(experiment));
-        send(post("/api/goals/tracking-preview"),token,Map.of("sources",List.of(source("THREAD",thread)),"allTags",false)).andExpect(status().isOk()).andExpect(jsonPath("$.cardCount").value(0));
-        send(post("/api/goals/tracking-preview"),token,definition(List.of())).andExpect(status().isOk());
-        send(post("/api/goals/tracking-preview"),session().get("token").asText(),Map.of("sources",List.of(source("THREAD",thread)))).andExpect(status().isBadRequest());
+        send(get("/api/goals/options").param("kind","THREAD"),token,null).andExpect(status().isBadRequest());
+        send(post("/api/goals/tracking-preview"),token,Map.of("sources",List.of(source("THREAD",1L)),"allTags",false)).andExpect(status().isBadRequest());
+    }
+
+    @Test void recordCreatedTodayCountsForExperimentGoalEvenWhenRecordedOnIsEarlier() throws Exception {
+        var auth=session();String token=auth.get("token").asText();long owner=auth.get("id").asLong();Long experiment=null;
+        try {
+            experiment=json(send(post("/api/experiments"),token,Map.of("title","探索紀錄目標")).andExpect(status().isOk())).get("id").asLong();
+            var definition=definition(List.of(source("EXPERIMENT",experiment)));definition.put("metrics",List.of("M21"));
+            long goal=json(send(post("/api/goals"),token,request(definition,0)).andExpect(status().isOk())).get("id").asLong();
+            send(post("/api/experiments/{id}/records",experiment),token,Map.of("title","補記","recordedOn","2000-01-01","understandingNode",false,"methodCandidate",false,"highlight","GENERAL","requestId",UUID.randomUUID().toString())).andExpect(status().isOk());
+            send(get("/api/goals/{id}/metrics",goal),token,null).andExpect(status().isOk()).andExpect(jsonPath("$[0].metricKey").value("M21")).andExpect(jsonPath("$[0].value").value(1));
+        } finally {
+            goals.clearOwner(owner);
+            if (experiment != null) em.createNativeQuery("delete from experiments where id=:id").setParameter("id", experiment).executeUpdate();
+            users.deleteById(owner);
+        }
     }
 
     @Test void pinOrderNormalizesTiesPreservesRuleRevisionsAndRejectsRepeatOrForeignMoves() throws Exception {
@@ -326,23 +334,6 @@ class GoalIntegrationTests extends IntegrationTestBase {
         send(post("/api/goal-reminders/snooze"),token,Map.of("goalId",id,"until",ZonedDateTime.now(clock).plusHours(1),"version",0)).andExpect(status().isOk());
         send(post("/api/auth/demo-sessions/reset"),token,null).andExpect(status().isOk());em.flush();em.clear();assertEmpty(owner);
         create(token,List.of());users.findById(owner).orElseThrow().setDemoExpiresAt(ZonedDateTime.now(clock).minusMinutes(1));em.flush();demo.clearExpiredSessions();em.flush();em.clear();assertEmpty(owner);assertThat(users.existsById(owner)).isFalse();
-    }
-    @Test void discoveryAndOrganizationFactsSurviveClearingAndStayScopedToSelectedThreads() throws Exception {
-        var auth=session();String token=auth.get("token").asText();long owner=auth.get("id").asLong();
-        long experiment=json(send(post("/api/experiments"),token,Map.of("title","隔離目標實驗")).andExpect(status().isOk())).get("id").asLong();
-        String activity="/api/experiments/"+experiment+"/activity";
-        var focus=json(send(put(activity+"/focus"),token,Map.of("newContent","試寫衝突","expectedVersion",0)).andExpect(status().isOk()));
-        long thread=focus.get("currentThreadId").asLong();create(token,List.of(source("THREAD",thread)));
-        send(post(activity+"/records"),token,Map.of("threadId",thread,"discovery","發現人物動機")).andExpect(status().isOk());
-        var preview=json(send(post(activity+"/organizations/preview"),token,Map.of("mode","HISTORY","groups",List.of(Map.of("threadId",thread,"allRecords",true)))).andExpect(status().isOk()));
-        var group=preview.get("groups").get(0);Map<String,Object> body=Map.of("token",preview.get("token").asText(),"requestId",UUID.randomUUID().toString(),"clearRecords",true,"drafts",List.of(Map.of("key",group.get("key").asText(),"text","整理所得")));
-        send(post(activity+"/organizations"),token,body).andExpect(status().isOk());send(post(activity+"/organizations"),token,body).andExpect(status().isOk());em.flush();
-        var facts=em.createQuery("select f from GoalFactRow f where f.user.id=:owner",GoalFactRow.class).setParameter("owner",owner).getResultList();
-        assertThat(facts.stream().filter(f->f.type.equals("DISCOVERY_CREATED"))).hasSize(1);
-        assertThat(facts.stream().filter(f->f.type.equals("EXPLORATION_ORGANIZED"))).hasSize(1);
-        var link=em.createQuery("select l from GoalFactLinkRow l where l.user.id=:owner and l.fact.type='EXPLORATION_ORGANIZED'",GoalFactLinkRow.class).setParameter("owner",owner).getSingleResult();
-        assertThat(mapper.readTree(link.details).get("clearedCount").asInt()).isEqualTo(1);
-        assertThat(((Number)em.createNativeQuery("select count(*) from experiment_exploration_records where experiment_id=:id").setParameter("id",experiment).getSingleResult()).longValue()).isZero();
     }
     @Test void oneAcquisitionCanSupportExperimentAndWorkGoalsWithoutDuplicatingTheFact() throws Exception {
         var auth=session();String token=auth.get("token").asText();long owner=auth.get("id").asLong();
