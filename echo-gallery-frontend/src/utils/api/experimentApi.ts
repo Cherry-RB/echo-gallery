@@ -87,9 +87,6 @@ export const experimentApi = {
   getThread(experimentId: number, threadId: number): Promise<ExplorationThreadDto> {
     return request({ url: `/experiments/${experimentId}/threads/${threadId}`, method: 'GET' })
   },
-  getWorkThreads(workId: number): Promise<Array<{ threadId: number; threadName: string; experimentId: number; experimentTitle: string; status: ExplorationThreadStatus }>> {
-    return request({ url: `/creative-works/${workId}/exploration-threads`, method: 'GET' })
-  },
   createThreadWithMaterial(experimentId: number, name: string, cardId: number): Promise<ExplorationThreadDto> {
     return request({ url: `/experiments/${experimentId}/threads/materials`, method: 'POST', data: { name, cardId } })
   },

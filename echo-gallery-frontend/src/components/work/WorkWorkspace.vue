@@ -17,8 +17,6 @@ import WorkSourcePicker from './WorkSourcePicker.vue'
 import WorkSourceReadingDialog from './WorkSourceReadingDialog.vue'
 import TreasureFormDialog from '../treasure/TreasureFormDialog.vue'
 import { workApi } from '../../utils/api/workApi'
-import { experimentApi } from '../../utils/api/experimentApi'
-import ExperimentThreads from '../experiment/ExperimentThreads.vue'
 import { treasureApi } from '../../utils/api/treasureApi'
 import { useWorkAutosave } from '../../composables/useWorkAutosave'
 import { useWorkDialogGuard } from '../../composables/useWorkDialogGuard'
@@ -111,8 +109,6 @@ const form = reactive({ nextStep: '', stage: 'WORKING' as WorkStage, firstComple
 const recovery = ref<WorkDraft[]>([])
 const reloading = ref(false)
 const sources = useQuery({ queryKey: ['works', 'sources', id], queryFn: () => workApi.sources(id) })
-const explorationThreads = useQuery({ queryKey: ['work-exploration-threads', id], queryFn: () => experimentApi.getWorkThreads(id) })
-const openedThread = ref<{ experimentId: number; threadId: number }>()
 const treasureMode = ref('new'), treasureKeyword = ref(''), selectedTreasure = ref<number>(), treasurePage = ref(1), treasureForm = ref(false)
 const treasures = useQuery({ queryKey: computed(() => ['treasures', 'work-link', treasureKeyword.value, treasurePage.value]), queryFn: () => treasureApi.list({ keyword: treasureKeyword.value, page: treasurePage.value - 1 }), enabled: computed(() => dialog.value === 'treasure') })
 const count = computed(() => Array.from(body.value).length)
@@ -332,14 +328,6 @@ onBeforeUnmount(() => {
         <summary class="side-panel-heading"><h2>作品階段</h2><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></summary>
         <div class="work-disclosure-content"><dl class="work-properties"><div><dt>目前階段</dt><dd>{{ workStages[detail.work.stage] }}</dd></div><div v-if="detail.firstCompletedOn"><dt>首次初版完成</dt><dd>{{ detail.firstCompletedOn }}</dd></div><div><dt>階段切換</dt><dd>{{ formatDate(detail.stageChangedAt) }}</dd></div></dl></div>
       </SidePanel>
-      <SidePanel v-if="explorationThreads.isPending.value || explorationThreads.isError.value || explorationThreads.data.value?.length" >
-        <h2>關聯探索線</h2>
-        <p v-if="explorationThreads.isPending.value" class="work-hint">正在載入…</p>
-        <p v-else-if="explorationThreads.isError.value" class="work-hint">無法載入探索線。<el-button text @click="explorationThreads.refetch()">重試</el-button></p>
-        <div class="work-related-list"><button v-for="thread in explorationThreads.data.value" :key="thread.threadId" type="button" class="work-related-item side-relation" @click="openedThread = thread">
-          <strong>{{ thread.threadName }}</strong><small>{{ thread.experimentTitle }} · {{ experimentApi.threadStatusLabel(thread.status) }}</small>
-        </button></div>
-      </SidePanel>
       <SidePanel as="details" class="work-disclosure" open>
         <summary class="side-panel-heading"><h2>參考素材</h2><div class="disclosure-actions" @keydown.stop><el-button v-if="!readonly" type="primary" link size="small" :icon="Plus" @click.stop.prevent="picker = true">加入來源</el-button><span class="disclosure-toggle" aria-hidden="true"><span class="when-closed">展開</span><span class="when-open">收合</span></span></div></summary>
         <div class="work-disclosure-content">
@@ -362,7 +350,6 @@ onBeforeUnmount(() => {
         </div>
       </SidePanel>
     </aside></div>
-    <ExperimentThreads v-if="openedThread" :key="openedThread.threadId" :experiment-id="openedThread.experimentId" :initial-thread-id="openedThread.threadId" dialog-only @closed="openedThread = undefined" />
     <WorkFormDialog v-if="editingInfo" v-model="editingInfo" :work="detail" @saved="detail = $event" />
     <WorkSourcePicker v-if="picker" v-model="picker" :work-id="id" @saved="sources.refetch(); invalidate()" />
     <WorkSourceReadingDialog v-if="reading" :model-value="true" :source="reading" @update:model-value="reading = undefined" />

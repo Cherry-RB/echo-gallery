@@ -5,8 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import WorkWorkspace from './WorkWorkspace.vue'
 import type { WorkDetail } from '../../types/work'
 import { workApi } from '../../utils/api/workApi'
-import { experimentApi } from '../../utils/api/experimentApi'
-import ExperimentThreads from '../experiment/ExperimentThreads.vue'
 import ExpandableText from '../ExpandableText.vue'
 import WorkSourceReadingDialog from './WorkSourceReadingDialog.vue'
 import { ElMessageBox } from 'element-plus'
@@ -22,7 +20,7 @@ const base: WorkDetail = { work: { id: 987, title: '工作區測試', descriptio
 function render(initial: WorkDetail) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client)
   const wrapper = mount(WorkWorkspace, { props: { initial }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: {
-    AppDialog: true, WorkFormDialog: true, WorkSourcePicker: true, WorkSourceReadingDialog: true, TreasureFormDialog: true, ExperimentThreads: true,
+    AppDialog: true, WorkFormDialog: true, WorkSourcePicker: true, WorkSourceReadingDialog: true, TreasureFormDialog: true,
     RouterLink: { template: '<a><slot /></a>' },
     'el-button': { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
     'el-radio-group': { props: ['modelValue'], emits: ['update:modelValue'], template: '<div><slot /></div>' }, 'el-radio-button': { props: ['value'], methods: { select() { this.$parent.$emit('update:modelValue', this.value) } }, template: '<button @click="select"><slot /></button>' },
@@ -113,19 +111,6 @@ describe('作品工作區模式與封存', () => {
     expect(wrapper.findComponent(WorkSourceReadingDialog).props('source')).toEqual(source)
     expect(wrapper.findComponent(ExpandableText).props()).toMatchObject({ content: d.work.nextStep, lines: 3 })
     expect(wrapper.findAll('.work-disclosure > summary button').map(button => button.text())).toEqual(['加入來源', '編輯分享資訊'])
-  })
-  it('關聯探索線在作品原頁開窗，關閉後保留正文', async () => {
-    vi.spyOn(experimentApi, 'getWorkThreads').mockResolvedValue([{ threadId: 3, threadName: '散步探索', experimentId: 8, experimentTitle: '生活實驗', status: 'IN_PROGRESS' }])
-    const wrapper = render(structuredClone(base))
-    await vi.waitFor(() => expect(wrapper.find('.work-related-item').exists()).toBe(true))
-    await wrapper.get('.work-related-item').trigger('click')
-    const dialog = wrapper.findComponent(ExperimentThreads)
-    expect(dialog.props()).toMatchObject({ experimentId: 8, initialThreadId: 3, dialogOnly: true })
-    expect(navigation.push).not.toHaveBeenCalled()
-    dialog.vm.$emit('closed')
-    await wrapper.vm.$nextTick()
-    expect(wrapper.findComponent(ExperimentThreads).exists()).toBe(false)
-    expect(wrapper.get('textarea').element.value).toBe(base.body)
   })
   it('正文儲存成功後同步詳情字元數，並讓總覽與列表重新取得摘要', async () => {
     const saved = { body: '新稿😀', bodyVersion: 1, editedAt: '2026-10-22T10:00:00Z' }
