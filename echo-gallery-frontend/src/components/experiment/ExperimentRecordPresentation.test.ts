@@ -45,6 +45,26 @@ describe('探索紀錄的閱讀與輸入', () => {
     expect(wrapper.emitted('read')).toBeUndefined()
   })
 
+  it('額外主題以數量標籤收束，避免擠壓日期', () => {
+    const wrapper = mount(Card, {
+      props: {
+        record: {
+          ...record,
+          topics: [
+            { id: 1, name: '寫作', pinnedSlot: null, displayOrder: 1, createdAt: '' },
+            { id: 2, name: '素材', pinnedSlot: null, displayOrder: 2, createdAt: '' },
+            { id: 3, name: '靈感', pinnedSlot: null, displayOrder: 3, createdAt: '' },
+          ],
+        },
+      },
+      global,
+    })
+    wrappers.push(wrapper)
+    expect(wrapper.get('.record-tags').text()).toContain('寫作')
+    expect(wrapper.get('.record-tags').text()).toContain('+2')
+    expect(wrapper.get('.record-footer time').text()).toBe(record.recordedOn)
+  })
+
   it.each([
     { title: '只有標題', content: null, practiceText: null },
     { title: null, content: '只有內容', practiceText: null },

@@ -59,25 +59,21 @@ describe('實驗列表操作與分頁', () => {
 
   it('顯示新探索紀錄數，不再開啟舊探索歷程', async () => {
     const wrapper = render()
-    await vi.waitFor(() => expect(wrapper.text()).toContain('1 筆紀錄'))
+    await vi.waitFor(() => expect(wrapper.text()).toContain('1 筆'))
     expect(wrapper.findComponent({ name: 'ExperimentExplorationHistoryDialog' }).exists()).toBe(false)
   })
 
-  it('封存末頁最後一筆後回到前頁，分頁保持每頁二十筆', async () => {
-    let removed = false
-    state.list.mockImplementation((_archived, page) => Promise.resolve({ content: removed && page === 1 ? [] : [experiment], totalElements: removed ? 20 : 21 }))
-    state.archive.mockImplementation(async () => { removed = true; return { ...experiment, isArchived: true } })
+  it('列表卡只保留快速新增紀錄，並以精簡日期呈現最後活動時間', async () => {
     const wrapper = render()
     await vi.waitFor(() => expect(wrapper.find('article[role="link"]').exists()).toBe(true))
     const pagination = wrapper.findComponent({ name: 'ElPagination' })
     expect(pagination.props('pageSize')).toBe(20)
     expect(pagination.props('layout')).toBe('total, prev, pager, next')
+    expect(wrapper.find('[aria-label="實驗主題操作"]').exists()).toBe(false)
+    expect(wrapper.get('.experiment-card-footer').text()).toContain('1 筆')
+    expect(wrapper.get('.experiment-card-footer time').text()).toBe('2026-10-16')
     pagination.vm.$emit('current-change', 2)
     await vi.waitFor(() => expect(state.list).toHaveBeenCalledWith(false, 1, 20))
-    wrapper.findComponent({ name: 'ElDropdown' }).vm.$emit('command', 'archive')
-    await vi.waitFor(() => expect(state.archive).toHaveBeenCalledWith(1, true))
-    await vi.waitFor(() => expect(state.list.mock.calls.at(-1)).toEqual([false, 0, 20]))
-    expect(wrapper.text()).toContain('探索主題')
   })
 
   it('封存列表仍可記錄，保留既有行為', async () => {

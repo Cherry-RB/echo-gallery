@@ -12,6 +12,7 @@ const emit = defineEmits<{
 
 const heading = () => props.record.title || '探索紀錄'
 const visibleTopics = () => (props.record.topics ?? []).filter(topic => topic.id !== props.selectedTopicId).slice(0, 1)
+const hiddenTopicCount = () => Math.max(0, (props.record.topics ?? []).filter(topic => topic.id !== props.selectedTopicId).length - visibleTopics().length)
 const command = (value: string) => {
   if (value === 'edit') emit('edit', props.record)
   else if (value === 'repeat') emit('repeat', props.record)
@@ -49,6 +50,7 @@ const command = (value: string) => {
     <footer class="record-footer">
       <div class="record-tags">
         <el-tag v-for="topic in visibleTopics()" :key="topic.id" size="small" type="info">{{ topic.name }}</el-tag>
+        <el-tag v-if="hiddenTopicCount()" size="small" type="info">+{{ hiddenTopicCount() }}</el-tag>
         <el-tag v-if="record.understandingNode" size="small">理解節點</el-tag>
         <el-tag v-if="record.methodCandidate" size="small">方法備選</el-tag>
         <el-tag v-if="record.highlight !== 'GENERAL'" size="small" type="success">
@@ -61,7 +63,7 @@ const command = (value: string) => {
 </template>
 
 <style scoped>
-.record-card { display: flex; min-width: 0; flex-direction: column; align-self: start; gap: var(--space-xs); padding: var(--space-md); border: 1px solid var(--el-border-color); border-radius: var(--radius-md); background: var(--el-bg-color); cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.record-card { container-type: inline-size; display: flex; min-width: 0; flex-direction: column; align-self: start; gap: var(--space-xs); padding: var(--space-md); border: 1px solid var(--el-border-color); border-radius: var(--radius-md); background: var(--el-bg-color); cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
 .record-card:hover, .record-card:focus-within { transform: translateY(-2px); border-color: var(--el-color-primary-light-5); box-shadow: var(--el-box-shadow-lighter); }
 .record-card:active { transform: translateY(0); box-shadow: none; }
 .record-card:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
@@ -75,6 +77,7 @@ const command = (value: string) => {
 .content { color: var(--el-text-color-regular); font-size: var(--type-secondary); line-height: var(--leading-ui); -webkit-line-clamp: 5; }
 .record-footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); }
 .record-footer time { margin-left: auto; }
-.record-tags { align-items: center; flex-wrap: wrap; }
+.record-tags { min-width: 0; flex: 1 1 0; align-items: center; flex-wrap: nowrap; overflow: hidden; }
+@container (max-width: 250px) { .record-footer time { flex-basis: 100%; margin-left: 0; text-align: right; } }
 @media (prefers-reduced-motion: reduce) { .record-card { transition: none; }.record-card:hover, .record-card:focus-within { transform: none; } }
 </style>

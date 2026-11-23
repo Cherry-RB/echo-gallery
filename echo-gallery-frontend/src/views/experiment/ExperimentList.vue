@@ -3,9 +3,9 @@ import GoalBadge from '../../components/goal/GoalBadge.vue'
 import { computed, reactive, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
-import { MoreFilled, Plus } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import type { ExperimentDto, ExperimentRecordRequest, ExperimentRequest } from '../../types/experiment'
+import type { ExperimentRecordRequest, ExperimentRequest } from '../../types/experiment'
 import { formatDate } from '../../utils/formatDate'
 import { getTextLength, trimToTextLength } from '../../utils/textLength'
 import { experimentApi } from '../../utils/api/experimentApi'
@@ -21,7 +21,6 @@ type ExperimentScope = 'ACTIVE' | 'ARCHIVED' | 'ALL'
 const selectedScope = ref<ExperimentScope>('ACTIVE')
 const currentPage = ref(0)
 const dialogVisible = ref(false)
-const editingId = ref<number | null>(null)
 const quickRecordExperimentId = ref<number | null>(null)
 const quickRecordVisible = ref(false)
 const quickRecordSaving = ref(false)
@@ -41,31 +40,17 @@ function selectScope(scope: ExperimentScope) {
 }
 
 const saveMutation = useMutation({
-  mutationFn: () => editingId.value
-    ? experimentApi.updateExperiment(editingId.value, form)
-    : experimentApi.createExperiment(form),
+  mutationFn: () => experimentApi.createExperiment(form),
   onSuccess: async (experiment) => {
-    const wasEditing = editingId.value !== null
     await queryClient.invalidateQueries({ queryKey: ['experiments'] })
     dialogVisible.value = false
-    ElMessage.success(wasEditing ? '實驗主題已更新' : '已建立實驗主題')
-    if (!wasEditing) router.push(`/experiments/${experiment.id}`)
+    ElMessage.success('已建立實驗主題')
+    router.push(`/experiments/${experiment.id}`)
   },
   onError: () => ElMessage.error('儲存實驗主題失敗，請稍後再試')
 })
 
-const archiveMutation = useMutation({
-  mutationFn: ({ id, archived }: { id: number; archived: boolean }) => experimentApi.setExperimentArchived(id, archived),
-  onSuccess: async (experiment) => {
-    await queryClient.invalidateQueries({ queryKey: ['experiments'] })
-    if (!experimentsQuery.data.value?.content.length && currentPage.value > 0) currentPage.value--
-    ElMessage.success(experiment.isArchived ? '實驗主題已封存' : '實驗主題已恢復')
-  },
-  onError: () => ElMessage.error('更新實驗主題狀態失敗')
-})
-
 const openCreate = () => {
-  editingId.value = null
   form.title = ''
   form.startingPoint = ''
   form.desiredOutcome = ''
@@ -74,24 +59,6 @@ const openCreate = () => {
   form.description = ''
   form.themeColor = 'LEAF'
   dialogVisible.value = true
-}
-
-const openEdit = (experiment: ExperimentDto) => {
-  editingId.value = experiment.id
-  form.title = experiment.title
-  form.startingPoint = experiment.startingPoint ?? ''
-  form.desiredOutcome = experiment.desiredOutcome ?? ''
-  form.hypothesis = experiment.hypothesis ?? ''
-  form.conclusion = experiment.conclusion ?? ''
-  form.description = experiment.description ?? ''
-  form.themeColor = experiment.themeColor
-  dialogVisible.value = true
-}
-
-const handleCardCommand = (experiment: ExperimentDto, command: string) => {
-  if (command === 'edit') openEdit(experiment)
-  if (command === 'archive') archiveMutation.mutate({ id: experiment.id, archived: true })
-  if (command === 'restore') archiveMutation.mutate({ id: experiment.id, archived: false })
 }
 
 const openQuickRecord = (experimentId: number) => {
@@ -182,17 +149,6 @@ const submit = () => {
               </el-tooltip>
               <div class="experiment-card-actions">
                 <GoalBadge kind="EXPERIMENT" :id="experiment.id" />
-                <el-dropdown trigger="click" @command="handleCardCommand(experiment, $event)">
-                  <el-button text circle :icon="MoreFilled" :disabled="archiveMutation.isPending.value" aria-label="實驗主題操作" @click.stop />
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="edit">編輯實驗主題</el-dropdown-item>
-                      <el-dropdown-item :command="experiment.isArchived ? 'restore' : 'archive'" divided>
-                        {{ experiment.isArchived ? '恢復實驗主題' : '封存實驗主題' }}
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
               </div>
             </header>
             <el-tooltip :content="experiment.desiredOutcome || experiment.startingPoint || experiment.hypothesis || experiment.description || '尚未補充實驗方向。'" :show-after="400" placement="top" popper-class="content-tooltip">
@@ -202,9 +158,9 @@ const submit = () => {
               </div>
             </el-tooltip>
             <footer class="experiment-card-footer">
-              <span>{{ experiment.explorationRecordCount }} 筆紀錄</span>
-              <span>最近活動於 {{ formatDate(experiment.updatedAt) }}</span>
-              <el-button class="quick-record-trigger" text type="primary" @click.stop="openQuickRecord(experiment.id)">新增紀錄</el-button>
+              <span>{{ experiment.explorationRecordCount }} 筆</span>
+              <time :datetime="formatDate(experiment.updatedAt, 'YYYY-MM-DD')">{{ formatDate(experiment.updatedAt, 'YYYY-MM-DD') }}</time>
+              <el-button class="quick-record-trigger" text type="primary" @click.stop="openQuickRecord(experiment.id)">＋紀錄</el-button>
             </footer>
           </div>
         </el-card>
@@ -224,7 +180,7 @@ const submit = () => {
 
   <AppDialog :busy="saveMutation.isPending.value" :draft="form"
     v-model="dialogVisible"
-    :title="editingId ? '編輯實驗主題' : '建立實驗主題'"
+    title="建立實驗主題"
     width="min(680px, calc(100vw - 32px))"
     scroll-body
     destroy-on-close
@@ -257,7 +213,7 @@ const submit = () => {
     </el-form>
     <template #footer="{ requestClose }">
       <el-button :disabled="saveMutation.isPending.value" @click="requestClose">取消</el-button>
-      <el-button type="primary" :loading="saveMutation.isPending.value" :disabled="!form.title.trim()" @click="submit">{{ editingId ? '儲存變更' : '建立實驗主題' }}</el-button>
+      <el-button type="primary" :loading="saveMutation.isPending.value" :disabled="!form.title.trim()" @click="submit">建立實驗主題</el-button>
     </template>
   </AppDialog>
 
@@ -277,18 +233,18 @@ const submit = () => {
 .experiment-dashboard { padding: var(--space-lg); }
 .experiment-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md); }
 .experiment-list-card { box-shadow: none; cursor: pointer; }
-.experiment-list-card :deep(.el-card__body) { padding: var(--space-md); }
-.experiment-card-content { display: flex; min-height: 178px; flex-direction: column; gap: var(--space-sm); }
+.experiment-list-card :deep(.el-card__body) { display: flex; height: 100%; box-sizing: border-box; padding: var(--space-md); }
+.experiment-card-content { display: flex; flex: 1; min-height: 288px; flex-direction: column; gap: var(--space-sm); }
 .experiment-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); min-width: 0; }
 .experiment-card-header > :first-child { min-width: 0; }
 .experiment-card-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-2xs); }
 .experiment-title { display: -webkit-box; margin: 0; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .experiment-direction { min-width: 0; }
 .experiment-direction-label { display: block; margin-bottom: var(--space-2xs); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); line-height: var(--leading-ui); }
-.experiment-direction p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.experiment-direction p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 6; }
 .experiment-direction.empty p { color: var(--el-text-color-placeholder); }
 .experiment-card-footer { display: flex; align-items: center; gap: var(--space-sm); margin-top: auto; color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
-.experiment-card-footer span:nth-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.experiment-card-footer time { white-space: nowrap; }
 .quick-record-trigger { margin-left: auto; }
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .field-counter { width: 100%; margin: 6px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
