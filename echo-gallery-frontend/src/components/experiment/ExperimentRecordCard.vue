@@ -2,7 +2,7 @@
 import { MoreFilled } from '@element-plus/icons-vue'
 import type { ExperimentRecordDto } from '../../types/experiment'
 
-const props = defineProps<{ record: ExperimentRecordDto; topics?: Array<{ id: number; name: string }> }>()
+const props = defineProps<{ record: ExperimentRecordDto; selectedTopicId?: number }>()
 const emit = defineEmits<{
   read: [record: ExperimentRecordDto]
   edit: [record: ExperimentRecordDto]
@@ -11,10 +11,7 @@ const emit = defineEmits<{
 }>()
 
 const heading = () => props.record.title || '探索紀錄'
-const excerpt = (value: string, limit: number) => {
-  const characters = Array.from(value.trim().replace(/\s+/gu, ' '))
-  return characters.length > limit ? `${characters.slice(0, limit).join('')}…` : characters.join('')
-}
+const visibleTopics = () => (props.record.topics ?? []).filter(topic => topic.id !== props.selectedTopicId).slice(0, 1)
 const command = (value: string) => {
   if (value === 'edit') emit('edit', props.record)
   else if (value === 'repeat') emit('repeat', props.record)
@@ -33,7 +30,7 @@ const command = (value: string) => {
     @keydown.space.self.prevent="emit('read', record)"
   >
     <div class="record-card-heading">
-      <h3>{{ excerpt(heading(), 60) }}</h3>
+      <h3>{{ heading() }}</h3>
       <div class="record-card-actions">
         <el-dropdown trigger="click" @click.stop @keydown.stop @command="command">
           <el-button text circle :icon="MoreFilled" aria-label="探索紀錄操作" @click.stop />
@@ -47,11 +44,11 @@ const command = (value: string) => {
         </el-dropdown>
       </div>
     </div>
-    <p v-if="record.practiceText" class="practice">做法｜{{ excerpt(record.practiceText, 48) }}</p>
-    <p v-if="record.content" class="content">{{ excerpt(record.content, 120) }}</p>
+    <p v-if="record.practiceText" class="practice">做法｜{{ record.practiceText }}</p>
+    <p v-if="record.content" class="content">{{ record.content }}</p>
     <footer class="record-footer">
       <div class="record-tags">
-        <el-tag v-for="topic in topics" :key="topic.id" size="small" type="info">{{ topic.name }}</el-tag>
+        <el-tag v-for="topic in visibleTopics()" :key="topic.id" size="small" type="info">{{ topic.name }}</el-tag>
         <el-tag v-if="record.understandingNode" size="small">理解節點</el-tag>
         <el-tag v-if="record.methodCandidate" size="small">方法備選</el-tag>
         <el-tag v-if="record.highlight !== 'GENERAL'" size="small" type="success">
@@ -64,18 +61,19 @@ const command = (value: string) => {
 </template>
 
 <style scoped>
-.record-card { display: flex; min-width: 0; flex-direction: column; align-self: start; gap: var(--space-sm); padding: var(--space-md); border: 1px solid var(--el-border-color); border-radius: var(--radius-md); background: var(--el-bg-color); cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.record-card { display: flex; min-width: 0; flex-direction: column; align-self: start; gap: var(--space-xs); padding: var(--space-md); border: 1px solid var(--el-border-color); border-radius: var(--radius-md); background: var(--el-bg-color); cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
 .record-card:hover, .record-card:focus-within { transform: translateY(-2px); border-color: var(--el-color-primary-light-5); box-shadow: var(--el-box-shadow-lighter); }
 .record-card:active { transform: translateY(0); box-shadow: none; }
 .record-card:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .record-card-heading, .record-card-actions, .record-tags { display: flex; gap: var(--space-sm); }
 .record-card-heading { align-items: flex-start; justify-content: space-between; }
-.record-card h3 { min-width: 0; margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); line-height: var(--leading-card-title); overflow-wrap: anywhere; }
+.record-card h3 { display: -webkit-box; min-width: 0; margin: 0; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-body); font-weight: var(--weight-semibold); line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .record-card-actions { flex: 0 0 auto; align-items: center; }
 .record-card time { color: var(--el-text-color-secondary); font-size: var(--type-meta); white-space: nowrap; }
-.practice { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: anywhere; }
-.content { margin: 0; color: var(--el-text-color-regular); font-size: var(--type-body); line-height: var(--leading-body); overflow-wrap: anywhere; }
-.record-footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm); margin-top: var(--space-xs); }
+.practice, .content { display: -webkit-box; margin: 0; overflow: hidden; overflow-wrap: anywhere; -webkit-box-orient: vertical; }
+.practice { color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); -webkit-line-clamp: 2; }
+.content { color: var(--el-text-color-regular); font-size: var(--type-secondary); line-height: var(--leading-ui); -webkit-line-clamp: 5; }
+.record-footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); }
 .record-footer time { margin-left: auto; }
 .record-tags { align-items: center; flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) { .record-card { transition: none; }.record-card:hover, .record-card:focus-within { transform: none; } }

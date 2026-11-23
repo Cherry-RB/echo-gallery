@@ -28,8 +28,14 @@ public class ExperimentTopic {
     @OnDelete(action = OnDeleteAction.CASCADE) private Experiment experiment;
     @Column(nullable = false, length = 100) private String name;
     @Column(name = "pinned_slot") private Integer pinnedSlot;
+    @Column(name = "display_order", nullable = false) private int displayOrder;
     @CreationTimestamp @Column(name = "created_at", nullable = false, updatable = false) private java.time.ZonedDateTime createdAt;
 
-    public ExperimentTopic(Experiment experiment, String name) { this.experiment = experiment; this.name = name; }
+    public ExperimentTopic(Experiment experiment, String name, int displayOrder) {
+        this.experiment = experiment;
+        this.name = name;
+        this.displayOrder = displayOrder;
+    }
     public void setPinnedSlot(Integer pinnedSlot) { this.pinnedSlot = pinnedSlot; }
+    public void setDisplayOrder(int displayOrder) { this.displayOrder = displayOrder; }
 }

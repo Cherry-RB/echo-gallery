@@ -1,5 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils'
-import ElementPlus from 'element-plus'
+import ElementPlus, { ElSelect } from 'element-plus'
 import { afterEach, describe, expect, it } from 'vitest'
 import Card from './ExperimentRecordCard.vue'
 import Reader from './ExperimentRecordReader.vue'
@@ -11,6 +11,7 @@ const record: ExperimentRecordDto = {
   id: 1, title: '每日練習', content: '今天畫了十分鐘。', practiceText: '先畫五分鐘。',
   recordedOn: '2026-11-21', understandingNode: true, methodCandidate: false, highlight: 'GAIN',
   version: 0, createdAt: '2026-11-21T01:00:00Z', updatedAt: '2026-11-21T02:00:00Z',
+  topics: [],
 }
 const wrappers: Array<{ unmount: () => void }> = []
 afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()))
@@ -19,16 +20,16 @@ const dialogStub = {
   name: 'AppDialog', props: ['modelValue', 'title', 'draft', 'busy'], emits: ['opened', 'update:modelValue'],
   template: '<section v-if="modelValue"><h2>{{ title }}</h2><slot /><footer><slot name="footer" :request-close="() => $emit(\'update:modelValue\', false)" /></footer></section>',
 }
-const global = { plugins: [ElementPlus], stubs: { AppDialog: dialogStub, CardPickerDialog: true } }
+const global = { plugins: [ElementPlus], stubs: { AppDialog: dialogStub, CardPickerDialog: true, RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } }
 
 describe('探索紀錄的閱讀與輸入', () => {
-  it('長摘要以完整字元及省略號結束，開啟閱讀仍傳回完整紀錄', async () => {
+  it('長摘要交由 CSS 依行數收束，開啟閱讀仍傳回完整紀錄', async () => {
     const longRecord = { ...record, content: '練習🙂'.repeat(60) }
     const wrapper = mount(Card, { props: { record: longRecord }, global })
     wrappers.push(wrapper)
     const preview = wrapper.get('.content').text()
-    expect(preview.endsWith('…')).toBe(true)
-    expect(preview).not.toContain('\uFFFD')
+    expect(preview).toBe(longRecord.content)
+    expect(wrapper.get('.content').classes()).toContain('content')
     expect(wrapper.get('.record-footer time').text()).toBe(record.recordedOn)
     await wrapper.get('article').trigger('keydown', { key: 'Enter' })
     expect(wrapper.emitted('read')).toEqual([[longRecord]])
@@ -51,11 +52,10 @@ describe('探索紀錄的閱讀與輸入', () => {
   ])('單一欄位紀錄可完整閱讀：$title $content $practiceText', async fields => {
     const wrapper = mount(Reader, { props: { modelValue: true, record: { ...record, ...fields } }, global })
     wrappers.push(wrapper)
-    const contentSections = wrapper.findAll('.record-section:not(.record-references)')
+    const contentSections = wrapper.findAll('.record-body, .record-practice')
     expect(contentSections).toHaveLength(Number(Boolean(fields.content)) + Number(Boolean(fields.practiceText)))
-    expect(wrapper.get('.record-meta').text()).toContain('2026-11-21')
-    expect(wrapper.get('.record-meta').text()).not.toContain('建立')
-    expect(wrapper.get('details').attributes('open')).toBeUndefined()
+    expect(wrapper.get('.record-details').text()).toContain('2026-11-21')
+    expect(wrapper.get('details').attributes('open')).toBeDefined()
     await wrapper.findAll('button').find(button => button.text() === '編輯紀錄')!.trigger('click')
     expect(wrapper.emitted('edit')).toHaveLength(1)
   })
@@ -91,5 +91,20 @@ describe('探索紀錄的閱讀與輸入', () => {
     await wrapper.get('form').trigger('submit')
     expect(wrapper.emitted('save')).toBeUndefined()
     expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('保留草稿')
+  })
+
+  it('編輯紀錄時可在同一份草稿調整主題', async () => {
+    const topics = [
+      { id: 1, name: '開始阻力', pinnedSlot: 1, displayOrder: 1, createdAt: '' },
+      { id: 2, name: '練習節奏', pinnedSlot: null, displayOrder: 2, createdAt: '' },
+    ]
+    const wrapper = mount(Editor, { props: { modelValue: true, record: { ...record, topics: [topics[0]!] }, topicOptions: topics }, global })
+    wrappers.push(wrapper)
+    await flushPromises()
+    const topicSelect = wrapper.findAllComponents(ElSelect).find(item => item.props('placeholder') === '選擇主題')!
+    expect(topicSelect.props('modelValue')).toEqual([1])
+    topicSelect.vm.$emit('update:modelValue', [2])
+    await wrapper.findAll('button').find(button => button.text() === '儲存紀錄')!.trigger('click')
+    expect((wrapper.emitted('save')![0]![0] as { topicIds: number[] }).topicIds).toEqual([2])
   })
 })

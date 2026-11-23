@@ -1,21 +1,20 @@
 .record-label {
   margin: 0 0 var(--space-xs);
-  color: var(--el-text-color-secondary);
-  font-size: var(--type-meta);
-  font-weight: var(--weight-medium);
+  color: var(--el-text-color-regular);
+  font-size: var(--type-ui-label);
+  font-weight: var(--weight-semibold);
   line-height: var(--leading-ui);
 }
 
 .record-supplementary {
-  margin-top: var(--space-lg);
-  padding: var(--space-sm);
-  border-radius: var(--radius-md);
-  background: var(--surface-summary);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .record-supplementary > summary {
   color: var(--el-text-color-regular);
-  font-size: var(--type-meta);
+  font-size: var(--type-ui-label);
   line-height: var(--leading-ui);
   overflow-wrap: anywhere;
   cursor: pointer;
@@ -31,3 +30,5 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+:global(.record-dialog .el-dialog__body) { overflow-wrap: anywhere; }

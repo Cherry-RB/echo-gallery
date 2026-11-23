@@ -66,6 +66,7 @@ export const experimentApi = {
   getTopics(experimentId: number): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/topics`, method: 'GET' }) },
   createTopic(experimentId: number, name: string): Promise<ExperimentTopicDto> { return request({ url: `/experiments/${experimentId}/topics`, method: 'POST', data: { name } }) },
   pinTopic(experimentId: number, topicId: number, slot: number): Promise<ExperimentTopicDto> { return request({ url: `/experiments/${experimentId}/topics/${topicId}/pin`, method: 'PUT', data: { slot } }) },
+  reorderTopics(experimentId: number, topicIds: number[]): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/topics/order`, method: 'PUT', data: { topicIds } }) },
   deleteTopic(experimentId: number, topicId: number): Promise<void> { return request({ url: `/experiments/${experimentId}/topics/${topicId}`, method: 'DELETE' }) },
   getRecordTopics(experimentId: number, recordId: number): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/records/${recordId}/topics`, method: 'GET' }) },
   setRecordTopics(experimentId: number, recordId: number, topicIds: number[]): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/records/${recordId}/topics`, method: 'PUT', data: { topicIds } }) },

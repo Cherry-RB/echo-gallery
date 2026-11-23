@@ -24,6 +24,8 @@ public class ExperimentRecordService {
 
     private final ExperimentRepository experiments;
     private final ExperimentRecordRepository records;
+    private final ExperimentRecordTopicRepository recordTopics;
+    private final ExperimentTopicRepository topics;
     private final com.echogallery.work.WorkSourceRepository workSources;
     private final com.echogallery.goal.GoalActivityRecorder goalActivity;
 
@@ -52,13 +54,19 @@ public class ExperimentRecordService {
         var result = records.search(experimentId, owner(), keyword == null ? "" : keyword.trim(), understandingNode, methodCandidate, highlight, dateFrom, dateTo,
                 topicIds.isEmpty() ? java.util.List.of(-1L) : topicIds, topicIds.isEmpty(), topicMatch, topicIds.size(), unclassified,
                 PageRequest.of(page, size, org.springframework.data.domain.Sort.by(new org.springframework.data.domain.Sort.Order(direction, field), org.springframework.data.domain.Sort.Order.desc("id"))));
-        return new PageResponse<>(result.getContent().stream().map(ExperimentRecordResponse::from).toList(), page, size,
+        var topicsByRecordId = recordTopics.findByRecordIdIn(result.getContent().stream().map(ExperimentRecord::getId).toList()).stream()
+                .collect(java.util.stream.Collectors.groupingBy(link -> link.getRecord().getId(),
+                        java.util.stream.Collectors.mapping(link -> ExperimentOrganizationResponses.Topic.from(link.getTopic()), java.util.stream.Collectors.toList())));
+        return new PageResponse<>(result.getContent().stream().map(record -> ExperimentRecordResponse.from(record,
+                topicsByRecordId.getOrDefault(record.getId(), java.util.List.of()))).toList(), page, size,
                 result.getTotalElements(), result.getTotalPages());
     }
 
     @Transactional(readOnly = true)
     public ExperimentRecordResponse get(Long experimentId, Long recordId) {
-        return ExperimentRecordResponse.from(ownedRecord(experimentId, recordId));
+        var record = ownedRecord(experimentId, recordId);
+        return ExperimentRecordResponse.from(record, recordTopics.findByRecordId(recordId).stream()
+                .map(link -> ExperimentOrganizationResponses.Topic.from(link.getTopic())).toList());
     }
 
     @Transactional(readOnly = true)
@@ -87,13 +95,14 @@ public class ExperimentRecordService {
             if (!existing.get().getCreatePayloadHash().equals(hash)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "同一 requestId 的內容不同，請重新載入後再試");
             }
-            return ExperimentRecordResponse.from(existing.get());
+            return responseWithTopics(existing.get());
         }
         var created = records.saveAndFlush(new ExperimentRecord(experiment, request.requestId(), hash, draft));
+        var selectedTopics = replaceTopics(experiment, created, request.topicIds());
         goalActivity.record("EXPERIMENT_RECORD_CREATED", "experiment-record:" + created.getId(),
                 com.echogallery.goal.GoalData.Kind.EXPERIMENT, experimentId,
                 java.util.Map.of("recordId", created.getId(), "recordedOn", created.getRecordedOn().toString()));
-        return ExperimentRecordResponse.from(created);
+        return ExperimentRecordResponse.from(created, selectedTopics);
     }
 
     @Transactional
@@ -103,8 +112,11 @@ public class ExperimentRecordService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "這筆紀錄已有較新內容，請保留草稿後重新載入");
         }
         record.apply(request.draft());
+        var selectedTopics = request.topicIds() == null
+                ? topicResponses(record)
+                : replaceTopics(record.getExperiment(), record, request.topicIds());
         records.flush();
-        return ExperimentRecordResponse.from(record);
+        return ExperimentRecordResponse.from(record, selectedTopics);
     }
 
     @Transactional
@@ -127,6 +139,31 @@ public class ExperimentRecordService {
         return records.findByIdAndExperimentIdAndExperimentUserId(recordId, experimentId, owner()).orElseThrow(this::missing);
     }
 
+    private java.util.List<ExperimentOrganizationResponses.Topic> replaceTopics(
+            Experiment experiment, ExperimentRecord record, java.util.List<Long> requestedTopicIds) {
+        var requested = requestedTopicIds == null ? java.util.Set.<Long>of() : requestedTopicIds.stream()
+                .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        var selected = topics.findByExperimentIdOrdered(experiment.getId()).stream()
+                .filter(topic -> requested.contains(topic.getId())).toList();
+        if (selected.size() != requested.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "部分主題不存在或不屬於目前實驗");
+        }
+        recordTopics.deleteByRecordId(record.getId());
+        recordTopics.flush();
+        recordTopics.saveAll(selected.stream()
+                .map(topic -> new ExperimentRecordTopic(experiment, record, topic)).toList());
+        return selected.stream().map(ExperimentOrganizationResponses.Topic::from).toList();
+    }
+
+    private ExperimentRecordResponse responseWithTopics(ExperimentRecord record) {
+        return ExperimentRecordResponse.from(record, topicResponses(record));
+    }
+
+    private java.util.List<ExperimentOrganizationResponses.Topic> topicResponses(ExperimentRecord record) {
+        return recordTopics.findByRecordId(record.getId()).stream()
+                .map(link -> ExperimentOrganizationResponses.Topic.from(link.getTopic())).toList();
+    }
+
     private Long owner() {
         Long owner = SecurityUtil.getCurrentUserId();
         if (owner == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "尚未登入");
@@ -142,7 +179,9 @@ public class ExperimentRecordService {
             String value = String.join("\u0000", String.valueOf(request.title()), String.valueOf(request.content()),
                     String.valueOf(request.practiceText()), String.valueOf(request.recordedOn()),
                     String.valueOf(request.understandingNode()), String.valueOf(request.methodCandidate()),
-                    String.valueOf(request.highlight()));
+                    String.valueOf(request.highlight()), String.valueOf(request.topicIds() == null
+                            ? java.util.List.of()
+                            : request.topicIds().stream().filter(java.util.Objects::nonNull).distinct().sorted().toList()));
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (java.security.NoSuchAlgorithmException exception) {
             throw new IllegalStateException(exception);

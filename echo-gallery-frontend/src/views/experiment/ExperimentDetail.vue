@@ -270,10 +270,11 @@ const submitEdit = () => {
 .direction-part { min-width: 0; }
 .direction-part h2 { margin: 0 0 var(--space-sm); color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-regular); line-height: var(--leading-card-title); }
 .direction-part h2 strong { font-weight: var(--weight-semibold); }
+.direction-start h2 { color: var(--el-text-color-secondary); }
 .direction-part p, .direction-part :deep(.expandable-content) { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-body); line-height: var(--leading-body); white-space: pre-wrap; overflow-wrap: anywhere; }
 .direction-outcome h2 { color: var(--el-color-primary); }
 .direction-outcome p, .direction-outcome :deep(.expandable-content) { color: var(--el-text-color-primary); }
-.direction-arrow { color: var(--el-text-color-secondary); font-size: var(--type-section-title); }
+.direction-arrow { color: var(--el-color-primary); font-size: var(--type-section-title); }
 .direction-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-md); }
 .experiment-inquiry,
 .exploration-workspace,

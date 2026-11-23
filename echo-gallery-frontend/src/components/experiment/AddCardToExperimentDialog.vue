@@ -41,6 +41,7 @@ const saveMutation = useMutation({
       understandingNode: false,
       methodCandidate: false,
       highlight: 'GENERAL',
+      topicIds: [],
       requestId: crypto.randomUUID(),
     })
     return experimentId

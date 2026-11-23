@@ -133,6 +133,67 @@ class ExperimentRecordIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void returnsRecordTopicsWithoutExtraClientRequestsAndPersistsTopicDirectoryOrder() throws Exception {
+        String owner = register("record-topic-directory-owner");
+        long experimentId = createExperiment(owner);
+        long recordId = createRecord(owner, experimentId, "整理主題");
+        long firstTopic = createTopic(owner, experimentId, "開始阻力");
+        long secondTopic = createTopic(owner, experimentId, "練習節奏");
+        setTopics(owner, experimentId, recordId, secondTopic);
+
+        mvc.perform(get("/api/experiments/{experimentId}/records", experimentId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].topics[0].id").value(secondTopic))
+                .andExpect(jsonPath("$.content[0].topics[0].name").value("練習節奏"));
+
+        mvc.perform(put("/api/experiments/{experimentId}/topics/order", experimentId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"topicIds\":[" + secondTopic + "," + firstTopic + "]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(secondTopic))
+                .andExpect(jsonPath("$[0].displayOrder").value(1));
+        mvc.perform(get("/api/experiments/{experimentId}/topics", experimentId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(secondTopic));
+    }
+
+    @Test
+    void savesRecordContentAndTopicsInTheSameTransaction() throws Exception {
+        String owner = register("record-topic-editor-owner");
+        long experimentId = createExperiment(owner);
+        long otherExperimentId = createExperiment(owner);
+        long firstTopic = createTopic(owner, experimentId, "開始阻力");
+        long secondTopic = createTopic(owner, experimentId, "練習節奏");
+        long foreignTopic = createTopic(owner, otherExperimentId, "其他實驗主題");
+
+        var created = mvc.perform(post("/api/experiments/{experimentId}/records", experimentId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"先開始\",\"recordedOn\":\"2026-11-21\",\"understandingNode\":false,\"methodCandidate\":false,\"highlight\":\"GENERAL\",\"topicIds\":[" + firstTopic + "],\"requestId\":\"" + UUID.randomUUID() + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.topics[0].id").value(firstTopic)).andReturn();
+        long recordId = json.readTree(created.getResponse().getContentAsString()).get("id").asLong();
+
+        mvc.perform(put("/api/experiments/{experimentId}/records/{recordId}", experimentId, recordId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"完成更新\",\"recordedOn\":\"2026-11-22\",\"understandingNode\":false,\"methodCandidate\":true,\"highlight\":\"GAIN\",\"topicIds\":[" + secondTopic + "],\"expectedVersion\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("完成更新"))
+                .andExpect(jsonPath("$.topics[0].id").value(secondTopic));
+
+        mvc.perform(put("/api/experiments/{experimentId}/records/{recordId}", experimentId, recordId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"不應寫入\",\"recordedOn\":\"2026-11-22\",\"understandingNode\":false,\"methodCandidate\":true,\"highlight\":\"GAIN\",\"topicIds\":[" + foreignTopic + "],\"expectedVersion\":1}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/experiments/{experimentId}/records/{recordId}", experimentId, recordId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("完成更新"))
+                .andExpect(jsonPath("$.topics[0].id").value(secondTopic));
+    }
+
+    @Test
     void createsRetriesUpdatesAndRejectsForeignOrStaleRequests() throws Exception {
         String owner = register("record-owner");
         String stranger = register("record-stranger");

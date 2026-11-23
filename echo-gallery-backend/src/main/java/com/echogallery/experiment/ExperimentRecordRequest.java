@@ -1,6 +1,7 @@
 package com.echogallery.experiment;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.constraints.NotNull;
@@ -15,6 +16,7 @@ public record ExperimentRecordRequest(
         boolean understandingNode,
         boolean methodCandidate,
         ExperimentRecordDraft.Highlight highlight,
+        @Size(max = 50) List<Long> topicIds,
         UUID requestId,
         Long expectedVersion) {
 

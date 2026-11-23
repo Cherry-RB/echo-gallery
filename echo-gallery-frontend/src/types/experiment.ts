@@ -44,6 +44,7 @@ export interface ExperimentRecordDto {
   version: number
   createdAt: string
   updatedAt: string
+  topics: ExperimentTopicDto[]
 }
 
 export interface ExperimentRecordRequest {
@@ -54,11 +55,12 @@ export interface ExperimentRecordRequest {
   understandingNode: boolean
   methodCandidate: boolean
   highlight: ExperimentRecordHighlight
+  topicIds: number[]
   requestId?: string
   expectedVersion?: number
 }
 
-export interface ExperimentTopicDto { id: number; name: string; pinnedSlot: number | null; createdAt: string }
+export interface ExperimentTopicDto { id: number; name: string; pinnedSlot: number | null; displayOrder: number; createdAt: string }
 export interface ExperimentPinnedPracticeDto { id: number; content: string; slot: number; createdAt: string }
 export interface ExperimentRecordReferenceDto { id: number; kind: 'CARD' | 'URL'; cardId: number | null; title: string | null; url: string | null; label: string | null; createdAt: string }
 export interface ExperimentRecordReferenceRequest { kind: 'CARD' | 'URL'; cardId?: number | null; url?: string | null; label?: string | null }

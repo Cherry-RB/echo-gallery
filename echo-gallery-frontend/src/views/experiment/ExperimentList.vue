@@ -129,7 +129,7 @@ const submit = () => {
       </template>
     </PageHeader>
 
-    <div class="experiment-dashboard app-workspace app-workspace--edge-to-edge">
+    <div class="experiment-dashboard app-workspace">
       <div class="experiment-list-toolbar app-toolbar">
         <el-radio-group :model-value="selectedScope" class="status-filter app-list-scope" aria-label="實驗主題範圍" @update:model-value="selectScope">
           <el-radio-button value="ACTIVE">觀察中</el-radio-button>
@@ -176,22 +176,12 @@ const submit = () => {
           @keydown.space.self.prevent="router.push(`/experiments/${experiment.id}`)"
         >
           <div class="experiment-card-content">
-            <div class="experiment-copy">
-              <div class="experiment-title-row"><el-tooltip :content="experiment.title" :show-after="400" placement="top" popper-class="content-tooltip">
+            <header class="experiment-card-header">
+              <el-tooltip :content="experiment.title" :show-after="400" placement="top" popper-class="content-tooltip">
                 <h2 class="experiment-title">{{ experiment.title }}</h2>
-              </el-tooltip></div>
-              <el-tooltip :content="experiment.desiredOutcome || experiment.startingPoint || experiment.hypothesis || experiment.description || '尚未補充實驗方向。'" :show-after="400" placement="top" popper-class="content-tooltip">
-                <p :class="['experiment-hypothesis', { empty: !experiment.desiredOutcome && !experiment.startingPoint && !experiment.hypothesis && !experiment.description }]">
-                  <span v-if="experiment.desiredOutcome" class="experiment-current-try-label">想達成的改變</span>
-                  {{ experiment.desiredOutcome || experiment.startingPoint || experiment.hypothesis || experiment.description || '尚未補充實驗方向。' }}
-                </p>
               </el-tooltip>
-            </div>
-            <aside class="experiment-summary-side">
-              <header class="experiment-card-header">
+              <div class="experiment-card-actions">
                 <GoalBadge kind="EXPERIMENT" :id="experiment.id" />
-                <el-button class="quick-record-trigger" text type="primary" @click.stop="openQuickRecord(experiment.id)">新增紀錄</el-button>
-                <span v-if="experiment.explorationRecordCount > 0" class="record-count">{{ experiment.explorationRecordCount }} 筆紀錄</span>
                 <el-dropdown trigger="click" @command="handleCardCommand(experiment, $event)">
                   <el-button text circle :icon="MoreFilled" :disabled="archiveMutation.isPending.value" aria-label="實驗主題操作" @click.stop />
                   <template #dropdown>
@@ -203,9 +193,19 @@ const submit = () => {
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
-              </header>
-              <footer class="experiment-card-footer">最近活動於 {{ formatDate(experiment.updatedAt) }}</footer>
-            </aside>
+              </div>
+            </header>
+            <el-tooltip :content="experiment.desiredOutcome || experiment.startingPoint || experiment.hypothesis || experiment.description || '尚未補充實驗方向。'" :show-after="400" placement="top" popper-class="content-tooltip">
+              <div :class="['experiment-direction', { empty: !experiment.desiredOutcome && !experiment.startingPoint && !experiment.hypothesis && !experiment.description }]">
+                <span class="experiment-direction-label">{{ experiment.desiredOutcome ? '終點' : experiment.startingPoint ? '起點' : '實驗方向' }}</span>
+                <p>{{ experiment.desiredOutcome || experiment.startingPoint || experiment.hypothesis || experiment.description || '尚未補充實驗方向。' }}</p>
+              </div>
+            </el-tooltip>
+            <footer class="experiment-card-footer">
+              <span>{{ experiment.explorationRecordCount }} 筆紀錄</span>
+              <span>最近活動於 {{ formatDate(experiment.updatedAt) }}</span>
+              <el-button class="quick-record-trigger" text type="primary" @click.stop="openQuickRecord(experiment.id)">新增紀錄</el-button>
+            </footer>
           </div>
         </el-card>
       </div>
@@ -274,27 +274,27 @@ const submit = () => {
 .experiment-list-page { width: 100%; box-sizing: border-box; }
 .experiment-list-toolbar { display: flex; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-md); }
 .experiment-results { margin: 0 0 var(--space-md); color: var(--el-text-color-regular); font-size: var(--type-secondary); }
-.experiment-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: var(--space-md); }
+.experiment-dashboard { padding: var(--space-lg); }
+.experiment-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md); }
 .experiment-list-card { box-shadow: none; cursor: pointer; }
 .experiment-list-card :deep(.el-card__body) { padding: var(--space-md); }
-.experiment-card-content { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-md); }
-.experiment-card-header { display: flex; align-items: center; justify-content: flex-end; min-height: 28px; gap: var(--space-sm); }
-.experiment-copy { min-width: 0; padding: 0; }
-.experiment-title-row { display: flex; align-items: flex-start; gap: var(--space-xs); min-width: 0; }
-.experiment-title-row :deep(.goal-badge-anchor) { flex: 0 0 auto; margin-top: 2px; }
-.experiment-title { margin: 0; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); overflow-wrap: anywhere; }
-.experiment-hypothesis { display: -webkit-box; margin: var(--space-xs) 0 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-body); font-weight: 400; line-height: var(--leading-body); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
-.experiment-hypothesis.empty { color: var(--el-text-color-placeholder); font-weight: 400; }
-.experiment-current-try-label { display: block; margin-bottom: var(--space-2xs); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); }
-.record-count { color: var(--el-text-color-secondary); font-size: var(--type-meta); white-space: nowrap; }
-.experiment-summary-side { display: flex; min-width: 0; flex-direction: column; align-items: stretch; }
-.experiment-card-footer { margin-top: auto; color: var(--el-text-color-placeholder); font-size: var(--type-meta); text-align: right; }
+.experiment-card-content { display: flex; min-height: 178px; flex-direction: column; gap: var(--space-sm); }
+.experiment-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); min-width: 0; }
+.experiment-card-header > :first-child { min-width: 0; }
+.experiment-card-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-2xs); }
+.experiment-title { display: -webkit-box; margin: 0; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-card-title); font-weight: var(--weight-semibold); line-height: var(--leading-card-title); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.experiment-direction { min-width: 0; }
+.experiment-direction-label { display: block; margin-bottom: var(--space-2xs); color: var(--el-color-primary); font-size: var(--type-meta); font-weight: var(--weight-semibold); line-height: var(--leading-ui); }
+.experiment-direction p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); overflow-wrap: break-word; white-space: pre-line; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.experiment-direction.empty p { color: var(--el-text-color-placeholder); }
+.experiment-card-footer { display: flex; align-items: center; gap: var(--space-sm); margin-top: auto; color: var(--el-text-color-placeholder); font-size: var(--type-meta); line-height: var(--leading-ui); }
+.experiment-card-footer span:nth-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-record-trigger { margin-left: auto; }
 .dialog-intro { margin: 0 0 var(--space-md); color: var(--el-text-color-secondary); font-size: var(--type-caption); line-height: var(--leading-ui); }
 .field-counter { width: 100%; margin: 6px 0 0; color: var(--el-text-color-placeholder); font-size: var(--type-meta); }
 .theme-picker { display: flex; flex-wrap: wrap; gap: 8px; }
 .theme-option { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--el-border-color); border-radius: 7px; background: var(--el-bg-color); color: var(--el-text-color-regular); font: inherit; cursor: pointer; }
 .theme-option > span { width: 14px; height: 14px; border-radius: 50%; background: var(--option-color); }
 .theme-option.active { border-color: color-mix(in srgb, var(--option-color) 40%, var(--el-bg-color)); background: color-mix(in srgb, var(--option-color) 26%, var(--el-bg-color)); color: var(--el-text-color-primary); }
-@media (max-width: 900px) { .experiment-list { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .experiment-list-toolbar { width: 100%; } .experiment-card-content { min-height: 0; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-sm); } .experiment-copy, .experiment-summary-side { display: contents; } .experiment-hypothesis, .experiment-card-footer { grid-column: 1 / -1; } .experiment-title-row { grid-row: 1; grid-column: 1; } .experiment-card-header { grid-row: 1; grid-column: 2; } .experiment-card-footer { margin-top: var(--space-sm); } }
+@media (max-width: 760px) { .experiment-dashboard { padding: var(--space-md); } .experiment-list-toolbar { width: 100%; } .experiment-card-content { min-height: 0; } .experiment-card-footer { flex-wrap: wrap; } .quick-record-trigger { margin-left: 0; } }
 </style>

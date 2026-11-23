@@ -27,14 +27,14 @@ public class ExperimentOrganizationService {
     @Transactional(readOnly = true)
     public List<ExperimentOrganizationResponses.Topic> topics(Long experimentId) {
         owned(experimentId);
-        return topics.findByExperimentIdOrderByPinnedSlotAscIdAsc(experimentId).stream().map(ExperimentOrganizationResponses.Topic::from).toList();
+        return topics.findByExperimentIdOrdered(experimentId).stream().map(ExperimentOrganizationResponses.Topic::from).toList();
     }
 
     @Transactional
     public ExperimentOrganizationResponses.Topic createTopic(Long experimentId, ExperimentOrganizationRequests.Topic request) {
         var experiment = owned(experimentId);
         String name = request.name().trim();
-        try { return ExperimentOrganizationResponses.Topic.from(topics.save(new ExperimentTopic(experiment, name))); }
+        try { return ExperimentOrganizationResponses.Topic.from(topics.save(new ExperimentTopic(experiment, name, topics.maxDisplayOrderByExperimentId(experimentId) + 1))); }
         catch (org.springframework.dao.DataIntegrityViolationException ex) { throw new ResponseStatusException(HttpStatus.CONFLICT, "相同主題已存在"); }
     }
 
@@ -45,11 +45,25 @@ public class ExperimentOrganizationService {
         var topic = ownedTopic(experimentId, topicId);
         if (slot != null) {
             final Integer targetSlot = slot;
-            topics.findByExperimentIdOrderByPinnedSlotAscIdAsc(experimentId).stream()
+            topics.findByExperimentIdOrdered(experimentId).stream()
                     .filter(item -> targetSlot.equals(item.getPinnedSlot()) && !item.getId().equals(topicId)).forEach(item -> item.setPinnedSlot(null));
         }
         topic.setPinnedSlot(slot);
         return ExperimentOrganizationResponses.Topic.from(topic);
+    }
+
+    @Transactional
+    public List<ExperimentOrganizationResponses.Topic> reorderTopics(Long experimentId, ExperimentOrganizationRequests.TopicOrder request) {
+        owned(experimentId);
+        var current = topics.findByExperimentIdOrdered(experimentId);
+        var requested = request.topicIds().stream().filter(java.util.Objects::nonNull).distinct().toList();
+        var currentIds = current.stream().map(ExperimentTopic::getId).collect(java.util.stream.Collectors.toSet());
+        if (requested.size() != current.size() || !currentIds.equals(new java.util.HashSet<>(requested))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "主題排序必須包含此實驗的全部主題且不可重複");
+        }
+        var byId = current.stream().collect(java.util.stream.Collectors.toMap(ExperimentTopic::getId, item -> item));
+        for (int index = 0; index < requested.size(); index++) byId.get(requested.get(index)).setDisplayOrder(index + 1);
+        return topics.findByExperimentIdOrdered(experimentId).stream().map(ExperimentOrganizationResponses.Topic::from).toList();
     }
 
     @Transactional

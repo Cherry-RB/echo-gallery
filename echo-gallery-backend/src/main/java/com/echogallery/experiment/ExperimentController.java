@@ -182,6 +182,12 @@ public class ExperimentController {
         return ResponseEntity.ok(experimentOrganizationService.pinTopic(experimentId, topicId, request.slot()));
     }
 
+    @PutMapping("/{experimentId}/topics/order")
+    public ResponseEntity<java.util.List<ExperimentOrganizationResponses.Topic>> reorderTopics(
+            @PathVariable("experimentId") Long experimentId, @Valid @RequestBody ExperimentOrganizationRequests.TopicOrder request) {
+        return ResponseEntity.ok(experimentOrganizationService.reorderTopics(experimentId, request));
+    }
+
     @DeleteMapping("/{experimentId}/topics/{topicId}")
     public ResponseEntity<Void> deleteTopic(@PathVariable("experimentId") Long experimentId, @PathVariable("topicId") Long topicId) {
         experimentOrganizationService.deleteTopic(experimentId, topicId); return ResponseEntity.noContent().build();
