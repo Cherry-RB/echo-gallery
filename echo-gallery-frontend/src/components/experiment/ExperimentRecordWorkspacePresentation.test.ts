@@ -11,7 +11,7 @@ import type { ExperimentRecordDto, ExperimentTopicDto } from '../../types/experi
 const api = vi.hoisted(() => ({
   getTopics: vi.fn(), getRecordTopics: vi.fn(), getRecordReferences: vi.fn(),
   setRecordTopics: vi.fn(), createRecordReference: vi.fn(),
-  getRecords: vi.fn(), getPinnedPractices: vi.fn(), getRecentPractices: vi.fn(),
+  getRecords: vi.fn(), getPinnedPractices: vi.fn(), getRecentPractices: vi.fn(), createRecord: vi.fn(), updateRecord: vi.fn(),
 }))
 vi.mock('../../utils/api/experimentApi', () => ({ experimentApi: api }))
 const topics: ExperimentTopicDto[] = [
@@ -42,6 +42,7 @@ beforeEach(() => {
   api.getRecords.mockResolvedValue({ content: [record], page: 0, size: 20, totalElements: 1, totalPages: 1 })
   api.getPinnedPractices.mockResolvedValue([])
   api.getRecentPractices.mockResolvedValue([])
+  api.createRecord.mockResolvedValue({ ...record, id: 11 })
 })
 afterEach(() => { wrappers.splice(0).forEach(wrapper => wrapper.unmount()); vi.restoreAllMocks() })
 
@@ -102,6 +103,31 @@ describe('主題目錄與紀錄索引', () => {
     await wrapper.get('.record-index-row').trigger('keydown.space')
     expect(wrapper.emitted('read')).toEqual([[record]])
   })
+
+  it('再記一筆以新增草稿預填做法，不帶入原紀錄的其他資料', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const editor = {
+      name: 'ExperimentRecordEditor',
+      props: ['modelValue', 'record', 'initialPracticeText'],
+      emits: ['save', 'update:modelValue'],
+      template: '<div />',
+    }
+    const card = { name: 'ExperimentRecordCard', props: ['record'], emits: ['repeat'], template: '<button @click="$emit(\'repeat\', record)">再記一筆</button>' }
+    const wrapper = mount(Workspace, {
+      props: { experimentId: 8 },
+      global: { plugins: [ElementPlus, [VueQueryPlugin, { queryClient }]], stubs: { ExperimentRecordReader: true, ExperimentRecordEditor: editor, ExperimentRecordCard: card, ExperimentTopicManagerDialog: true } },
+    })
+    wrappers.push(wrapper)
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === '再記一筆')!.trigger('click')
+    const editorWrapper = wrapper.getComponent({ name: 'ExperimentRecordEditor' })
+    expect(editorWrapper.props('record')).toBeNull()
+    expect(editorWrapper.props('initialPracticeText')).toBe('先畫五分鐘')
+    editorWrapper.vm.$emit('save', { title: null, content: null, practiceText: '先畫五分鐘', recordedOn: '2026-11-24', understandingNode: false, methodCandidate: false, highlight: 'GENERAL', topicIds: [] })
+    await flushPromises()
+    expect(api.createRecord).toHaveBeenCalledWith(8, expect.objectContaining({ practiceText: '先畫五分鐘', requestId: expect.any(String) }))
+    expect(api.updateRecord).not.toHaveBeenCalled()
+  })
 })
 
 describe('閱讀中的主題與參考資料', () => {
@@ -138,5 +164,34 @@ describe('閱讀中的主題與參考資料', () => {
     await flushPromises()
     expect(wrapper.find('[data-dialog="加入參考連結"]').exists()).toBe(false)
     expect(wrapper.get('.reference-list a').attributes('href')).toBe('https://example.com')
+  })
+
+  it('收藏卡片參考使用卡片詳情的單數路由', async () => {
+    api.getRecordReferences.mockResolvedValueOnce([{ id: 4, kind: 'CARD', cardId: 12, title: '自動生成測試卡片標題 #1010' }])
+    const wrapper = mount(Reader, { props: { modelValue: true, record, experimentId: 8 }, global }); wrappers.push(wrapper)
+    await flushPromises()
+    expect(wrapper.get('.reference-list a').attributes('href')).toBe('/card/12')
+  })
+
+  it('加入收藏卡片時使用目前實驗 ID，且無效 ID 不送出請求', async () => {
+    const cardPicker = {
+      name: 'CardPickerDialog',
+      emits: ['confirm'],
+      template: '<button type="button" @click="$emit(\'confirm\', { id: \'12\' })">選擇收藏卡片</button>',
+    }
+    api.createRecordReference.mockResolvedValue({ id: 4, kind: 'CARD', cardId: 12, title: '參考卡片' })
+    const wrapper = mount(Reader, { props: { modelValue: true, record, experimentId: 8 }, global: { ...global, stubs: { ...global.stubs, CardPickerDialog: cardPicker } } })
+    wrappers.push(wrapper)
+    await flushPromises()
+    wrapper.getComponent({ name: 'CardPickerDialog' }).vm.$emit('confirm', { id: '12' })
+    await flushPromises()
+    expect(api.createRecordReference).toHaveBeenCalledWith(8, 10, { kind: 'CARD', cardId: 12 })
+
+    const invalidWrapper = mount(Reader, { props: { modelValue: true, record, experimentId: Number.NaN }, global: { ...global, stubs: { ...global.stubs, CardPickerDialog: cardPicker } } })
+    wrappers.push(invalidWrapper)
+    await flushPromises()
+    invalidWrapper.getComponent({ name: 'CardPickerDialog' }).vm.$emit('confirm', { id: '12' })
+    await flushPromises()
+    expect(api.createRecordReference).toHaveBeenCalledTimes(1)
   })
 })

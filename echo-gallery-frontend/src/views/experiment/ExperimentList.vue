@@ -3,6 +3,7 @@ import GoalBadge from '../../components/goal/GoalBadge.vue'
 import { computed, reactive, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
 import { Plus } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import type { ExperimentRecordRequest, ExperimentRequest } from '../../types/experiment'
@@ -24,6 +25,7 @@ const dialogVisible = ref(false)
 const quickRecordExperimentId = ref<number | null>(null)
 const quickRecordVisible = ref(false)
 const quickRecordSaving = ref(false)
+let quickRecordAttempt: { requestId: string; payload: string } | null = null
 const form = reactive<ExperimentRequest>({ title: '', startingPoint: '', desiredOutcome: '', hypothesis: '', conclusion: '', description: '', themeColor: 'LEAF' })
 
 const experimentsQuery = useQuery({
@@ -62,18 +64,33 @@ const openCreate = () => {
 }
 
 const openQuickRecord = (experimentId: number) => {
+  quickRecordAttempt = null
   quickRecordExperimentId.value = experimentId
   quickRecordVisible.value = true
 }
 const saveQuickRecord = async (value: ExperimentRecordRequest) => {
   if (quickRecordExperimentId.value === null) return
+  const payload = JSON.stringify(value)
+  if (quickRecordAttempt && quickRecordAttempt.payload !== payload) {
+    ElMessage.error('新增紀錄的內容已變更，請重新確認後再儲存。')
+    return
+  }
+  quickRecordAttempt ??= { requestId: crypto.randomUUID(), payload }
   quickRecordSaving.value = true
   try {
-    await experimentApi.createRecord(quickRecordExperimentId.value, value)
+    await experimentApi.createRecord(quickRecordExperimentId.value, { ...value, requestId: quickRecordAttempt.requestId })
     await queryClient.invalidateQueries({ queryKey: ['experiments'] })
     quickRecordVisible.value = false
+    quickRecordAttempt = null
     ElMessage.success('已新增探索紀錄')
-  } catch { ElMessage.error('儲存探索紀錄失敗，請稍後重試') } finally { quickRecordSaving.value = false }
+  } catch (error) {
+    if (axios.isAxiosError(error) && [400, 422].includes(error.response?.status ?? 0)) quickRecordAttempt = null
+    ElMessage.error('儲存探索紀錄失敗，請稍後重試')
+  } finally { quickRecordSaving.value = false }
+}
+const handleQuickRecordVisibility = (visible: boolean) => {
+  quickRecordVisible.value = visible
+  if (!visible) { quickRecordExperimentId.value = null; quickRecordAttempt = null }
 }
 
 const submit = () => {
@@ -222,7 +239,7 @@ const submit = () => {
     v-model="quickRecordVisible"
     :saving="quickRecordSaving"
     @save="saveQuickRecord"
-    @update:model-value="!$event && (quickRecordExperimentId = null)"
+    @update:model-value="handleQuickRecordVisibility"
   />
 </template>
 
@@ -234,7 +251,7 @@ const submit = () => {
 .experiment-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md); }
 .experiment-list-card { box-shadow: none; cursor: pointer; }
 .experiment-list-card :deep(.el-card__body) { display: flex; height: 100%; box-sizing: border-box; padding: var(--space-md); }
-.experiment-card-content { display: flex; flex: 1; min-height: 288px; flex-direction: column; gap: var(--space-sm); }
+.experiment-card-content { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: var(--space-sm); }
 .experiment-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-sm); min-width: 0; }
 .experiment-card-header > :first-child { min-width: 0; }
 .experiment-card-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-2xs); }

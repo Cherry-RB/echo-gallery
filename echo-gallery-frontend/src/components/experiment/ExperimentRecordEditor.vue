@@ -8,6 +8,7 @@ import type { ExperimentRecordDto, ExperimentRecordHighlight, ExperimentRecordRe
 const props = defineProps<{
   modelValue: boolean
   record?: ExperimentRecordDto | null
+  initialPracticeText?: string | null
   saving?: boolean
   direction?: string | null
   pinnedPractices?: string[]
@@ -31,17 +32,15 @@ const form = reactive<ExperimentRecordRequest>({
 })
 const writingHelpVisible = ref(false)
 const contentField = ref<{ focus: () => void }>()
-const extraOpen = ref(false)
 const practicePickerVisible = ref(false)
 
-watch(() => [props.modelValue, props.record] as const, ([visible, record]) => {
+watch(() => [props.modelValue, props.record, props.initialPracticeText] as const, ([visible, record, initialPracticeText]) => {
   if (!visible) return
   writingHelpVisible.value = false
   practicePickerVisible.value = false
-  extraOpen.value = !record || Boolean(record && (record.understandingNode || record.methodCandidate || record.highlight !== 'GENERAL' || record.recordedOn !== today()))
   Object.assign(form, record
     ? { title: record.title ?? '', content: record.content ?? '', practiceText: record.practiceText ?? '', recordedOn: record.recordedOn, understandingNode: record.understandingNode, methodCandidate: record.methodCandidate, highlight: record.highlight, topicIds: record.topics?.map(topic => topic.id) ?? [], expectedVersion: record.version }
-    : { title: '', content: '', practiceText: '', recordedOn: today(), understandingNode: false, methodCandidate: false, highlight: 'GENERAL', topicIds: [], expectedVersion: undefined })
+    : { title: '', content: '', practiceText: initialPracticeText ?? '', recordedOn: today(), understandingNode: false, methodCandidate: false, highlight: 'GENERAL', topicIds: [], expectedVersion: undefined })
 }, { immediate: true })
 
 const hasText = computed(() => [form.title, form.content, form.practiceText].some(value => Boolean(value?.trim())))
@@ -58,7 +57,7 @@ const usePractice = (practice: string) => { form.practiceText = practice; practi
 </script>
 
 <template>
-  <AppDialog class="record-dialog" :model-value="modelValue" :title="record ? '編輯探索紀錄' : '新增探索紀錄'" :busy="saving" :draft="form" width="min(620px, calc(100vw - 32px))" scroll-body @opened="contentField?.focus()" @update:model-value="emit('update:modelValue', $event)">
+  <AppDialog class="record-dialog" :model-value="modelValue" :title="record ? '編輯探索紀錄' : '新增探索紀錄'" :busy="saving" :draft="form" width="min(680px, calc(100vw - 32px))" scroll-body @opened="contentField?.focus()" @update:model-value="emit('update:modelValue', $event)">
     <div v-if="direction" class="direction-context">
       <span class="record-label"><strong>終點</strong>｜想達成的改變</span>
       <ExpandableText :content="direction" :lines="5" />
@@ -86,22 +85,21 @@ const usePractice = (practice: string) => { form.practiceText = practice; practi
           </el-popover>
         </div>
       </el-form-item>
-      <el-form-item v-if="topicOptions" label="主題">
-        <el-select v-model="form.topicIds" multiple filterable clearable collapse-tags :max-collapse-tags="3" :loading="topicsLoading" :disabled="saving || topicsError" placeholder="選擇主題" aria-label="紀錄主題">
-          <el-option v-for="topic in topicOptions" :key="topic.id" :label="topic.name" :value="topic.id" />
-        </el-select>
-        <p v-if="topicsError" class="field-status" role="alert">無法載入主題。<el-button link type="primary" size="small" @click="emit('retryTopics')">重試</el-button></p>
-        <p v-else-if="!topicsLoading && !topicOptions?.length" class="field-status">尚未建立主題，可由左側主題目錄進入管理。</p>
-      </el-form-item>
       <p v-if="!hasText" class="validation-hint">標題、內容或做法至少填一項。</p>
-      <details class="record-supplementary editor-supplementary" :open="extraOpen" @toggle="extraOpen = ($event.target as HTMLDetailsElement).open">
-        <summary>補充資訊<span v-if="!extraOpen" class="extra-summary">{{ form.recordedOn || '未設定日期' }}・{{ highlights.find(item => item.value === form.highlight)?.label }}{{ form.understandingNode ? '・理解節點' : '' }}{{ form.methodCandidate ? '・方法備選' : '' }}</span></summary>
+      <section class="editor-organization" aria-label="整理資訊">
         <div class="extra-fields">
           <el-form-item label="紀錄日期" required :error="!form.recordedOn ? '請選擇紀錄日期。' : undefined"><el-date-picker v-model="form.recordedOn" type="date" value-format="YYYY-MM-DD" /></el-form-item>
+          <el-form-item v-if="topicOptions" label="主題">
+            <el-select v-model="form.topicIds" multiple filterable clearable collapse-tags :max-collapse-tags="3" :loading="topicsLoading" :disabled="saving || topicsError" placeholder="選擇主題" aria-label="紀錄主題">
+              <el-option v-for="topic in topicOptions" :key="topic.id" :label="topic.name" :value="topic.id" />
+            </el-select>
+            <p v-if="topicsError" class="field-status" role="alert">無法載入主題。<el-button link type="primary" size="small" @click="emit('retryTopics')">重試</el-button></p>
+            <p v-else-if="!topicsLoading && !topicOptions?.length" class="field-status">尚未建立主題，可由左側主題目錄進入管理。</p>
+          </el-form-item>
           <el-form-item label="標記"><div class="mark-options"><el-checkbox v-model="form.understandingNode">理解節點</el-checkbox><el-checkbox v-model="form.methodCandidate">方法備選</el-checkbox></div></el-form-item>
           <el-form-item label="本次亮點" class="highlight-field"><el-radio-group v-model="form.highlight"><el-radio v-for="item in highlights" :key="item.value" :value="item.value">{{ item.label }}</el-radio></el-radio-group></el-form-item>
         </div>
-      </details>
+      </section>
     </el-form>
     <template #footer="{ requestClose }"><el-button :disabled="saving" @click="requestClose">取消</el-button><el-button type="primary" :loading="saving" :disabled="!canSave" @click="submit">儲存紀錄</el-button></template>
   </AppDialog>
@@ -130,16 +128,12 @@ const usePractice = (practice: string) => { form.practiceText = practice; practi
 .practice-options button { display: block; width: 100%; border: 0; border-radius: var(--radius-sm); padding: var(--space-xs); background: transparent; color: var(--el-text-color-regular); font: inherit; font-size: var(--type-secondary); line-height: var(--leading-ui); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
 .practice-options button:hover, .practice-options button:focus-visible { color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
 .practice-options button:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
-.extra-summary { margin-left: var(--space-sm); color: var(--el-text-color-secondary); font-size: var(--type-meta); font-weight: var(--weight-regular); }
-.extra-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 var(--space-md); margin-top: var(--space-sm); }
-.highlight-field { grid-column: 1 / -1; }
+.extra-fields { display: grid; grid-template-columns: minmax(210px, .65fr) minmax(0, 1.35fr); gap: 0 var(--space-md); }
 .mark-options { display: flex; flex-wrap: wrap; gap: 0 var(--space-sm); }
-.mark-options :deep(.el-checkbox), .record-supplementary :deep(.el-radio) { margin-right: 0; }
-.record-supplementary :deep(.el-form-item:last-child) { margin-bottom: 0; }
-.record-supplementary :deep(.el-radio-group) { display: flex; flex-wrap: wrap; gap: 0 var(--space-md); }
-.editor-supplementary { padding: var(--space-sm); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-summary); }
-.editor-supplementary > summary { margin: calc(var(--space-sm) * -1); padding: var(--space-sm); }
-.editor-supplementary[open] > summary { margin-bottom: 0; }
-.editor-supplementary .extra-fields { margin-top: var(--space-sm); }
-@media (max-width: 760px) { .extra-fields { grid-template-columns: minmax(0, 1fr); } .extra-summary { display: block; margin: var(--space-2xs) 0 0; } }
+.mark-options :deep(.el-checkbox), .editor-organization :deep(.el-radio) { margin-right: 0; }
+.editor-organization :deep(.el-form-item:last-child) { margin-bottom: 0; }
+.editor-organization :deep(.el-radio-group) { display: flex; flex-wrap: nowrap; gap: 0 var(--space-xs); }
+.editor-organization :deep(.el-radio) { white-space: nowrap; }
+.editor-organization { padding: var(--space-sm); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-summary); }
+@media (max-width: 760px) { .extra-fields { grid-template-columns: minmax(0, 1fr); } }
 </style>

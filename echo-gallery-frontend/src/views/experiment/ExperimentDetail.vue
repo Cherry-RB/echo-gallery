@@ -24,11 +24,13 @@ const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const experimentId = computed(() => Number(route.params.id))
+const hasValidExperimentId = computed(() => Number.isSafeInteger(experimentId.value) && experimentId.value > 0)
 const editVisible = ref(false)
 const editForm = reactive<ExperimentRequest>({ title: '', startingPoint: '', desiredOutcome: '', hypothesis: '', conclusion: '', description: '', themeColor: 'LEAF' })
 const experimentQuery = useQuery({
   queryKey: computed(() => ['experiment', experimentId.value]),
-  queryFn: () => experimentApi.getExperiment(experimentId.value)
+  queryFn: () => experimentApi.getExperiment(experimentId.value),
+  enabled: hasValidExperimentId,
 })
 
 const invalidateExperiment = async () => {
@@ -143,7 +145,12 @@ const submitEdit = () => {
     </header>
     </template>
 
-    <div v-if="experimentQuery.isLoading.value" class="state-surface"><el-skeleton :rows="8" animated /></div>
+    <div v-if="!hasValidExperimentId" class="state-surface">
+      <el-result icon="error" title="無效的實驗主題連結" sub-title="請返回實驗場後重新開啟實驗主題。">
+        <template #extra><el-button type="primary" @click="router.push('/experiments')">返回列表</el-button></template>
+      </el-result>
+    </div>
+    <div v-else-if="experimentQuery.isLoading.value" class="state-surface"><el-skeleton :rows="8" animated /></div>
     <div v-else-if="experimentQuery.isError.value" class="state-surface">
       <el-result icon="error" title="無法載入實驗主題" sub-title="實驗主題可能不存在，或目前無法連線。">
         <template #extra><el-button @click="goBack">返回列表</el-button><el-button type="primary" @click="experimentQuery.refetch()">重新載入</el-button></template>

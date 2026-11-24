@@ -18,7 +18,7 @@ afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()))
 
 const dialogStub = {
   name: 'AppDialog', props: ['modelValue', 'title', 'draft', 'busy'], emits: ['opened', 'update:modelValue'],
-  template: '<section v-if="modelValue"><h2>{{ title }}</h2><slot /><footer><slot name="footer" :request-close="() => $emit(\'update:modelValue\', false)" /></footer></section>',
+  template: '<section v-if="modelValue"><header><slot name="header"><h2>{{ title }}</h2></slot></header><slot /><footer><slot name="footer" :request-close="() => $emit(\'update:modelValue\', false)" /></footer></section>',
 }
 const global = { plugins: [ElementPlus], stubs: { AppDialog: dialogStub, CardPickerDialog: true, RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } }
 
@@ -43,6 +43,20 @@ describe('探索紀錄的閱讀與輸入', () => {
     await button.trigger('keydown', { key: ' ' })
     await button.trigger('click')
     expect(wrapper.emitted('read')).toBeUndefined()
+  })
+
+  it('重用做法的新增草稿只預填做法，其餘欄位使用新增預設值', async () => {
+    const wrapper = mount(Editor, { props: { modelValue: true, initialPracticeText: '先畫五分鐘' }, global })
+    wrappers.push(wrapper)
+    await flushPromises()
+    expect((wrapper.get('input[aria-label="紀錄標題"]').element as HTMLInputElement).value).toBe('')
+    expect((wrapper.get('textarea[aria-label="紀錄內容"]').element as HTMLTextAreaElement).value).toBe('')
+    expect((wrapper.get('textarea[aria-label="紀錄做法"]').element as HTMLTextAreaElement).value).toBe('先畫五分鐘')
+    await wrapper.findAll('button').find(button => button.text() === '儲存紀錄')!.trigger('click')
+    expect(wrapper.emitted('save')![0]![0]).toMatchObject({
+      title: null, content: null, practiceText: '先畫五分鐘', understandingNode: false,
+      methodCandidate: false, highlight: 'GENERAL', topicIds: [], expectedVersion: undefined,
+    })
   })
 
   it('額外主題以數量標籤收束，避免擠壓日期', () => {
@@ -74,24 +88,23 @@ describe('探索紀錄的閱讀與輸入', () => {
     wrappers.push(wrapper)
     const contentSections = wrapper.findAll('.record-body, .record-practice')
     expect(contentSections).toHaveLength(Number(Boolean(fields.content)) + Number(Boolean(fields.practiceText)))
-    expect(wrapper.get('.record-details').text()).toContain('2026-11-21')
-    expect(wrapper.get('details').attributes('open')).toBeDefined()
+    expect(wrapper.get('.record-timestamps').text()).toContain('紀錄2026-11-21')
+    expect(wrapper.get('.record-timestamps').text()).toContain('建立')
+    expect(wrapper.get('.reader-summary').text()).not.toContain('建立')
+    expect(wrapper.find('details').exists()).toBe(false)
     await wrapper.findAll('button').find(button => button.text() === '編輯紀錄')!.trigger('click')
     expect(wrapper.emitted('edit')).toHaveLength(1)
   })
 
-  it.each([0, 1, 2])('第 %i 個主要欄位單獨有值即可保存，補充區切換保留草稿', async fieldIndex => {
+  it.each([0, 1, 2])('第 %i 個主要欄位單獨有值即可保存，整理資訊固定可見', async fieldIndex => {
     const wrapper = mount(Editor, { props: { modelValue: true }, global })
     wrappers.push(wrapper)
     await flushPromises()
     const save = () => wrapper.findAll('button').find(button => button.text() === '儲存紀錄')!
     expect(save().attributes('disabled')).toBeDefined()
     await wrapper.findAll('input.el-input__inner, textarea')[fieldIndex]!.setValue('新的紀錄')
-    const details = wrapper.get('details')
-    ;(details.element as HTMLDetailsElement).open = true
-    await details.trigger('toggle')
-    ;(details.element as HTMLDetailsElement).open = false
-    await details.trigger('toggle')
+    expect(wrapper.find('.editor-organization').exists()).toBe(true)
+    expect(wrapper.find('details').exists()).toBe(false)
     expect(save().attributes('disabled')).toBeUndefined()
     expect(wrapper.text()).not.toContain('選填')
     await save().trigger('click')

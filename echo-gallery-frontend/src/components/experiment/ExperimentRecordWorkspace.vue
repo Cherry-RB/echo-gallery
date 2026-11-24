@@ -19,6 +19,7 @@ const client = useQueryClient()
 const page = ref(0), keyword = ref(''), keywordDraft = ref(''), sort = ref('recordedOn,DESC')
 const editorVisible = ref(false), readerVisible = ref(false), topicManagerVisible = ref(false)
 const editing = ref<ExperimentRecordDto | null>(null), reading = ref<ExperimentRecordDto | null>(null)
+const repeatedPractice = ref<string | null>(null)
 type RecordFilters = { understandingNode?: boolean; methodCandidate?: boolean; highlight?: ExperimentRecordHighlight; dateFrom?: string; dateTo?: string; topicIds?: number[]; topicMatch?: 'ANY' | 'ALL'; unclassified?: boolean }
 const appliedFilters = ref<RecordFilters>({})
 const pendingFilters = ref<RecordFilters>({})
@@ -60,12 +61,12 @@ const save = useMutation({
     createAttempt ??= { requestId: crypto.randomUUID(), payload: serialized }
     return experimentApi.createRecord(props.experimentId, { ...payload, requestId: createAttempt.requestId })
   },
-  onSuccess: async record => { createAttempt = null; await invalidate(); editing.value = null; editorVisible.value = false; if (returnToReader.value) { reading.value = record; readerVisible.value = true; returnToReader.value = false }; ElMessage.success('已儲存探索紀錄。') },
+  onSuccess: async record => { createAttempt = null; editing.value = null; repeatedPractice.value = null; await invalidate(); editorVisible.value = false; if (returnToReader.value) { reading.value = record; readerVisible.value = true; returnToReader.value = false }; ElMessage.success('已儲存探索紀錄。') },
   onError: error => { if (!editing.value && axios.isAxiosError(error) && [400, 422].includes(error.response?.status ?? 0)) createAttempt = null; ElMessage.error(error instanceof Error && error.message.startsWith('新增紀錄') ? error.message : '儲存失敗，請稍後再試。') },
 })
-const openCreate = () => { createAttempt = null; editing.value = null; editorVisible.value = true }
-const repeat = (record: ExperimentRecordDto) => { createAttempt = null; editing.value = { ...record, id: -1, title: null, content: null, recordedOn: new Date().toISOString().slice(0, 10), version: 0 }; editorVisible.value = true }
-const openEdit = (record: ExperimentRecordDto) => { editing.value = record; editorVisible.value = true }
+const openCreate = () => { createAttempt = null; editing.value = null; repeatedPractice.value = null; editorVisible.value = true }
+const repeat = (record: ExperimentRecordDto) => { createAttempt = null; editing.value = null; repeatedPractice.value = record.practiceText; editorVisible.value = true }
+const openEdit = (record: ExperimentRecordDto) => { repeatedPractice.value = null; editing.value = record; editorVisible.value = true }
 const openRead = (record: ExperimentRecordDto) => { reading.value = record; readerVisible.value = true }
 const editFromReader = () => { if (!reading.value) return; returnToReader.value = true; readerVisible.value = false; openEdit(reading.value) }
 const handleEditorVisibility = (visible: boolean) => { editorVisible.value = visible; if (!visible && returnToReader.value && reading.value) { readerVisible.value = true; returnToReader.value = false } }
@@ -170,7 +171,7 @@ const remove = async (record: ExperimentRecordDto) => {
   </section>
   <ExperimentTopicManagerDialog v-model="topicManagerVisible" :experiment-id="experimentId" />
   <ExperimentRecordReader v-model="readerVisible" :record="reading" :experiment-id="experimentId" :direction="desiredOutcome" @edit="editFromReader" @changed="invalidate" />
-  <ExperimentRecordEditor :model-value="editorVisible" :record="editing" :saving="save.isPending.value" :direction="desiredOutcome" :pinned-practices="practices.data.value?.map(item => item.content)" :recent-practices="recentPractices.data.value?.filter(practice => !practices.data.value?.some(pinned => pinned.content.trim() === practice.trim()))" :topic-options="topics.data.value ?? []" :topics-loading="topics.isPending.value" :topics-error="topics.isError.value" @update:model-value="handleEditorVisibility" @retry-topics="topics.refetch()" @save="save.mutate($event)" />
+  <ExperimentRecordEditor :model-value="editorVisible" :record="editing" :initial-practice-text="repeatedPractice" :saving="save.isPending.value" :direction="desiredOutcome" :pinned-practices="practices.data.value?.map(item => item.content)" :recent-practices="recentPractices.data.value?.filter(practice => !practices.data.value?.some(pinned => pinned.content.trim() === practice.trim()))" :topic-options="topics.data.value ?? []" :topics-loading="topics.isPending.value" :topics-error="topics.isError.value" @update:model-value="handleEditorVisibility" @retry-topics="topics.refetch()" @save="save.mutate($event)" />
 </template>
 
 <style scoped>

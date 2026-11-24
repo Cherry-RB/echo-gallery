@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ExperimentList from './ExperimentList.vue'
@@ -61,6 +61,20 @@ describe('實驗列表操作與分頁', () => {
     const wrapper = render()
     await vi.waitFor(() => expect(wrapper.text()).toContain('1 筆'))
     expect(wrapper.findComponent({ name: 'ExperimentExplorationHistoryDialog' }).exists()).toBe(false)
+  })
+
+  it('快速新增紀錄會帶入 requestId', async () => {
+    const wrapper = render()
+    await vi.waitFor(() => expect(wrapper.find('.quick-record-trigger').exists()).toBe(true))
+    await wrapper.get('.quick-record-trigger').trigger('click')
+    wrapper.getComponent({ name: 'ExperimentRecordEditor' }).vm.$emit('save', {
+      title: '快速紀錄', content: null, practiceText: null, recordedOn: '2026-11-24',
+      understandingNode: false, methodCandidate: false, highlight: 'GENERAL', topicIds: [],
+    })
+    await flushPromises()
+    expect(state.createRecord).toHaveBeenCalledWith(1, expect.objectContaining({
+      title: '快速紀錄', requestId: expect.any(String),
+    }))
   })
 
   it('列表卡只保留快速新增紀錄，並以精簡日期呈現最後活動時間', async () => {
