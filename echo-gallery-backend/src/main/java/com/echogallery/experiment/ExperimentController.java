@@ -176,6 +176,12 @@ public class ExperimentController {
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(experimentOrganizationService.createTopic(experimentId, request));
     }
 
+    @PutMapping("/{experimentId}/topics/{topicId}")
+    public ResponseEntity<ExperimentOrganizationResponses.Topic> renameTopic(@PathVariable("experimentId") Long experimentId,
+            @PathVariable("topicId") Long topicId, @Valid @RequestBody ExperimentOrganizationRequests.Topic request) {
+        return ResponseEntity.ok(experimentOrganizationService.renameTopic(experimentId, topicId, request));
+    }
+
     @PutMapping("/{experimentId}/topics/{topicId}/pin")
     public ResponseEntity<ExperimentOrganizationResponses.Topic> pinTopic(@PathVariable("experimentId") Long experimentId,
             @PathVariable("topicId") Long topicId, @Valid @RequestBody ExperimentOrganizationRequests.Pin request) {

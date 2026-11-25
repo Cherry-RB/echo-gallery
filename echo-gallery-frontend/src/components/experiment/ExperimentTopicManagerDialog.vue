@@ -11,6 +11,8 @@ const props = defineProps<{ modelValue: boolean; experimentId: number }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 const client = useQueryClient()
 const name = ref('')
+const editingTopicId = ref<number | null>(null)
+const editingName = ref('')
 const ordered = ref<ExperimentTopicDto[]>([])
 const draggingIndex = ref<number | null>(null)
 const dropTargetIndex = ref<number | null>(null)
@@ -22,6 +24,11 @@ watch(() => topics.data.value, value => { ordered.value = value ? [...value] : [
 const nextSlot = computed(() => [1, 2, 3].find(slot => !ordered.value.some(topic => topic.pinnedSlot === slot)))
 const hasOrderChange = computed(() => ordered.value.map(topic => topic.id).join(',') !== (topics.data.value ?? []).map(topic => topic.id).join(','))
 const add = useMutation({ mutationFn: () => experimentApi.createTopic(props.experimentId, name.value.trim()), onSuccess: async () => { name.value = ''; await refresh() }, onError: () => ElMessage.error('無法新增主題。') })
+const rename = useMutation({
+  mutationFn: ({ id, name }: { id: number; name: string }) => experimentApi.renameTopic(props.experimentId, id, name),
+  onSuccess: async () => { editingTopicId.value = null; editingName.value = ''; await refresh() },
+  onError: () => ElMessage.error('無法更新主題名稱。'),
+})
 const pin = useMutation({ mutationFn: ({ id, slot }: { id: number; slot: number }) => experimentApi.pinTopic(props.experimentId, id, slot), onSuccess: refresh, onError: () => ElMessage.error('無法更新釘選主題。') })
 const reorder = useMutation({ mutationFn: () => experimentApi.reorderTopics(props.experimentId, ordered.value.map(topic => topic.id)), onSuccess: async () => { await refresh(); ElMessage.success('已更新主題排序。') }, onError: () => ElMessage.error('無法更新主題排序。') })
 const remove = async (topic: ExperimentTopicDto) => {
@@ -34,6 +41,13 @@ const move = (index: number, offset: number) => {
   const next = [...ordered.value]
   ;[next[index], next[target]] = [next[target]!, next[index]!]
   ordered.value = next
+}
+const startRename = (topic: ExperimentTopicDto) => { editingTopicId.value = topic.id; editingName.value = topic.name }
+const cancelRename = () => { editingTopicId.value = null; editingName.value = '' }
+const saveRename = (topic: ExperimentTopicDto) => {
+  const value = editingName.value.trim()
+  if (!value || value === topic.name || rename.isPending.value) { cancelRename(); return }
+  rename.mutate({ id: topic.id, name: value })
 }
 const clearDrag = () => {
   draggingIndex.value = null
@@ -100,9 +114,15 @@ onBeforeUnmount(clearDrag)
     <ol v-else class="topic-list">
       <li v-for="(topic, index) in ordered" :key="topic.id" :class="{ 'is-dragging': draggingIndex === index, 'drop-before': dropTargetIndex === index && !dropAfter, 'drop-after': dropTargetIndex === index && dropAfter }" :data-topic-index="index">
         <button type="button" class="drag-handle" :aria-label="`拖曳調整 ${topic.name} 的順序`" :disabled="reorder.isPending.value" @pointerdown="startDrag($event, index)"><el-icon><Sort /></el-icon></button>
-        <span class="topic-name">{{ topic.name }}</span>
+        <el-input v-if="editingTopicId === topic.id" v-model="editingName" class="topic-name-input" maxlength="100" :disabled="rename.isPending.value" @keyup.enter="saveRename(topic)" @keyup.escape="cancelRename" />
+        <span v-else class="topic-name">{{ topic.name }}</span>
         <span v-if="topic.pinnedSlot" class="topic-state">已釘選</span>
         <div class="topic-actions">
+          <template v-if="editingTopicId === topic.id">
+            <el-button text type="primary" :loading="rename.isPending.value" @click="saveRename(topic)">儲存</el-button>
+            <el-button text :disabled="rename.isPending.value" @click="cancelRename">取消</el-button>
+          </template>
+          <el-button v-else text type="primary" @click="startRename(topic)">改名</el-button>
           <el-button text circle :icon="ArrowUp" :disabled="index === 0" :aria-label="`上移 ${topic.name}`" @click="move(index, -1)" />
           <el-button text circle :icon="ArrowDown" :disabled="index === ordered.length - 1" :aria-label="`下移 ${topic.name}`" @click="move(index, 1)" />
           <el-button v-if="topic.pinnedSlot" text type="primary" @click="pin.mutate({ id: topic.id, slot: 0 })">取消釘選</el-button>
@@ -130,6 +150,7 @@ onBeforeUnmount(clearDrag)
 .drag-handle:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 1px; }
 .drag-handle:active { cursor: grabbing; }
 .topic-name { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--el-text-color-primary); font-size: var(--type-secondary); }
+.topic-name-input { flex: 1; min-width: 0; }
 .topic-state { color: var(--el-color-primary); font-size: var(--type-meta); white-space: nowrap; }
 .topic-actions { display: flex; align-items: center; gap: var(--space-2xs); }
 @media (max-width: 640px) { .topic-list li { flex-wrap: wrap; } .topic-actions { width: 100%; justify-content: flex-end; } }

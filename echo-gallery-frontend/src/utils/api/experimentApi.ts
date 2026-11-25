@@ -65,6 +65,7 @@ export const experimentApi = {
   deleteRecordReference(experimentId: number, recordId: number, referenceId: number): Promise<void> { return request({ url: `/experiments/${experimentId}/records/${recordId}/references/${referenceId}`, method: 'DELETE' }) },
   getTopics(experimentId: number): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/topics`, method: 'GET' }) },
   createTopic(experimentId: number, name: string): Promise<ExperimentTopicDto> { return request({ url: `/experiments/${experimentId}/topics`, method: 'POST', data: { name } }) },
+  renameTopic(experimentId: number, topicId: number, name: string): Promise<ExperimentTopicDto> { return request({ url: `/experiments/${experimentId}/topics/${topicId}`, method: 'PUT', data: { name } }) },
   pinTopic(experimentId: number, topicId: number, slot: number): Promise<ExperimentTopicDto> { return request({ url: `/experiments/${experimentId}/topics/${topicId}/pin`, method: 'PUT', data: { slot } }) },
   reorderTopics(experimentId: number, topicIds: number[]): Promise<ExperimentTopicDto[]> { return request({ url: `/experiments/${experimentId}/topics/order`, method: 'PUT', data: { topicIds } }) },
   deleteTopic(experimentId: number, topicId: number): Promise<void> { return request({ url: `/experiments/${experimentId}/topics/${topicId}`, method: 'DELETE' }) },

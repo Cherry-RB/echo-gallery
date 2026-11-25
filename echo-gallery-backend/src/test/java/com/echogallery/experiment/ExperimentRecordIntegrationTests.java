@@ -160,6 +160,30 @@ class ExperimentRecordIntegrationTests extends IntegrationTestBase {
     }
 
     @Test
+    void replacesOverlappingTopicsAndRenamesOwnedTopic() throws Exception {
+        String owner = register("record-topic-replace-owner");
+        long experimentId = createExperiment(owner);
+        long recordId = createRecord(owner, experimentId, "多主題紀錄");
+        long firstTopic = createTopic(owner, experimentId, "第一主題");
+        long secondTopic = createTopic(owner, experimentId, "第二主題");
+        setTopics(owner, experimentId, recordId, firstTopic);
+
+        setTopics(owner, experimentId, recordId, firstTopic, secondTopic);
+        mvc.perform(get("/api/experiments/{experimentId}/records/{recordId}/topics", experimentId, recordId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        mvc.perform(put("/api/experiments/{experimentId}/topics/{topicId}", experimentId, secondTopic)
+                .header(HttpHeaders.AUTHORIZATION, bearer(owner)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"重新命名主題\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(secondTopic))
+                .andExpect(jsonPath("$.name").value("重新命名主題"));
+    }
+
+    @Test
     void savesRecordContentAndTopicsInTheSameTransaction() throws Exception {
         String owner = register("record-topic-editor-owner");
         long experimentId = createExperiment(owner);

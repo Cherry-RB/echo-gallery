@@ -176,22 +176,23 @@ describe('閱讀中的主題與參考資料', () => {
   it('加入收藏卡片時使用目前實驗 ID，且無效 ID 不送出請求', async () => {
     const cardPicker = {
       name: 'CardPickerDialog',
-      emits: ['confirm'],
-      template: '<button type="button" @click="$emit(\'confirm\', { id: \'12\' })">選擇收藏卡片</button>',
+      emits: ['confirm-many'],
+      template: '<button type="button" @click="$emit(\'confirm-many\', [{ id: \'12\' }, { id: \'13\' }])">選擇收藏卡片</button>',
     }
     api.createRecordReference.mockResolvedValue({ id: 4, kind: 'CARD', cardId: 12, title: '參考卡片' })
     const wrapper = mount(Reader, { props: { modelValue: true, record, experimentId: 8 }, global: { ...global, stubs: { ...global.stubs, CardPickerDialog: cardPicker } } })
     wrappers.push(wrapper)
     await flushPromises()
-    wrapper.getComponent({ name: 'CardPickerDialog' }).vm.$emit('confirm', { id: '12' })
+    wrapper.getComponent({ name: 'CardPickerDialog' }).vm.$emit('confirm-many', [{ id: '12' }, { id: '13' }])
     await flushPromises()
     expect(api.createRecordReference).toHaveBeenCalledWith(8, 10, { kind: 'CARD', cardId: 12 })
+    expect(api.createRecordReference).toHaveBeenCalledWith(8, 10, { kind: 'CARD', cardId: 13 })
 
     const invalidWrapper = mount(Reader, { props: { modelValue: true, record, experimentId: Number.NaN }, global: { ...global, stubs: { ...global.stubs, CardPickerDialog: cardPicker } } })
     wrappers.push(invalidWrapper)
     await flushPromises()
-    invalidWrapper.getComponent({ name: 'CardPickerDialog' }).vm.$emit('confirm', { id: '12' })
+    invalidWrapper.getComponent({ name: 'CardPickerDialog' }).vm.$emit('confirm-many', [{ id: '12' }])
     await flushPromises()
-    expect(api.createRecordReference).toHaveBeenCalledTimes(1)
+    expect(api.createRecordReference).toHaveBeenCalledTimes(2)
   })
 })

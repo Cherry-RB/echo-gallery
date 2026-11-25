@@ -39,6 +39,14 @@ public class ExperimentOrganizationService {
     }
 
     @Transactional
+    public ExperimentOrganizationResponses.Topic renameTopic(Long experimentId, Long topicId, ExperimentOrganizationRequests.Topic request) {
+        var topic = ownedTopic(experimentId, topicId);
+        topic.rename(request.name().trim());
+        try { return ExperimentOrganizationResponses.Topic.from(topics.saveAndFlush(topic)); }
+        catch (org.springframework.dao.DataIntegrityViolationException ex) { throw new ResponseStatusException(HttpStatus.CONFLICT, "此資料已存在，請更換後重試"); }
+    }
+
+    @Transactional
     public ExperimentOrganizationResponses.Topic pinTopic(Long experimentId, Long topicId, Integer slot) {
         if (slot != null && slot == 0) slot = null;
         if (slot != null && (slot < 1 || slot > 3)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "置頂位置必須介於 1 到 3");
@@ -79,6 +87,7 @@ public class ExperimentOrganizationService {
         Set<Long> ids = Set.copyOf(request.topicIds());
         var selected = ids.stream().map(id -> ownedTopic(experimentId, id)).toList();
         recordTopics.deleteByRecordId(recordId);
+        recordTopics.flush();
         selected.forEach(topic -> recordTopics.save(new ExperimentRecordTopic(owned(experimentId), ownedRecord(experimentId, recordId), topic)));
         return selected.stream().map(ExperimentOrganizationResponses.Topic::from).toList();
     }

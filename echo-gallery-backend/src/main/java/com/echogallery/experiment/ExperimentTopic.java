@@ -38,4 +38,5 @@ public class ExperimentTopic {
     }
     public void setPinnedSlot(Integer pinnedSlot) { this.pinnedSlot = pinnedSlot; }
     public void setDisplayOrder(int displayOrder) { this.displayOrder = displayOrder; }
+    public void rename(String name) { this.name = name; }
 }

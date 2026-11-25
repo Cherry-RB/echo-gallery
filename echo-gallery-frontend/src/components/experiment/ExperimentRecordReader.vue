@@ -20,6 +20,12 @@ const topicSearch = ref('')
 const filteredTopicOptions = computed(() => topicOptions.value.filter(topic => topic.name.toLocaleLowerCase().includes(topicSearch.value.trim().toLocaleLowerCase())))
 const references = ref<ExperimentRecordReferenceDto[]>([])
 const referencesLoading = ref(false), referencesError = ref(false)
+const referenceSort = ref<'newest' | 'oldest' | 'title'>('newest')
+const sortedReferences = computed(() => [...references.value].sort((left, right) => {
+  if (referenceSort.value === 'title') return (left.title || left.label || left.url || '').localeCompare(right.title || right.label || right.url || '')
+  const direction = referenceSort.value === 'newest' ? -1 : 1
+  return direction * (new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
+}))
 const referenceUrl = ref(''), referenceLabel = ref(''), referenceError = ref('')
 const referenceDialogVisible = ref(false), savingReference = ref(false)
 const cardPickerVisible = ref(false), savingCardReference = ref(false), removingReferenceId = ref<number>()
@@ -128,6 +134,9 @@ const addCardReference = async (card: CardDto) => {
     cardPickerVisible.value = false
   } catch { ElMessage.error('無法加入收藏卡片參考') } finally { savingCardReference.value = false }
 }
+const addCardReferences = async (cards: CardDto[]) => {
+  for (const card of cards) await addCardReference(card)
+}
 const highlightLabel = (record: ExperimentRecordDto) => ({
   GENERAL: '一般', GAIN: '有所收穫', CHALLENGE_OVERCOME: '克服困難', PEAK_EXPERIENCE: '高峰體驗',
 }[record.highlight])
@@ -166,14 +175,19 @@ const highlightLabel = (record: ExperimentRecordDto) => ({
           </div>
           <p v-if="referencesLoading" class="reader-hint" role="status">正在載入參考資料…</p>
           <p v-else-if="referencesError" class="reader-hint" role="alert">無法載入參考資料。<el-button link type="primary" @click="load">重試</el-button></p>
-          <ul v-else-if="references.length" class="reference-list">
-            <li v-for="reference in references" :key="reference.id">
+          <el-select v-if="references.length > 1" v-model="referenceSort" size="small" class="reference-sort" aria-label="參考資料排序">
+            <el-option label="加入時間：新到舊" value="newest" />
+            <el-option label="加入時間：舊到新" value="oldest" />
+            <el-option label="名稱" value="title" />
+          </el-select>
+          <ul v-if="references.length" class="reference-list">
+            <li v-for="reference in sortedReferences" :key="reference.id">
               <div class="reference-name"><span>{{ reference.kind === 'CARD' ? '收藏卡片' : '外部連結' }}</span><a v-if="reference.url" :href="reference.url" target="_blank" rel="noopener noreferrer">{{ reference.label || reference.url }}</a><router-link v-else-if="reference.cardId" :to="'/card/' + reference.cardId">{{ reference.title || reference.label || '收藏卡片' }}</router-link><span v-else>{{ reference.title || reference.label }}</span></div>
               <el-dropdown trigger="click" :disabled="busy"><el-button text circle size="small" :icon="MoreFilled" :disabled="busy" aria-label="參考資料操作" /><template #dropdown><el-dropdown-menu><el-dropdown-item @click="removeReference(reference)">移除參考</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
             </li>
           </ul>
-          <el-dropdown v-else-if="validExperimentId" trigger="click" :disabled="busy" @command="referenceCommand"><el-button link type="primary" size="small" :icon="Plus" :disabled="busy">加入參考資料</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="url">加入連結</el-dropdown-item><el-dropdown-item command="card">加入收藏卡片</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
-          <p v-else class="reader-hint">尚未加入參考資料。</p>
+          <el-dropdown v-if="!referencesLoading && !referencesError && !references.length && validExperimentId" trigger="click" :disabled="busy" @command="referenceCommand"><el-button link type="primary" size="small" :icon="Plus" :disabled="busy">加入參考資料</el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="url">加入連結</el-dropdown-item><el-dropdown-item command="card">加入收藏卡片</el-dropdown-item></el-dropdown-menu></template></el-dropdown>
+          <p v-if="!referencesLoading && !referencesError && !references.length && !validExperimentId" class="reader-hint">尚未加入參考資料。</p>
         </section>
         </div>
       </section>
@@ -195,7 +209,7 @@ const highlightLabel = (record: ExperimentRecordDto) => ({
     </el-form>
     <template #footer="{ requestClose }"><el-button :disabled="savingReference" @click="requestClose">取消</el-button><el-button type="primary" :loading="savingReference" :disabled="!referenceUrl.trim()" @click="addUrlReference">加入參考</el-button></template>
   </AppDialog>
-  <CardPickerDialog v-model="cardPickerVisible" title="加入收藏卡片" description="選擇一張與這筆探索紀錄相關的收藏卡片；原卡片不會被修改。" confirm-label="加入參考" settings-style="plain" :submitting="savingCardReference" @confirm="addCardReference" />
+  <CardPickerDialog v-model="cardPickerVisible" title="加入收藏卡片" description="可一次選擇多張與這筆探索紀錄相關的收藏卡片；原卡片不會被修改。" confirm-label="加入參考" settings-style="plain" :submitting="savingCardReference" multiple :excluded-card-ids="references.filter(reference => reference.kind === 'CARD' && reference.cardId).map(reference => reference.cardId!)" @confirm-many="addCardReferences" />
 </template>
 
 <style scoped src="./experimentRecordDialog.css"></style>
@@ -215,7 +229,7 @@ const highlightLabel = (record: ExperimentRecordDto) => ({
 .reader-summary { flex: 0 0 auto; margin-top: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--el-border-color-lighter); border-radius: var(--radius-md); background: var(--surface-summary); }
 .reader-bottom-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-md); }
 .reader-metadata { min-width: 0; }
-.record-references { min-width: 0; padding-left: var(--space-md); border-left: 1px solid var(--el-border-color-lighter); }
+.record-references { display: flex; min-width: 0; flex-direction: column; padding-left: var(--space-md); border-left: 1px solid var(--el-border-color-lighter); }
 .reader-section-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); margin-bottom: var(--space-xs); }
 .reader-section-heading .record-label { margin: 0; }
 .reader-topic-tags { display: flex; flex-wrap: wrap; gap: var(--space-2xs); }
@@ -228,7 +242,8 @@ const highlightLabel = (record: ExperimentRecordDto) => ({
 .record-badge--peak_experience { border-color: color-mix(in srgb, #7b61a8 45%, var(--el-border-color-light)); background: color-mix(in srgb, #9b7de0 18%, var(--el-fill-color-light)); color: #5c4782; }
 .reader-hint, .reading-empty { margin: 0; color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); }
 :global(.record-reader-dialog .el-dialog__body) { display: flex; min-height: 0; flex: 1 1 auto; overflow: hidden; }
-.reference-list { display: grid; gap: var(--space-xs); margin: 0; padding: 0; list-style: none; }
+.reference-sort { width: 100%; margin: 0 0 var(--space-xs); }
+.reference-list { display: grid; max-height: 180px; gap: var(--space-xs); margin: 0; padding: 0 var(--space-2xs) 0 0; overflow-y: auto; list-style: none; overscroll-behavior: contain; }
 .reference-list li { display: flex; align-items: flex-start; gap: var(--space-xs); }
 .reference-name { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2xs) var(--space-xs); flex: 1; min-width: 0; }
 .reference-name > span:first-child { color: var(--el-text-color-secondary); font-size: var(--type-meta); line-height: var(--leading-ui); }

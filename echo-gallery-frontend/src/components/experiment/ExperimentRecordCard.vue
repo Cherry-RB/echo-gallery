@@ -63,21 +63,21 @@ const command = (value: string) => {
 </template>
 
 <style scoped>
-.record-card { container-type: inline-size; display: flex; min-width: 0; flex-direction: column; align-self: start; gap: var(--space-xs); padding: var(--space-md); border: 1px solid var(--el-border-color); border-radius: var(--radius-md); background: var(--el-bg-color); cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.record-card { position: relative; container-type: inline-size; display: flex; min-width: 0; flex-direction: column; align-self: start; gap: var(--space-xs); padding: var(--space-md); border: 1px solid var(--el-border-color); border-radius: var(--radius-md); background: var(--el-bg-color); cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
 .record-card:hover, .record-card:focus-within { transform: translateY(-2px); border-color: var(--el-color-primary-light-5); box-shadow: var(--el-box-shadow-lighter); }
 .record-card:active { transform: translateY(0); box-shadow: none; }
 .record-card:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .record-card-heading, .record-card-actions, .record-tags { display: flex; gap: var(--space-sm); }
 .record-card-heading { align-items: flex-start; justify-content: space-between; }
 .record-card h3 { display: -webkit-box; min-width: 0; margin: 0; overflow: hidden; color: var(--el-text-color-primary); font-size: var(--type-body); font-weight: var(--weight-semibold); line-height: var(--leading-ui); overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.record-card-actions { flex: 0 0 auto; align-items: center; }
+.record-card-actions { position: absolute; right: var(--space-md); bottom: 8px; flex: 0 0 auto; align-items: center; }
 .record-card time { color: var(--el-text-color-secondary); font-size: var(--type-meta); white-space: nowrap; }
 .practice, .content { display: -webkit-box; margin: 0; overflow: hidden; overflow-wrap: anywhere; -webkit-box-orient: vertical; }
 .practice { color: var(--el-text-color-secondary); font-size: var(--type-secondary); line-height: var(--leading-ui); -webkit-line-clamp: 2; }
 .content { color: var(--el-text-color-regular); font-size: var(--type-secondary); line-height: var(--leading-ui); -webkit-line-clamp: 5; }
-.record-footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); }
-.record-footer time { margin-left: auto; }
-.record-tags { min-width: 0; flex: 1 1 0; align-items: center; flex-wrap: nowrap; overflow: hidden; }
-@container (max-width: 250px) { .record-footer time { flex-basis: 100%; margin-left: 0; text-align: right; } }
+.record-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2xs) var(--space-xs); }
+.record-footer time { grid-column: 1; margin-right: 28px; }
+.record-tags { grid-column: 1 / -1; min-width: 0; align-items: center; flex-wrap: nowrap; overflow: hidden; }
+@container (max-width: 250px) { .record-footer time { margin-right: 28px; text-align: left; } }
 @media (prefers-reduced-motion: reduce) { .record-card { transition: none; }.record-card:hover, .record-card:focus-within { transform: none; } }
 </style>
